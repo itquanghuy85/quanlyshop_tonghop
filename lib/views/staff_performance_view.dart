@@ -275,7 +275,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),

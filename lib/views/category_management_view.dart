@@ -140,7 +140,7 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
             ),
             subtitle: Text(
               _buildSubtitle(category),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -241,7 +241,7 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text('Nhấn để chọn icon', style: TextStyle(fontSize: 12)),
+                    const Text('Nhấn để chọn icon', style: TextStyle(fontSize: 14)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -361,7 +361,7 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Chọn icon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Chọn icon', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
             const SizedBox(height: 16),
             Wrap(
               spacing: 12,

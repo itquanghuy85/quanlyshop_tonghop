@@ -832,7 +832,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.dashboard, size: 14),
                 SizedBox(width: 4),
-                Text('Tổng quan', style: TextStyle(fontSize: 11)),
+                Text('Tổng quan', style: TextStyle(fontSize: 13)),
               ],
             ),
           ),
@@ -843,7 +843,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.arrow_downward, size: 14),
                 SizedBox(width: 4),
-                Text('Thu', style: TextStyle(fontSize: 11)),
+                Text('Thu', style: TextStyle(fontSize: 13)),
               ],
             ),
           ),
@@ -854,7 +854,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.arrow_upward, size: 14),
                 SizedBox(width: 4),
-                Text('Chi', style: TextStyle(fontSize: 11)),
+                Text('Chi', style: TextStyle(fontSize: 13)),
               ],
             ),
           ),
@@ -865,7 +865,7 @@ class _CashClosingViewState extends State<CashClosingView>
               children: [
                 Icon(Icons.history, size: 14),
                 SizedBox(width: 4),
-                Text('Lịch sử', style: TextStyle(fontSize: 11)),
+                Text('Lịch sử', style: TextStyle(fontSize: 13)),
               ],
             ),
           ),
@@ -2328,7 +2328,7 @@ class _CashClosingViewState extends State<CashClosingView>
         children: [
           Text(
             isCash ? '💵' : '🏦',
-            style: const TextStyle(fontSize: 11),
+            style: const TextStyle(fontSize: 13),
           ),
           const SizedBox(width: 4),
           Text(

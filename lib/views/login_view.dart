@@ -124,7 +124,7 @@ class _LoginViewState extends State<LoginView> {
           children: [
             Text(
               AppLocalizations.of(context)!.forgotPasswordDesc,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 16),
             TextField(

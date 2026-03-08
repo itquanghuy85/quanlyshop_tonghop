@@ -128,7 +128,7 @@ class DynamicFormBuilder extends StatelessWidget {
         children: [
           Text(field.label, style: const TextStyle(fontWeight: FontWeight.w500)),
           if (field.description != null)
-            Text(field.description!, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            Text(field.description!, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -253,7 +253,7 @@ class DynamicFormBuilder extends StatelessWidget {
         children: [
           Text(field.label, style: const TextStyle(fontWeight: FontWeight.w500)),
           if (field.description != null)
-            Text(field.description!, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+            Text(field.description!, style: TextStyle(color: Colors.grey[600], fontSize: 14)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -456,7 +456,7 @@ class _CustomFieldsEditorState extends State<CustomFieldsEditor> {
           children: [
             const Text(
               'Thuộc tính tùy chỉnh',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
             ),
             TextButton.icon(
               onPressed: _addField,
@@ -481,7 +481,7 @@ class _CustomFieldsEditorState extends State<CustomFieldsEditor> {
                     ),
                     const Text(
                       'Thêm thuộc tính để thu thập thông tin sản phẩm',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                   ],
                 ),
@@ -504,7 +504,7 @@ class _CustomFieldsEditorState extends State<CustomFieldsEditor> {
                   title: Text(field.label),
                   subtitle: Text(
                     '${field.type.name}${field.required ? ' *' : ''}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.red),

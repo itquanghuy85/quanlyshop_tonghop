@@ -281,7 +281,7 @@ class _LazyLoadListViewState<T> extends State<LazyLoadListView<T>> {
                     'Đã hiển thị ${_filteredItems.length} mục',
                     style: TextStyle(
                       color: Colors.grey[600],
-                      fontSize: 12,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -308,7 +308,7 @@ class _LazyLoadListViewState<T> extends State<LazyLoadListView<T>> {
                 ? 'Không tìm thấy kết quả'
                 : 'Chưa có dữ liệu',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 17,
               color: Colors.grey[600],
             ),
           ),

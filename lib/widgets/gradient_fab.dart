@@ -243,7 +243,7 @@ class _GradientFabState extends State<GradientFab>
                         Text(
                           widget.label,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: widget.textColor ?? Colors.white,
                             letterSpacing: 0.3,

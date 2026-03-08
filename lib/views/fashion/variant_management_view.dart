@@ -136,7 +136,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
                       ),
                       child: Text(
                         '${_warnings!.total}',
-                        style: const TextStyle(fontSize: 10, color: Colors.white),
+                        style: const TextStyle(fontSize: 12, color: Colors.white),
                       ),
                     ),
                   ],
@@ -158,7 +158,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
                       ),
                       child: Text(
                         '${_outOfStock.length}',
-                        style: const TextStyle(fontSize: 10, color: Colors.white),
+                        style: const TextStyle(fontSize: 12, color: Colors.white),
                       ),
                     ),
                   ],
@@ -180,7 +180,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
                       ),
                       child: Text(
                         '${_lowStock.length}',
-                        style: const TextStyle(fontSize: 10, color: Colors.white),
+                        style: const TextStyle(fontSize: 12, color: Colors.white),
                       ),
                     ),
                   ],
@@ -304,7 +304,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
             Text(
               title,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: Colors.grey[600],
               ),
             ),
@@ -402,7 +402,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
             title: Text(product.name),
             subtitle: Text(
               '${summary.totalVariants} phân loại • ${summary.totalStock} tồn kho',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -449,7 +449,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
           columns: [
             const DataColumn(label: Text('Size')),
             ...colors.map((c) => DataColumn(
-              label: Text(c, style: const TextStyle(fontSize: 12)),
+              label: Text(c, style: const TextStyle(fontSize: 14)),
             )),
           ],
           rows: sizes.map((size) {
@@ -524,7 +524,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
             SizedBox(height: 16),
             Text(
               'Không có phân loại nào hết hàng! 🎉',
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 17),
             ),
           ],
         ),
@@ -554,7 +554,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
             SizedBox(height: 16),
             Text(
               'Không có phân loại nào sắp hết! 🎉',
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 17),
             ),
           ],
         ),
@@ -603,7 +603,7 @@ class _VariantManagementViewState extends State<VariantManagementView>
                 color: statusColor,
               ),
             ),
-            const Text('tồn kho', style: TextStyle(fontSize: 10)),
+            const Text('tồn kho', style: TextStyle(fontSize: 12)),
           ],
         ),
         onTap: () => _showEditVariantDialog(variant),
@@ -622,12 +622,12 @@ class _VariantManagementViewState extends State<VariantManagementView>
             const SizedBox(height: 16),
             Text(
               'Chưa có ${_terms.productLabel.toLowerCase()} nào có phân loại',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: const TextStyle(fontSize: 17, color: Colors.grey),
             ),
             const SizedBox(height: 8),
             Text(
               'Thêm phân loại size/màu cho ${_terms.productLabel.toLowerCase()}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
           ],
         ),

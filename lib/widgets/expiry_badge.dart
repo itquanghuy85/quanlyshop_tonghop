@@ -48,7 +48,7 @@ class ExpiryBadge extends StatelessWidget {
             Text(
               text,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: config.textColor,
               ),
@@ -189,7 +189,7 @@ class ExpiryInfoCard extends StatelessWidget {
                     Text(
                       _getTitle(status),
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: _getTextColor(status),
                       ),
@@ -198,7 +198,7 @@ class ExpiryInfoCard extends StatelessWidget {
                     Text(
                       'HSD: ${_formatDate(expiryDate)}',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         color: Colors.grey.shade700,
                       ),
                     ),
@@ -208,7 +208,7 @@ class ExpiryInfoCard extends StatelessWidget {
                       Text(
                         'Lô: ${product.batchNumber}',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -232,7 +232,7 @@ class ExpiryInfoCard extends StatelessWidget {
                   Text(
                     status == ExpiryStatus.expired ? 'ngày trước' : 'ngày',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 13,
                       color: Colors.grey.shade600,
                     ),
                   ),
@@ -402,7 +402,7 @@ class ExpiryStatsWidget extends StatelessWidget {
                   const Text(
                     'Hạn sử dụng',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -455,7 +455,7 @@ class ExpiryStatsWidget extends StatelessWidget {
                       child: Text(
                         'Giá trị gặp rủi ro: ${_formatCurrency(stats.valueAtRisk)}',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 14,
                           color: Colors.orange.shade700,
                           fontWeight: FontWeight.w500,
                         ),
@@ -486,7 +486,7 @@ class ExpiryStatsWidget extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 13,
             color: Colors.grey.shade600,
           ),
           textAlign: TextAlign.center,

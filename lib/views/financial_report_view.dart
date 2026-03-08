@@ -505,7 +505,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
           foregroundColor: Colors.white,
           elevation: 0,
           title: Text(AppLocalizations.of(context)?.financialReportLabel ?? 'Financial Report',
-            style: const TextStyle(color: Colors.white, fontSize: 16)),
+            style: const TextStyle(color: Colors.white, fontSize: 17)),
         ),
         body: Center(
           child: Text(
@@ -584,7 +584,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
         ),
         title: Text(
           AppLocalizations.of(context)?.financialReportLabel ?? 'Financial Report',
-          style: const TextStyle(color: Colors.white, fontSize: 16),
+          style: const TextStyle(color: Colors.white, fontSize: 17),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,

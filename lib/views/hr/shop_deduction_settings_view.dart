@@ -126,7 +126,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 44,
-        title: const Text('Cài đặt Khấu trừ & Thuế', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        title: const Text('Cài đặt Khấu trừ & Thuế', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,
         bottom: TabBar(
@@ -135,8 +135,8 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
           unselectedLabelColor: colorScheme.onPrimaryContainer.withOpacity(0.5),
           indicatorColor: colorScheme.onPrimaryContainer,
           indicatorWeight: 2,
-          labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
+          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontSize: 13),
           tabs: const [
             Tab(icon: Icon(Icons.warning_amber_rounded, size: 18), text: 'Khấu trừ'),
             Tab(icon: Icon(Icons.health_and_safety_rounded, size: 18), text: 'Bảo hiểm'),
@@ -219,7 +219,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Ví dụ: Miễn 2 lần → Đi muộn 5 lần → Trừ 3 lần',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
@@ -300,7 +300,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Ví dụ: Phép 2 ngày → Nghỉ 5 ngày → Trừ 3 ngày',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
@@ -335,7 +335,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.blue.shade900,
-                        fontSize: 12,
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -346,7 +346,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   '• BHYT: 1.5% lương đóng BH\n'
                   '• BHTN: 1% lương đóng BH\n'
                   '• Tổng: 10.5% lương đóng BH',
-                  style: TextStyle(color: Colors.blue.shade800, fontSize: 11),
+                  style: TextStyle(color: Colors.blue.shade800, fontSize: 13),
                 ),
               ],
             ),
@@ -375,7 +375,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             Text(
               'Nếu để 0, hệ thống sẽ dùng lương cơ bản làm mức đóng BH',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontStyle: FontStyle.italic,
                 color: Colors.grey[600],
               ),
@@ -472,13 +472,13 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade900,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
                 Text(
                   '${_settings.totalInsuranceRate.toStringAsFixed(1)}%',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade700,
                   ),
@@ -515,7 +515,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.amber.shade900,
-                        fontSize: 12,
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -529,7 +529,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   '• 32-52 triệu: 25%\n'
                   '• 52-80 triệu: 30%\n'
                   '• Trên 80 triệu: 35%',
-                  style: TextStyle(color: Colors.amber.shade800, fontSize: 11),
+                  style: TextStyle(color: Colors.amber.shade800, fontSize: 13),
                 ),
               ],
             ),
@@ -580,17 +580,17 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 children: [
                   const Text(
                     'Công thức tính:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Thu nhập chịu thuế = GROSS - BH - Giảm trừ bản thân - Giảm trừ người phụ thuộc',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Thuế TNCN = Áp dụng biểu thuế lũy tiến',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -609,7 +609,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                 children: [
                   Text(
                     '📊 Ví dụ tính thuế:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const Divider(),
                   _buildDemoRow('Thu nhập GROSS', 20000000),
@@ -673,7 +673,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
               label,
               style: TextStyle(
                 fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                fontSize: 12,
+                fontSize: 14,
               ),
             ),
           ),
@@ -681,7 +681,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
             _formatCurrency(value),
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              fontSize: 12,
+              fontSize: 14,
               color: isRed ? Colors.red : (value < 0 ? Colors.grey[600] : null),
             ),
           ),
@@ -712,7 +712,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
               DropdownButton<int>(
                 value: _adjMonth,
                 underline: const SizedBox(),
-                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
                 items: List.generate(12, (i) => DropdownMenuItem(
                   value: i + 1,
                   child: Text('Tháng ${i + 1}'),
@@ -728,7 +728,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
               DropdownButton<int>(
                 value: _adjYear,
                 underline: const SizedBox(),
-                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                style: const TextStyle(fontSize: 14, color: Colors.black87),
                 items: List.generate(5, (i) {
                   final y = DateTime.now().year - 2 + i;
                   return DropdownMenuItem(value: y, child: Text('$y'));
@@ -744,7 +744,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
               FilledButton.icon(
                 onPressed: _addNewAdjustment,
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('Thêm', style: TextStyle(fontSize: 12)),
+                label: const Text('Thêm', style: TextStyle(fontSize: 14)),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   minimumSize: Size.zero,
@@ -767,13 +767,13 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
               Expanded(
                 child: Column(
                   children: [
-                    const Text('Thưởng', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const Text('Thưởng', style: TextStyle(fontSize: 13, color: Colors.grey)),
                     const SizedBox(height: 2),
                     Text(
                       '+${_currencyFormat.format(totalBonus)}đ',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
                     ),
-                    Text('${bonuses.length} khoản', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text('${bonuses.length} khoản', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -781,13 +781,13 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
               Expanded(
                 child: Column(
                   children: [
-                    const Text('Khấu trừ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    const Text('Khấu trừ', style: TextStyle(fontSize: 13, color: Colors.grey)),
                     const SizedBox(height: 2),
                     Text(
                       '-${_currencyFormat.format(totalDeduction)}đ',
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red),
                     ),
-                    Text('${deductions.length} khoản', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                    Text('${deductions.length} khoản', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -809,13 +809,13 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                           Text(
                             'Chưa có khoản thưởng/trừ nào\ntháng $_adjMonth/$_adjYear',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                            style: TextStyle(color: Colors.grey[500], fontSize: 14),
                           ),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
                             onPressed: _addNewAdjustment,
                             icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Thêm mới', style: TextStyle(fontSize: 12)),
+                            label: const Text('Thêm mới', style: TextStyle(fontSize: 14)),
                           ),
                         ],
                       ),
@@ -889,12 +889,12 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                                     children: [
                                       Text(
                                         adj.name,
-                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         '${adj.staffName}${adj.note != null && adj.note!.isNotEmpty ? ' • ${adj.note}' : ''}',
-                                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -904,7 +904,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                                 Text(
                                   '${isBonus ? '+' : '-'}${_currencyFormat.format(adj.amount)}đ',
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: isBonus ? Colors.green : Colors.red,
                                   ),
@@ -984,7 +984,7 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                   child: Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -1065,12 +1065,12 @@ class _CurrencyFieldState extends State<_CurrencyField> {
       focusNode: _focusNode,
       keyboardType: TextInputType.number,
       inputFormatters: [MoneyInputFormatter()],
-      style: const TextStyle(fontSize: 13),
+      style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: widget.label,
-        labelStyle: const TextStyle(fontSize: 12),
+        labelStyle: const TextStyle(fontSize: 14),
         suffixText: 'đ',
-        suffixStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+        suffixStyle: const TextStyle(fontSize: 14, color: Colors.grey),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: const OutlineInputBorder(),
@@ -1130,12 +1130,12 @@ class _PercentFieldState extends State<_PercentField> {
       controller: _controller,
       focusNode: _focusNode,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: const TextStyle(fontSize: 13),
+      style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: widget.label,
-        labelStyle: const TextStyle(fontSize: 12),
+        labelStyle: const TextStyle(fontSize: 14),
         suffixText: '%',
-        suffixStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+        suffixStyle: const TextStyle(fontSize: 14, color: Colors.grey),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: const OutlineInputBorder(),
@@ -1197,12 +1197,12 @@ class _NumberFieldState extends State<_NumberField> {
       controller: _controller,
       focusNode: _focusNode,
       keyboardType: TextInputType.number,
-      style: const TextStyle(fontSize: 13),
+      style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: widget.label,
-        labelStyle: const TextStyle(fontSize: 12),
+        labelStyle: const TextStyle(fontSize: 14),
         suffixText: widget.suffix,
-        suffixStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+        suffixStyle: const TextStyle(fontSize: 14, color: Colors.grey),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: const OutlineInputBorder(),

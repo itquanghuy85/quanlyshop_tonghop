@@ -151,7 +151,7 @@ class _GuideDialog extends StatelessWidget {
               children: [
                 const Text(
                   '👋 Chào mừng!',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 Text(
                   title,
@@ -187,7 +187,7 @@ class _GuideDialog extends StatelessWidget {
                   const Expanded(
                     child: Text(
                       'Hướng dẫn này chỉ hiển thị 1 lần',
-                      style: TextStyle(fontSize: 12, color: Colors.black87),
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
                     ),
                   ),
                 ],
@@ -317,7 +317,7 @@ class _CarouselGuideDialogState extends State<_CarouselGuideDialog> {
                   style: TextStyle(
                     color: widget.color,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
               ),

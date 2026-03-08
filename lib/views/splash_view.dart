@@ -455,7 +455,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         child: Text(
           "Quản lý cửa hàng chuyên nghiệp",
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: FontWeight.w400,
             color: Colors.white.withOpacity(0.7),
             letterSpacing: 1,
@@ -488,7 +488,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
                   key: ValueKey(_status),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.5),
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w400,
                     letterSpacing: 0.3,
                   ),

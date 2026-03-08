@@ -278,7 +278,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                 Text(
                   'Tìm thấy ${filtered.length} kết quả',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     color: Colors.grey.shade600,
                     fontStyle: FontStyle.italic,
                   ),

@@ -2297,7 +2297,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                         );
                       },
                       icon: const Icon(Icons.file_download_outlined, size: 16),
-                      label: const Text('Xuất đơn sửa', style: TextStyle(fontSize: 12)),
+                      label: const Text('Xuất đơn sửa', style: TextStyle(fontSize: 14)),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         visualDensity: VisualDensity.compact,
@@ -2319,7 +2319,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       );
                     },
                     icon: const Icon(Icons.file_download_outlined, size: 16),
-                    label: const Text('Xuất đơn bán', style: TextStyle(fontSize: 12)),
+                    label: const Text('Xuất đơn bán', style: TextStyle(fontSize: 14)),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       visualDensity: VisualDensity.compact,

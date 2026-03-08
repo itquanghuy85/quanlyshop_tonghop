@@ -906,7 +906,7 @@ class _SaleListViewState extends State<SaleListView> {
             children: [
               Icon(icon, color: color, size: 22),
               const SizedBox(height: 2),
-              Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),

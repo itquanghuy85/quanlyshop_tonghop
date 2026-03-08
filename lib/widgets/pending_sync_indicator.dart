@@ -139,7 +139,7 @@ class _PendingSyncIndicatorState extends State<PendingSyncIndicator>
       iconWidget = Badge(
         label: Text(
           _pendingCount > 99 ? '99+' : '$_pendingCount',
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         backgroundColor: badgeColor,
         child: iconWidget,
@@ -158,7 +158,7 @@ class _PendingSyncIndicatorState extends State<PendingSyncIndicator>
             _getStatusText(),
             style: TextStyle(
               color: iconColor,
-              fontSize: 12,
+              fontSize: 14,
             ),
           ),
         ],
@@ -331,11 +331,11 @@ class _SyncStatusDialogState extends State<SyncStatusDialog> {
                           leading: const Icon(Icons.error, color: Colors.red, size: 20),
                           title: Text(
                             '${item.entityType.name} #${item.entityId}',
-                            style: const TextStyle(fontSize: 13),
+                            style: const TextStyle(fontSize: 14),
                           ),
                           subtitle: Text(
                             item.lastError ?? 'Unknown error',
-                            style: const TextStyle(fontSize: 11),
+                            style: const TextStyle(fontSize: 13),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -346,7 +346,7 @@ class _SyncStatusDialogState extends State<SyncStatusDialog> {
                           '... và ${_failedItems.length - 5} mục khác',
                           style: TextStyle(
                             color: theme.colorScheme.outline,
-                            fontSize: 12,
+                            fontSize: 14,
                           ),
                         ),
                     ],

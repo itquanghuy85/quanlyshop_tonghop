@@ -150,7 +150,7 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.orange.shade800,
-                  fontSize: 13,
+                  fontSize: 14,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -177,7 +177,7 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
                     child: Text(
                       item.label,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: Colors.grey.shade800,
                       ),
@@ -260,14 +260,14 @@ class FinanceSummaryCard extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.blue.shade700,
-                    fontSize: 12,
+                    fontSize: 14,
                     letterSpacing: 0.5,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   DateFormat('dd/MM').format(DateTime.now()),
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                 ),
                 const SizedBox(width: 4),
                 Icon(Icons.arrow_forward_ios, size: 10, color: Colors.grey.shade400),
@@ -313,13 +313,13 @@ class FinanceSummaryCard extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 4),
         Text(
           value,
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -538,7 +538,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             const SizedBox(width: 10),
             Text(
               'Chưa có hoạt động hôm nay',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
             ),
           ],
         ),
@@ -572,14 +572,14 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.purple.shade600,
-                    fontSize: 12,
+                    fontSize: 14,
                     letterSpacing: 0.5,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '${_activities.length} mục',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                 ),
               ],
             ),
@@ -599,7 +599,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
                   child: Text(
                     'Xem tất cả ›',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: Colors.purple.shade400,
                       fontWeight: FontWeight.w600,
                     ),
@@ -626,7 +626,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             width: 40,
             child: Text(
               time,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
             ),
           ),
           // Icon
@@ -643,7 +643,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           Expanded(
             child: Text(
               item.title,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -653,7 +653,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             Text(
               item.amount,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: item.amountColor,
               ),

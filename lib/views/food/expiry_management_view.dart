@@ -167,7 +167,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
               child: Text(
                 '$count',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: color.shade700,
                 ),
@@ -208,7 +208,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                   'Tổng quan',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -230,7 +230,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                         'Rủi ro: ${_formatCurrency(_stats!.valueAtRisk)}',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -260,7 +260,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                   'cần xử lý',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 11,
+                    fontSize: 13,
                   ),
                 ),
               ],
@@ -295,7 +295,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                       : 'Không có ${_terms.productLabel}',
               style: TextStyle(
                 color: Colors.grey.shade500,
-                fontSize: 16,
+                fontSize: 17,
               ),
             ),
           ],
@@ -344,7 +344,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                       product.name,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 17,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -359,7 +359,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                           '${product.quantity} ${product.unit ?? 'cái'}',
                           style: TextStyle(
                             color: Colors.grey.shade600,
-                            fontSize: 13,
+                            fontSize: 14,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -370,7 +370,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                           _formatCurrency(product.cost * product.quantity),
                           style: TextStyle(
                             color: Colors.grey.shade600,
-                            fontSize: 13,
+                            fontSize: 14,
                           ),
                         ),
                       ],
@@ -387,7 +387,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                             'Lô: ${product.batchNumber}',
                             style: TextStyle(
                               color: Colors.grey.shade600,
-                              fontSize: 12,
+                              fontSize: 14,
                             ),
                           ),
                         ],
@@ -410,7 +410,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                     Text(
                       _formatDate(expiryDate),
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         color: Colors.grey.shade600,
                       ),
                     ),
@@ -434,7 +434,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
             const SizedBox(height: 16),
             Text(
               'Chưa có lô hàng nào',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 17),
             ),
           ],
         ),
@@ -504,7 +504,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                       'Lô: ${batch.batchNumber}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 15,
+                        fontSize: 17,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -512,7 +512,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                       '${batch.productCount} SP • ${batch.totalQuantity} đơn vị',
                       style: TextStyle(
                         color: Colors.grey.shade600,
-                        fontSize: 13,
+                        fontSize: 14,
                       ),
                     ),
                     if (batch.earliestExpiry != null) ...[
@@ -521,7 +521,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                         'HSD: ${_formatDate(batch.earliestExpiry!)}',
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 12,
+                          fontSize: 14,
                         ),
                       ),
                     ],
@@ -542,7 +542,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                       statusText,
                       style: TextStyle(
                         color: statusColor.shade700,
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -551,7 +551,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                   Text(
                     _formatCurrency(batch.totalValue),
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: Colors.grey.shade700,
                     ),
@@ -622,7 +622,7 @@ class _ExpiryManagementViewState extends State<ExpiryManagementView>
                   '${_terms.productLabel[0].toUpperCase()}${_terms.productLabel.substring(1).toLowerCase()} sẽ được cảnh báo khi còn $tempDays ngày đến HSD',
                   style: TextStyle(
                     color: Colors.grey.shade600,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
               ],

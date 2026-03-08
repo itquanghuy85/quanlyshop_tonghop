@@ -781,7 +781,7 @@ class _ExpenseViewState extends State<ExpenseView> {
               const SizedBox(width: 4),
               Text(
                 mode == 'CHI' ? 'CHI PHÍ' : 'THU PHÁT SINH',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.grey.shade500),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.grey.shade500),
               ),
             ],
           ),
@@ -825,14 +825,14 @@ class _ExpenseViewState extends State<ExpenseView> {
                 ),
                 child: Text(
                   _filterType == 'NGÀY' ? 'HÔM NAY' : _filterType == 'TUẦN' ? 'TUẦN NÀY' : 'THÁNG NÀY',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF2E7D32), letterSpacing: 0.3),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2E7D32), letterSpacing: 0.3),
                 ),
               ),
               const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Tổng thu phát sinh', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  Text('Tổng thu phát sinh', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   Text(
                     MoneyUtils.formatCurrency(total),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32)),
@@ -859,7 +859,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                           value: c.value.toDouble(),
                           radius: 16,
                           title: '${pct.round()}%',
-                          titleStyle: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
+                          titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                           titlePositionPercentageOffset: 0.6,
                         );
                       }).toList(),
@@ -876,9 +876,9 @@ class _ExpenseViewState extends State<ExpenseView> {
                       children: [
                         Container(width: 8, height: 8, decoration: BoxDecoration(color: c.color, borderRadius: BorderRadius.circular(2))),
                         const SizedBox(width: 4),
-                        Text(c.label, style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+                        Text(c.label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                         const SizedBox(width: 3),
-                        Text(MoneyUtils.formatCurrency(c.value), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: c.color)),
+                        Text(MoneyUtils.formatCurrency(c.value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.color)),
                       ],
                     )).toList(),
                   ),
@@ -1109,7 +1109,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                   ),
                   child: Text(
                     type,
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.grey.shade600),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.grey.shade600),
                   ),
                 ),
               ),
@@ -1137,7 +1137,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                 children: [
                   Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
                   const SizedBox(width: 4),
-                  Text(_getDateDisplayText(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey.shade700)),
+                  Text(_getDateDisplayText(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey.shade700)),
                 ],
               ),
             ),
@@ -1217,14 +1217,14 @@ class _ExpenseViewState extends State<ExpenseView> {
                 ),
                 child: Text(
                   _filterType == 'NGÀY' ? 'HÔM NAY' : _filterType == 'TUẦN' ? 'TUẦN NÀY' : 'THÁNG NÀY',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFE53935), letterSpacing: 0.3),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE53935), letterSpacing: 0.3),
                 ),
               ),
               const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Tổng chi', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  Text('Tổng chi', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   Text(
                     MoneyUtils.formatCurrency(total),
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFFE53935)),
@@ -1252,7 +1252,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                           value: c.value.toDouble(),
                           radius: 16,
                           title: '${pct.round()}%',
-                          titleStyle: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
+                          titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                           titlePositionPercentageOffset: 0.6,
                         );
                       }).toList(),
@@ -1269,9 +1269,9 @@ class _ExpenseViewState extends State<ExpenseView> {
                       children: [
                         Container(width: 8, height: 8, decoration: BoxDecoration(color: c.color, borderRadius: BorderRadius.circular(2))),
                         const SizedBox(width: 4),
-                        Text(c.label, style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
+                        Text(c.label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                         const SizedBox(width: 3),
-                        Text(MoneyUtils.formatCurrency(c.value), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: c.color)),
+                        Text(MoneyUtils.formatCurrency(c.value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.color)),
                       ],
                     )).toList(),
                   ),
@@ -1330,12 +1330,12 @@ class _ExpenseViewState extends State<ExpenseView> {
               children: [
                 Text(
                   (e['title'] ?? 'Không tên').toString(),
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   "$cat • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -1343,7 +1343,7 @@ class _ExpenseViewState extends State<ExpenseView> {
           ),
           Text(
             "${isIncome ? '+' : '-'}${MoneyUtils.formatCurrency(e['amount'])}",
-            style: TextStyle(color: isIncome ? const Color(0xFF2E7D32) : const Color(0xFFE53935), fontWeight: FontWeight.w700, fontSize: 13),
+            style: TextStyle(color: isIncome ? const Color(0xFF2E7D32) : const Color(0xFFE53935), fontWeight: FontWeight.w700, fontSize: 14),
           ),
           if (e['isPurchaseDebt'] != true)
             SizedBox(

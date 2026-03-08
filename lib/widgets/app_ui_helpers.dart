@@ -59,7 +59,7 @@ class AppUIHelpers {
             title,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 17,
               color: Colors.white,
             ),
           ),
@@ -67,7 +67,7 @@ class AppUIHelpers {
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 color: Colors.white.withOpacity(0.8),
               ),
             ),
@@ -117,7 +117,7 @@ class AppUIHelpers {
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: Colors.white.withOpacity(0.8),
               ),
             ),
@@ -183,7 +183,7 @@ class AppUIHelpers {
                     subtitle,
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
+                      fontSize: 14,
                     ),
                   ),
                 ],
@@ -204,7 +204,7 @@ class AppUIHelpers {
         title,
         style: const TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: 14,
           color: Colors.blueGrey,
           letterSpacing: 0.5,
         ),
@@ -243,13 +243,13 @@ class AppUIHelpers {
           style: TextStyle(
             color: color,
             fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontSize: 16,
           ),
         ),
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
               )
             : null,
         trailing:
@@ -310,7 +310,7 @@ class AppUIHelpers {
                           badgeCount > 9 ? '9+' : badgeCount.toString(),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -324,12 +324,12 @@ class AppUIHelpers {
                 style: TextStyle(
                   color: color,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
               ),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 10, color: Colors.grey),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
@@ -377,7 +377,7 @@ class AppUIHelpers {
                     style: TextStyle(
                       color: color.withOpacity(0.8),
                       fontWeight: FontWeight.w600,
-                      fontSize: 10,
+                      fontSize: 12,
                     ),
                   ),
                 ),
@@ -395,14 +395,14 @@ class AppUIHelpers {
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 17,
               ),
             ),
             if (subtitle != null) ...[
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 9),
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
               ),
             ],
           ],
@@ -429,7 +429,7 @@ class AppUIHelpers {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: Colors.grey,
               ),
@@ -439,7 +439,7 @@ class AppUIHelpers {
               const SizedBox(height: 8),
               Text(
                 subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                 textAlign: TextAlign.center,
               ),
             ],

@@ -355,7 +355,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
               child: Text(
                 AppLocalizations.of(context)!.phoneRepairShopManagement,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: Colors.white.withOpacity(0.85),
                   letterSpacing: 0.5,
@@ -447,7 +447,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
                   Text(
                     feature.title,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       height: 1.2,
@@ -459,7 +459,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
                   Text(
                     feature.subtitle,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 14.5,
                       color: Colors.white.withOpacity(0.75),
                       height: 1.3,
                     ),
@@ -521,7 +521,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
           Text(
             widget.message,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.white,
               letterSpacing: 0.3,
@@ -533,7 +533,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
             Text(
               widget.subMessage!,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: Colors.white.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
@@ -555,7 +555,7 @@ class _LoadingIntroScreenState extends State<LoadingIntroScreen>
         return Text(
           versionText,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 13,
             color: Colors.white.withOpacity(0.4),
             letterSpacing: 0.5,
           ),

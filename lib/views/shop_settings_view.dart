@@ -562,12 +562,12 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                     children: [
                       const Text(
                         'Loại hình kinh doanh',
-                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                       Text(
                         businessTypeName,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: color,
                         ),
@@ -592,7 +592,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                   ),
                   child: Text(
                     f,
-                      style: TextStyle(fontSize: 11, color: color),
+                      style: TextStyle(fontSize: 13, color: color),
                     ),
                   )).toList(),
                 ),
@@ -616,12 +616,12 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         ),
         title: Text(
           hasLocation ? 'Vị trí chấm công đã cài' : 'Chưa cài vị trí chấm công',
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
         subtitle: hasLocation
             ? Text(
                 '${_shopLatitude!.toStringAsFixed(4)}, ${_shopLongitude!.toStringAsFixed(4)}',
-                style: const TextStyle(fontSize: 11),
+                style: const TextStyle(fontSize: 13),
               )
             : null,
         trailing: Row(
@@ -677,7 +677,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           ListTile(
             dense: true,
             leading: Icon(Icons.account_balance_wallet, color: Colors.green.shade700, size: 22),
-            title: const Text('Cài đặt lương & hoa hồng', style: TextStyle(fontSize: 13)),
+            title: const Text('Cài đặt lương & hoa hồng', style: TextStyle(fontSize: 14)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
@@ -688,7 +688,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           ListTile(
             dense: true,
             leading: Icon(Icons.history, color: Colors.orange.shade700, size: 22),
-            title: const Text('Lịch sử điều chỉnh tài chính', style: TextStyle(fontSize: 13)),
+            title: const Text('Lịch sử điều chỉnh tài chính', style: TextStyle(fontSize: 14)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
@@ -699,7 +699,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           ListTile(
             dense: true,
             leading: Icon(Icons.cloud_download, color: Colors.blue.shade700, size: 22),
-            title: const Text('Tải dữ liệu shop từ cloud', style: TextStyle(fontSize: 13)),
+            title: const Text('Tải dữ liệu shop từ cloud', style: TextStyle(fontSize: 14)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: _showDownloadDataDialog,
           ),
@@ -707,7 +707,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           ListTile(
             dense: true,
             leading: Icon(Icons.qr_code_2, color: Colors.blue.shade700, size: 22),
-            title: const Text('Thiết kế Tem sản phẩm', style: TextStyle(fontSize: 13)),
+            title: const Text('Thiết kế Tem sản phẩm', style: TextStyle(fontSize: 14)),
             trailing: const Icon(Icons.chevron_right, size: 20),
             onTap: () => Navigator.push(
               context,
@@ -727,13 +727,13 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         dense: true,
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         leading: Icon(Icons.settings_suggest, color: Colors.grey.shade600, size: 22),
-        title: const Text('Cài đặt nâng cao', style: TextStyle(fontSize: 13)),
+        title: const Text('Cài đặt nâng cao', style: TextStyle(fontSize: 14)),
         children: [
           ListTile(
             dense: true,
             leading: Icon(Icons.restore, color: Colors.amber.shade700, size: 20),
-            title: const Text('Khôi phục dữ liệu cũ', style: TextStyle(fontSize: 12)),
-            subtitle: const Text('Migrate từ shop/tài khoản khác', style: TextStyle(fontSize: 10)),
+            title: const Text('Khôi phục dữ liệu cũ', style: TextStyle(fontSize: 14)),
+            subtitle: const Text('Migrate từ shop/tài khoản khác', style: TextStyle(fontSize: 12)),
             trailing: const Icon(Icons.chevron_right, size: 18),
             onTap: _showDataMigrationDialog,
           ),
@@ -811,7 +811,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
               Expanded(
                 child: Text(
                   "TÌM THẤY DỮ LIỆU CŨ",
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: 17),
                 ),
               ),
             ],
@@ -975,7 +975,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
             Icon(Icons.warning_amber, color: Colors.orange),
             SizedBox(width: 10),
             Expanded(
-              child: Text("XÁC NHẬN MIGRATE", style: TextStyle(fontSize: 16)),
+              child: Text("XÁC NHẬN MIGRATE", style: TextStyle(fontSize: 17)),
             ),
           ],
         ),
@@ -1303,7 +1303,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           children: [
             RichText(
               text: TextSpan(
-                style: const TextStyle(color: Colors.black87, fontSize: 14),
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
                 children: [
                   const TextSpan(text: 'Tải dữ liệu của shop '),
                   TextSpan(

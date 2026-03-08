@@ -355,7 +355,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               label: Text(
                 'Tất cả',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: _selectedModelCategory == null ? FontWeight.bold : FontWeight.normal,
                   color: _selectedModelCategory == null ? Colors.white : Colors.black87,
                 ),
@@ -394,7 +394,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 label: Text(
                   '$category ($count)',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     color: isSelected ? Colors.white : Colors.black87,
                   ),
@@ -1373,7 +1373,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                 style: TextStyle(
                                   color: Colors.blue,
                                   height: 1.3,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
@@ -1462,7 +1462,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                 }
                               },
                               icon: const Icon(Icons.add_circle_outline, size: 16),
-                              label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 12)),
+                              label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 14)),
                               style: TextButton.styleFrom(
                                 foregroundColor: Colors.teal,
                                 padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1976,7 +1976,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             }
                           },
                           icon: const Icon(Icons.add_circle_outline, size: 16),
-                          label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 12)),
+                          label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 14)),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.teal,
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -2495,7 +2495,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                               Text(
                                 'Chưa có ${_terms.category3} nào',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 17,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.grey.shade500,
                                 ),
@@ -2507,7 +2507,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                     : 'Nhấn nút Nhập LK để thêm ${_terms.category3} mới\nhoặc đợi dữ liệu đồng bộ từ Firestore',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 14,
                                   color: Colors.grey.shade400,
                                   height: 1.4,
                                 ),
@@ -2787,7 +2787,7 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
                   Text(
                     'Chọn nhà cung cấp (${widget.suppliers.length})',
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -2796,7 +2796,7 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
                   if (widget.selectedSupplierId != null)
                     TextButton(
                       onPressed: () => widget.onSelected(null),
-                      child: const Text('Bỏ chọn', style: TextStyle(fontSize: 12)),
+                      child: const Text('Bỏ chọn', style: TextStyle(fontSize: 14)),
                     ),
                 ],
               ),
@@ -2862,7 +2862,7 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
-                          subtitle: phone.isNotEmpty ? Text(phone, style: const TextStyle(fontSize: 12)) : null,
+                          subtitle: phone.isNotEmpty ? Text(phone, style: const TextStyle(fontSize: 14)) : null,
                           onTap: () => widget.onSelected(id),
                         );
                       },

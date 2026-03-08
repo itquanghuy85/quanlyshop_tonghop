@@ -239,7 +239,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                   ),
                   child: Text(
                     _permissionGranted ? 'Quyền OK' : 'Chưa cấp quyền',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
                       color: _permissionGranted ? Colors.green.shade800 : Colors.red.shade800),
                   ),
                 ),
@@ -252,7 +252,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                   ),
                   child: Text(
                     _hasFcmToken ? 'Token OK' : 'Chưa có token',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
                       color: _hasFcmToken ? Colors.green.shade800 : Colors.red.shade800),
                   ),
                 ),

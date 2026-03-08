@@ -216,7 +216,7 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
                       title,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 17,
                         color: isSelected ? color : null,
                       ),
                     ),
@@ -225,7 +225,7 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
                       description,
                       style: TextStyle(
                         color: Colors.grey[600],
-                        fontSize: 12,
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -257,7 +257,7 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
         const SizedBox(height: 8),
         Text(
           'Bạn có thể bật/tắt các tính năng theo nhu cầu',
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          style: TextStyle(color: Colors.grey[600], fontSize: 14),
         ),
         const SizedBox(height: 16),
         _buildModuleSwitch(
@@ -311,7 +311,7 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
       child: SwitchListTile(
         secondary: Icon(icon),
         title: Text(title),
-        subtitle: Text(description, style: const TextStyle(fontSize: 12)),
+        subtitle: Text(description, style: const TextStyle(fontSize: 14)),
         value: _selectedModules[key] ?? false,
         onChanged: (v) => setState(() => _selectedModules[key] = v),
       ),
@@ -361,7 +361,7 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
                       .map((e) => Chip(
                             label: Text(
                               _getModuleName(e.key),
-                              style: const TextStyle(fontSize: 11),
+                              style: const TextStyle(fontSize: 13),
                             ),
                             padding: EdgeInsets.zero,
                             visualDensity: VisualDensity.compact,
@@ -391,7 +391,7 @@ class _BusinessTypeWizardState extends State<BusinessTypeWizard> {
               Expanded(
                 child: Text(
                   'Bạn có thể thay đổi cài đặt bất cứ lúc nào trong phần Cài đặt cửa hàng',
-                  style: TextStyle(color: Colors.blue[700], fontSize: 12),
+                  style: TextStyle(color: Colors.blue[700], fontSize: 14),
                 ),
               ),
             ],

@@ -306,8 +306,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Máy in tìm thấy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text('${_discoveredPrinters.length} thiết bị', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                  const Text('Máy in tìm thấy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                  Text('${_discoveredPrinters.length} thiết bị', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                 ],
               ),
             ),
@@ -347,11 +347,11 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   children: [
                     Icon(Icons.lan, size: 14, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
-                    Text(printer.ip, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                    Text(printer.ip, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                     const SizedBox(width: 8),
                     Icon(Icons.speed, size: 14, color: Colors.grey.shade500),
                     const SizedBox(width: 2),
-                    Text('${printer.responseTimeMs}ms', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                    Text('${printer.responseTimeMs}ms', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
                   ],
                 ),
                 trailing: isCurrentIp
@@ -519,8 +519,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppLocalizations.of(context)!.productLabelDesign, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blue)),
-                      Text(AppLocalizations.of(context)!.customizeContentAndFontSize, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Text(AppLocalizations.of(context)!.productLabelDesign, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.blue)),
+                      Text(AppLocalizations.of(context)!.customizeContentAndFontSize, style: const TextStyle(color: Colors.grey, fontSize: 14)),
                     ],
                   ),
                 ),
@@ -547,7 +547,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   color: Colors.orange.shade100,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(AppLocalizations.of(context)!.hot, style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 10)),
+                child: Text(AppLocalizations.of(context)!.hot, style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 12)),
               ),
               onTap: () => Navigator.push(
                 context,
@@ -684,9 +684,9 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppLocalizations.of(context)!.wifiPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(AppLocalizations.of(context)!.wifiPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                       if (_localIp != null)
-                        Text('Mạng: $_localIp', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                        Text('Mạng: $_localIp', style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
                     ],
                   ),
                 ),
@@ -703,7 +703,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                       children: [
                         Icon(Icons.check_circle, size: 14, color: Colors.green.shade600),
                         const SizedBox(width: 4),
-                        Text('Đã cấu hình', style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w500)),
+                        Text('Đã cấu hình', style: TextStyle(fontSize: 13, color: Colors.green.shade700, fontWeight: FontWeight.w500)),
                       ],
                     ),
                   ),
@@ -733,7 +733,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(_savedPrinterName!, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade800)),
-                          Text(_ipCtrl.text.trim(), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          Text(_ipCtrl.text.trim(), style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                         ],
                       ),
                     ),
@@ -809,7 +809,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                             ),
                             child: Text(
                               'Tìm thấy ${_discoveredPrinters.length}',
-                              style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w500),
+                              style: TextStyle(fontSize: 14, color: Colors.green.shade700, fontWeight: FontWeight.w500),
                             ),
                           ),
                       ],
@@ -887,7 +887,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                       Expanded(
                         child: Text(
                           'Tìm thấy ${_discoveredPrinters.length} máy in - Nhấn để xem',
-                          style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.w500, fontSize: 13),
+                          style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.w500, fontSize: 14),
                         ),
                       ),
                       Icon(Icons.arrow_forward_ios, size: 14, color: Colors.green.shade400),
@@ -914,7 +914,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.bluetooth, color: Colors.indigo.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.bluetoothPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.bluetoothPrinter, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
               ],
             ),
             const SizedBox(height: 12),
@@ -937,7 +937,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(_selectedBT!.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text(_selectedBT!.macAddress, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          Text(_selectedBT!.macAddress, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                         ],
                       ),
                     ),
@@ -1019,7 +1019,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               children: [
                 Icon(Icons.receipt_long, color: Colors.orange.shade600),
                 const SizedBox(width: 8),
-                Text(AppLocalizations.of(context)!.receiptSettings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(AppLocalizations.of(context)!.receiptSettings, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
               ],
             ),
             const SizedBox(height: 12),
@@ -1061,7 +1061,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.verified_user),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 helperText: 'Dùng {warrantyPolicy} trong mẫu hóa đơn',
-                helperStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+                helperStyle: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ),
             const SizedBox(height: 12),
@@ -1074,7 +1074,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.swap_horiz),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 helperText: 'Dùng {returnPolicy} trong mẫu hóa đơn',
-                helperStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+                helperStyle: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ),
           ],

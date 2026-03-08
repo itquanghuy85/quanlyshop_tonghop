@@ -215,7 +215,7 @@ class ExcelExportHelper {
                   if (folder != null)
                     Text(
                       'Thư mục: $folder',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                 ] else
                   const Text('File đã được tạo sẵn để chia sẻ.'),

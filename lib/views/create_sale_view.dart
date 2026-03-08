@@ -1950,7 +1950,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 (e) => ChoiceChip(
                   label: Text(
                     e,
-                    style: AppTextStyles.caption.copyWith(fontSize: 11),
+                    style: AppTextStyles.caption.copyWith(fontSize: 13),
                   ),
                   selected: _paymentMethod == e,
                   onSelected: (v) => setState(() {
@@ -1999,7 +1999,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 style: AppTextStyles.caption.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.teal.shade700,
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
               ),
               children: [
@@ -2045,7 +2045,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 style: AppTextStyles.caption.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: diff == 0 ? Colors.green.shade700 : Colors.red.shade700,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                 ),
                               ),
                               if (diff != 0)
@@ -2053,7 +2053,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                   diff > 0 ? "(Dư ${MoneyUtils.formatCurrency(diff)})" : "(Thiếu ${MoneyUtils.formatCurrency(-diff)})",
                                   style: AppTextStyles.caption.copyWith(
                                     color: Colors.red.shade700,
-                                    fontSize: 11,
+                                    fontSize: 13,
                                   ),
                                 ),
                               if (diff == 0)
@@ -2088,7 +2088,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 style: AppTextStyles.caption.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.blue.shade700,
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
               ),
               children: [
@@ -2105,7 +2105,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                             "TRẢ TRƯỚC:",
                             style: AppTextStyles.caption.copyWith(
                               fontWeight: FontWeight.bold,
-                              fontSize: 11,
+                              fontSize: 13,
                             ),
                           ),
                           ...["T.MẶT", "C.KHOẢN"].map(
@@ -2113,7 +2113,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               label: Text(
                                 m,
                                 style: AppTextStyles.caption.copyWith(
-                                  fontSize: 10,
+                                  fontSize: 12,
                                 ),
                               ),
                               selected:
@@ -2174,7 +2174,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 label: Text(
                                   b,
                                   style: AppTextStyles.caption.copyWith(
-                                    fontSize: 10,
+                                    fontSize: 12,
                                   ),
                                 ),
                                 onPressed: () =>
@@ -2255,7 +2255,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                   label: Text(
                                     b,
                                     style: AppTextStyles.caption.copyWith(
-                                      fontSize: 10,
+                                      fontSize: 12,
                                     ),
                                   ),
                                   onPressed: () =>
@@ -2794,7 +2794,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                   ),
                                   child: const Text(
                                     'TẶNG',
-                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ] else if (isDiscounted) ...[
@@ -2807,7 +2807,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                   ),
                                   child: Text(
                                     '-${MoneyUtils.formatCurrency(originalPrice - sellPrice)}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ],
@@ -2826,7 +2826,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               child: Text(
                                 variantName,
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 14,
                                   color: Colors.blue.shade700,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -2867,7 +2867,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   Text(
                     "Tồn kho: ${variant.quantity}",
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: variant.quantity > 0 ? Colors.green : Colors.red,
                     ),
                   ),
@@ -2890,7 +2890,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                         style: TextStyle(
                           color: Colors.grey,
                           decoration: TextDecoration.lineThrough,
-                          fontSize: 12,
+                          fontSize: 14,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -3304,7 +3304,7 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
               child: Text(
                 'Ưu đãi: ${widget.productName}',
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16),
+                    fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ),
             const Divider(height: 1),

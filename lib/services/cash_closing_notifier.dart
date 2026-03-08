@@ -263,7 +263,7 @@ class CashClosingNotifier {
                   const SizedBox(height: 4),
                   Text(
                     "Hoặc liên hệ quản lý để MỞ KHÓA ngày hôm nay.",
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                   ),
                 ],
               ),

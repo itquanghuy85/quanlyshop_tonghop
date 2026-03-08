@@ -3955,8 +3955,8 @@ class DBHelper {
   Future<int> updateDebtPaid(int id, int pay) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     return await (await database).rawUpdate(
-      'UPDATE debts SET paidAmount = paidAmount + ?, status = CASE WHEN (paidAmount + ?) >= totalAmount THEN "paid" ELSE "unpaid" END, updatedAt = ?, isSynced = 0 WHERE id = ?',
-      [pay, pay, now, id],
+      'UPDATE debts SET paidAmount = paidAmount + ?, status = CASE WHEN (paidAmount + ?) >= totalAmount THEN ? ELSE ? END, updatedAt = ?, isSynced = 0 WHERE id = ?',
+      [pay, pay, 'paid', 'unpaid', now, id],
     );
   }
 

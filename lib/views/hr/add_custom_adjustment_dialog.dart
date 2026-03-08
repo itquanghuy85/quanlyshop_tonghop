@@ -253,7 +253,7 @@ class _AddCustomAdjustmentDialogState extends State<AddCustomAdjustmentDialog> {
                     items: _staffList.map((s) {
                       final String id = (s['uid'] ?? s['id'] ?? '').toString();
                       final String name = (s['name'] ?? s['displayName'] ?? 'NV').toString();
-                      return DropdownMenuItem<String>(value: id, child: Text(name, style: const TextStyle(fontSize: 13)));
+                      return DropdownMenuItem<String>(value: id, child: Text(name, style: const TextStyle(fontSize: 14)));
                     }).toList(),
                     onChanged: (v) {
                       setState(() {

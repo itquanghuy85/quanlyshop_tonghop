@@ -104,7 +104,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                 controller: _searchController,
                 decoration: InputDecoration(
                   hintText: 'Tìm khách hàng, SĐT...',
-                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                  hintStyle: TextStyle(fontSize: 14, color: Colors.grey.shade400),
                   prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -126,7 +126,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                   ),
                   contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 ),
-                style: const TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: 14),
               ),
             ),
             // Time filter chips
@@ -154,7 +154,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                         ),
                         child: Text(
                           '${_filtered.length} phiếu • ${MoneyUtils.formatCurrency(_filtered.fold(0, (sum, r) => sum + r.totalReturnAmount))}đ',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.red.shade700),
                         ),
                       ),
                   ],
@@ -186,7 +186,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
   Widget _filterChip(String label, String value) {
     final isActive = _timeFilter == value;
     return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 11, color: isActive ? Colors.white : Colors.grey.shade700)),
+      label: Text(label, style: TextStyle(fontSize: 13, color: isActive ? Colors.white : Colors.grey.shade700)),
       selected: isActive,
       selectedColor: Colors.red.shade600,
       backgroundColor: Colors.grey.shade100,
@@ -210,7 +210,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
             _searchController.text.isNotEmpty || _timeFilter != 'all'
                 ? 'Không tìm thấy phiếu trả hàng phù hợp'
                 : 'Chưa có phiếu trả hàng nào',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
           ),
           if (_searchController.text.isNotEmpty || _timeFilter != 'all') ...[
             const SizedBox(height: 8),
@@ -267,9 +267,9 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                       children: [
                         Text(
                           ret.customerName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
-                        Text(dateStr, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        Text(dateStr, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                       ],
                     ),
                   ),
@@ -278,7 +278,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                     children: [
                       Text(
                         '${MoneyUtils.formatCurrency(ret.totalReturnAmount)}đ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red.shade700),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.red.shade700),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -289,7 +289,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                         child: Text(
                           ret.refundMethod,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: isDebt ? Colors.orange.shade800 : Colors.green.shade800,
                           ),
@@ -308,7 +308,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                     Expanded(
                       child: Text(
                         ret.note!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -320,7 +320,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                 const SizedBox(height: 4),
                 Text(
                   'NV: ${ret.createdBy}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                 ),
               ],
             ],
@@ -387,7 +387,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
               if (ret.note != null && ret.note!.isNotEmpty)
                 _detailRow('Ghi chú', ret.note!),
               const Divider(height: 24),
-              const Text('Sản phẩm trả:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const Text('Sản phẩm trả:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
               const SizedBox(height: 8),
               ...items.map((item) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -402,17 +402,17 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text(item.productName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                           if (item.productImei != null && item.productImei!.isNotEmpty)
-                            Text('IMEI: ${item.productImei}', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                            Text('IMEI: ${item.productImei}', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                         ],
                       ),
                     ),
-                    Text('x${item.quantity}', style: const TextStyle(fontSize: 13)),
+                    Text('x${item.quantity}', style: const TextStyle(fontSize: 14)),
                     const SizedBox(width: 12),
                     Text(
                       '${MoneyUtils.formatCurrency(item.amount)}đ',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700, fontSize: 13),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700, fontSize: 14),
                     ),
                   ],
                 ),
@@ -421,7 +421,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('TỔNG HOÀN:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text('TỔNG HOÀN:', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                   Text(
                     '${MoneyUtils.formatCurrency(ret.totalReturnAmount)}đ',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red.shade700),
@@ -441,8 +441,8 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 120, child: Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 13))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500))),
+          SizedBox(width: 120, child: Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 14))),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
         ],
       ),
     );

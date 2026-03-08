@@ -715,7 +715,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           children: [
             Icon(Icons.delete_forever, color: AppColors.error, size: 22),
             const SizedBox(width: 8),
-            const Text("XÓA ĐƠN BÁN", style: TextStyle(fontSize: 16)),
+            const Text("XÓA ĐƠN BÁN", style: TextStyle(fontSize: 17)),
           ],
         ),
         content: Column(
@@ -746,7 +746,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 children: [
                   const Text(
                     'Hệ thống sẽ tự động:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   _infoRow(Icons.inventory, 'Khôi phục số lượng kho'),
@@ -762,7 +762,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               style: TextStyle(
                 color: AppColors.error,
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: 14,
               ),
             ),
           ],
@@ -989,7 +989,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           Icon(icon, size: 14, color: Colors.blue.shade700),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(text, style: TextStyle(fontSize: 11, color: Colors.blue.shade800)),
+            child: Text(text, style: TextStyle(fontSize: 13, color: Colors.blue.shade800)),
           ),
         ],
       ),
@@ -1177,12 +1177,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                             _allItemsReturned
                                 ? 'ĐÃ TRẢ TOÀN BỘ — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ'
                                 : 'ĐÃ TRẢ 1 PHẦN — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ (${_allReturns.length} lần)',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13,
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
                               color: _allItemsReturned ? Colors.grey.shade700 : Colors.red.shade700),
                           ),
                           ..._allReturns.map((r) => Text(
                             '${r.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.returnDate))} • ${MoneyUtils.formatCurrency(r.totalReturnAmount)}đ${r.note != null && r.note!.isNotEmpty ? ' • ${r.note}' : ''}',
-                            style: TextStyle(fontSize: 11, color: _allItemsReturned ? Colors.grey.shade600 : Colors.red.shade600),
+                            style: TextStyle(fontSize: 13, color: _allItemsReturned ? Colors.grey.shade600 : Colors.red.shade600),
                           )),
                         ],
                       ),
@@ -1354,7 +1354,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(fontSize: 10, color: isDisabled ? Colors.grey : const Color(0xFF0068FF)),
+              style: TextStyle(fontSize: 12, color: isDisabled ? Colors.grey : const Color(0xFF0068FF)),
             ),
           ],
         ),

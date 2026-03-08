@@ -264,7 +264,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
                     Text(
                       loc?.switchShop ?? 'Chọn cửa hàng',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         color: Colors.grey,
                         fontWeight: FontWeight.w500,
                       ),
@@ -324,7 +324,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
                         'Bạn chưa có cửa hàng nào. Tạo chi nhánh đầu tiên!',
                         style: TextStyle(
                           color: Colors.orange.shade800,
-                          fontSize: 13,
+                          fontSize: 14,
                         ),
                       ),
                     ),
@@ -560,7 +560,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
             children: [
               const Text(
                 '⚠️ Cảnh báo: Xóa chi nhánh sẽ xóa TẤT CẢ dữ liệu liên quan (đơn sửa chữa, sản phẩm, công nợ...). Hành động này KHÔNG THỂ hoàn tác!',
-                style: TextStyle(color: Colors.red, fontSize: 13),
+                style: TextStyle(color: Colors.red, fontSize: 14),
               ),
               const SizedBox(height: 16),
               const Text('Chọn chi nhánh cần xóa:'),
@@ -570,7 +570,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
                   title: Text(shop['name'] ?? 'Unknown'),
                   subtitle: Text(
                     shop['address'] ?? '',
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 14),
                   ),
                   value: shop['id'],
                   groupValue: selectedShopId,
@@ -789,7 +789,7 @@ class _CurrentShopIndicatorState extends State<CurrentShopIndicator> {
           Text(
             _shopName!,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               color: Colors.white,
               fontWeight: FontWeight.w500,
             ),

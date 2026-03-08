@@ -140,7 +140,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                                 AppLocalizations.of(context)!.learnHowToUseApp,
                                 style: const TextStyle(
                                   color: Colors.white70,
-                                  fontSize: 14,
+                                  fontSize: 16,
                                 ),
                               ),
                             ],
@@ -324,7 +324,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
         Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 14,
             color: Colors.grey.shade600,
           ),
         ),
@@ -347,7 +347,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               color: Colors.grey.shade600,
             ),
           ),
@@ -393,7 +393,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: 16,
               ),
             ),
             const SizedBox(height: 8),
@@ -405,7 +405,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                   section.estimatedTime,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
                 const Spacer(),
@@ -457,7 +457,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
           section.description,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
         ),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -469,7 +469,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
             AppLocalizations.of(context)!.newLabel,
             style: const TextStyle(
               color: Colors.green,
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -511,7 +511,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                       module.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 17,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -521,7 +521,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.grey.shade600,
-                        fontSize: 13,
+                        fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -537,7 +537,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                             '$sectionCount bài',
                             style: TextStyle(
                               color: module.color,
-                              fontSize: 12,
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -661,7 +661,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                     style: TextStyle(
                       color: color,
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 17,
                     ),
                   ),
                 ),
@@ -678,7 +678,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                             section.title,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                              fontSize: 17,
                             ),
                           ),
                         ),
@@ -691,7 +691,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                             ),
                             child: Text(
                               AppLocalizations.of(context)!.newLabel,
-                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
                       ],
@@ -701,7 +701,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
                       section.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -741,7 +741,7 @@ class _UserGuideViewState extends State<UserGuideView> with SingleTickerProvider
             label,
             style: TextStyle(
               color: color,
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -957,7 +957,7 @@ class _SectionDetailPage extends StatelessWidget {
                                 const SizedBox(width: 6),
                                 Text(
                                   module.title,
-                                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                                  style: const TextStyle(color: Colors.white, fontSize: 14),
                                 ),
                               ],
                             ),
@@ -1001,7 +1001,7 @@ class _SectionDetailPage extends StatelessWidget {
                   Text(
                     section.description,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       color: Colors.black87, // FIX: Màu đen rõ ràng
                       height: 1.5,
                     ),
@@ -1121,7 +1121,7 @@ class _SectionDetailPage extends StatelessWidget {
                       children: [
                         Text(
                           AppLocalizations.of(context)!.wasArticleHelpful,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -1190,7 +1190,7 @@ class _SectionDetailPage extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: 14,
             ),
           ),
         ],
@@ -1254,7 +1254,7 @@ class _SectionDetailPage extends StatelessWidget {
                   step.title,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontSize: 17,
                     color: Colors.black87, // FIX: Đảm bảo màu đen
                   ),
                 ),
@@ -1283,7 +1283,7 @@ class _SectionDetailPage extends StatelessWidget {
                           child: Text(
                             step.note!,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 14,
                               color: Colors.blue.shade700,
                             ),
                           ),

@@ -873,7 +873,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
             const Icon(Icons.keyboard, color: Colors.blue),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('NHẬP ${_terms.specialField1Label.toUpperCase()} THỦ CÔNG', style: const TextStyle(fontSize: 16)),
+              child: Text('NHẬP ${_terms.specialField1Label.toUpperCase()} THỦ CÔNG', style: const TextStyle(fontSize: 17)),
             ),
           ],
         ),
@@ -903,7 +903,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                       Expanded(
                         child: Text(
                           'Dùng khi QR bị mờ hoặc rách.\nNhập ${_terms.specialField1Label} in trên máy để check.',
-                          style: const TextStyle(fontSize: 11),
+                          style: const TextStyle(fontSize: 13),
                         ),
                       ),
                     ],
@@ -925,9 +925,9 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                     ),
                     isDense: true,
                     helperText: '${_terms.specialField1Label} thường có 15 số',
-                    helperStyle: const TextStyle(fontSize: 11),
+                    helperStyle: const TextStyle(fontSize: 13),
                   ),
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 16),
                   keyboardType: TextInputType.number,
                   autofocus: true,
                   onSubmitted: (value) {
@@ -942,7 +942,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   const SizedBox(height: 8),
                   const Text(
                     'Đã scan gần đây:',
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                    style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                   const SizedBox(height: 4),
                   Wrap(
@@ -958,7 +958,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                           id.length > 8
                               ? '...${id.substring(id.length - 8)}'
                               : id,
-                          style: const TextStyle(fontSize: 10),
+                          style: const TextStyle(fontSize: 12),
                         ),
                         onPressed: () {
                           controller.text = id;
@@ -1696,7 +1696,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                       Text(
                         '${item['type']} ${item['name']}',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: isChecked ? Colors.green.shade700 : null,
                           decoration: isChecked
@@ -1710,7 +1710,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                       Text(
                         item['identifier'] as String,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           color: isChecked
                               ? Colors.green.shade600
                               : Colors.grey[600],
@@ -1899,7 +1899,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                         Text(
                           item['identifier'] as String,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 14,
                             color: Colors.grey.shade600,
                           ),
                         ),
@@ -1928,7 +1928,7 @@ class _FastInventoryCheckViewState extends State<FastInventoryCheckView> {
                   const Expanded(
                     child: Text(
                       'Dùng khi QR bị mờ/rách và đã xác nhận bằng mắt',
-                      style: TextStyle(fontSize: 11),
+                      style: TextStyle(fontSize: 13),
                     ),
                   ),
                 ],

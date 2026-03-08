@@ -731,7 +731,7 @@ class OrderListViewState extends State<OrderListView> {
                     Expanded(
                       child: Text(
                         loc.orderHasAccounting(_formatMoney(r.price), _formatMoney(r.cost)),
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 14),
                       ),
                     ),
                   ],
@@ -755,15 +755,15 @@ class OrderListViewState extends State<OrderListView> {
                       children: [
                         const Icon(Icons.build, color: Colors.blue, size: 20),
                         const SizedBox(width: 8),
-                        Text(loc.orderHasParts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        Text(loc.orderHasParts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(r.partsUsed, style: const TextStyle(fontSize: 11, color: Colors.blue)),
+                    Text(r.partsUsed, style: const TextStyle(fontSize: 13, color: Colors.blue)),
                     const SizedBox(height: 4),
                     Text(
                       loc.partsWillReturn,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green),
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
                     ),
                   ],
                 ),
@@ -1389,7 +1389,7 @@ class OrderListViewState extends State<OrderListView> {
                       ),
                       textColor: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 10,
+                      fontSize: 12,
                     ),
                     // Khách hàng + SĐT (gom xuống chip)
                     _repairInfoChip(
@@ -1397,7 +1397,7 @@ class OrderListViewState extends State<OrderListView> {
                       Colors.grey.shade200,
                       textColor: Colors.grey.shade800,
                       fontWeight: FontWeight.w600,
-                      fontSize: 10,
+                      fontSize: 12,
                     ),
                     // Ngày tạo
                     _repairInfoChip(
@@ -1405,7 +1405,7 @@ class OrderListViewState extends State<OrderListView> {
                       Colors.grey.shade200,
                       textColor: Colors.grey.shade800,
                       fontWeight: FontWeight.w600,
-                      fontSize: 10,
+                      fontSize: 12,
                     ),
                     // Lỗi / Vấn đề
                     if (r.issue.isNotEmpty)

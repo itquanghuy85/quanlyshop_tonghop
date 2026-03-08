@@ -450,7 +450,7 @@ class _RegisterViewState extends State<RegisterView> {
                     Expanded(
                       child: Text(
                         r['desc'] as String,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -526,7 +526,7 @@ class _RegisterViewState extends State<RegisterView> {
             Expanded(
               child: Text(
                 desc,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

@@ -180,7 +180,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
                   child: Text(
                     'Kéo thả để sắp xếp • Bật/tắt để ẩn hiện',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       color: Colors.blue.shade700,
                       fontWeight: FontWeight.w500,
                     ),
@@ -309,7 +309,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
               child: Text(
                 '$visibleCards thẻ · $visibleShortcuts lối tắt',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: Colors.green.shade700,
                 ),
@@ -326,7 +326,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
               child: Text(
                 '$hiddenCards · $hiddenShortcuts ẩn',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey.shade600,
                 ),
@@ -397,7 +397,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
             config.displayName,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 14,
+              fontSize: 16,
               color: config.visible ? Colors.black87 : Colors.grey,
             ),
           ),
@@ -407,7 +407,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
                 child: Text(
                   config.description,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
                     color: Colors.grey.shade500,
                   ),
                 ),
@@ -422,7 +422,7 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
                   child: Text(
                     'Chủ shop',
                     style: TextStyle(
-                      fontSize: 9,
+                      fontSize: 11,
                       color: Colors.orange.shade700,
                       fontWeight: FontWeight.w600,
                     ),
@@ -491,16 +491,16 @@ class _DashboardSettingsViewState extends State<DashboardSettingsView>
             sc.displayName,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 14,
+              fontSize: 16,
               color: sc.visible ? Colors.black87 : Colors.grey,
             ),
           ),
           subtitle: sc.requiresRepair
               ? Text('Yêu cầu module sửa chữa',
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
               : sc.requiresWarranty
                   ? Text('Yêu cầu module bảo hành',
-                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500))
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500))
                   : null,
           trailing: Switch.adaptive(
             value: sc.visible,

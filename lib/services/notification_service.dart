@@ -1013,7 +1013,7 @@ class NotificationService {
                   const SizedBox(height: 4),
                   Text(
                     body,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),

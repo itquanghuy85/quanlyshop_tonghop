@@ -1260,7 +1260,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               const SizedBox(height: 16),
               Text(
                 loc.partsWillBeAddedAndDeducted,
-                style: const TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 14),
               ),
             ],
           ),
@@ -1544,7 +1544,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           children: [
             Icon(Icons.delete_sweep, color: Colors.red),
             SizedBox(width: 8),
-            Text('XÓA PHỤ TÙNG', style: TextStyle(fontSize: 16)),
+            Text('XÓA PHỤ TÙNG', style: TextStyle(fontSize: 17)),
           ],
         ),
         content: SizedBox(
@@ -1555,7 +1555,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             children: [
               const Text(
                 'Chọn phụ tùng cần xóa và trả lại kho:',
-                style: TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 12),
               ...parts.asMap().entries.map((entry) {
@@ -1724,7 +1724,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             Icon(Icons.swap_horiz, color: Colors.deepPurple),
             SizedBox(width: 8),
             Expanded(
-              child: Text('ĐỔI PHỤ TÙNG', style: TextStyle(fontSize: 16)),
+              child: Text('ĐỔI PHỤ TÙNG', style: TextStyle(fontSize: 17)),
             ),
           ],
         ),
@@ -1736,7 +1736,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             children: [
               const Text(
                 'Chọn phụ tùng cần đổi:',
-                style: TextStyle(fontSize: 13),
+                style: TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 12),
               ...parts.asMap().entries.map((entry) {
@@ -1955,7 +1955,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             const SizedBox(height: 8),
             const Text(
               'Ghi chi phí này vào sổ quỹ để cập nhật biến động quỹ tiền mặt / ngân hàng?',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
           ],
         ),
@@ -2022,7 +2022,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             children: [
               Text(
                 dialogLoc.repairProcessNotes,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -2232,7 +2232,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ),
               Text(
                 r.model,
-                style: const TextStyle(fontSize: 11, color: Colors.white70),
+                style: const TextStyle(fontSize: 13, color: Colors.white70),
               ),
             ],
           ),
@@ -2735,7 +2735,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         children: [
           Text(
             label,
-            style: AppTextStyles.overline.copyWith(color: color, fontSize: 9),
+            style: AppTextStyles.overline.copyWith(color: color, fontSize: 11),
           ),
           Text(
             MoneyUtils.formatCurrency(value),
@@ -2771,7 +2771,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             const SizedBox(width: 4),
             Text(
               label,
-              style: AppTextStyles.caption.copyWith(color: color, fontSize: 11),
+              style: AppTextStyles.caption.copyWith(color: color, fontSize: 13),
             ),
           ],
         ),
@@ -3632,7 +3632,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               'TT: ${s.paymentMethod}',
                               style: AppTextStyles.caption.copyWith(
                                 color: Colors.grey,
-                                fontSize: 11,
+                                fontSize: 13,
                               ),
                             ),
                         ],
@@ -4453,7 +4453,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                     Text(
                       'NHẬP LK MỚI',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: Colors.orange.shade700,
                       ),
@@ -4752,7 +4752,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
         children: [
           const Icon(Icons.payment, color: Colors.green),
           const SizedBox(width: 10),
-          Text(loc.partsPaymentTitle, style: const TextStyle(fontSize: 16)),
+          Text(loc.partsPaymentTitle, style: const TextStyle(fontSize: 17)),
         ],
       ),
       content: SingleChildScrollView(
@@ -4774,7 +4774,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
                   Text(
                     loc.totalPartsAmount,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: Colors.green.shade700,
                     ),
                   ),
@@ -4795,7 +4795,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
             // Mô tả phụ tùng
             Text(
               loc.partsDesc(widget.partsDescription),
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 16),
 
@@ -4815,7 +4815,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
             // Chọn phương thức thanh toán
             Text(
               loc.paymentMethodLabel,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             const SizedBox(height: 8),
 
@@ -4850,7 +4850,7 @@ class _PartsPaymentDialogState extends State<_PartsPaymentDialog> {
                       child: Text(
                         loc.debtWarning,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 13,
                           color: Colors.orange.shade700,
                         ),
                       ),

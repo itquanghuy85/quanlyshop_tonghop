@@ -417,7 +417,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                     child: Text(
                       '$_unsyncedCount',
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -555,7 +555,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
         style: TextStyle(
           color: isSelected ? Colors.white : color,
           fontWeight: FontWeight.w600,
-          fontSize: 12,
+          fontSize: 14,
         ),
       ),
       selected: isSelected,
@@ -611,14 +611,14 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
           const SizedBox(height: 16),
           Text(
             message,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 17),
           ),
           if (_currentFilter == QuickInputFilter.all &&
               _searchQuery.isEmpty) ...[
             const SizedBox(height: 8),
             Text(
               'Tạo mã để nhập kho nhanh hơn',
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -688,7 +688,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                           code.name,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 14,
                             color: code.isActive ? Colors.black87 : Colors.grey,
                             decoration: code.isActive
                                 ? null
@@ -704,7 +704,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                                 ? '${code.brand ?? ''} ${code.model ?? ''}'.trim()
                                 : code.description ?? '',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 13,
                               color: Colors.grey.shade600,
                             ),
                             maxLines: 1,
@@ -733,7 +733,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                       code.isActive ? 'BẬT' : 'TẮT',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 9,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -778,7 +778,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                         children: [
                           Icon(Icons.bolt, size: 12),
                           SizedBox(width: 2),
-                          Text('Nhanh', style: TextStyle(fontSize: 10)),
+                          Text('Nhanh', style: TextStyle(fontSize: 12)),
                         ],
                       ),
                     ),
@@ -795,7 +795,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Text('Đầy đủ', style: TextStyle(fontSize: 10)),
+                      child: const Text('Đầy đủ', style: TextStyle(fontSize: 12)),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -826,7 +826,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
         color: color,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 10)),
+      child: Text(text, style: const TextStyle(fontSize: 12)),
     );
   }
 
@@ -841,13 +841,13 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
             width: 100,
             child: Text(
               label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -865,12 +865,12 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
       ),
       child: Column(
         children: [
-          Text(label, style: TextStyle(fontSize: 10, color: color)),
+          Text(label, style: TextStyle(fontSize: 12, color: color)),
           const SizedBox(height: 2),
           Text(
             '${NumberFormat('#,###').format(amount)}đ',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -903,7 +903,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
@@ -1143,7 +1143,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                       isEditing ? 'SỬA MÃ NHẬP NHANH' : 'THÊM MÃ NHẬP NHANH',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -1173,7 +1173,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         'LOẠI SẢN PHẨM',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Colors.grey,
                         ),
                       ),
@@ -1318,7 +1318,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         // Màu sắc - Color Chips Selector
                         const Text(
                           'Màu sắc',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -1372,7 +1372,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                                     Text(
                                       colorName,
                                       style: TextStyle(
-                                        fontSize: 11,
+                                        fontSize: 13,
                                         fontWeight: isSelected
                                             ? FontWeight.bold
                                             : FontWeight.normal,
@@ -1432,7 +1432,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         // Màu sắc cho phụ kiện - Color Chips Selector
                         const Text(
                           'Màu sắc (nếu có)',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -1486,7 +1486,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                                     Text(
                                       colorName,
                                       style: TextStyle(
-                                        fontSize: 10,
+                                        fontSize: 12,
                                         fontWeight: isSelected
                                             ? FontWeight.bold
                                             : FontWeight.normal,
@@ -1509,7 +1509,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         'GIÁ TIỀN',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Colors.grey,
                         ),
                       ),
@@ -1538,7 +1538,7 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                         'THÔNG TIN KHÁC',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                          fontSize: 14,
                           color: Colors.grey,
                         ),
                       ),

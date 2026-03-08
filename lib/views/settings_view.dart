@@ -230,7 +230,7 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 8),
             Text(
               loc.typeToConfirm,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             TextField(
               controller: confirmTextC,
@@ -329,7 +329,7 @@ class _SettingsViewState extends State<SettingsView> {
                                 localizations.languageApp,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                                  fontSize: 17,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -337,7 +337,7 @@ class _SettingsViewState extends State<SettingsView> {
                                 localizations.selectLanguage,
                                 style: TextStyle(
                                   color: Colors.grey.shade600,
-                                  fontSize: 12,
+                                  fontSize: 14,
                                 ),
                               ),
                             ],
@@ -358,7 +358,7 @@ class _SettingsViewState extends State<SettingsView> {
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               color: Colors.blue,
-                              fontSize: 14,
+                              fontSize: 16,
                             ),
                             items: [
                               DropdownMenuItem(
@@ -1046,7 +1046,7 @@ class _SettingsViewState extends State<SettingsView> {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
           color: color,
         ),

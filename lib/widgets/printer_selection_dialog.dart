@@ -258,8 +258,8 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(_printerName!, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade800, fontSize: 13)),
-                                  Text(_wifiIp, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                                  Text(_printerName!, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal.shade800, fontSize: 14)),
+                                  Text(_wifiIp, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                                 ],
                               ),
                             ),
@@ -286,7 +286,7 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
                     const SizedBox(height: 6),
                     Text(
                       'Port: 9100 (mặc định)',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.5), fontSize: 11),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.onSurface.withOpacity(0.5), fontSize: 13),
                     ),
                     const SizedBox(height: 10),
 
@@ -327,7 +327,7 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
                       const SizedBox(height: 10),
                       Text(
                         'Máy in tìm thấy (${_discoveredPrinters.length}):',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.teal.shade800),
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.teal.shade800),
                       ),
                       const SizedBox(height: 6),
                       ...(_discoveredPrinters.map((printer) {
@@ -367,13 +367,13 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
                                           printer.ip,
                                           style: TextStyle(
                                             fontWeight: FontWeight.w600,
-                                            fontSize: 13,
+                                            fontSize: 14,
                                             color: isSelected ? Colors.teal.shade800 : null,
                                           ),
                                         ),
                                         Text(
                                           '${printer.name} - ${printer.responseTimeMs}ms',
-                                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                          style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                                         ),
                                       ],
                                     ),
@@ -448,8 +448,8 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: isSelected ? iconColor : null)),
-                  Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), overflow: TextOverflow.ellipsis),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: isSelected ? iconColor : null)),
+                  Text(subtitle, style: TextStyle(fontSize: 13, color: Colors.grey.shade500), overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),

@@ -61,12 +61,12 @@ class SalarySlipPdfService {
     final fontBold = await PdfGoogleFonts.robotoBold();
     final fontItalic = await PdfGoogleFonts.robotoItalic();
 
-    final baseStyle = pw.TextStyle(font: font, fontSize: 10);
-    final boldStyle = pw.TextStyle(font: fontBold, fontSize: 10);
+    final baseStyle = pw.TextStyle(font: font, fontSize: 14);
+    final boldStyle = pw.TextStyle(font: fontBold, fontSize: 14);
     final headerStyle = pw.TextStyle(font: fontBold, fontSize: 14);
     final titleStyle = pw.TextStyle(font: fontBold, fontSize: 18);
-    final smallStyle = pw.TextStyle(font: font, fontSize: 8);
-    final italicStyle = pw.TextStyle(font: fontItalic, fontSize: 9);
+    final smallStyle = pw.TextStyle(font: font, fontSize: 12);
+    final italicStyle = pw.TextStyle(font: fontItalic, fontSize: 13);
 
     pdf.addPage(
       pw.Page(
@@ -683,7 +683,7 @@ class SalarySlipPdfService {
                 'Bằng chữ: ${_numberToVietnamese(data.totalSalary.round())}',
                 style: pw.TextStyle(
                   font: boldStyle.font,
-                  fontSize: 9,
+                  fontSize: 13,
                   color: PdfColors.green800,
                   fontStyle: pw.FontStyle.italic,
                 ),
@@ -1243,9 +1243,9 @@ class SalarySlipPdfService {
     final font = await PdfGoogleFonts.robotoRegular();
     final fontBold = await PdfGoogleFonts.robotoBold();
 
-    final baseStyle = pw.TextStyle(font: font, fontSize: 9);
-    final boldStyle = pw.TextStyle(font: fontBold, fontSize: 9);
-    final headerStyle = pw.TextStyle(font: fontBold, fontSize: 12);
+    final baseStyle = pw.TextStyle(font: font, fontSize: 13);
+    final boldStyle = pw.TextStyle(font: fontBold, fontSize: 13);
+    final headerStyle = pw.TextStyle(font: fontBold, fontSize: 14);
     final titleStyle = pw.TextStyle(font: fontBold, fontSize: 16);
 
     pdf.addPage(
@@ -1421,7 +1421,7 @@ class SalarySlipPdfService {
                     _formatCurrency(
                       salaries.fold(0.0, (s, d) => s + d.totalSalary),
                     ),
-                    boldStyle.copyWith(color: PdfColors.green900, fontSize: 11),
+                    boldStyle.copyWith(color: PdfColors.green900, fontSize: 13),
                   ),
                 ],
               ),

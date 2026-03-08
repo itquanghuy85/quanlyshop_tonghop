@@ -2401,7 +2401,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               Text(
                 'Tùy chỉnh',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 13,
                   color: Colors.grey.shade600,
                   fontWeight: FontWeight.w500,
                 ),
@@ -2972,7 +2972,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
-                              fontSize: 9,
+                              fontSize: 11,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -3010,7 +3010,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 10,
+                                  fontSize: 12,
                                 ),
                               ),
                             ),
@@ -3092,7 +3092,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   child: Icon(Icons.remove_circle, color: Colors.red.shade700, size: 20),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(child: Text("GHI CHI PHÍ NHANH", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red))),
+                const Expanded(child: Text("GHI CHI PHÍ NHANH", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.red))),
               ],
             ),
             content: SingleChildScrollView(
@@ -3102,14 +3102,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("PHÂN LOẠI", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    Text("PHÂN LOẠI", style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
                       children: ["CỐ ĐỊNH", "PHÁT SINH", "LƯƠNG", "MẶT BẰNG", "ĐIỆN NƯỚC", "KHÁC"].map(
                         (c) => ChoiceChip(
-                          label: Text(c, style: const TextStyle(fontSize: 11)),
+                          label: Text(c, style: const TextStyle(fontSize: 13)),
                           selected: category == c,
                           onSelected: (v) => setS(() => category = c),
                           visualDensity: VisualDensity.compact,
@@ -3127,7 +3127,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(fontSize: 14),
                       textCapitalization: TextCapitalization.characters,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Nhập nội dung' : null,
                     ),
@@ -3148,10 +3148,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(fontSize: 14),
                     ),
                     const SizedBox(height: 10),
-                    Text("THANH TOÁN", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    Text("THANH TOÁN", style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Row(
                       children: ["TIỀN MẶT", "CHUYỂN KHOẢN"].map(
@@ -3159,7 +3159,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                           child: Padding(
                             padding: const EdgeInsets.only(right: 4),
                             child: ChoiceChip(
-                              label: Text(m, style: const TextStyle(fontSize: 11)),
+                              label: Text(m, style: const TextStyle(fontSize: 13)),
                               selected: payMethod == m,
                               onSelected: (v) => setS(() => payMethod = m),
                               visualDensity: VisualDensity.compact,
@@ -3245,7 +3245,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   child: Icon(Icons.add_circle, color: Colors.green.shade700, size: 20),
                 ),
                 const SizedBox(width: 10),
-                const Expanded(child: Text("GHI THU PHÁT SINH", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green))),
+                const Expanded(child: Text("GHI THU PHÁT SINH", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.green))),
               ],
             ),
             content: SingleChildScrollView(
@@ -3255,14 +3255,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("PHÂN LOẠI", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    Text("PHÂN LOẠI", style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
                       children: ["PHÁT SINH", "DỊCH VỤ", "HOÀN TIỀN", "BÁN TÀI SẢN", "KHÁC"].map(
                         (c) => ChoiceChip(
-                          label: Text(c, style: const TextStyle(fontSize: 11)),
+                          label: Text(c, style: const TextStyle(fontSize: 13)),
                           selected: category == c,
                           onSelected: (v) => setS(() => category = c),
                           visualDensity: VisualDensity.compact,
@@ -3280,7 +3280,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(fontSize: 14),
                       textCapitalization: TextCapitalization.characters,
                       validator: (v) => (v == null || v.trim().isEmpty) ? 'Nhập nội dung' : null,
                     ),
@@ -3301,10 +3301,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
-                      style: const TextStyle(fontSize: 13),
+                      style: const TextStyle(fontSize: 14),
                     ),
                     const SizedBox(height: 10),
-                    Text("THANH TOÁN", style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                    Text("THANH TOÁN", style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Row(
                       children: ["TIỀN MẶT", "CHUYỂN KHOẢN"].map(
@@ -3312,7 +3312,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                           child: Padding(
                             padding: const EdgeInsets.only(right: 4),
                             child: ChoiceChip(
-                              label: Text(m, style: const TextStyle(fontSize: 11)),
+                              label: Text(m, style: const TextStyle(fontSize: 13)),
                               selected: payMethod == m,
                               onSelected: (v) => setS(() => payMethod = m),
                               visualDensity: VisualDensity.compact,
@@ -3514,7 +3514,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                           const SizedBox(width: 3),
                           Text(
                             'Sửa',
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                           ),
                         ],
                       ),
@@ -3630,7 +3630,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     child: const Text(
                       'Xong',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -3646,7 +3646,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             padding: const EdgeInsets.only(bottom: 10),
             child: Text(
               'Nhấn để ẩn/hiện • Sắp xếp thứ tự trong Cài đặt',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
             ),
           ),
 
@@ -3726,7 +3726,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                         Text(
                           config.displayName,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: color.withOpacity(isVisible ? 0.9 : 0.5),
                           ),
@@ -3765,7 +3765,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     Text(
                       'Sắp xếp thứ tự & cài đặt nâng cao',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         color: Colors.blue.shade400,
                         fontWeight: FontWeight.w500,
                       ),
@@ -5689,7 +5689,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     if (subtitle != null)
                       Text(
                         subtitle,
-                        style: TextStyle(fontSize: 10, color: color.withOpacity(0.7)),
+                        style: TextStyle(fontSize: 12, color: color.withOpacity(0.7)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -5798,7 +5798,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.orange.shade700,
-                    fontSize: 12,
+                    fontSize: 14,
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -5806,7 +5806,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 Text(
                   'Tổng: ${MoneyUtils.formatVND(totalDebtRemain)}đ',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: totalDebtRemain > 0 ? Colors.red.shade600 : Colors.grey.shade500,
                   ),
@@ -5857,20 +5857,20 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 4),
         Text(
           MoneyUtils.formatVND(amount),
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: amount > 0 ? color : Colors.grey,
           ),
         ),
         Text(
           subLabel,
-          style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
         ),
       ],
     );
@@ -6619,7 +6619,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('BIẾN ĐỘNG', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                    Text('BIẾN ĐỘNG', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
                     const SizedBox(height: 10),
                     SizedBox(
                       height: 110,
@@ -6640,7 +6640,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                                 getTitlesWidget: (v, _) {
                                   final idx = v.toInt();
                                   if (idx < 0 || idx >= barItems.length) return const SizedBox();
-                                  return Text(barItems[idx].label, style: TextStyle(fontSize: 9, color: barItems[idx].color, fontWeight: FontWeight.w600));
+                                  return Text(barItems[idx].label, style: TextStyle(fontSize: 11, color: barItems[idx].color, fontWeight: FontWeight.w600));
                                 },
                               ),
                             ),
@@ -6801,7 +6801,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               color: Colors.white,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Text('HÔM NAY', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
+            child: Text('HÔM NAY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
           ),
           const SizedBox(width: 10),
           Icon(isPositive ? Icons.arrow_upward : Icons.arrow_downward, size: 16, color: isPositive ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
@@ -6809,7 +6809,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           Expanded(
             child: Text(
               '${isPositive ? "+" : "-"}${MoneyUtils.formatVND(net.abs())}',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: isPositive ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: isPositive ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
             ),
           ),
           Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey.shade400),
@@ -6834,11 +6834,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                  Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(
                     raw ? '${value.toInt()}${suffix ?? ''}' : MoneyUtils.formatCompact(value.toInt()),
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -6875,7 +6875,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     color: i.color,
                     radius: 14,
                     title: pct >= 15 ? '${pct.round()}%' : '',
-                    titleStyle: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white),
+                    titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
                   );
                 }).toList(),
               ),
@@ -6889,9 +6889,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               children: [
                 Row(
                   children: [
-                    Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: titleColor, letterSpacing: 0.5)),
+                    Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: titleColor, letterSpacing: 0.5)),
                     const Spacer(),
-                    Text(MoneyUtils.formatCompact(total), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: titleColor)),
+                    Text(MoneyUtils.formatCompact(total), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: titleColor)),
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -6901,8 +6901,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     children: [
                       Container(width: 7, height: 7, decoration: BoxDecoration(color: i.color, borderRadius: BorderRadius.circular(2))),
                       const SizedBox(width: 5),
-                      Expanded(child: Text(i.label, style: TextStyle(fontSize: 10, color: Colors.grey.shade700))),
-                      Text(MoneyUtils.formatCompact(i.value), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: i.color)),
+                      Expanded(child: Text(i.label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700))),
+                      Text(MoneyUtils.formatCompact(i.value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: i.color)),
                     ],
                   ),
                 )),
@@ -6949,7 +6949,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             Text(
               label,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 11,
                 color: AppColors.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
@@ -7004,7 +7004,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   style: TextStyle(
                     color: Colors.blue.shade700,
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -7048,7 +7048,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.indigo.shade600,
-                  fontSize: 12,
+                  fontSize: 14,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -7129,7 +7129,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),

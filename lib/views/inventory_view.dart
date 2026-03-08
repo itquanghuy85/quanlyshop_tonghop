@@ -2080,7 +2080,7 @@ class _InventoryViewState extends State<InventoryView>
             children: [
               Icon(icon, color: color, size: 22),
               const SizedBox(height: 2),
-              Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -2909,7 +2909,7 @@ class _InventoryViewState extends State<InventoryView>
                                 ),
                                 child: Text(
                                   'TẠM',
-                                  style: AppTextStyles.overline.copyWith(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                  style: AppTextStyles.overline.copyWith(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             Expanded(

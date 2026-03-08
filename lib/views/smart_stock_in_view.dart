@@ -286,7 +286,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           Icon(Icons.flash_on, color: Colors.blue.shade700, size: 20),
           const SizedBox(width: 8),
           Expanded(child: Text('Chọn mã nhập nhanh để điền tự động',
-            style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600, fontSize: 13))),
+            style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600, fontSize: 14))),
           Icon(Icons.arrow_forward_ios, color: Colors.blue.shade400, size: 14),
         ]),
       ),

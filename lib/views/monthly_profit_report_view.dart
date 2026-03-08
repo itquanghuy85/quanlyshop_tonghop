@@ -281,7 +281,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
             style: const TextStyle(
               color: Colors.white70,
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontSize: 14,
               letterSpacing: 1,
             ),
           ),
@@ -307,11 +307,11 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
   Widget _summaryItem(String label, int amount, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 11)),
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 13)),
         const SizedBox(height: 2),
         Text(
           MoneyUtils.formatVND(amount),
-          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15),
+          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 17),
         ),
       ],
     );
@@ -353,7 +353,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.indigo.shade600,
-                  fontSize: 12,
+                  fontSize: 14,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -421,7 +421,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
               return Expanded(
                 child: Text(
                   monthNames[m.month - 1],
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   textAlign: TextAlign.center,
                 ),
               );
@@ -438,7 +438,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
       children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       ],
     );
   }
@@ -473,10 +473,10 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
             ),
             child: Row(
               children: const [
-                SizedBox(width: 70, child: Text('Tháng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                Expanded(child: Text('Doanh thu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.right)),
-                Expanded(child: Text('Chi phí', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.right)),
-                Expanded(child: Text('Lợi nhuận', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11), textAlign: TextAlign.right)),
+                SizedBox(width: 70, child: Text('Tháng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
+                Expanded(child: Text('Doanh thu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right)),
+                Expanded(child: Text('Chi phí', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right)),
+                Expanded(child: Text('Lợi nhuận', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right)),
               ],
             ),
           ),
@@ -496,20 +496,20 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                       width: 70,
                       child: Text(
                         monthNames[m.month - 1],
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                       ),
                     ),
                     Expanded(
                       child: Text(
                         MoneyUtils.formatVND(m.revenue),
-                        style: TextStyle(fontSize: 11, color: Colors.blue.shade700),
+                        style: TextStyle(fontSize: 13, color: Colors.blue.shade700),
                         textAlign: TextAlign.right,
                       ),
                     ),
                     Expanded(
                       child: Text(
                         MoneyUtils.formatVND(m.expenseOut + m.saleCost + m.repairCost),
-                        style: TextStyle(fontSize: 11, color: Colors.red.shade600),
+                        style: TextStyle(fontSize: 13, color: Colors.red.shade600),
                         textAlign: TextAlign.right,
                       ),
                     ),
@@ -517,7 +517,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                       child: Text(
                         '${isProfit ? '+' : ''}${MoneyUtils.formatVND(m.netProfit)}',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: isProfit ? Colors.green.shade700 : Colors.red.shade700,
                         ),
@@ -538,18 +538,18 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
             ),
             child: Row(
               children: [
-                const SizedBox(width: 70, child: Text('TỔNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                const SizedBox(width: 70, child: Text('TỔNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
                 Expanded(
                   child: Text(
                     MoneyUtils.formatVND(_yearRevenue),
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
                     textAlign: TextAlign.right,
                   ),
                 ),
                 Expanded(
                   child: Text(
                     MoneyUtils.formatVND(_months.fold<int>(0, (s, m) => s + m.expenseOut + m.saleCost + m.repairCost)),
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade600),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red.shade600),
                     textAlign: TextAlign.right,
                   ),
                 ),
@@ -557,7 +557,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                   child: Text(
                     '${_yearProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(_yearProfit)}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: _yearProfit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
                     ),
@@ -645,12 +645,12 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('💰 LỢI NHUẬN RÒNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const Text('💰 LỢI NHUẬN RÒNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         Text(
                           '${m.netProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(m.netProfit)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 17,
                             color: m.netProfit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
                           ),
                         ),
@@ -669,26 +669,26 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                         Expanded(
                           child: Column(
                             children: [
-                              Text('Tổng thu', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                              Text(MoneyUtils.formatVND(m.totalIn), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
+                              Text('Tổng thu', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                              Text(MoneyUtils.formatVND(m.totalIn), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
                             ],
                           ),
                         ),
                         Expanded(
                           child: Column(
                             children: [
-                              Text('Tổng chi', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                              Text(MoneyUtils.formatVND(m.totalOut), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+                              Text('Tổng chi', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                              Text(MoneyUtils.formatVND(m.totalOut), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
                             ],
                           ),
                         ),
                         Expanded(
                           child: Column(
                             children: [
-                              Text('Quỹ ròng', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                              Text('Quỹ ròng', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                               Text(
                                 MoneyUtils.formatVND(m.totalIn - m.totalOut),
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.indigo),
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo),
                               ),
                             ],
                           ),
@@ -709,7 +709,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color)),
+        Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
         const SizedBox(height: 4),
         ...children,
       ],
@@ -722,8 +722,8 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
       child: Row(
         children: [
           const SizedBox(width: 16),
-          Expanded(child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700))),
-          Text(MoneyUtils.formatVND(amount), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: Colors.grey.shade700))),
+          Text(MoneyUtils.formatVND(amount), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
         ],
       ),
     );

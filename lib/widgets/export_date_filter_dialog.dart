@@ -59,7 +59,7 @@ class _ExportDateFilterDialogState extends State<ExportDateFilterDialog> {
               'Chọn khoảng thời gian:',
               style: TextStyle(
                 color: isDark ? Colors.white70 : Colors.black54,
-                fontSize: 14,
+                fontSize: 16,
               ),
             ),
             const SizedBox(height: 12),

@@ -276,13 +276,13 @@ class _VariantSelectorState extends State<VariantSelector> {
                         : 'Còn ${variant.quantity} sản phẩm',
                     style: TextStyle(
                       color: variant.isOutOfStock ? Colors.red : Colors.green,
-                      fontSize: 12,
+                      fontSize: 14,
                     ),
                   ),
                 if (variant.sku != null)
                   Text(
                     'SKU: ${variant.sku}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
                   ),
               ],
             ),
@@ -292,7 +292,7 @@ class _VariantSelectorState extends State<VariantSelector> {
               '${(variant.salePrice / 1000).toStringAsFixed(0)}K',
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
+                fontSize: 17,
               ),
             ),
         ],
@@ -337,7 +337,7 @@ class VariantBadge extends StatelessWidget {
         child: Text(
           '${summary.totalVariants} biến thể',
           style: const TextStyle(
-            fontSize: 10,
+            fontSize: 12,
             color: Colors.blue,
           ),
         ),
@@ -367,12 +367,12 @@ class VariantBadge extends StatelessWidget {
           if (summary.availableSizes.isNotEmpty)
             Text(
               'Size: ${summary.availableSizes.join(", ")}',
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 14),
             ),
           if (summary.availableColors.isNotEmpty)
             Text(
               'Màu: ${summary.availableColors.join(", ")}',
-              style: const TextStyle(fontSize: 12),
+              style: const TextStyle(fontSize: 14),
             ),
           const SizedBox(height: 4),
           Row(
@@ -381,7 +381,7 @@ class VariantBadge extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 'Tổng tồn: ${summary.totalStock}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -436,7 +436,7 @@ class VariantQuickSelect extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -470,7 +470,7 @@ class VariantQuickSelect extends StatelessWidget {
                             Text(
                               v.color ?? '?',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 12,
                                 color: hasStock ? null : Colors.grey,
                                 decoration: hasStock
                                     ? null
@@ -481,7 +481,7 @@ class VariantQuickSelect extends StatelessWidget {
                               '${v.quantity}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12,
+                                fontSize: 14,
                                 color: hasStock ? Colors.green : Colors.grey,
                               ),
                             ),

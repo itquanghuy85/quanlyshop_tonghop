@@ -865,7 +865,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
             style: TextStyle(
               color: colorScheme.primary,
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: 14,
             ),
           ),
           Container(
@@ -913,7 +913,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
               style: TextStyle(
                 color: colorScheme.primary,
                 fontWeight: FontWeight.bold,
-                fontSize: 11,
+                fontSize: 13,
               ),
             ),
           ),
@@ -1250,7 +1250,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
               child: Text(
                 'Cài đặt nhanh',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: colorScheme.onSurface,
                 ),
@@ -1364,7 +1364,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
             Text(
               'Cho phép kéo phần tử ra ngoài vùng in ${_overflowMm.toInt()}mm',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 color: colorScheme.onSurfaceVariant,
               ),
               maxLines: 2,
@@ -1390,7 +1390,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                   width: 40,
                   child: Text(
                     '${_overflowMm.toInt()}mm',
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
               ],
@@ -1817,7 +1817,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
@@ -1834,7 +1834,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                 child: Text(
                   value.toStringAsFixed(1),
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,
                   ),
@@ -1928,7 +1928,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
               title: const Text('Cắt giấy tự động'),
               subtitle: Text(
                 _autoCut ? 'Máy in sẽ cắt sau mỗi tem' : 'Không cắt giấy',
-                style: const TextStyle(fontSize: 11),
+                style: const TextStyle(fontSize: 13),
               ),
               value: _autoCut,
               onChanged: (v) {
@@ -1941,7 +1941,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                 const Expanded(
                   child: Text(
                     'Đẩy giấy sau in:',
-                    style: TextStyle(fontSize: 14),
+                    style: TextStyle(fontSize: 16),
                   ),
                 ),
                 Text(
@@ -2070,7 +2070,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
             Text(
               'Chỉnh sửa: ${_elementLabel(el)}',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: colorScheme.onSurface,
               ),
@@ -2145,7 +2145,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 16),
                     onSubmitted: (v) {
                       final val = double.tryParse(v) ?? el.widthMm;
                       _updateElement(
@@ -2183,7 +2183,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 16),
                     onSubmitted: (v) {
                       final val = double.tryParse(v) ?? el.heightMm;
                       _updateElement(
@@ -2352,7 +2352,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                     Text(
                       'Căn lề:',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         color: colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -2612,7 +2612,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
 
   Widget _tokenChip(String token, String label, LabelElement el) {
     return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
+      label: Text(label, style: const TextStyle(fontSize: 14)),
       visualDensity: VisualDensity.compact,
       onPressed: () => _updateElement(el, (e) => e.text = token),
     );
@@ -2647,7 +2647,7 @@ class _PtyPrintDesignerViewState extends State<PtyPrintDesignerView>
                   Text(
                     'Sản phẩm đã chọn',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),

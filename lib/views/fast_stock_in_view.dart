@@ -1396,7 +1396,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                 style: TextStyle(
                   color: Colors.blue.shade700,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: 14,
                 ),
               ),
             ),

@@ -202,7 +202,7 @@ class _IntroViewState extends State<IntroView> with TickerProviderStateMixin {
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.7),
                       fontWeight: FontWeight.w600,
-                      fontSize: 13,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -327,7 +327,7 @@ class _IntroViewState extends State<IntroView> with TickerProviderStateMixin {
                   "${index + 1} / ${_introData.length}",
                   style: TextStyle(
                     color: accent.withOpacity(0.6),
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 2,
                   ),
@@ -364,7 +364,7 @@ class _IntroViewState extends State<IntroView> with TickerProviderStateMixin {
                     data['desc']!,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 17,
                       color: Colors.white.withOpacity(0.65),
                       height: 1.6,
                       fontWeight: FontWeight.w400,
@@ -392,7 +392,7 @@ class _IntroViewState extends State<IntroView> with TickerProviderStateMixin {
                           "Nhấn để bắt đầu",
                           style: TextStyle(
                             color: accent,
-                            fontSize: 14,
+                            fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -490,7 +490,7 @@ class _IntroViewState extends State<IntroView> with TickerProviderStateMixin {
                       "Bắt đầu",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 17,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                       ),

@@ -986,7 +986,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               children: [
                 const Icon(Icons.person_outline, color: Colors.blue, size: 18),
                 const SizedBox(width: 6),
-                Text(loc.customerAndDevice, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
+                Text(loc.customerAndDevice, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue)),
                 const Spacer(),
                 IconButton(
                   onPressed: _selectCustomer,
@@ -1017,7 +1017,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 _isWalkIn
                     ? loc.walkInCustomerDesc
                     : loc.saveToContactsDesc,
-                style: const TextStyle(fontSize: 12),
+                style: const TextStyle(fontSize: 14),
               ),
               value: _isWalkIn,
               onChanged: (v) {
@@ -1089,13 +1089,13 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               children: [
                 const Icon(Icons.handyman, color: Colors.teal, size: 20),
                 const SizedBox(width: 8),
-                Text(loc.services, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(loc.services, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 if (_services.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(10)),
-                    child: Text("${_services.length}", style: const TextStyle(color: Colors.white, fontSize: 11)),
+                    child: Text("${_services.length}", style: const TextStyle(color: Colors.white, fontSize: 13)),
                   ),
                 ],
               ],
@@ -1121,7 +1121,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               children: [
                 Icon(Icons.lock_outline, color: Colors.red.shade400, size: 20),
                 const SizedBox(width: 8),
-                Text(loc.securityAccessories, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(loc.securityAccessories, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ],
             ),
             const SizedBox(height: 8),
@@ -1154,7 +1154,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   Widget _compactChip(String label, bool selected, VoidCallback onTap) {
     return FilterChip(
-      label: Text(label, style: TextStyle(fontSize: 11, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+      label: Text(label, style: TextStyle(fontSize: 13, fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
       selected: selected,
       onSelected: (_) => onTap(),
       selectedColor: Colors.blue.shade100,
@@ -1177,14 +1177,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
               children: [
                 const Icon(Icons.note_alt_outlined, color: Colors.blueGrey, size: 20),
                 const SizedBox(width: 8),
-                Text(loc.notesAndImages, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text(loc.notesAndImages, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ],
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: notesCtrl,
               maxLines: 2,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 hintText: loc.notesPlaceholder,
                 isDense: true,
@@ -1206,10 +1206,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       controller: c,
       keyboardType: type,
       textCapitalization: caps ? TextCapitalization.characters : TextCapitalization.none,
-      style: const TextStyle(fontSize: 13),
+      style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(fontSize: 12),
+        labelStyle: const TextStyle(fontSize: 14),
         prefixIcon: Icon(icon, size: 18),
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

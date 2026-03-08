@@ -911,7 +911,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                     '👆 Nhấn vào phần tử trên mẫu để chỉnh sửa\n'
                     '🖐️ Nhấn giữ và kéo thả để hoán đổi vị trí\n'
                     '🔀 Gộp/tách dòng ở bảng điều khiển bên dưới',
-                    style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                    style: TextStyle(fontSize: 14, color: Colors.blue.shade700),
                   ),
                 ),
               ],
@@ -922,7 +922,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             children: [
               const Icon(Icons.zoom_in, size: 18, color: Colors.blue),
               const SizedBox(width: 8),
-              const Text('Phóng to mẫu:', style: TextStyle(fontSize: 12)),
+              const Text('Phóng to mẫu:', style: TextStyle(fontSize: 14)),
               const SizedBox(width: 8),
               Expanded(
                 child: Slider(
@@ -1048,7 +1048,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                       Text(
                         sizeLabel,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 13,
                           color: Colors.blue.shade500,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1057,7 +1057,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
                       Text(
                         'Nhấn để chọn',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 13,
                           color: Colors.blue.shade400,
                         ),
                       ),
@@ -1286,7 +1286,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
           // Visibility
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Hiển thị', style: TextStyle(fontSize: 14)),
+            title: const Text('Hiển thị', style: TextStyle(fontSize: 16)),
             value: el.visible,
             activeThumbColor: Colors.green,
             onChanged: (v) => _updateElement(el.id, visible: v),
@@ -1297,7 +1297,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             children: [
               Text(
                 el.id == 'qr_code' ? 'Kích thước QR/Barcode:' : 'Cỡ chữ:',
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(width: 8),
               Text(
@@ -1322,7 +1322,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
           // Spacing (khoảng cách dưới)
           Row(
             children: [
-              const Text('Khoảng cách:', style: TextStyle(fontSize: 14)),
+              const Text('Khoảng cách:', style: TextStyle(fontSize: 16)),
               const SizedBox(width: 8),
               Text(
                 '${el.spacing.round()}px',
@@ -1381,7 +1381,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             const SizedBox(height: 8),
             Row(
               children: [
-                const Text('Kiểu chữ:', style: TextStyle(fontSize: 14)),
+                const Text('Kiểu chữ:', style: TextStyle(fontSize: 16)),
                 const SizedBox(width: 8),
                 SegmentedButton<String>(
                   segments: const [
@@ -1539,7 +1539,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
           // Individual element toggles
           Text(
             'Ẩn/Hiện từng phần:',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -1548,7 +1548,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
             children: _elements
                 .map(
                   (el) => FilterChip(
-                    label: Text(el.label, style: const TextStyle(fontSize: 12)),
+                    label: Text(el.label, style: const TextStyle(fontSize: 14)),
                     selected: el.visible,
                     onSelected: (v) => _updateElement(el.id, visible: v),
                     selectedColor: Colors.blue.shade100,
@@ -1565,7 +1565,7 @@ class _LabelDesignerViewState extends State<LabelDesignerView>
   Widget _presetChip(String label, VoidCallback onTap, IconData icon) {
     return ActionChip(
       avatar: Icon(icon, size: 16, color: Colors.teal),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
+      label: Text(label, style: const TextStyle(fontSize: 14)),
       onPressed: onTap,
       backgroundColor: Colors.teal.shade50,
       side: BorderSide(color: Colors.teal.shade200),

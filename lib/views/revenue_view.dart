@@ -602,7 +602,7 @@ class _RevenueViewState extends State<RevenueView>
               label: Text(
                 _getFilterLabel(),
                 style: const TextStyle(
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -869,17 +869,17 @@ class _RevenueViewState extends State<RevenueView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CHI TIẾT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                Text('CHI TIẾT', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 // Column headers
                 Row(
                   children: [
                     const SizedBox(width: 90),
-                    Expanded(child: Text(cur.label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.primary), textAlign: TextAlign.right)),
+                    Expanded(child: Text(cur.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary), textAlign: TextAlign.right)),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(prev.label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+                    Expanded(child: Text(prev.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
                     const SizedBox(width: 6),
-                    SizedBox(width: 48, child: Text('%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+                    SizedBox(width: 48, child: Text('%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
                   ],
                 ),
                 Divider(height: 12, color: Colors.grey.shade200),
@@ -912,9 +912,9 @@ class _RevenueViewState extends State<RevenueView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: active ? color : Colors.grey.shade600)),
+            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: active ? color : Colors.grey.shade600)),
             const SizedBox(height: 2),
-            Text(fmt(revenue), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: active ? color : Colors.grey.shade700)),
+            Text(fmt(revenue), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: active ? color : Colors.grey.shade700)),
           ],
         ),
       ),
@@ -943,15 +943,15 @@ class _RevenueViewState extends State<RevenueView>
         children: [
           Row(
             children: [
-              Text('SO SÁNH', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+              Text('SO SÁNH', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
               const Spacer(),
               Container(width: 10, height: 10, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
               const SizedBox(width: 4),
-              Text('Hiện tại', style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+              Text('Hiện tại', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
               const SizedBox(width: 10),
               Container(width: 10, height: 10, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
               const SizedBox(width: 4),
-              Text('Trước', style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+              Text('Trước', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
             ],
           ),
           const SizedBox(height: 14),
@@ -974,7 +974,7 @@ class _RevenueViewState extends State<RevenueView>
                       getTitlesWidget: (v, _) {
                         final idx = v.toInt();
                         if (idx < 0 || idx >= metrics.length) return const SizedBox();
-                        return Text(metrics[idx].label, style: TextStyle(fontSize: 10, color: metrics[idx].color, fontWeight: FontWeight.w600));
+                        return Text(metrics[idx].label, style: TextStyle(fontSize: 12, color: metrics[idx].color, fontWeight: FontWeight.w600));
                       },
                     ),
                   ),
@@ -1035,8 +1035,8 @@ class _RevenueViewState extends State<RevenueView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                Text(fmt(current), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(fmt(current), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               ],
             ),
           ),
@@ -1051,7 +1051,7 @@ class _RevenueViewState extends State<RevenueView>
               children: [
                 Icon(isUp ? Icons.arrow_upward : Icons.arrow_downward, size: 11, color: changeColor),
                 const SizedBox(width: 2),
-                Text(pct(current, previous), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: changeColor)),
+                Text(pct(current, previous), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: changeColor)),
               ],
             ),
           ),
@@ -1067,16 +1067,16 @@ class _RevenueViewState extends State<RevenueView>
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          SizedBox(width: 90, child: Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
-          Expanded(child: Text(fmt(current), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
+          SizedBox(width: 90, child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700))),
+          Expanded(child: Text(fmt(current), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
           const SizedBox(width: 6),
-          Expanded(child: Text(fmt(previous), style: TextStyle(fontSize: 11, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+          Expanded(child: Text(fmt(previous), style: TextStyle(fontSize: 13, color: Colors.grey.shade500), textAlign: TextAlign.right)),
           const SizedBox(width: 6),
           SizedBox(
             width: 48,
             child: Text(
               pct(current, previous),
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: d >= 0 ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: d >= 0 ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
               textAlign: TextAlign.right,
             ),
           ),
@@ -3115,7 +3115,7 @@ class _RevenueViewState extends State<RevenueView>
             children: [
               Icon(Icons.star_rounded, color: Colors.deepPurple, size: 16),
               const SizedBox(width: 6),
-              Text('TOP SẢN PHẨM', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.deepPurple, letterSpacing: 0.5)),
+              Text('TOP SẢN PHẨM', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.deepPurple, letterSpacing: 0.5)),
             ],
           ),
           const SizedBox(height: 8),
@@ -3128,16 +3128,16 @@ class _RevenueViewState extends State<RevenueView>
                 children: [
                   SizedBox(
                     width: 18,
-                    child: Text('$idx', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.deepPurple : Colors.grey.shade500)),
+                    child: Text('$idx', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.deepPurple : Colors.grey.shade500)),
                   ),
-                  Expanded(child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
+                  Expanded(child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14))),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(color: Colors.deepPurple.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-                    child: Text('${p.qty}sp', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.deepPurple)),
+                    child: Text('${p.qty}sp', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.deepPurple)),
                   ),
                   const SizedBox(width: 6),
-                  Text('${NumberFormat('#,###').format(p.revenue)}đ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                  Text('${NumberFormat('#,###').format(p.revenue)}đ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                 ],
               ),
             );
@@ -3177,7 +3177,7 @@ class _RevenueViewState extends State<RevenueView>
             children: [
               Icon(Icons.people_alt_rounded, color: Colors.teal, size: 16),
               const SizedBox(width: 6),
-              Text('TOP KHÁCH HÀNG', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.teal, letterSpacing: 0.5)),
+              Text('TOP KHÁCH HÀNG', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.teal, letterSpacing: 0.5)),
             ],
           ),
           const SizedBox(height: 8),
@@ -3190,16 +3190,16 @@ class _RevenueViewState extends State<RevenueView>
                 children: [
                   SizedBox(
                     width: 18,
-                    child: Text('$idx', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.teal : Colors.grey.shade500)),
+                    child: Text('$idx', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.teal : Colors.grey.shade500)),
                   ),
-                  Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
+                  Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14))),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(color: Colors.teal.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-                    child: Text('${c.orders}đơn', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.teal)),
+                    child: Text('${c.orders}đơn', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.teal)),
                   ),
                   const SizedBox(width: 6),
-                  Text('${NumberFormat('#,###').format(c.totalSpent)}đ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                  Text('${NumberFormat('#,###').format(c.totalSpent)}đ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                 ],
               ),
             );
@@ -3239,7 +3239,7 @@ class _RevenueViewState extends State<RevenueView>
             ),
             child: Text(
               _getFilterLabel(),
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
                 color: profitColor, letterSpacing: 0.3),
             ),
           ),
@@ -3248,7 +3248,7 @@ class _RevenueViewState extends State<RevenueView>
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('Lợi nhuận ròng', style: TextStyle(fontSize: 10, color: profitColor.withOpacity(0.7))),
+              Text('Lợi nhuận ròng', style: TextStyle(fontSize: 12, color: profitColor.withOpacity(0.7))),
               Text(
                 '${profit >= 0 ? '+' : ''}${NumberFormat('#,###').format(profit)}đ',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: profitColor),
@@ -3286,11 +3286,11 @@ class _RevenueViewState extends State<RevenueView>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                  Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 1),
                   Text(
                     raw ? '$value$suffix' : '${NumberFormat('#,###').format(value)}$suffix',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -3345,7 +3345,7 @@ class _RevenueViewState extends State<RevenueView>
                     value: s.value.toDouble(),
                     radius: 22,
                     title: '${pct.round()}%',
-                    titleStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                    titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
                     titlePositionPercentageOffset: 0.55,
                   );
                 }).toList(),
@@ -3366,8 +3366,8 @@ class _RevenueViewState extends State<RevenueView>
                       Container(width: 10, height: 10,
                         decoration: BoxDecoration(color: s.color, borderRadius: BorderRadius.circular(3))),
                       const SizedBox(width: 6),
-                      Expanded(child: Text(s.label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
-                      Text('$pct%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: s.color)),
+                      Expanded(child: Text(s.label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700))),
+                      Text('$pct%', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: s.color)),
                     ],
                   ),
                 );
@@ -3396,7 +3396,7 @@ class _RevenueViewState extends State<RevenueView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('THU vs CHI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+          Text('THU vs CHI', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
             color: Colors.grey.shade700, letterSpacing: 0.5)),
           const SizedBox(height: 14),
           SizedBox(
@@ -3417,11 +3417,11 @@ class _RevenueViewState extends State<RevenueView>
                       showTitles: true,
                       getTitlesWidget: (v, _) {
                         switch (v.toInt()) {
-                          case 0: return Text('Bán hàng', style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
+                          case 0: return Text('Bán hàng', style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
                           case 1: return Text(_enableRepair ? 'Sửa chữa' : 'Thu khác',
-                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
-                          case 2: return Text('Chi phí', style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
-                          case 3: return Text('Giá vốn', style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
+                          case 2: return Text('Chi phí', style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
+                          case 3: return Text('Giá vốn', style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
                           default: return const SizedBox();
                         }
                       },
@@ -3489,7 +3489,7 @@ class _RevenueViewState extends State<RevenueView>
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 4),
             Flexible(
-              child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+              child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],

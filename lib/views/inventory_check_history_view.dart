@@ -246,7 +246,7 @@ class _InventoryCheckHistoryViewState extends State<InventoryCheckHistoryView> {
                         Text(
                           typeVi,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: check.checkType == 'DIEN_THOAI'
                                 ? Colors.blue
@@ -274,7 +274,7 @@ class _InventoryCheckHistoryViewState extends State<InventoryCheckHistoryView> {
                             'Hoàn thành',
                             style: TextStyle(
                                 color: Colors.green,
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600),
                           ),
                         ],
@@ -297,7 +297,7 @@ class _InventoryCheckHistoryViewState extends State<InventoryCheckHistoryView> {
                             'Chưa xong',
                             style: TextStyle(
                                 color: Colors.amber,
-                                fontSize: 12,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600),
                           ),
                         ],
@@ -378,11 +378,11 @@ class _InventoryCheckHistoryViewState extends State<InventoryCheckHistoryView> {
           value.toString(),
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 16,
+            fontSize: 17,
             color: color,
           ),
         ),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
       ],
     );
   }
@@ -547,7 +547,7 @@ class _InventoryCheckDetailSheetState
       child: Text(
         label,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
           color: color,
         ),
@@ -576,7 +576,7 @@ class _InventoryCheckDetailSheetState
         child: Text(
           '$label ($count)',
           style: TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             color: isActive ? theme.colorScheme.primary : Colors.grey[700],
           ),
@@ -625,20 +625,20 @@ class _InventoryCheckDetailSheetState
             if (item.imei != null && item.imei!.isNotEmpty) ...[
               Text(
                 'IMEI: ${item.imei}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
               ),
               const SizedBox(width: 8),
             ],
             if (item.color != null && item.color!.isNotEmpty)
               Text(
                 item.color!,
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
               ),
             if (item.quantity > 1) ...[
               const SizedBox(width: 8),
               Text(
                 'SL: ${item.quantity}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
               ),
             ],
           ],
@@ -646,14 +646,14 @@ class _InventoryCheckDetailSheetState
         trailing: item.isChecked
             ? Text(
                 checkedTime,
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
               )
             : const Text(
                 'Thiếu',
                 style: TextStyle(
                     color: Colors.red,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12),
+                    fontSize: 14),
               ),
       ),
     );

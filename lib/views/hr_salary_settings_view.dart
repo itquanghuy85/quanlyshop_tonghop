@@ -1466,7 +1466,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
               '• Bậc 1: Đơn dưới mức 1 → Hoa hồng 1\n'
               '• Bậc 2: Đơn từ mức 1 đến mức 2 → Hoa hồng 2\n'
               '• Bậc 3: Đơn trên mức 2 → Hoa hồng 3',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
             ),
           ],
         ),
@@ -1565,7 +1565,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
               '• Bậc 1: Đơn dưới mức 1 → Hoa hồng 1\n'
               '• Bậc 2: Đơn từ mức 1 đến mức 2 → Hoa hồng 2\n'
               '• Bậc 3: Đơn trên mức 2 → Hoa hồng 3',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
             ),
           ],
         ),
