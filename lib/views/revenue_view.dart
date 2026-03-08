@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
@@ -815,12 +817,10 @@ class _RevenueViewState extends State<RevenueView>
   Widget _buildComparisonTab() {
     final periods = _getComparisonPeriods();
     if (periods.length < 2) return const SizedBox();
-    final current = periods[0];
-    final previous = periods[1];
+    final cur = periods[0];
+    final prev = periods[1];
 
     String fmt(int v) => '${NumberFormat('#,###').format(v)}đ';
-
-    int delta(int a, int b) => a - b;
     String pct(int a, int b) {
       if (b == 0) return a > 0 ? '+∞' : '0%';
       final p = ((a - b) / b.abs() * 100).round();
@@ -828,91 +828,70 @@ class _RevenueViewState extends State<RevenueView>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Period headers
+          // ── Period comparison header (compact) ──
           Row(
             children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(current.label, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Text(fmt(current.totalRevenue), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
-                      Text('Doanh thu', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                    ],
-                  ),
-                ),
-              ),
+              _periodBadge(cur.label, cur.totalRevenue, fmt, AppColors.primary, true),
               const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(previous.label, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700, fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Text(fmt(previous.totalRevenue), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade700)),
-                      Text('Doanh thu', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                    ],
-                  ),
-                ),
-              ),
+              _periodBadge(prev.label, prev.totalRevenue, fmt, Colors.grey.shade600, false),
             ],
           ),
-          const SizedBox(height: 16),
 
-          // Comparison rows
-          _comparisonCard('Doanh thu', current.totalRevenue, previous.totalRevenue, fmt, pct, Icons.trending_up, Colors.blue),
-          _comparisonCard('Lợi nhuận', current.profit, previous.profit, fmt, pct, Icons.account_balance_wallet, Colors.green),
-          _comparisonCard('Giá vốn', current.totalCost, previous.totalCost, fmt, pct, Icons.inventory, Colors.orange),
-          _comparisonCard('Chi phí', current.expenseOut, previous.expenseOut, fmt, pct, Icons.money_off, Colors.red),
+          const SizedBox(height: 14),
+
+          // ── Grouped bar chart: current vs previous ──
+          _comparisonBarChart(cur, prev),
+
+          const SizedBox(height: 14),
+
+          // ── Delta cards (compact) ──
+          _deltaRow('Doanh thu', cur.totalRevenue, prev.totalRevenue, fmt, pct, const Color(0xFF1E88E5), Icons.trending_up),
+          _deltaRow('Lợi nhuận', cur.profit, prev.profit, fmt, pct, const Color(0xFF43A047), Icons.account_balance_wallet),
+          _deltaRow('Giá vốn', cur.totalCost, prev.totalCost, fmt, pct, const Color(0xFFFB8C00), Icons.inventory_2_outlined),
+          _deltaRow('Chi phí', cur.expenseOut, prev.expenseOut, fmt, pct, const Color(0xFFE53935), Icons.money_off),
           if (_enableRepair)
-            _comparisonCard('Sửa chữa', current.repairsIncome, previous.repairsIncome, fmt, pct, Icons.build, Colors.purple),
+            _deltaRow('Sửa chữa', cur.repairsIncome, prev.repairsIncome, fmt, pct, const Color(0xFF7E57C2), Icons.build),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Detailed breakdown
+          // ── Detail breakdown table ──
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
-              ],
+              border: Border.all(color: Colors.grey.shade100),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CHI TIẾT SO SÁNH', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey.shade700, letterSpacing: 0.5)),
-                const SizedBox(height: 10),
-                _compRow('Bán hàng (thu)', current.salesIncome, previous.salesIncome, fmt, pct),
-                _compRow('Bán hàng (vốn)', current.salesCost, previous.salesCost, fmt, pct),
-                if (_enableRepair) _compRow('Sửa chữa (thu)', current.repairsIncome, previous.repairsIncome, fmt, pct),
-                if (_enableRepair) _compRow('Sửa chữa (vốn)', current.repairsCost, previous.repairsCost, fmt, pct),
-                _compRow('Thu khác', current.miscIncome, previous.miscIncome, fmt, pct),
-                _compRow('Chi phí HĐ', current.expenseOut, previous.expenseOut, fmt, pct),
-                const Divider(),
-                _compRow('Số đơn bán', current.salesCount, previous.salesCount,
-                  (v) => '$v đơn', pct),
-                if (_enableRepair)
-                  _compRow('Số đơn SC', current.repairsCount, previous.repairsCount,
-                    (v) => '$v đơn', pct),
+                Text('CHI TIẾT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                const SizedBox(height: 8),
+                // Column headers
+                Row(
+                  children: [
+                    const SizedBox(width: 90),
+                    Expanded(child: Text(cur.label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: AppColors.primary), textAlign: TextAlign.right)),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(prev.label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+                    const SizedBox(width: 6),
+                    SizedBox(width: 48, child: Text('%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+                  ],
+                ),
+                Divider(height: 12, color: Colors.grey.shade200),
+                _compRow('Bán hàng', cur.salesIncome, prev.salesIncome, fmt, pct),
+                _compRow('Giá vốn BH', cur.salesCost, prev.salesCost, fmt, pct),
+                if (_enableRepair) _compRow('Sửa chữa', cur.repairsIncome, prev.repairsIncome, fmt, pct),
+                if (_enableRepair) _compRow('Vốn SC', cur.repairsCost, prev.repairsCost, fmt, pct),
+                _compRow('Thu khác', cur.miscIncome, prev.miscIncome, fmt, pct),
+                _compRow('Chi phí HĐ', cur.expenseOut, prev.expenseOut, fmt, pct),
+                Divider(height: 12, color: Colors.grey.shade200),
+                _compRow('Đơn bán', cur.salesCount, prev.salesCount, (v) => '$v', pct),
+                if (_enableRepair) _compRow('Đơn SC', cur.repairsCount, prev.repairsCount, (v) => '$v', pct),
               ],
             ),
           ),
@@ -921,63 +900,160 @@ class _RevenueViewState extends State<RevenueView>
     );
   }
 
-  Widget _comparisonCard(String title, int current, int previous,
-      String Function(int) fmt, String Function(int, int) pct,
-      IconData icon, Color color) {
-    final d = current - previous;
-    final isUp = d >= 0;
-    // For costs/expenses — up is bad, for revenue/profit — up is good
-    final isPositiveMetric = title == 'Doanh thu' || title == 'Lợi nhuận' || title == 'Sửa chữa';
-    final changeColor = isUp
-        ? (isPositiveMetric ? Colors.green : Colors.red)
-        : (isPositiveMetric ? Colors.red : Colors.green);
+  Widget _periodBadge(String label, int revenue, String Function(int) fmt, Color color, bool active) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? color.withOpacity(0.08) : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: active ? color.withOpacity(0.2) : Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: active ? color : Colors.grey.shade600)),
+            const SizedBox(height: 2),
+            Text(fmt(revenue), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: active ? color : Colors.grey.shade700)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _comparisonBarChart(_PeriodStats cur, _PeriodStats prev) {
+    final metrics = <_CompMetric>[
+      _CompMetric('DT', cur.totalRevenue, prev.totalRevenue, const Color(0xFF1E88E5)),
+      _CompMetric('LN', cur.profit, prev.profit, const Color(0xFF43A047)),
+      _CompMetric('Vốn', cur.totalCost, prev.totalCost, const Color(0xFFFB8C00)),
+      _CompMetric('Chi', cur.expenseOut, prev.expenseOut, const Color(0xFFE53935)),
+    ];
+    final maxVal = metrics.fold<double>(0, (m, e) => math.max(m, math.max(e.cur.toDouble(), e.prev.toDouble())));
+    if (maxVal == 0) return const SizedBox();
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('SO SÁNH', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+              const Spacer(),
+              Container(width: 10, height: 10, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 4),
+              Text('Hiện tại', style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+              const SizedBox(width: 10),
+              Container(width: 10, height: 10, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 4),
+              Text('Trước', style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 140,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxVal * 1.2,
+                barTouchData: BarTouchData(enabled: false),
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (v, _) {
+                        final idx = v.toInt();
+                        if (idx < 0 || idx >= metrics.length) return const SizedBox();
+                        return Text(metrics[idx].label, style: TextStyle(fontSize: 10, color: metrics[idx].color, fontWeight: FontWeight.w600));
+                      },
+                    ),
+                  ),
+                ),
+                barGroups: metrics.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final m = entry.value;
+                  return BarChartGroupData(
+                    x: i,
+                    barsSpace: 3,
+                    barRods: [
+                      BarChartRodData(
+                        toY: m.cur.toDouble().clamp(0, double.infinity),
+                        color: m.color,
+                        width: 14,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      ),
+                      BarChartRodData(
+                        toY: m.prev.toDouble().clamp(0, double.infinity),
+                        color: m.color.withOpacity(0.3),
+                        width: 14,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deltaRow(String title, int current, int previous,
+      String Function(int) fmt, String Function(int, int) pct,
+      Color color, IconData icon) {
+    final d = current - previous;
+    final isUp = d >= 0;
+    final isPositiveMetric = title == 'Doanh thu' || title == 'Lợi nhuận' || title == 'Sửa chữa';
+    final changeColor = isUp
+        ? (isPositiveMetric ? const Color(0xFF2E7D32) : const Color(0xFFC62828))
+        : (isPositiveMetric ? const Color(0xFFC62828) : const Color(0xFF2E7D32));
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 1)),
-        ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 12),
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                Text(fmt(current), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                Text(title, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                Text(fmt(current), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(isUp ? Icons.arrow_upward : Icons.arrow_downward, size: 12, color: changeColor),
-                  const SizedBox(width: 2),
-                  Text(pct(current, previous), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: changeColor)),
-                ],
-              ),
-              Text(
-                '${d >= 0 ? '+' : ''}${fmt(d)}',
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: changeColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(isUp ? Icons.arrow_upward : Icons.arrow_downward, size: 11, color: changeColor),
+                const SizedBox(width: 2),
+                Text(pct(current, previous), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: changeColor)),
+              ],
+            ),
           ),
         ],
       ),
@@ -988,23 +1064,19 @@ class _RevenueViewState extends State<RevenueView>
       String Function(int) fmt, String Function(int, int) pct) {
     final d = current - previous;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          SizedBox(width: 110, child: Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
+          SizedBox(width: 90, child: Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
           Expanded(child: Text(fmt(current), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Expanded(child: Text(fmt(previous), style: TextStyle(fontSize: 11, color: Colors.grey.shade500), textAlign: TextAlign.right)),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           SizedBox(
-            width: 55,
+            width: 48,
             child: Text(
               pct(current, previous),
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: d >= 0 ? Colors.green.shade600 : Colors.red.shade600,
-              ),
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: d >= 0 ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
               textAlign: TextAlign.right,
             ),
           ),
@@ -2725,7 +2797,6 @@ class _RevenueViewState extends State<RevenueView>
 
   Widget _buildOverview() {
     final fSales = _sales.where((s) => _isInFilterPeriod(s.soldAt)).toList();
-    // Chỉ tính repair khi status == 4 (Đã giao) và có deliveredAt
     final fRepairs = _repairs
         .where(
           (r) =>
@@ -2738,22 +2809,16 @@ class _RevenueViewState extends State<RevenueView>
         .where((e) => _isInFilterPeriod((e['date'] ?? e['createdAt']) as int))
         .toList();
 
-    // ACCRUAL BASIS: Tính tổng doanh thu và giá vốn từ sales (bao gồm cả công nợ)
-    int salesIncome = 0;
-    int salesCost = 0;
-    int salesDebt = 0; // Track công nợ riêng
+    // ACCRUAL BASIS calculations
+    int salesIncome = 0, salesCost = 0;
     for (var s in fSales) {
-      final saleRevenue = s.finalPrice; // Giá sau giảm giá
-
+      final saleRevenue = s.finalPrice;
       if (s.paymentMethod == 'CÔNG NỢ') {
-        // K3: Công nợ - VẪN TÍNH vào doanh thu và giá vốn (accrual basis)
         salesIncome += saleRevenue;
         salesCost += s.totalCost;
-        salesDebt += saleRevenue;
         continue;
       }
       if (s.isInstallment) {
-        // Trả góp: tính theo số tiền đã thu
         final downPaid = s.downPayment;
         final settlementPaid =
             (s.settlementReceivedAt != null &&
@@ -2761,247 +2826,89 @@ class _RevenueViewState extends State<RevenueView>
             ? s.settlementAmount.clamp(0, s.loanAmount + s.loanAmount2)
             : 0;
         final totalPaid = downPaid + settlementPaid;
-        
         salesIncome += totalPaid;
         final ratio = saleRevenue > 0 ? totalPaid / saleRevenue : 0.0;
         salesCost += (s.totalCost * ratio).round();
       } else {
-        // Bán thường
         salesIncome += saleRevenue;
         salesCost += s.totalCost;
       }
     }
 
-    // ACCRUAL BASIS: Tính tổng doanh thu và giá vốn từ repairs (bao gồm cả công nợ)
-    int repairsIncome = 0;
-    int repairsCost = 0;
+    int repairsIncome = 0, repairsCost = 0;
     for (var r in fRepairs) {
-      // Tính cả công nợ vào doanh thu và giá vốn
       repairsIncome += r.price;
       repairsCost += r.totalCost;
     }
 
     int totalIn = salesIncome + repairsIncome;
-
-    // Thu phát sinh (type=THU) → cộng vào tổng thu
     int miscIncome = fExpenses
         .where((e) => (e['type'] ?? 'CHI').toString().toUpperCase() == 'THU')
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int? ?? 0));
     totalIn += miscIncome;
 
-    // CHI PHÍ = tổng expenses (LOẠI TRỪ nhập hàng/purchase và thu phát sinh)
     int totalOut = fExpenses
         .where((e) {
-          // Loại trừ thu phát sinh (type=THU)
           final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
           if (eType == 'THU') return false;
           final category = (e['category'] as String? ?? '').toUpperCase();
-          // Loại trừ các chi phí nhập hàng/purchase vì sẽ được tính qua giá vốn khi bán
           return !category.contains('NHẬP HÀNG') &&
               !category.contains('PURCHASE') &&
               !category.contains('STOCK') &&
               !category.contains('ĐƠN NHẬP');
         })
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
-    // ACCRUAL BASIS: LỢI NHUẬN RÒNG = DOANH THU - CHI PHÍ - GIÁ VỐN
-    int profit = totalIn - totalOut - salesCost - repairsCost;
+
+    int totalCost = salesCost + repairsCost;
+    int profit = totalIn - totalOut - totalCost;
+
+    String fmt(int v) => NumberFormat('#,###').format(v);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Filter indicator với gradient
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 18,
-                      color: Colors.white70,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _getFilterLabel(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: AppTextStyles.headline3.fontSize,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Báo cáo tổng quan tài chính',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
-                    fontSize: AppTextStyles.subtitle1.fontSize,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+          // ═══ COMPACT PROFIT HEADER ═══
+          _compactProfitHeader(profit, totalIn, totalOut + totalCost),
 
-          // Main Profit Card - nổi bật
-          _mainProfitCard(profit, _getFilterLabel()),
-          const SizedBox(height: 20),
-
-          // Revenue Cards Row
-          Row(
-            children: [
-              _modernIncomeCard(
-                "DOANH THU",
-                totalIn,
-                Colors.green,
-                Icons.arrow_downward_rounded,
-              ),
-              const SizedBox(width: 12),
-              _modernIncomeCard(
-                "CHI PHÍ",
-                totalOut,
-                Colors.red,
-                Icons.arrow_upward_rounded,
-              ),
-            ],
-          ),
           const SizedBox(height: 12),
+
+          // ═══ 4 METRIC TILES ═══
           Row(
             children: [
-              _modernIncomeCard(
-                "GIÁ VỐN",
-                salesCost + repairsCost,
-                Colors.orange,
-                Icons.inventory_2,
-              ),
-              const SizedBox(width: 12),
-              _modernIncomeCard(
-                "LỢI NHUẬN",
-                profit,
-                profit >= 0 ? Colors.teal : Colors.red,
-                Icons.trending_up,
-              ),
+              _metricTile('Doanh thu', totalIn, const Color(0xFF2E7D32), Icons.trending_up),
+              const SizedBox(width: 8),
+              _metricTile('Chi phí', totalOut, const Color(0xFFC62828), Icons.trending_down),
             ],
           ),
-          const SizedBox(height: 24),
-
-          // Mini Revenue Chart
-          _buildMiniRevenueChart(
-            salesIncome,
-            repairsIncome,
-            totalOut,
-            salesCost + repairsCost,
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _metricTile('Giá vốn', totalCost, const Color(0xFFE65100), Icons.inventory_2_outlined),
+              const SizedBox(width: 8),
+              _metricTile('Biên LN', totalIn > 0 ? (profit * 100 ~/ totalIn) : 0,
+                profit >= 0 ? const Color(0xFF00695C) : const Color(0xFFC62828),
+                Icons.percent, suffix: '%', raw: true),
+            ],
           ),
-          const SizedBox(height: 24),
 
-          // Quick Stats Section
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.analytics,
-                        color: Colors.indigo,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      "THỐNG KÊ CHI TIẾT",
-                      style: TextStyle(
-                        fontSize: AppTextStyles.headline5.fontSize,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.indigo,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _modernStatCard(
-                        "Đơn bán",
-                        fSales.length.toString(),
-                        Icons.shopping_cart,
-                        Colors.blue,
-                      ),
-                    ),
-                    if (_enableRepair) ...[
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _modernStatCard(
-                          "Sửa chữa",
-                          fRepairs.length.toString(),
-                          Icons.build,
-                          Colors.orange,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _modernStatCard(
-                        "Chi phí",
-                        fExpenses.length.toString(),
-                        Icons.receipt,
-                        Colors.red,
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 24),
-                // Chi tiết nguồn thu
-                _buildRevenueBreakdown(
-                  salesIncome,
-                  _enableRepair ? repairsIncome : 0,
-                  fSales.length,
-                  _enableRepair ? fRepairs.length : 0,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // ═══ DONUT CHART + BREAKDOWN ═══
+          _donutBreakdownCard(salesIncome, repairsIncome, miscIncome, totalOut, totalCost),
+
+          const SizedBox(height: 16),
+
+          // ═══ BAR CHART: THU vs CHI ═══
+          _barChartCard(salesIncome, repairsIncome, miscIncome, totalOut, totalCost),
+
+          const SizedBox(height: 16),
+
+          // ═══ QUICK STATS ═══
+          _quickStatsRow(fSales.length, fRepairs.length, fExpenses.length),
+
+          const SizedBox(height: 16),
 
           // Top sản phẩm bán chạy
           _buildTopProductsSection(fSales),
@@ -3009,7 +2916,7 @@ class _RevenueViewState extends State<RevenueView>
           // Top khách hàng mua nhiều
           _buildTopCustomersSection(fSales),
 
-          // Receivables Section - Công nợ phải thu
+          // Receivables Section
           _buildReceivablesSection(),
         ],
       ),
@@ -3176,14 +3083,9 @@ class _RevenueViewState extends State<RevenueView>
 
   /// Top sản phẩm bán chạy (parsed from comma-separated productNames)
   Widget _buildTopProductsSection(List<SaleOrder> fSales) {
-    // Aggregate product counts and revenue
     final productStats = <String, _ProductStat>{};
     for (var s in fSales) {
-      final names = s.productNames
-          .split(RegExp(r'[,\n]'))
-          .map((n) => n.trim())
-          .where((n) => n.isNotEmpty);
-      // Spread revenue evenly across products in the order
+      final names = s.productNames.split(RegExp(r'[,\n]')).map((n) => n.trim()).where((n) => n.isNotEmpty);
       final count = names.length;
       if (count == 0) continue;
       final revenuePerItem = s.finalPrice ~/ count;
@@ -3196,122 +3098,55 @@ class _RevenueViewState extends State<RevenueView>
     }
     if (productStats.isEmpty) return const SizedBox();
 
-    final sorted = productStats.values.toList()
-      ..sort((a, b) => b.qty.compareTo(a.qty));
-    final top = sorted.take(10).toList();
+    final sorted = productStats.values.toList()..sort((a, b) => b.qty.compareTo(a.qty));
+    final top = sorted.take(5).toList();
 
-    return Column(
-      children: [
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.star_rounded, color: Colors.deepPurple, size: 16),
+              const SizedBox(width: 6),
+              Text('TOP SẢN PHẨM', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.deepPurple, letterSpacing: 0.5)),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          const SizedBox(height: 8),
+          ...top.asMap().entries.map((entry) {
+            final idx = entry.key + 1;
+            final p = entry.value;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
                 children: [
+                  SizedBox(
+                    width: 18,
+                    child: Text('$idx', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.deepPurple : Colors.grey.shade500)),
+                  ),
+                  Expanded(child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
                   Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.star_rounded,
-                      color: Colors.deepPurple,
-                      size: 18,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(color: Colors.deepPurple.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                    child: Text('${p.qty}sp', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.deepPurple)),
                   ),
-                  const SizedBox(width: 10),
-                  Text(
-                    "TOP SẢN PHẨM BÁN CHẠY",
-                    style: TextStyle(
-                      fontSize: AppTextStyles.headline5.fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
+                  const SizedBox(width: 6),
+                  Text('${NumberFormat('#,###').format(p.revenue)}đ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                 ],
               ),
-              const Divider(height: 20),
-              ...top.asMap().entries.map((entry) {
-                final idx = entry.key + 1;
-                final p = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        child: Text(
-                          '$idx',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: idx <= 3
-                                ? Colors.deepPurple
-                                : Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          p.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextStyles.headline5.fontSize,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.deepPurple.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${p.qty} sp',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.deepPurple,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${NumberFormat('#,###').format(p.revenue)} đ',
-                        style: TextStyle(
-                          fontSize: AppTextStyles.headline5.fontSize,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
+            );
+          }),
+        ],
+      ),
     );
   }
 
-  /// Top khách hàng mua nhiều nhất
   Widget _buildTopCustomersSection(List<SaleOrder> fSales) {
     final customerStats = <String, _CustomerStat>{};
     for (var s in fSales) {
@@ -3324,502 +3159,345 @@ class _RevenueViewState extends State<RevenueView>
     }
     if (customerStats.isEmpty) return const SizedBox();
 
-    final sorted = customerStats.values.toList()
-      ..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
-    final top = sorted.take(10).toList();
-
-    return Column(
-      children: [
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.teal.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.people_alt_rounded,
-                      color: Colors.teal,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    "TOP KHÁCH HÀNG",
-                    style: TextStyle(
-                      fontSize: AppTextStyles.headline5.fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.teal,
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 20),
-              ...top.asMap().entries.map((entry) {
-                final idx = entry.key + 1;
-                final c = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        child: Text(
-                          '$idx',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: idx <= 3 ? Colors.teal : Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          c.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppTextStyles.headline5.fontSize,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${c.orders} đơn',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.teal,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${NumberFormat('#,###').format(c.totalSpent)} đ',
-                        style: TextStyle(
-                          fontSize: AppTextStyles.headline5.fontSize,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Widget hiển thị biểu đồ mini doanh thu
-  Widget _buildMiniRevenueChart(
-    int salesIncome,
-    int repairsIncome,
-    int expenses,
-    int cost,
-  ) {
-    final total = salesIncome + repairsIncome + expenses + cost;
-    if (total == 0) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Center(
-          child: Text("Chưa có dữ liệu", style: TextStyle(color: Colors.grey)),
-        ),
-      );
-    }
-
-    final salesPct = (salesIncome / total * 100).clamp(0, 100);
-    final repairsPct = (repairsIncome / total * 100).clamp(0, 100);
-    final expensesPct = (expenses / total * 100).clamp(0, 100);
-    final costPct = (cost / total * 100).clamp(0, 100);
+    final sorted = customerStats.values.toList()..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
+    final top = sorted.take(5).toList();
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.pie_chart,
-                  color: Colors.blue,
-                  size: 18,
-                ),
+              Icon(Icons.people_alt_rounded, color: Colors.teal, size: 16),
+              const SizedBox(width: 6),
+              Text('TOP KHÁCH HÀNG', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.teal, letterSpacing: 0.5)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...top.asMap().entries.map((entry) {
+            final idx = entry.key + 1;
+            final c = entry.value;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    child: Text('$idx', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.teal : Colors.grey.shade500)),
+                  ),
+                  Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(color: Colors.teal.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+                    child: Text('${c.orders}đơn', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.teal)),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('${NumberFormat('#,###').format(c.totalSpent)}đ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                ],
               ),
-              const SizedBox(width: 10),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // NEW COMPACT PROFESSIONAL WIDGETS
+  // ═══════════════════════════════════════════════════════════════
+
+  /// Compact profit header — period label + profit in one row
+  Widget _compactProfitHeader(int profit, int totalIn, int totalOutCost) {
+    final isPositive = profit >= 0;
+    final profitColor = isPositive ? const Color(0xFF1B5E20) : const Color(0xFFB71C1C);
+    final bgGradient = isPositive
+        ? const [Color(0xFFE8F5E9), Color(0xFFC8E6C9)]
+        : const [Color(0xFFFFEBEE), Color(0xFFFFCDD2)];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: bgGradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: profitColor.withOpacity(0.15)),
+      ),
+      child: Row(
+        children: [
+          // Period badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: profitColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              _getFilterLabel(),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+                color: profitColor, letterSpacing: 0.3),
+            ),
+          ),
+          const Spacer(),
+          // Profit amount
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text('Lợi nhuận ròng', style: TextStyle(fontSize: 10, color: profitColor.withOpacity(0.7))),
               Text(
-                "PHÂN BỔ TÀI CHÍNH",
-                style: TextStyle(
-                  fontSize: AppTextStyles.headline5.fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
+                '${profit >= 0 ? '+' : ''}${NumberFormat('#,###').format(profit)}đ',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: profitColor),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Stacked Bar Chart
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              height: 24,
-              child: Row(
+        ],
+      ),
+    );
+  }
+
+  /// Single metric tile — used in 2x2 grid
+  Widget _metricTile(String label, int value, Color color, IconData icon,
+      {String suffix = 'đ', bool raw = false}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.12)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 15),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (salesPct > 0)
-                    Flexible(
-                      flex: salesPct.round().clamp(1, 100),
-                      child: Container(color: Colors.green.shade400),
-                    ),
-                  if (_enableRepair && repairsPct > 0)
-                    Flexible(
-                      flex: repairsPct.round().clamp(1, 100),
-                      child: Container(color: Colors.blue.shade400),
-                    ),
-                  if (expensesPct > 0)
-                    Flexible(
-                      flex: expensesPct.round().clamp(1, 100),
-                      child: Container(color: Colors.red.shade400),
-                    ),
-                  if (costPct > 0)
-                    Flexible(
-                      flex: costPct.round().clamp(1, 100),
-                      child: Container(color: Colors.orange.shade400),
-                    ),
+                  Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 1),
+                  Text(
+                    raw ? '$value$suffix' : '${NumberFormat('#,###').format(value)}$suffix',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          // Legend
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            children: [
-              _chartLegend(
-                "Bán hàng",
-                Colors.green.shade400,
-                "${salesPct.toStringAsFixed(0)}%",
-              ),
-              if (_enableRepair)
-                _chartLegend(
-                  "Sửa chữa",
-                  Colors.blue.shade400,
-                  "${repairsPct.toStringAsFixed(0)}%",
-                ),
-              _chartLegend(
-                "Chi phí",
-                Colors.red.shade400,
-                "${expensesPct.toStringAsFixed(0)}%",
-              ),
-              _chartLegend(
-                "Giá vốn",
-                Colors.orange.shade400,
-                "${costPct.toStringAsFixed(0)}%",
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _chartLegend(String label, Color color, String pct) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          "$label: $pct",
-          style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade700),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRevenueBreakdown(
-    int salesIncome,
-    int repairsIncome,
-    int salesCount,
-    int repairsCount,
-  ) {
-    return Column(
-      children: [
-        _revenueBreakdownRow(
-          "Bán hàng ($salesCount đơn)",
-          salesIncome,
-          Colors.green,
-        ),
-        if (_enableRepair && repairsCount > 0) ...[
-          const SizedBox(height: 8),
-          _revenueBreakdownRow(
-            "Sửa chữa ($repairsCount đơn)",
-            repairsIncome,
-            Colors.blue,
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _revenueBreakdownRow(String label, int amount, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 24,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade700),
-          ),
-        ),
-        Text(
-          "+${NumberFormat('#,###').format(amount)} đ",
-          style: TextStyle(
-            fontSize: AppTextStyles.headline5.fontSize,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _modernIncomeCard(
-    String label,
-    int amount,
-    Color color,
-    IconData icon,
-  ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 16),
-                ),
-                const Spacer(),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: AppTextStyles.caption.fontSize,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              '${NumberFormat('#,###').format(amount)}đ',
-              style: TextStyle(
-                fontSize: AppTextStyles.headline4.fontSize,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _modernStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+  /// Donut chart with breakdown legend
+  Widget _donutBreakdownCard(int salesIncome, int repairsIncome, int misc, int expenses, int cost) {
+    final total = salesIncome + repairsIncome + misc + expenses + cost;
+    if (total == 0) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+        child: const Center(child: Text('Chưa có dữ liệu', style: TextStyle(color: Colors.grey))),
+      );
+    }
+
+    final sections = <_ChartItem>[
+      _ChartItem('Bán hàng', salesIncome, const Color(0xFF43A047)),
+      if (_enableRepair && repairsIncome > 0)
+        _ChartItem('Sửa chữa', repairsIncome, const Color(0xFF1E88E5)),
+      if (misc > 0) _ChartItem('Thu khác', misc, const Color(0xFF7E57C2)),
+      _ChartItem('Chi phí', expenses, const Color(0xFFE53935)),
+      _ChartItem('Giá vốn', cost, const Color(0xFFFB8C00)),
+    ].where((s) => s.value > 0).toList();
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: AppTextStyles.headline2.fontSize,
-              fontWeight: FontWeight.bold,
-              color: color,
+          // Donut
+          SizedBox(
+            width: 110, height: 110,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 30,
+                sections: sections.map((s) {
+                  final pct = s.value / total * 100;
+                  return PieChartSectionData(
+                    color: s.color,
+                    value: s.value.toDouble(),
+                    radius: 22,
+                    title: '${pct.round()}%',
+                    titleStyle: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.white),
+                    titlePositionPercentageOffset: 0.55,
+                  );
+                }).toList(),
+              ),
             ),
           ),
-          Text(
-            title,
-            style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: color.withOpacity(0.8)),
-            textAlign: TextAlign.center,
+          const SizedBox(width: 16),
+          // Legend
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: sections.map((s) {
+                final pct = (s.value / total * 100).round();
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      Container(width: 10, height: 10,
+                        decoration: BoxDecoration(color: s.color, borderRadius: BorderRadius.circular(3))),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(s.label, style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
+                      Text('$pct%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: s.color)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _miniCard(String l, int v, Color c) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.all(16),
+  /// Horizontal bar chart: THU vs CHI comparison
+  Widget _barChartCard(int salesIncome, int repairsIncome, int misc, int expenses, int cost) {
+    final totalIn = salesIncome + repairsIncome + misc;
+    final totalOut = expenses + cost;
+    final maxVal = math.max(totalIn, totalOut).toDouble();
+    if (maxVal == 0) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: c.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: c.withOpacity(0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: c.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l,
-            style: TextStyle(
-              fontSize: AppTextStyles.caption.fontSize,
-              color: c.withOpacity(0.8),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${NumberFormat('#,###').format(v)}đ',
-            style: TextStyle(
-              fontSize: AppTextStyles.headline4.fontSize,
-              fontWeight: FontWeight.bold,
-              color: c,
+          Text('THU vs CHI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
+            color: Colors.grey.shade700, letterSpacing: 0.5)),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 120,
+            child: BarChart(
+              BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: maxVal * 1.15,
+                barTouchData: BarTouchData(enabled: false),
+                gridData: const FlGridData(show: false),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (v, _) {
+                        switch (v.toInt()) {
+                          case 0: return Text('Bán hàng', style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
+                          case 1: return Text(_enableRepair ? 'Sửa chữa' : 'Thu khác',
+                            style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
+                          case 2: return Text('Chi phí', style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
+                          case 3: return Text('Giá vốn', style: TextStyle(fontSize: 9, color: Colors.grey.shade600));
+                          default: return const SizedBox();
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                barGroups: [
+                  _barGroup(0, salesIncome.toDouble(), const Color(0xFF43A047)),
+                  _barGroup(1, (_enableRepair ? repairsIncome : misc).toDouble(),
+                    _enableRepair ? const Color(0xFF1E88E5) : const Color(0xFF7E57C2)),
+                  _barGroup(2, expenses.toDouble(), const Color(0xFFE53935)),
+                  _barGroup(3, cost.toDouble(), const Color(0xFFFB8C00)),
+                ],
+              ),
             ),
           ),
         ],
       ),
-    ),
-  );
-  Widget _mainProfitCard(int p, String periodLabel) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: p >= 0
-            ? [Colors.green.shade600, Colors.green.shade400]
-            : [Colors.red.shade600, Colors.red.shade400],
-      ),
-      borderRadius: BorderRadius.circular(16),
-      boxShadow: [
-        BoxShadow(
-          color: (p >= 0 ? Colors.green : Colors.red).withOpacity(0.3),
-          blurRadius: 8,
-          offset: const Offset(0, 4),
+    );
+  }
+
+  BarChartGroupData _barGroup(int x, double y, Color color) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: y,
+          color: color,
+          width: 22,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+          backDrawRodData: BackgroundBarChartRodData(
+            show: true, toY: 0, color: color.withOpacity(0.06),
+          ),
         ),
       ],
-    ),
-    child: Column(
+    );
+  }
+
+  /// Compact quick stats row
+  Widget _quickStatsRow(int salesCount, int repairsCount, int expensesCount) {
+    return Row(
       children: [
-        Text(
-          "LỢI NHUẬN RÒNG ($periodLabel)",
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
-            fontSize: AppTextStyles.body1.fontSize,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "${NumberFormat('#,###').format(p)} đ",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: AppTextStyles.headline1.fontSize,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        _statChip('$salesCount đơn bán', const Color(0xFF1E88E5), Icons.shopping_cart_outlined),
+        const SizedBox(width: 6),
+        if (_enableRepair) ...[
+          _statChip('$repairsCount sửa', const Color(0xFFFB8C00), Icons.build_outlined),
+          const SizedBox(width: 6),
+        ],
+        _statChip('$expensesCount chi', const Color(0xFFE53935), Icons.receipt_outlined),
       ],
-    ),
-  );
+    );
+  }
+
+  Widget _statChip(String text, Color color, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSaleDetail() {
     final list = _sales.where((s) => _isInFilterPeriod(s.soldAt)).toList();
     list.sort((a, b) => b.soldAt.compareTo(a.soldAt));
@@ -4410,6 +4088,21 @@ class _PeriodStats {
   int get totalRevenue => salesIncome + repairsIncome + miscIncome;
   int get totalCost => salesCost + repairsCost;
   int get profit => totalRevenue - expenseOut - totalCost;
+}
+
+class _ChartItem {
+  final String label;
+  final int value;
+  final Color color;
+  _ChartItem(this.label, this.value, this.color);
+}
+
+class _CompMetric {
+  final String label;
+  final int cur;
+  final int prev;
+  final Color color;
+  _CompMetric(this.label, this.cur, this.prev, this.color);
 }
 
 class _ProductStat {
