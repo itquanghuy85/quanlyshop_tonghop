@@ -17,6 +17,7 @@ import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/sales_return_service.dart';
+import 'create_sales_return_view.dart';
 import 'debt_view.dart';
 import 'monthly_profit_report_view.dart';
 import 'customer_management_view.dart';
@@ -47,8 +48,8 @@ class _SaleListViewState extends State<SaleListView> {
   DateTime? _customStartDate;
   DateTime? _customEndDate;
   
-  // Return tracking
-  Set<int> _returnedSaleIds = {};
+  // Return tracking: saleId -> return summary
+  Map<int, _SaleReturnInfo> _returnInfoMap = {};
 
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
@@ -73,6 +74,9 @@ class _SaleListViewState extends State<SaleListView> {
     
     // Listen to sales changes (e.g., when settlement is received)
     EventBus().on('sales_changed', (_) {
+      if (mounted) _refresh();
+    });
+    EventBus().on('sales_returns_changed', (_) {
       if (mounted) _refresh();
     });
   }
@@ -126,13 +130,18 @@ class _SaleListViewState extends State<SaleListView> {
     final settings = await CategoryService().getShopSettings();
     if (mounted) _shopSettings = settings;
 
-    // Load return IDs
+    // Load return info per sale
     try {
       final returns = await SalesReturnService.getReturns();
-      _returnedSaleIds = returns
-          .where((r) => r.salesOrderId != null)
-          .map((r) => r.salesOrderId!)
-          .toSet();
+      final map = <int, _SaleReturnInfo>{};
+      for (final r in returns) {
+        if (r.salesOrderId == null) continue;
+        final sid = r.salesOrderId!;
+        final info = map.putIfAbsent(sid, () => _SaleReturnInfo());
+        info.totalReturnedAmount += r.totalReturnAmount;
+        info.returnCount += 1;
+      }
+      _returnInfoMap = map;
     } catch (_) {}
     
     if (_needsFullData || widget.todayOnly) {
@@ -157,6 +166,25 @@ class _SaleListViewState extends State<SaleListView> {
         _hasMore = firstPage.length >= _pageSize;
       });
     }
+
+    // Check fully-returned status (after sales loaded)
+    _checkReturnStatus();
+  }
+
+  Future<void> _checkReturnStatus() async {
+    if (_returnInfoMap.isEmpty) return;
+    bool changed = false;
+    for (final entry in _returnInfoMap.entries) {
+      try {
+        final sale = _allLoadedSales.where((s) => s.id == entry.key).firstOrNull;
+        if (sale != null && sale.id != null && sale.id! > 0) {
+          final was = entry.value.allReturned;
+          entry.value.allReturned = await _checkAllReturned(sale);
+          if (was != entry.value.allReturned) changed = true;
+        }
+      } catch (_) {}
+    }
+    if (changed && mounted) setState(() {});
   }
 
   List<SaleOrder> _applyFilters() {
@@ -656,12 +684,18 @@ class _SaleListViewState extends State<SaleListView> {
                             
                             // Determine card color based on payment status
                             final isPaid = s.isPaid; // Dùng getter mới
-                            final bgColor = isPaid 
-                                ? Colors.green.shade50 
-                                : Colors.orange.shade50;
-                            final borderColor = isPaid 
-                                ? Colors.green.shade300 
-                                : Colors.orange.shade300;
+                            final returnInfo = s.id != null ? _returnInfoMap[s.id] : null;
+                            final isFullyReturned = returnInfo?.allReturned == true;
+                            final bgColor = isFullyReturned
+                                ? Colors.grey.shade100
+                                : (isPaid 
+                                    ? Colors.green.shade50 
+                                    : Colors.orange.shade50);
+                            final borderColor = isFullyReturned
+                                ? Colors.grey.shade400
+                                : (isPaid 
+                                    ? Colors.green.shade300 
+                                    : Colors.orange.shade300);
 
                             return Card(
                               margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -680,6 +714,10 @@ class _SaleListViewState extends State<SaleListView> {
                                       builder: (_) => SaleDetailView(sale: s),
                                     ),
                                   ).then((_) => _refresh());
+                                },
+                                onLongPress: () {
+                                  HapticFeedback.mediumImpact();
+                                  _openReturn(s);
                                 },
                                 borderRadius: BorderRadius.circular(8),
                                 child: Padding(
@@ -806,11 +844,7 @@ class _SaleListViewState extends State<SaleListView> {
                                             Colors.blue.shade100,
                                           ),
                                           // Trả hàng
-                                          if (s.id != null && _returnedSaleIds.contains(s.id))
-                                            _saleInfoChip(
-                                              '↩️ Đã trả hàng',
-                                              Colors.purple.shade100,
-                                            ),
+                                          if (s.id != null && _returnInfoMap.containsKey(s.id)) ..._buildReturnChips(s),
                                         ],
                                       ),
                                     ],
@@ -1002,4 +1036,80 @@ class _SaleListViewState extends State<SaleListView> {
       ),
     );
   }
+
+  // ── Return helpers ──
+
+  Future<bool> _checkAllReturned(SaleOrder sale) async {
+    if (sale.id == null || sale.id! <= 0) return false;
+    final returnedMap = await db.getReturnedQuantitiesForSale(sale.id!);
+    if (returnedMap.isEmpty) return false;
+    final names = sale.productNames.split(RegExp(r',\s*'));
+    final imeis = sale.productImeis.split(RegExp(r',\s*'));
+    for (int i = 0; i < names.length; i++) {
+      final name = names[i].trim();
+      if (name.isEmpty) continue;
+      final imei = i < imeis.length ? imeis[i].trim() : '';
+      int origQty = 1;
+      String cleanName = name;
+      final qtyMatch = RegExp(r'^(.+?)\s+[xX](\d+)').firstMatch(name);
+      if (qtyMatch != null) {
+        cleanName = qtyMatch.group(1)!.trim();
+        origQty = int.tryParse(qtyMatch.group(2)!) ?? 1;
+      }
+      if (imei.toUpperCase().startsWith('PKX')) {
+        origQty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
+      }
+      final isPhone = imei.isNotEmpty && !imei.toUpperCase().startsWith('PKX') && imei != 'NO_IMEI';
+      final key = isPhone ? imei.toUpperCase() : cleanName.toUpperCase();
+      final returned = returnedMap[key] ?? 0;
+      if (returned < origQty) return false;
+    }
+    return true;
+  }
+
+  List<Widget> _buildReturnChips(SaleOrder s) {
+    final info = _returnInfoMap[s.id];
+    if (info == null) return [];
+    final fmt = NumberFormat('#,###');
+    if (info.allReturned) {
+      return [
+        _saleInfoChip(
+          '↩️ Trả hết ${fmt.format(info.totalReturnedAmount)}đ',
+          Colors.grey.shade300,
+        ),
+      ];
+    }
+    return [
+      GestureDetector(
+        onTap: () => _openReturn(s),
+        child: _saleInfoChip(
+          '↩️ Trả ${fmt.format(info.totalReturnedAmount)}đ (${info.returnCount} lần)',
+          Colors.purple.shade100,
+        ),
+      ),
+    ];
+  }
+
+  void _openReturn(SaleOrder s) async {
+    final info = _returnInfoMap[s.id];
+    if (info != null && info.allReturned) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đơn này đã trả hết hàng'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => CreateSalesReturnView(sale: s)),
+    );
+    if (result == true && mounted) {
+      _refresh();
+    }
+  }
+}
+
+class _SaleReturnInfo {
+  int totalReturnedAmount = 0;
+  int returnCount = 0;
+  bool allReturned = false;
 }
