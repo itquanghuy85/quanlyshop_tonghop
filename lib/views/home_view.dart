@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -6520,206 +6522,153 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   }
 
   Widget _buildDashboardOverview() {
-    // Cash flow totals - giống hệt Sổ quỹ (cashIn + bankIn / cashOut + bankOut)
     final totalIncome = _todayTotalIn;
     final totalExpense = _todayTotalOut;
-    final maxVal = totalIncome > totalExpense ? totalIncome : totalExpense;
-    final incomeRatio = maxVal > 0 ? totalIncome / maxVal : 0.0;
-    final expenseRatio = maxVal > 0 ? totalExpense / maxVal : 0.0;
+    final netProfit = totalIncome - totalExpense;
+
+    // Income breakdown for donut
+    final incomeItems = <_HomeDashItem>[
+      _HomeDashItem('Bán hàng', _todaySaleIncome + _todayRefundOut, const Color(0xFF43A047)),
+      if (_todaySettlementIncome > 0) _HomeDashItem('Tất toán NH', _todaySettlementIncome, const Color(0xFF00897B)),
+      if (_enableRepair && _todayRepairIncome > 0) _HomeDashItem('Sửa chữa', _todayRepairIncome, const Color(0xFF1E88E5)),
+      if (_todayDebtCollected > 0) _HomeDashItem('Thu nợ KH', _todayDebtCollected, const Color(0xFF5C6BC0)),
+      if (_todayMiscIncome > 0) _HomeDashItem('Thu khác', _todayMiscIncome, const Color(0xFF7E57C2)),
+    ].where((i) => i.value > 0).toList();
+
+    final expenseItems = <_HomeDashItem>[
+      _HomeDashItem('Chi phí', _todayExpenseOnly, const Color(0xFFE53935)),
+      if (_todayImportOut > 0) _HomeDashItem('Nhập hàng', _todayImportOut, const Color(0xFFFB8C00)),
+      if (_todayDebtPaidToSupplier > 0) _HomeDashItem('Trả nợ NCC', _todayDebtPaidToSupplier, const Color(0xFFFF7043)),
+      if (_todayPartnerPaid > 0) _HomeDashItem('TT đối tác', _todayPartnerPaid, const Color(0xFFAB47BC)),
+      if (_todayRefundOut > 0) _HomeDashItem('Trả hàng', _todayRefundOut, const Color(0xFFEF5350)),
+    ].where((i) => i.value > 0).toList();
+
+    // Bar chart data
+    final barItems = <_HomeDashItem>[
+      _HomeDashItem('Bán hàng', _todaySaleIncome, const Color(0xFF43A047)),
+      if (_enableRepair) _HomeDashItem('Sửa chữa', _todayRepairIncome, const Color(0xFF1E88E5)),
+      _HomeDashItem('Chi phí', _todayExpenseOnly, const Color(0xFFE53935)),
+      _HomeDashItem('Nhập hàng', _todayImportOut, const Color(0xFFFB8C00)),
+    ];
+    final barMax = barItems.fold<double>(0, (m, i) => math.max(m, i.value.toDouble()));
 
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const CashClosingView()),
-      ),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashClosingView())),
       child: Container(
         key: ValueKey('dashboard_overview_${_todayTotalIn}_${_todayTotalOut}'),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade100),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // BIẾN ĐỘNG TRONG NGÀY header - giống Sổ quỹ
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.bar_chart, color: Colors.orange, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  "BIẾN ĐỘNG TRONG NGÀY",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                    fontSize: AppTextStyles.headline4.fontSize,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            // Bar chart - responsive height/width
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final r = context.responsive;
-                final barH = r.isDesktop ? 120.0 : (r.isTablet ? 110.0 : 100.0);
-                final barW = r.isDesktop ? 70.0 : (r.isTablet ? 60.0 : 50.0);
-            return Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        height: barH,
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          width: barW,
-                          height: barH * incomeRatio,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.green.shade300, Colors.green.shade600],
-                            ),
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "📥 THU",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.subtitle1.fontSize,
-                        ),
-                      ),
-                      Text(
-                        "+${MoneyUtils.formatVND(totalIncome)}",
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.headline5.fontSize,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        height: barH,
-                        alignment: Alignment.bottomCenter,
-                        child: Container(
-                          width: barW,
-                          height: barH * expenseRatio,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.red.shade300, Colors.red.shade600],
-                            ),
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "📤 CHI",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.subtitle1.fontSize,
-                        ),
-                      ),
-                      Text(
-                        "-${MoneyUtils.formatVND(totalExpense)}",
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.headline5.fontSize,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-              },
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
-            // CHI TIẾT THU / CHI - giống Sổ quỹ
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "📥 CHI TIẾT THU",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.body1.fontSize,
-                          color: Colors.green,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _homeBreakdownItem("Bán hàng", _todaySaleIncome + _todayRefundOut, Colors.green),
-                      _homeBreakdownItem("Tất toán NH", _todaySettlementIncome, Colors.green),
-                      if (_enableRepair)
-                        _homeBreakdownItem("Sửa chữa", _todayRepairIncome, Colors.green),
-                      _homeBreakdownItem("Thu nợ KH", _todayDebtCollected, Colors.green),
-                      _homeBreakdownItem("Thu phát sinh", _todayMiscIncome, Colors.teal),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "📤 CHI TIẾT CHI",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppTextStyles.body1.fontSize,
-                          color: Colors.red,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _homeBreakdownItem("Chi phí", _todayExpenseOnly, Colors.red),
-                      _homeBreakdownItem("Nhập hàng", _todayImportOut, Colors.red),
-                      _homeBreakdownItem("Trả nợ NCC", _todayDebtPaidToSupplier, Colors.red),
-                      if (_todayPartnerPaid > 0)
-                        _homeBreakdownItem("TT đối tác SC", _todayPartnerPaid, Colors.red),
-                      if (_todayRepairPartsCostFund > 0)
-                        _homeBreakdownItem("Vốn LK SC", _todayRepairPartsCostFund, Colors.red),
-                      if (_todayRefundOut > 0)
-                        _homeBreakdownItem("Trả hàng", _todayRefundOut, Colors.orange),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            // ── Profit header ──
+            _dashProfitHeader(netProfit, totalIncome, totalExpense),
+
             const SizedBox(height: 12),
-            const Divider(),
+
+            // ── 2x2 metric tiles ──
+            Row(
+              children: [
+                _dashMetric('Thu', totalIncome, const Color(0xFF2E7D32), Icons.trending_up),
+                const SizedBox(width: 8),
+                _dashMetric('Chi', totalExpense, const Color(0xFFC62828), Icons.trending_down),
+              ],
+            ),
             const SizedBox(height: 8),
-            // HOẠT ĐỘNG HÔM NAY
+            Row(
+              children: [
+                _dashMetric('Đơn bán', todaySaleCount, const Color(0xFF1E88E5), Icons.shopping_cart_outlined, raw: true, suffix: ''),
+                const SizedBox(width: 8),
+                _dashMetric(
+                  _enableRepair ? 'Sửa chữa' : 'Chi phí HĐ',
+                  _enableRepair ? _todayRepairCount : _todayExpenseCount,
+                  _enableRepair ? const Color(0xFFFB8C00) : const Color(0xFFE53935),
+                  _enableRepair ? Icons.build_outlined : Icons.receipt_outlined,
+                  raw: true, suffix: '',
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // ── Donut breakdown: THU ──
+            if (incomeItems.isNotEmpty)
+              _dashDonut('THU NHẬP', incomeItems, totalIncome, const Color(0xFF2E7D32)),
+
+            if (incomeItems.isNotEmpty && expenseItems.isNotEmpty)
+              const SizedBox(height: 10),
+
+            // ── Donut breakdown: CHI ──
+            if (expenseItems.isNotEmpty)
+              _dashDonut('CHI TIÊU', expenseItems, totalExpense, const Color(0xFFC62828)),
+
+            const SizedBox(height: 14),
+
+            // ── Bar chart ──
+            if (barMax > 0) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('BIẾN ĐỘNG', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 110,
+                      child: BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          maxY: barMax * 1.15,
+                          barTouchData: BarTouchData(enabled: false),
+                          gridData: const FlGridData(show: false),
+                          borderData: FlBorderData(show: false),
+                          titlesData: FlTitlesData(
+                            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                getTitlesWidget: (v, _) {
+                                  final idx = v.toInt();
+                                  if (idx < 0 || idx >= barItems.length) return const SizedBox();
+                                  return Text(barItems[idx].label, style: TextStyle(fontSize: 9, color: barItems[idx].color, fontWeight: FontWeight.w600));
+                                },
+                              ),
+                            ),
+                          ),
+                          barGroups: barItems.asMap().entries.map((e) {
+                            return BarChartGroupData(
+                              x: e.key,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: e.value.value.toDouble(),
+                                  color: e.value.color,
+                                  width: 20,
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                                  backDrawRodData: BackgroundBarChartRodData(show: true, toY: 0, color: e.value.color.withOpacity(0.06)),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // ── HOẠT ĐỘNG HÔM NAY
             Text(
               loc.todayActivity,
               style: AppTextStyles.caption.copyWith(
@@ -6834,30 +6783,130 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     );
   }
 
-  /// Breakdown item widget cho home dashboard (kiểu Sổ quỹ)
-  Widget _homeBreakdownItem(String label, int amount, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+  // ── Dashboard chart helpers ──
+
+  Widget _dashProfitHeader(int net, int income, int expense) {
+    final isPositive = net >= 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isPositive ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
         children: [
           Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text('HÔM NAY', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.grey.shade600)),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 10),
+          Icon(isPositive ? Icons.arrow_upward : Icons.arrow_downward, size: 16, color: isPositive ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
+          const SizedBox(width: 4),
           Expanded(
             child: Text(
-              label,
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.black54),
+              '${isPositive ? "+" : "-"}${MoneyUtils.formatVND(net.abs())}',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: isPositive ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
             ),
           ),
-          Text(
-            MoneyUtils.formatVND(amount),
-            style: TextStyle(
-              fontSize: AppTextStyles.body1.fontSize,
-              color: color,
-              fontWeight: FontWeight.w500,
+          Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey.shade400),
+        ],
+      ),
+    );
+  }
+
+  Widget _dashMetric(String label, num value, Color color, IconData icon, {bool raw = false, String? suffix}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    raw ? '${value.toInt()}${suffix ?? ''}' : MoneyUtils.formatCompact(value.toInt()),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dashDonut(String title, List<_HomeDashItem> items, int total, Color titleColor) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          // Donut
+          SizedBox(
+            width: 70,
+            height: 70,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 1.5,
+                centerSpaceRadius: 20,
+                sections: items.map((i) {
+                  final pct = total > 0 ? i.value / total * 100 : 0.0;
+                  return PieChartSectionData(
+                    value: i.value.toDouble(),
+                    color: i.color,
+                    radius: 14,
+                    title: pct >= 15 ? '${pct.round()}%' : '',
+                    titleStyle: const TextStyle(fontSize: 8, fontWeight: FontWeight.w700, color: Colors.white),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Legend
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: titleColor, letterSpacing: 0.5)),
+                    const Spacer(),
+                    Text(MoneyUtils.formatCompact(total), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: titleColor)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ...items.map((i) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 1.5),
+                  child: Row(
+                    children: [
+                      Container(width: 7, height: 7, decoration: BoxDecoration(color: i.color, borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(width: 5),
+                      Expanded(child: Text(i.label, style: TextStyle(fontSize: 10, color: Colors.grey.shade700))),
+                      Text(MoneyUtils.formatCompact(i.value), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: i.color)),
+                    ],
+                  ),
+                )),
+              ],
             ),
           ),
         ],
@@ -7156,4 +7205,12 @@ class _ShortcutItem {
   final Color color;
   final VoidCallback onTap;
   const _ShortcutItem(this.icon, this.label, this.color, this.onTap);
+}
+
+/// Data class for dashboard chart items
+class _HomeDashItem {
+  final String label;
+  final int value;
+  final Color color;
+  const _HomeDashItem(this.label, this.value, this.color);
 }
