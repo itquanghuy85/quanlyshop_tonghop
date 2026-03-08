@@ -4,6 +4,29 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
+## [11.0.9] - 2026-03-08
+
+### Cải thiện giao diện
+- **Tăng cỡ chữ toàn app**: Đồng bộ font size theo chuẩn app phổ biến (Zalo) — body: 12→14, caption: 11→12, heading tăng 1-2px. Thay thế hơn 65 file, không còn chữ quá nhỏ
+- **Biểu đồ fl_chart trên Trang chủ**: Dashboard donut chart + bar chart thay thế biểu đồ cũ — hiện đại, mượt, có animation
+- **Redesign Doanh thu & Chi phí**: Giao diện compact chuyên nghiệp với fl_chart (pie chart, bar chart)
+
+### Tính năng mới
+- **Thông tin hàng trả trên danh sách bán**: Hiển thị chip số lượng trả, số tiền hoàn trả ngay trên mỗi đơn. Đơn đã trả hết hiện màu xám và không cho trả thêm
+- **Bảo vệ quyền truy cập tài chính**: Thêm permission guard cho tất cả view tài chính (Sổ quỹ, Báo cáo, Nhật ký)
+
+### Sửa lỗi
+- **Fix lỗi SQL cập nhật công nợ**: Sửa "no such column: paid" — thay double-quoted string bằng parameterized query trong updateDebtPaid
+- **Fix tràn biểu đồ tháng**: Di chuyển label ra ngoài SizedBox, clamp chiều cao bar
+- **Fix variant import**: Sửa literal \\n trong variant_management_view
+
+### Kỹ thuật
+- **Đổi tên**: 'Nhật ký tài chính' → 'Nhật ký hệ thống'
+- **UI polish**: Compact activity grid, gộp section tài chính trùng, sửa loading Sổ quỹ
+- **DB v89**: Thêm cột debt_payments, seed test data, dọn 8 file không dùng
+
+---
+
 ## [11.0.1] - 2026-03-06
 
 ### Cải thiện giao diện
