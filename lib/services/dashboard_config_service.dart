@@ -368,6 +368,7 @@ enum ShortcutType {
   staff,           // Nhân sự
   expenses,        // Thu chi
   expiryManage,    // Hạn sử dụng
+  paymentRequest,  // Yêu cầu đóng tiền
 }
 
 /// Config for a single shortcut item
@@ -428,6 +429,7 @@ class ShortcutConfig {
       case ShortcutType.staff: return 'Nhân sự';
       case ShortcutType.expenses: return 'Thu chi';
       case ShortcutType.expiryManage: return 'Hạn SD';
+      case ShortcutType.paymentRequest: return 'Đóng tiền';
     }
   }
 
@@ -460,6 +462,7 @@ class ShortcutConfig {
       case ShortcutType.staff: return Icons.badge;
       case ShortcutType.expenses: return Icons.swap_horiz;
       case ShortcutType.expiryManage: return Icons.timer;
+      case ShortcutType.paymentRequest: return Icons.request_page;
     }
   }
 
@@ -492,6 +495,7 @@ class ShortcutConfig {
       case ShortcutType.staff: return Colors.blue;
       case ShortcutType.expenses: return Colors.redAccent;
       case ShortcutType.expiryManage: return Colors.orange;
+      case ShortcutType.paymentRequest: return const Color(0xFF075E54);
     }
   }
 
@@ -546,6 +550,7 @@ class ShortcutConfig {
       case ShortcutType.quickCodes:
       case ShortcutType.qrScan:
       case ShortcutType.globalSearch:
+      case ShortcutType.paymentRequest:
         return null; // Utility shortcuts - no permission required
     }
   }

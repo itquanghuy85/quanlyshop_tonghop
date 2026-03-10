@@ -925,6 +925,25 @@ service cloud.firestore {
     }
 
     // ┌──────────────────────────────────────────────────────────────────┐
+    // │              SECTION 8.5: PAYMENT REQUESTS                       │
+    // │           Collection: payment_requests                           │
+    // │           Chat-like payment collection requests                  │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    match /payment_requests/{requestId} {
+      allow read: if isAuth() && docInMyShop();
+
+      allow create: if isAuth() &&
+                       newDocInMyShop() &&
+                       has(['customerName', 'customerPhone', 'amount', 'senderId', 'shopId']) &&
+                       request.resource.data.senderId == uid();
+
+      allow update: if isAuth() && docInMyShop();
+
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
     // │                   SECTION 9: NOTIFICATIONS                       │
     // │           Collections: notifications, shop_notifications         │
     // │           User personal + shop-wide broadcasts                   │

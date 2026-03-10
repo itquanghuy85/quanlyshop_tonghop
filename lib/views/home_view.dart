@@ -92,6 +92,7 @@ import 'food/expiry_management_view.dart';
 import 'fashion/variant_management_view.dart';
 import 'onboarding/business_type_wizard.dart';
 import 'dashboard_settings_view.dart';
+import 'payment_request_chat_view.dart';
 import '../services/test_data_service.dart';
 import '../services/dashboard_config_service.dart';
 import '../widgets/dashboard_cards.dart';
@@ -3440,6 +3441,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
           return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseView()));
         case ShortcutType.expiryManage:
           return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpiryManagementView()));
+        case ShortcutType.paymentRequest:
+          return () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PaymentRequestChatView()));
       }
     }
 
