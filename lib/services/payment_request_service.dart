@@ -41,18 +41,7 @@ class PaymentRequestService {
 
       final userName = user.email?.split('@').first.toUpperCase() ?? 'NV';
 
-      // Upload images if any
-      final List<String> imageUrls = [];
-      if (images != null && images.isNotEmpty) {
-        for (int i = 0; i < images.length; i++) {
-          final fileName = 'pr_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
-          final ref = _storage.ref().child('payment_requests/$shopId/$fileName');
-          await ref.putFile(images[i]);
-          final url = await ref.getDownloadURL();
-          imageUrls.add(url);
-        }
-      }
-
+      // Create doc FIRST so it appears in list immediately
       final request = PaymentRequest(
         shopId: shopId,
         senderId: user.uid,
@@ -67,16 +56,53 @@ class PaymentRequestService {
         accountNumber: accountNumber,
         bankName: bankName,
         description: description,
-        imageUrls: imageUrls,
+        imageUrls: [],
         createdAt: DateTime.now(),
       );
 
-      final docRef = await _db.collection(_collection).add(request.toMap());
+      final map = request.toMap();
+      // Use server timestamp for consistent ordering
+      map['createdAt'] = FieldValue.serverTimestamp();
+
+      final docRef = await _db.collection(_collection).add(map);
       debugPrint('✅ PaymentRequest created: ${docRef.id}');
+
+      // Upload images AFTER doc is created (non-blocking for list appearance)
+      if (images != null && images.isNotEmpty) {
+        _uploadImagesInBackground(docRef.id, shopId, images);
+      }
+
       return docRef.id;
     } catch (e) {
       debugPrint('❌ PaymentRequest create error: $e');
       return null;
+    }
+  }
+
+  /// Upload images in background and update the existing doc
+  static Future<void> _uploadImagesInBackground(
+    String docId,
+    String shopId,
+    List<File> images,
+  ) async {
+    try {
+      final List<String> urls = [];
+      for (int i = 0; i < images.length; i++) {
+        final fileName = 'pr_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+        final ref = _storage.ref().child('payment_requests/$shopId/$fileName');
+        await ref.putFile(images[i]);
+        final url = await ref.getDownloadURL();
+        urls.add(url);
+      }
+      if (urls.isNotEmpty) {
+        await _db.collection(_collection).doc(docId).update({
+          'imageUrls': FieldValue.arrayUnion(urls),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        debugPrint('✅ PaymentRequest $docId: ${urls.length} images uploaded');
+      }
+    } catch (e) {
+      debugPrint('❌ PaymentRequest image upload error: $e');
     }
   }
 
