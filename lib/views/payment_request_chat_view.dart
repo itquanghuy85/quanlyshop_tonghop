@@ -74,6 +74,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   String? _currentUid;
   String _userRole = 'employee';
 
+  // Image chat bar state
+  PaymentRequest? _selectedReqForImage;
+  bool _isSendingImage = false;
+
   @override
   void initState() {
     super.initState();
@@ -117,7 +121,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   }
 
   bool get _isOwnerOrAdmin =>
-      _userRole == 'owner' || _userRole == 'admin' || _userRole == 'superadmin';
+      _userRole == 'owner' || _userRole == 'manager' || _userRole == 'admin' || _userRole == 'superadmin';
 
   @override
   Widget build(BuildContext context) {
@@ -186,6 +190,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                         itemBuilder: (ctx, i) => _buildRequestBubble(_requests[i]),
                       ),
           ),
+          // Chat-like image input bar for sending proof images
+          _buildImageChatBar(),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -317,8 +323,51 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                             _infoRow(Icons.note, req.description!),
                           if (req.customerNote != null && req.customerNote!.isNotEmpty)
                             _infoRow(Icons.comment, req.customerNote!),
-                          if (req.paymentMethod != null && req.status == PaymentRequestStatus.completed)
-                            _infoRow(Icons.payments, req.paymentMethod == 'CHUYỂN KHOẢN' ? 'Chuyển khoản' : 'Tiền mặt'),
+                          if (req.status == PaymentRequestStatus.completed && req.paymentMethod != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                      ? Colors.blue.shade50
+                                      : Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                        ? Colors.blue.shade200
+                                        : Colors.green.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      req.paymentMethod == 'CHUYỂN KHOẢN'
+                                          ? Icons.account_balance
+                                          : Icons.payments,
+                                      size: 14,
+                                      color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                          ? Colors.blue.shade700
+                                          : Colors.green.shade700,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      req.paymentMethod == 'CHUYỂN KHOẢN'
+                                          ? 'Đã chuyển khoản'
+                                          : 'Đã thanh toán tiền mặt',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                            ? Colors.blue.shade700
+                                            : Colors.green.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -542,7 +591,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   /// Dialog xác nhận hoàn thành với chọn phương thức thanh toán
   Future<void> _showCompleteDialog(PaymentRequest req) async {
-    String selectedMethod = 'TIỀN MẶT';
+    String selectedMethod = 'CHUYỂN KHOẢN';
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -596,7 +645,9 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Khoản chi này sẽ được ghi vào sổ quỹ',
+                        selectedMethod == 'CHUYỂN KHOẢN'
+                            ? 'Khoản chuyển khoản sẽ được ghi vào sổ quỹ và trừ vào tài khoản ngân hàng'
+                            : 'Khoản chi tiền mặt sẽ được ghi vào sổ quỹ và trừ vào quỹ tiền mặt',
                         style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
                       ),
                     ),
@@ -760,7 +811,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               if (req.bankName != null) _detailTile('Ngân hàng / Đơn vị', req.bankName!),
               if (req.description != null) _detailTile('Mô tả', req.description!),
               if (req.customerNote != null) _detailTile('Ghi chú', req.customerNote!),
-              if (req.paymentMethod != null) _detailTile('Phương thức TT', req.paymentMethod == 'CHUYỂN KHOẢN' ? 'Chuyển khoản' : 'Tiền mặt'),
+              if (req.paymentMethod != null)
+                _detailTile('Hình thức TT', req.paymentMethod == 'CHUYỂN KHOẢN' ? '🏦 Chuyển khoản ngân hàng' : '💵 Tiền mặt'),
               _detailTile('Nhân viên gửi', req.senderName),
               _detailTile('Ngày tạo', DateFormat('dd/MM/yyyy HH:mm').format(req.createdAt)),
               if (req.processedByName != null) _detailTile('Người xử lý', req.processedByName!),
@@ -824,6 +876,196 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         ),
       ),
     );
+  }
+
+  // ============== IMAGE CHAT BAR ==============
+
+  Widget _buildImageChatBar() {
+    // Only show if there are pending/processing requests to attach images to
+    final activeRequests = _requests.where(
+      (r) => r.status == PaymentRequestStatus.pending ||
+             r.status == PaymentRequestStatus.processing ||
+             r.status == PaymentRequestStatus.completed,
+    ).toList();
+
+    if (activeRequests.isEmpty || _isLoading) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, -1))],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // Select request to attach image
+            Expanded(
+              child: GestureDetector(
+                onTap: () => _showSelectRequestForImage(activeRequests),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.attach_file, size: 18, color: Colors.grey.shade600),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedReqForImage != null
+                              ? '${_selectedReqForImage!.paymentTypeIcon} ${_selectedReqForImage!.customerName} · ${_currencyFmt.format(_selectedReqForImage!.amount)}\u0111'
+                              : 'Ch\u1ecdn y\u00eau c\u1ea7u \u0111\u1ec3 g\u1eedi \u1ea3nh thanh to\u00e1n...',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _selectedReqForImage != null ? Colors.black87 : Colors.grey.shade500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            // Camera button
+            Material(
+              color: _selectedReqForImage != null ? const Color(0xFF075E54) : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                onTap: _selectedReqForImage != null && !_isSendingImage
+                    ? () => _sendProofImage(ImageSource.camera)
+                    : null,
+                borderRadius: BorderRadius.circular(24),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: _isSendingImage
+                      ? const SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(Icons.camera_alt, size: 20,
+                          color: _selectedReqForImage != null ? Colors.white : Colors.grey.shade500),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            // Gallery button
+            Material(
+              color: _selectedReqForImage != null ? Colors.blue : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(24),
+              child: InkWell(
+                onTap: _selectedReqForImage != null && !_isSendingImage
+                    ? () => _sendProofImage(ImageSource.gallery)
+                    : null,
+                borderRadius: BorderRadius.circular(24),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(Icons.photo_library, size: 20,
+                      color: _selectedReqForImage != null ? Colors.white : Colors.grey.shade500),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSelectRequestForImage(List<PaymentRequest> requests) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              child: const Text(
+                'Ch\u1ecdn y\u00eau c\u1ea7u \u0111\u1ec3 g\u1eedi \u1ea3nh thanh to\u00e1n',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+            const Divider(height: 1),
+            ...requests.take(10).map((r) => ListTile(
+              leading: Text(r.paymentTypeIcon, style: const TextStyle(fontSize: 22)),
+              title: Text(
+                '${r.customerName} \u00b7 ${_currencyFmt.format(r.amount)}\u0111',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                '${r.paymentTypeDisplay} \u00b7 ${r.statusDisplay}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              trailing: r.imageUrls.isNotEmpty
+                  ? Badge(
+                      label: Text('${r.imageUrls.length}'),
+                      child: const Icon(Icons.photo, color: Colors.blue),
+                    )
+                  : null,
+              selected: _selectedReqForImage?.id == r.id,
+              selectedTileColor: Colors.green.shade50,
+              onTap: () {
+                setState(() => _selectedReqForImage = r);
+                Navigator.pop(ctx);
+              },
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendProofImage(ImageSource source) async {
+    if (_selectedReqForImage?.id == null) return;
+
+    final picker = ImagePicker();
+    List<File> files = [];
+
+    if (source == ImageSource.camera) {
+      final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
+      if (photo != null) files.add(File(photo.path));
+    } else {
+      final photos = await picker.pickMultiImage(imageQuality: 75);
+      for (final p in photos) {
+        files.add(File(p.path));
+      }
+    }
+
+    if (files.isEmpty || !mounted) return;
+
+    setState(() => _isSendingImage = true);
+    try {
+      final urls = await PaymentRequestService.uploadImages(
+        _selectedReqForImage!.id!,
+        files,
+      );
+      if (!mounted) return;
+      if (urls != null && urls.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('\u2705 \u0110\u00e3 g\u1eedi ${urls.length} \u1ea3nh thanh to\u00e1n'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('\u274c L\u1ed7i g\u1eedi \u1ea3nh'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('L\u1ed7i: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingImage = false);
+    }
   }
 
   // ============== CREATE FORM ==============
