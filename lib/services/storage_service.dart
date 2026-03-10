@@ -161,9 +161,23 @@ class StorageService {
 
       final file = File(picked.path);
       if (!file.existsSync()) return null;
+
+      // Compress image if applicable (attendance, repair photos)
+      File fileToUpload = file;
+      if (_isImageFile(picked.path)) {
+        final compressed = await _compressImage(file);
+        if (compressed != null) fileToUpload = compressed;
+      }
+
       final snapshot = await ref
-          .putFile(file)
+          .putFile(fileToUpload)
           .timeout(const Duration(seconds: 30));
+
+      // Clean up temp compressed file
+      if (fileToUpload.path != file.path && fileToUpload.existsSync()) {
+        try { await fileToUpload.delete(); } catch (_) {}
+      }
+
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
       debugPrint("STORAGE_XFILE_ERROR: $e");

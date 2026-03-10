@@ -11,6 +11,7 @@ import '../services/osm_map_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
+import '../widgets/app_cached_image.dart';
 
 /// Trang theo dõi chấm công nhân viên cho quản lý/chủ shop
 /// Hiển thị tổng quan chấm công của tất cả nhân viên
@@ -59,15 +60,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
           );
         }
 
-        return Image.network(
-          imageUrl,
+        return AppCachedImage(
+          imageUrl: imageUrl,
           height: 120,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
-            height: 120,
-            color: Colors.grey[200],
-            child: const Icon(Icons.broken_image),
-          ),
+          memCacheHeight: 240,
         );
       },
     );

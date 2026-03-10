@@ -25,6 +25,8 @@ import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../theme/app_colors.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/app_cached_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class OrderListView extends StatefulWidget {
   final int? initialStatus;
@@ -1264,9 +1266,9 @@ class OrderListViewState extends State<OrderListView> {
                                       image: (firstImage.startsWith('http') ||
                                               firstImage.startsWith('blob:') ||
                                               firstImage.startsWith('data:'))
-                                          ? NetworkImage(firstImage)
+                                          ? CachedNetworkImageProvider(firstImage)
                                           : (kIsWeb
-                                                ? NetworkImage(firstImage)
+                                                ? CachedNetworkImageProvider(firstImage)
                                                 : FileImage(File(firstImage))
                                                       as ImageProvider),
                                       fit: BoxFit.cover,
@@ -1293,11 +1295,11 @@ class OrderListViewState extends State<OrderListView> {
                                             }
                                             return ClipRRect(
                                               borderRadius: BorderRadius.circular(8),
-                                              child: Image.network(
-                                                url,
+                                              child: AppCachedImage(
+                                                imageUrl: url,
                                                 fit: BoxFit.cover,
-                                                errorBuilder: (ctx, err, stack) =>
-                                                    const Icon(Icons.broken_image, color: Colors.grey),
+                                                memCacheWidth: 100,
+                                                memCacheHeight: 100,
                                               ),
                                             );
                                           },

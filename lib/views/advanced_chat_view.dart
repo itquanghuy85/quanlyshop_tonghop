@@ -22,6 +22,7 @@ import '../theme/app_text_styles.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../widgets/custom_app_bar.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Chat View đẳng cấp với đầy đủ tính năng
 class AdvancedChatView extends StatefulWidget {
@@ -1322,24 +1323,23 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                               tag: 'chat_image_$url',
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  url,
+                                child: CachedNetworkImage(
+                                  imageUrl: url,
                                   width: 150,
                                   height: 150,
                                   fit: BoxFit.cover,
-                                  loadingBuilder: (ctx, child, progress) {
-                                    if (progress == null) return child;
-                                    return Container(
-                                      width: 150,
-                                      height: 150,
-                                      color: Colors.grey.shade200,
-                                      child: const Center(
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
+                                  memCacheWidth: 300,
+                                  memCacheHeight: 300,
+                                  placeholder: (_, __) => Container(
+                                    width: 150,
+                                    height: 150,
+                                    color: Colors.grey.shade200,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
                                       ),
-                                    );
-                                  },
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1861,22 +1861,13 @@ class _ImageViewerDialogState extends State<_ImageViewerDialog> {
             child: Center(
               child: Hero(
                 tag: 'chat_image_${widget.imageUrls[index]}',
-                child: Image.network(
-                  widget.imageUrls[index],
+                child: CachedNetworkImage(
+                  imageUrl: widget.imageUrls[index],
                   fit: BoxFit.contain,
-                  loadingBuilder: (ctx, child, progress) {
-                    if (progress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: progress.expectedTotalBytes != null
-                            ? progress.cumulativeBytesLoaded /
-                                  progress.expectedTotalBytes!
-                            : null,
-                        color: Colors.white,
-                      ),
-                    );
-                  },
-                  errorBuilder: (ctx, err, stack) => const Center(
+                  placeholder: (_, __) => const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
+                  errorWidget: (_, __, ___) => const Center(
                     child: Icon(
                       Icons.broken_image,
                       color: Colors.white54,

@@ -13,6 +13,7 @@ import '../services/data_migration_service.dart';
 import '../services/sync_service.dart';
 import '../services/category_service.dart';
 import '../services/osm_map_service.dart';
+import '../widgets/app_cached_image.dart';
 import '../models/shop_settings_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -406,7 +407,12 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                                         : _shopLogoUrl.isNotEmpty
                                             ? ClipRRect(
                                                 borderRadius: BorderRadius.circular(12),
-                                                child: Image.network(_shopLogoUrl, fit: BoxFit.cover),
+                                                child: AppCachedImage(
+                                                  imageUrl: _shopLogoUrl,
+                                                  fit: BoxFit.cover,
+                                                  memCacheWidth: 200,
+                                                  memCacheHeight: 200,
+                                                ),
                                               )
                                             : const Icon(Icons.add_a_photo, size: 28, color: Colors.grey),
                                   ),

@@ -28,10 +28,11 @@ import '../widgets/responsive_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
-  if (path.startsWith('http')) return NetworkImage(path);
+  if (path.startsWith('http')) return CachedNetworkImageProvider(path);
   final file = File(path);
   return file.existsSync() ? FileImage(file) : null;
 }

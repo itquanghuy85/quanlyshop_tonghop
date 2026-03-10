@@ -9,6 +9,8 @@ import '../core/utils/money_utils.dart';
 import '../theme/app_text_styles.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/app_cached_image.dart';
 
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
@@ -125,7 +127,7 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                 validImages[i].startsWith('blob:') ||
                 validImages[i].startsWith('data:') ||
                 kIsWeb)
-              ? m.NetworkImage(validImages[i])
+              ? CachedNetworkImageProvider(validImages[i])
               : m.FileImage(File(validImages[i])) as m.ImageProvider,
           initialScale: PhotoViewComputedScale.contained,
           minScale: PhotoViewComputedScale.contained,
@@ -195,7 +197,12 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                                         thumb.startsWith('blob:') ||
                                         thumb.startsWith('data:') ||
                                         kIsWeb)
-                                      ? m.Image.network(thumb, fit: m.BoxFit.cover)
+                                      ? AppCachedImage(
+                                          imageUrl: thumb,
+                                          fit: m.BoxFit.cover,
+                                          memCacheWidth: 110,
+                                          memCacheHeight: 110,
+                                        )
                                       : m.Image.file(File(thumb), fit: m.BoxFit.cover),
                                 )
                               : m.Icon(isRepair ? m.Icons.build : m.Icons.shopping_bag, color: isRepair ? m.Colors.orange : m.Colors.pink, size: 24),

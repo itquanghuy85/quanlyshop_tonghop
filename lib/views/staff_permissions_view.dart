@@ -10,10 +10,11 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
-  if (path.startsWith('http')) return NetworkImage(path);
+  if (path.startsWith('http')) return CachedNetworkImageProvider(path);
   final file = File(path);
   return file.existsSync() ? FileImage(file) : null;
 }

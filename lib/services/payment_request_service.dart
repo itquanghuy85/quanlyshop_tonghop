@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/payment_request_model.dart';
 import '../services/financial_activity_service.dart';
 import '../services/firestore_service.dart';
@@ -161,11 +163,15 @@ class PaymentRequestService {
     try {
       final List<String> urls = [];
       for (int i = 0; i < images.length; i++) {
+        final compressed = await _compressFile(images[i]);
         final fileName = 'pr_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
         final ref = _storage.ref().child('payment_requests/$shopId/$fileName');
-        await ref.putFile(images[i]);
+        await ref.putFile(compressed);
         final url = await ref.getDownloadURL();
         urls.add(url);
+        if (compressed.path != images[i].path) {
+          try { await compressed.delete(); } catch (_) {}
+        }
       }
       if (urls.isNotEmpty) {
         await _db.collection(_collection).doc(docId).update({
@@ -431,11 +437,15 @@ class PaymentRequestService {
 
       final List<String> urls = [];
       for (int i = 0; i < images.length; i++) {
+        final compressed = await _compressFile(images[i]);
         final fileName = 'pr_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
         final ref = _storage.ref().child('payment_requests/$shopId/$fileName');
-        await ref.putFile(images[i]);
+        await ref.putFile(compressed);
         final url = await ref.getDownloadURL();
         urls.add(url);
+        if (compressed.path != images[i].path) {
+          try { await compressed.delete(); } catch (_) {}
+        }
       }
 
       await _db.collection(_collection).doc(requestId).update({
@@ -448,5 +458,32 @@ class PaymentRequestService {
       debugPrint('❌ PaymentRequest uploadImages error: $e');
       return null;
     }
+  }
+
+  /// Compress image file before upload (quality 70%, max 1920px)
+  static Future<File> _compressFile(File file) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final target = '${tempDir.path}/pr_c_$ts.jpg';
+      final result = await FlutterImageCompress.compressAndGetFile(
+        file.path,
+        target,
+        quality: 70,
+        minWidth: 1920,
+        minHeight: 1920,
+        keepExif: false,
+      );
+      if (result != null) {
+        final compressed = File(result.path);
+        if (await compressed.length() < await file.length()) {
+          return compressed;
+        }
+        try { await compressed.delete(); } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('⚠️ PaymentRequest compress error: $e');
+    }
+    return file;
   }
 }

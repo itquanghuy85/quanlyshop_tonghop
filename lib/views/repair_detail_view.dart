@@ -40,6 +40,8 @@ import '../data/db_helper.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/app_cached_image.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'parts_inventory_view.dart';
 import 'repair_partner_view.dart';
 import 'repair_invoice_template_view.dart';
@@ -154,14 +156,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           if (url == null || url.isEmpty) {
             return const Icon(Icons.broken_image, color: AppColors.error);
           }
-          return Image.network(
-            url,
+          return AppCachedImage(
+            imageUrl: url,
             fit: BoxFit.cover,
-            loadingBuilder: (ctx, child, progress) => progress == null
-                ? child
-                : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            errorBuilder: (ctx, err, stack) =>
-                const Icon(Icons.broken_image, color: AppColors.error),
+            memCacheWidth: 400,
           );
         },
       );
@@ -169,22 +167,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (normalized.startsWith('http') ||
         normalized.startsWith('blob:') ||
         normalized.startsWith('data:')) {
-      return Image.network(
-        normalized,
+      return AppCachedImage(
+        imageUrl: normalized,
         fit: BoxFit.cover,
-        loadingBuilder: (ctx, child, progress) => progress == null
-            ? child
-            : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        errorBuilder: (ctx, err, stack) =>
-            const Icon(Icons.broken_image, color: AppColors.error),
+        memCacheWidth: 400,
       );
     }
     if (kIsWeb) {
-      return Image.network(
-        normalized,
+      return AppCachedImage(
+        imageUrl: normalized,
         fit: BoxFit.cover,
-        errorBuilder: (ctx, err, stack) =>
-            const Icon(Icons.cloud_download, color: AppColors.primary),
+        memCacheWidth: 400,
       );
     }
     File file = File(normalized);
@@ -4086,7 +4079,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           path.startsWith('blob:') ||
                           path.startsWith('data:') ||
                           kIsWeb)
-                      ? NetworkImage(path) as ImageProvider
+                      ? CachedNetworkImageProvider(path) as ImageProvider
                       : FileImage(File(path)),
                   initialScale: PhotoViewComputedScale.contained,
                   minScale: PhotoViewComputedScale.contained,

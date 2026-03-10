@@ -13,6 +13,7 @@ import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../services/osm_map_service.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
+import '../widgets/app_cached_image.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
@@ -904,22 +905,12 @@ class _AttendanceViewState extends State<AttendanceView>
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: ClipRRect(
+            child: AppCachedImage(
+              imageUrl: url,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              memCacheHeight: 240,
               borderRadius: BorderRadius.circular(11),
-              child: Image.network(
-                url,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                loadingBuilder: (ctx, child, progress) {
-                  if (progress == null) return child;
-                  return const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  );
-                },
-                errorBuilder: (ctx, e, s) => const Center(
-                  child: Icon(Icons.broken_image, color: Colors.grey),
-                ),
-              ),
             ),
           ),
           const SizedBox(height: 6),
@@ -962,16 +953,9 @@ class _AttendanceViewState extends State<AttendanceView>
                 ),
               ],
             ),
-            Image.network(
-              url,
+            AppCachedImage(
+              imageUrl: url,
               fit: BoxFit.contain,
-              loadingBuilder: (ctx, child, progress) {
-                if (progress == null) return child;
-                return const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: CircularProgressIndicator(),
-                );
-              },
             ),
           ],
         ),

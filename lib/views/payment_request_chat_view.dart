@@ -11,6 +11,7 @@ import '../services/user_service.dart';
 import '../services/customer_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/currency_text_field.dart';
+import '../widgets/app_cached_image.dart';
 
 /// Danh sách ngân hàng / tổ chức tài chính cho vay góp, trả góp
 const List<String> kLoanBanks = [
@@ -491,21 +492,15 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         children: urls.map((url) {
           return GestureDetector(
             onTap: () => _showFullImage(url),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Image.network(
-                url,
+            child: AppCachedImage(
+                imageUrl: url,
                 width: 80,
                 height: 80,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 80,
-                  height: 80,
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.broken_image, size: 24),
-                ),
+                borderRadius: BorderRadius.circular(6),
+                memCacheWidth: 200,
+                memCacheHeight: 200,
               ),
-            ),
           );
         }).toList(),
       ),
@@ -834,9 +829,14 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                   children: req.imageUrls.map((url) {
                     return GestureDetector(
                       onTap: () => _showFullImage(url),
-                      child: ClipRRect(
+                      child: AppCachedImage(
+                        imageUrl: url,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(url, width: 100, height: 100, fit: BoxFit.cover),
+                        memCacheWidth: 200,
+                        memCacheHeight: 200,
                       ),
                     );
                   }).toList(),
@@ -876,7 +876,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white)),
           body: Center(
             child: InteractiveViewer(
-              child: Image.network(url),
+              child: AppCachedImage(
+                imageUrl: url,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
