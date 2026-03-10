@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/payment_request_model.dart';
 import '../services/financial_activity_service.dart';
 import '../services/firestore_service.dart';
+import '../services/event_bus.dart';
 import 'user_service.dart';
 
 /// Service quản lý yêu cầu đóng tiền - chat-like workflow
@@ -126,6 +127,8 @@ class PaymentRequestService {
       }
 
       final incTitle = 'THU ĐÓNG TIỀN: $typeDisplay - $customerName';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final incFirestoreId = 'inc_pr_$requestId';
 
       final noteParts = <String>[];
       if (customerPhone.isNotEmpty) noteParts.add('SĐT: $customerPhone');
@@ -135,6 +138,20 @@ class PaymentRequestService {
       noteParts.add('KH trả: $customerPaymentMethod');
       final noteStr = noteParts.join(' · ');
 
+      // 1. Tạo bản ghi THU vào expenses → hiển thị trong sổ quỹ
+      final incData = {
+        'firestoreId': incFirestoreId,
+        'title': incTitle,
+        'amount': intAmount,
+        'category': 'THU ĐÓNG TIỀN',
+        'date': now,
+        'note': noteStr,
+        'paymentMethod': customerPaymentMethod,
+        'type': 'THU',
+      };
+      await FirestoreService.addExpenseCloud(incData);
+
+      // 2. Ghi log tài chính THU (financial activity)
       await FinancialActivityService.logCustomActivity(
         activityType: 'PAYMENT_REQUEST_IN',
         amount: intAmount,
@@ -149,6 +166,7 @@ class PaymentRequestService {
       );
 
       debugPrint('✅ PaymentRequest $requestId: Income logged ($customerPaymentMethod)');
+      EventBus().emit('expenses_changed');
     } catch (e) {
       debugPrint('❌ PaymentRequest _logIncomeFromCustomer error: $e');
     }
@@ -318,6 +336,7 @@ class PaymentRequestService {
       );
 
       debugPrint('✅ PaymentRequest $requestId: Expense + FinancialActivity logged ($paymentMethod)');
+      EventBus().emit('expenses_changed');
     } catch (e) {
       debugPrint('❌ PaymentRequest _logFinancialOnCompleted error: $e');
     }
