@@ -240,33 +240,45 @@ class UserService {
 
   /// Lấy danh sách tất cả shops (chỉ dùng cho super admin) kèm thông tin chi tiết
   static Future<List<Map<String, dynamic>>> getAllShops() async {
-    if (!isCurrentUserSuperAdmin()) return [];
+    if (!isCurrentUserSuperAdmin()) {
+      debugPrint('getAllShops: not super admin, returning empty');
+      return [];
+    }
     try {
       final snap = await _db.collection('shops').get();
+      debugPrint('getAllShops: fetched ${snap.docs.length} shops');
       final shops = <Map<String, dynamic>>[];
       for (final doc in snap.docs) {
-        final data = doc.data();
+        final data = Map<String, dynamic>.from(doc.data());
         data['id'] = doc.id;
-        // Đếm số nhân viên của shop
-        try {
-          final usersSnap = await _db
-              .collection('users')
-              .where('shopId', isEqualTo: doc.id)
-              .get();
-          data['userCount'] = usersSnap.docs.length;
-        } catch (_) {
-          data['userCount'] = 0;
-        }
         shops.add(data);
+      }
+      // Fetch user counts in parallel (non-blocking)
+      try {
+        final allUsers = await _db.collection('users').get();
+        final countMap = <String, int>{};
+        for (final userDoc in allUsers.docs) {
+          final sid = userDoc.data()['shopId'] as String?;
+          if (sid != null) {
+            countMap[sid] = (countMap[sid] ?? 0) + 1;
+          }
+        }
+        for (final shop in shops) {
+          shop['userCount'] = countMap[shop['id']] ?? 0;
+        }
+      } catch (e) {
+        debugPrint('getAllShops: user count fetch error (non-fatal): $e');
       }
       // Sắp xếp: shop mới nhất lên trước
       shops.sort((a, b) {
-        final aTime = a['createdAt'] as Timestamp?;
-        final bTime = b['createdAt'] as Timestamp?;
-        if (aTime == null && bTime == null) return 0;
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime);
+        try {
+          final aTime = a['createdAt'];
+          final bTime = b['createdAt'];
+          if (aTime is Timestamp && bTime is Timestamp) return bTime.compareTo(aTime);
+          if (aTime is Timestamp) return -1;
+          if (bTime is Timestamp) return 1;
+        } catch (_) {}
+        return 0;
       });
       return shops;
     } catch (e) {

@@ -68,6 +68,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
       });
 
       final shops = await UserService.getAllShops();
+      debugPrint('ShopSelectorView: loaded ${shops.length} shops');
       if (mounted) {
         setState(() {
           _shops = shops;
@@ -75,7 +76,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading shops: $e');
+      debugPrint('ShopSelectorView error loading shops: $e');
       if (mounted) {
         setState(() {
           _error = 'Không thể tải danh sách shop: $e';
@@ -241,7 +242,18 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           children: [
             Icon(Icons.store_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text('Không có shop nào', style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, color: Colors.grey.shade600)),
+            Text('Không tìm thấy shop nào', style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, color: Colors.grey.shade600)),
+            const SizedBox(height: 8),
+            Text(
+              'Email: ${FirebaseAuth.instance.currentUser?.email ?? "N/A"}',
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade400),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadShops,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Tải lại'),
+            ),
           ],
         ),
       );
