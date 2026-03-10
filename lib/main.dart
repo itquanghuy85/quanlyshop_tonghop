@@ -335,7 +335,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           },
         );
       } else {
-        await UserService.syncUserInfo(uid, email);
+        await UserService.syncUserInfo(uid, email).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            debugPrint('⚠️ [MOBILE] syncUserInfo timeout 20s, tiếp tục...');
+          },
+        );
       }
       debugPrint('✅ _getRoleAfterSync: syncUserInfo completed');
       

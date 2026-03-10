@@ -114,37 +114,46 @@ class _RegisterViewState extends State<RegisterView> {
 
       final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: pass);
       if (cred.user != null) {
-        if (_isJoinShop) {
-          final success = await UserService.useInviteCode(_inviteCodeC.text.trim(), cred.user!.uid);
-          if (!success) throw loc.invalidOrExpiredInviteCode;
-          // Save employee displayName + info to Firestore (useInviteCode only sets shopId)
-          await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
-            'displayName': name.toUpperCase(),
-            'email': email,
-            'phone': _phoneC.text.trim(),
-            'address': _addressC.text.trim().toUpperCase(),
-            'role': _selectedRole,
-          }, SetOptions(merge: true));
-          // Also set Firebase Auth displayName for fast lookup
-          await cred.user!.updateDisplayName(name.toUpperCase());
-        } else {
-          // Create user info with business type
-          await UserService.syncUserInfo(cred.user!.uid, email, extra: {
-            'displayName': name.toUpperCase(),
-            'phone': _phoneC.text.trim(),
-            'address': _addressC.text.trim().toUpperCase(),
-            'shopName': shopName.toUpperCase(),
-          });
-          // Also set Firebase Auth displayName for fast lookup
-          await cred.user!.updateDisplayName(name.toUpperCase());
-          
-          // Save shop settings with business type
-          final shopId = await UserService.getCurrentShopId();
-          if (shopId != null) {
-            final settings = ShopSettings.fromBusinessType(_selectedBusinessType, shopId);
-            await CategoryService().saveShopSettings(settings);
+        try {
+          if (_isJoinShop) {
+            final success = await UserService.useInviteCode(_inviteCodeC.text.trim(), cred.user!.uid);
+            if (!success) throw loc.invalidOrExpiredInviteCode;
+            // Save employee displayName + info to Firestore (useInviteCode only sets shopId)
+            await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
+              'displayName': name.toUpperCase(),
+              'email': email,
+              'phone': _phoneC.text.trim(),
+              'address': _addressC.text.trim().toUpperCase(),
+              'role': _selectedRole,
+            }, SetOptions(merge: true));
+            // Also set Firebase Auth displayName for fast lookup
+            await cred.user!.updateDisplayName(name.toUpperCase());
+          } else {
+            // Create user info with business type
+            await UserService.syncUserInfo(cred.user!.uid, email, extra: {
+              'displayName': name.toUpperCase(),
+              'phone': _phoneC.text.trim(),
+              'address': _addressC.text.trim().toUpperCase(),
+              'shopName': shopName.toUpperCase(),
+            });
+            // Also set Firebase Auth displayName for fast lookup
+            await cred.user!.updateDisplayName(name.toUpperCase());
+            
+            // Save shop settings with business type
+            final shopId = await UserService.getCurrentShopId();
+            if (shopId != null) {
+              final settings = ShopSettings.fromBusinessType(_selectedBusinessType, shopId);
+              await CategoryService().saveShopSettings(settings);
+            }
           }
+        } catch (e) {
+          // Sign out on setup error to avoid stuck auth state
+          await FirebaseAuth.instance.signOut();
+          rethrow;
         }
+        // Sign out to avoid race condition with AuthGate's syncUserInfo
+        // User will log in manually with the new account
+        await FirebaseAuth.instance.signOut();
       }
       if (!mounted) return;
       Navigator.pop(context, true);

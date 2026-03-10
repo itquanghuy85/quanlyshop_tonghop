@@ -353,6 +353,17 @@ class _LoginViewState extends State<LoginView> {
                     onChanged: (v) => setState(() => _rememberMe = v ?? false),
                   ),
                   Text(localizations.rememberMe),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _showForgotPasswordDialog,
+                    child: Text(
+                      AppLocalizations.of(context)!.forgotPassword,
+                      style: AppTextStyles.body2.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               if (_error != null)
@@ -400,14 +411,7 @@ class _LoginViewState extends State<LoginView> {
                   style: AppTextStyles.body2.copyWith(color: AppColors.primary),
                 ),
               ),
-              // Quên mật khẩu
-              TextButton(
-                onPressed: _showForgotPasswordDialog,
-                child: Text(
-                  AppLocalizations.of(context)!.forgotPassword,
-                  style: AppTextStyles.body2.copyWith(color: Colors.grey[600]),
-                ),
-              ),
+
               const SizedBox(height: 30),
               _buildCalendarCard(),
             ],
