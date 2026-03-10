@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../models/payment_request_model.dart';
+import '../services/financial_activity_service.dart';
+import '../services/firestore_service.dart';
 import 'user_service.dart';
 
 /// Service quản lý yêu cầu đóng tiền - chat-like workflow
@@ -19,7 +21,8 @@ class PaymentRequestService {
   /// Nhân viên tạo yêu cầu đóng tiền
   static Future<String?> createRequest({
     required String customerName,
-    required String customerPhone,
+    String? customerPhone,
+    String? customerAddress,
     String? customerNote,
     required PaymentType paymentType,
     String? paymentTypeLabel,
@@ -55,7 +58,8 @@ class PaymentRequestService {
         senderId: user.uid,
         senderName: userName,
         customerName: customerName,
-        customerPhone: customerPhone,
+        customerPhone: customerPhone ?? '',
+        customerAddress: customerAddress,
         customerNote: customerNote,
         paymentType: paymentType,
         paymentTypeLabel: paymentTypeLabel,
@@ -83,6 +87,7 @@ class PaymentRequestService {
     String requestId,
     PaymentRequestStatus newStatus, {
     String? rejectReason,
+    String? paymentMethod, // 'TIỀN MẶT' or 'CHUYỂN KHOẢN' (required when completing)
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -106,12 +111,110 @@ class PaymentRequestService {
         update['rejectReason'] = rejectReason;
       }
 
+      if (newStatus == PaymentRequestStatus.completed && paymentMethod != null) {
+        update['paymentMethod'] = paymentMethod;
+      }
+
       await _db.collection(_collection).doc(requestId).update(update);
       debugPrint('✅ PaymentRequest $requestId → ${newStatus.name}');
+
+      // Khi hoàn thành: tạo chi phí + ghi log tài chính
+      if (newStatus == PaymentRequestStatus.completed) {
+        await _logFinancialOnCompleted(requestId, paymentMethod ?? 'TIỀN MẶT');
+      }
+
       return true;
     } catch (e) {
       debugPrint('❌ PaymentRequest updateStatus error: $e');
       return false;
+    }
+  }
+
+  /// Tạo bản ghi chi phí (expenses) + log tài chính khi đóng tiền hoàn thành
+  static Future<void> _logFinancialOnCompleted(String requestId, String paymentMethod) async {
+    try {
+      // Lấy thông tin payment request
+      final doc = await _db.collection(_collection).doc(requestId).get();
+      if (!doc.exists) return;
+      final data = doc.data()!;
+      
+      final amount = (data['amount'] as num?)?.toInt() ?? 0;
+      if (amount <= 0) return;
+
+      final customerName = data['customerName'] ?? '';
+      final customerPhone = data['customerPhone'] ?? '';
+      final paymentTypeLabel = data['paymentTypeLabel'] ?? '';
+      final paymentType = data['paymentType'] ?? '';
+      final bankName = data['bankName'] ?? '';
+      final description = data['description'] ?? '';
+      final accountNumber = data['accountNumber'] ?? '';
+
+      // Build title cho expense
+      String typeDisplay;
+      switch (paymentType) {
+        case 'electricity': typeDisplay = 'Tiền điện'; break;
+        case 'water': typeDisplay = 'Tiền nước'; break;
+        case 'internet': typeDisplay = 'Tiền mạng'; break;
+        case 'bankLoan': typeDisplay = 'Vay NH'; break;
+        case 'bankInstallment': typeDisplay = 'Trả góp NH'; break;
+        case 'insurance': typeDisplay = 'Bảo hiểm'; break;
+        default: typeDisplay = paymentTypeLabel.isNotEmpty ? paymentTypeLabel : 'Đóng tiền';
+      }
+
+      final expTitle = 'ĐÓNG TIỀN: $typeDisplay - $customerName';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final expFirestoreId = 'exp_pr_$requestId';
+
+      // Build note
+      final noteParts = <String>[];
+      if (customerPhone.isNotEmpty) noteParts.add('SĐT: $customerPhone');
+      if (bankName.isNotEmpty) noteParts.add('NH: $bankName');
+      if (accountNumber.isNotEmpty) noteParts.add('TK: $accountNumber');
+      if (description.isNotEmpty) noteParts.add(description);
+      final noteStr = noteParts.join(' · ');
+
+      // Map payment type to expense category
+      String expCategory;
+      switch (paymentType) {
+        case 'electricity':
+        case 'water':
+        case 'internet':
+          expCategory = 'ĐIỆN NƯỚC';
+          break;
+        default:
+          expCategory = 'PHÁT SINH';
+      }
+
+      // 1. Tạo chi phí (expense) → hiển thị trong chốt quỹ
+      final expData = {
+        'firestoreId': expFirestoreId,
+        'title': expTitle,
+        'amount': amount,
+        'category': expCategory,
+        'date': now,
+        'note': noteStr,
+        'paymentMethod': paymentMethod,
+        'type': 'CHI',
+      };
+      await FirestoreService.addExpenseCloud(expData);
+
+      // 2. Ghi log tài chính (financial activity)
+      await FinancialActivityService.logCustomActivity(
+        activityType: 'EXPENSE',
+        amount: amount,
+        direction: 'OUT',
+        paymentMethod: paymentMethod,
+        title: expTitle,
+        description: noteStr,
+        customerName: customerName,
+        phone: customerPhone,
+        referenceType: 'payment_request',
+        referenceId: requestId,
+      );
+
+      debugPrint('✅ PaymentRequest $requestId: Expense + FinancialActivity logged ($paymentMethod)');
+    } catch (e) {
+      debugPrint('❌ PaymentRequest _logFinancialOnCompleted error: $e');
     }
   }
 

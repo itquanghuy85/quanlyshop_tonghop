@@ -168,7 +168,7 @@ class CustomerService {
     }
   }
 
-  // Get customer history (sales and repairs)
+  // Get customer history (sales, repairs and payment requests)
   Future<Map<String, dynamic>> getCustomerHistory(String phone) async {
     final shopId = await UserService.getCurrentShopId();
 
@@ -197,16 +197,35 @@ class CustomerService {
       'status': r['status'],
     }).toList();
 
+    // Get payment requests history
+    final paymentData = await db.getPaymentRequestsByPhone(phone, shopId);
+    final payments = paymentData.map((p) {
+      final amount = (p['amount'] as num?)?.toInt() ?? 0;
+      final typeLabel = p['paymentTypeLabel'] ?? p['paymentType'] ?? '';
+      final bankName = p['bankName'] ?? '';
+      final desc = p['description'] ?? '';
+      final displayParts = [if (typeLabel.toString().isNotEmpty) typeLabel, if (bankName.toString().isNotEmpty) bankName, if (desc.toString().isNotEmpty) desc];
+      return {
+        'type': 'payment',
+        'date': p['createdAt'] ?? DateTime.now().millisecondsSinceEpoch,
+        'amount': amount,
+        'description': displayParts.isNotEmpty ? displayParts.join(' · ') : 'Đóng tiền',
+        'status': p['status'],
+      };
+    }).toList();
+
     // Combine and sort by date
-    final history = [...sales, ...repairs];
+    final history = [...sales, ...repairs, ...payments];
     history.sort((a, b) => (b['date'] as int).compareTo(a['date'] as int));
 
     return {
       'history': history,
       'totalSales': sales.length,
       'totalRepairs': repairs.length,
+      'totalPayments': payments.length,
       'totalSpent': sales.fold(0, (sum, s) => sum + (s['amount'] as int)),
       'totalRepairCost': repairs.fold(0, (sum, r) => sum + (r['amount'] as int)),
+      'totalPaymentAmount': payments.fold(0, (sum, p) => sum + (p['amount'] as int)),
     };
   }
 }

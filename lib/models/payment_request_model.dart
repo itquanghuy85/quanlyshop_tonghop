@@ -31,6 +31,7 @@ class PaymentRequest {
   // Thông tin khách hàng
   String customerName;
   String customerPhone;
+  String? customerAddress;
   String? customerNote;
 
   // Loại thanh toán
@@ -51,6 +52,7 @@ class PaymentRequest {
   String? processedBy;     // UID người xử lý (chủ shop)
   String? processedByName;
   String? rejectReason;
+  String? paymentMethod;   // TIỀN MẶT / CHUYỂN KHOẢN (khi completed)
   DateTime? processedAt;
 
   // Timestamps
@@ -67,6 +69,7 @@ class PaymentRequest {
     required this.senderName,
     required this.customerName,
     required this.customerPhone,
+    this.customerAddress,
     this.customerNote,
     required this.paymentType,
     this.paymentTypeLabel,
@@ -79,6 +82,7 @@ class PaymentRequest {
     this.processedBy,
     this.processedByName,
     this.rejectReason,
+    this.paymentMethod,
     this.processedAt,
     required this.createdAt,
     this.updatedAt,
@@ -92,6 +96,7 @@ class PaymentRequest {
       'senderName': senderName,
       'customerName': customerName,
       'customerPhone': customerPhone,
+      'customerAddress': customerAddress,
       'customerNote': customerNote,
       'paymentType': paymentType.name,
       'paymentTypeLabel': paymentTypeLabel,
@@ -104,6 +109,7 @@ class PaymentRequest {
       'processedBy': processedBy,
       'processedByName': processedByName,
       'rejectReason': rejectReason,
+      'paymentMethod': paymentMethod,
       'processedAt': processedAt != null ? Timestamp.fromDate(processedAt!) : null,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
@@ -119,6 +125,7 @@ class PaymentRequest {
       senderName: map['senderName'] ?? '',
       customerName: map['customerName'] ?? '',
       customerPhone: map['customerPhone'] ?? '',
+      customerAddress: map['customerAddress'],
       customerNote: map['customerNote'],
       paymentType: _parsePaymentType(map['paymentType']),
       paymentTypeLabel: map['paymentTypeLabel'],
@@ -131,6 +138,7 @@ class PaymentRequest {
       processedBy: map['processedBy'],
       processedByName: map['processedByName'],
       rejectReason: map['rejectReason'],
+      paymentMethod: map['paymentMethod'],
       processedAt: (map['processedAt'] as Timestamp?)?.toDate(),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (map['updatedAt'] as Timestamp?)?.toDate(),
@@ -205,6 +213,7 @@ class PaymentRequest {
     String? senderName,
     String? customerName,
     String? customerPhone,
+    String? customerAddress,
     String? customerNote,
     PaymentType? paymentType,
     String? paymentTypeLabel,
@@ -217,6 +226,7 @@ class PaymentRequest {
     String? processedBy,
     String? processedByName,
     String? rejectReason,
+    String? paymentMethod,
     DateTime? processedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -229,6 +239,7 @@ class PaymentRequest {
       senderName: senderName ?? this.senderName,
       customerName: customerName ?? this.customerName,
       customerPhone: customerPhone ?? this.customerPhone,
+      customerAddress: customerAddress ?? this.customerAddress,
       customerNote: customerNote ?? this.customerNote,
       paymentType: paymentType ?? this.paymentType,
       paymentTypeLabel: paymentTypeLabel ?? this.paymentTypeLabel,
@@ -241,6 +252,7 @@ class PaymentRequest {
       processedBy: processedBy ?? this.processedBy,
       processedByName: processedByName ?? this.processedByName,
       rejectReason: rejectReason ?? this.rejectReason,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       processedAt: processedAt ?? this.processedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

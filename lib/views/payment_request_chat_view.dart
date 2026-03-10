@@ -5,9 +5,51 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../models/payment_request_model.dart';
+import '../models/customer_model.dart';
 import '../services/payment_request_service.dart';
 import '../services/user_service.dart';
+import '../services/customer_service.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/currency_text_field.dart';
+
+/// Danh sách ngân hàng Việt Nam phổ biến
+const List<String> kVietnameseBanks = [
+  'Vietcombank',
+  'BIDV',
+  'VietinBank',
+  'Agribank',
+  'Techcombank',
+  'ACB',
+  'MBBank',
+  'TPBank',
+  'VPBank',
+  'Sacombank',
+  'HDBank',
+  'OCB',
+  'SHB',
+  'MSB',
+  'LPBank',
+  'SeABank',
+  'VIB',
+  'NamABank',
+  'BacABank',
+  'KienLongBank',
+  'ABBank',
+  'NCB',
+  'PGBank',
+  'VietABank',
+  'BaoVietBank',
+  'VietCapitalBank',
+  'CBBank',
+  'GPBank',
+  'PublicBank',
+  'UOB',
+  'HSBC',
+  'Shinhan',
+  'Woori',
+  'CIMB',
+  'Khác',
+];
 
 /// Màn hình yêu cầu đóng tiền - giao diện giống chat
 class PaymentRequestChatView extends StatefulWidget {
@@ -267,12 +309,16 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                           // Customer info
                           _infoRow(Icons.person, req.customerName),
                           _infoRow(Icons.phone, req.customerPhone),
+                          if (req.customerAddress != null && req.customerAddress!.isNotEmpty)
+                            _infoRow(Icons.location_on, req.customerAddress!),
                           if (req.accountNumber != null && req.accountNumber!.isNotEmpty)
                             _infoRow(Icons.account_balance, '${req.bankName ?? ''} · ${req.accountNumber}'),
                           if (req.description != null && req.description!.isNotEmpty)
                             _infoRow(Icons.note, req.description!),
                           if (req.customerNote != null && req.customerNote!.isNotEmpty)
                             _infoRow(Icons.comment, req.customerNote!),
+                          if (req.paymentMethod != null && req.status == PaymentRequestStatus.completed)
+                            _infoRow(Icons.payments, req.paymentMethod == 'CHUYỂN KHOẢN' ? 'Chuyển khoản' : 'Tiền mặt'),
                         ],
                       ),
                     ),
@@ -466,28 +512,116 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   // ============== ACTIONS ==============
 
   Future<void> _confirmStatus(PaymentRequest req, PaymentRequestStatus newStatus) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(newStatus == PaymentRequestStatus.completed ? 'Xác nhận đã thanh toán?' : 'Bắt đầu xử lý?'),
-        content: Text(
-          '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ\n'
-          'Khách: ${req.customerName}',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: newStatus == PaymentRequestStatus.completed ? Colors.green : Colors.blue,
-            ),
-            child: const Text('Xác nhận', style: TextStyle(color: Colors.white)),
+    if (newStatus == PaymentRequestStatus.completed) {
+      // Show payment method selection dialog
+      await _showCompleteDialog(req);
+    } else {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Bắt đầu xử lý?'),
+          content: Text(
+            '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ\n'
+            'Khách: ${req.customerName}',
           ),
-        ],
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              child: const Text('Xác nhận', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && req.id != null) {
+        await PaymentRequestService.updateStatus(req.id!, newStatus);
+      }
+    }
+  }
+
+  /// Dialog xác nhận hoàn thành với chọn phương thức thanh toán
+  Future<void> _showCompleteDialog(PaymentRequest req) async {
+    String selectedMethod = 'TIỀN MẶT';
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Xác nhận đã thanh toán'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ\n'
+                'Khách: ${req.customerName}',
+              ),
+              const SizedBox(height: 16),
+              const Text('Phương thức thanh toán:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('Tiền mặt'),
+                      avatar: const Icon(Icons.payments, size: 18),
+                      selected: selectedMethod == 'TIỀN MẶT',
+                      selectedColor: Colors.green.shade100,
+                      onSelected: (_) => setDialogState(() => selectedMethod = 'TIỀN MẶT'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('Chuyển khoản'),
+                      avatar: const Icon(Icons.account_balance, size: 18),
+                      selected: selectedMethod == 'CHUYỂN KHOẢN',
+                      selectedColor: Colors.blue.shade100,
+                      onSelected: (_) => setDialogState(() => selectedMethod = 'CHUYỂN KHOẢN'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Khoản chi này sẽ được ghi vào sổ quỹ',
+                        style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, selectedMethod),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: const Text('Xác nhận đã thanh toán', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
-    if (confirmed == true && req.id != null) {
-      await PaymentRequestService.updateStatus(req.id!, newStatus);
+    if (result != null && req.id != null) {
+      await PaymentRequestService.updateStatus(
+        req.id!,
+        PaymentRequestStatus.completed,
+        paymentMethod: result,
+      );
     }
   }
 
@@ -620,10 +754,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               _detailTile('Trạng thái', req.statusDisplay),
               _detailTile('Khách hàng', req.customerName),
               _detailTile('Số điện thoại', req.customerPhone),
+              if (req.customerAddress != null && req.customerAddress!.isNotEmpty)
+                _detailTile('Địa chỉ', req.customerAddress!),
               if (req.accountNumber != null) _detailTile('Số TK / Hợp đồng', req.accountNumber!),
               if (req.bankName != null) _detailTile('Ngân hàng / Đơn vị', req.bankName!),
               if (req.description != null) _detailTile('Mô tả', req.description!),
               if (req.customerNote != null) _detailTile('Ghi chú', req.customerNote!),
+              if (req.paymentMethod != null) _detailTile('Phương thức TT', req.paymentMethod == 'CHUYỂN KHOẢN' ? 'Chuyển khoản' : 'Tiền mặt'),
               _detailTile('Nhân viên gửi', req.senderName),
               _detailTile('Ngày tạo', DateFormat('dd/MM/yyyy HH:mm').format(req.createdAt)),
               if (req.processedByName != null) _detailTile('Người xử lý', req.processedByName!),
@@ -725,12 +862,13 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
   final _phoneCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
   final _accountCtrl = TextEditingController();
-  final _bankCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
   final _otherTypeCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
 
   PaymentType _selectedType = PaymentType.electricity;
+  String? _selectedBank;
   List<File> _selectedImages = [];
   bool _isSending = false;
 
@@ -740,11 +878,28 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
     _phoneCtrl.dispose();
     _amountCtrl.dispose();
     _accountCtrl.dispose();
-    _bankCtrl.dispose();
     _descCtrl.dispose();
     _noteCtrl.dispose();
     _otherTypeCtrl.dispose();
+    _addressCtrl.dispose();
     super.dispose();
+  }
+
+  /// Tìm kiếm và chọn khách hàng từ danh sách có sẵn
+  void _showCustomerSearch() async {
+    final result = await showDialog<Customer>(
+      context: context,
+      builder: (ctx) => _CustomerSearchDialog(),
+    );
+    if (result != null) {
+      setState(() {
+        _nameCtrl.text = result.name;
+        _phoneCtrl.text = result.phone;
+        if (result.address != null && result.address!.isNotEmpty) {
+          _addressCtrl.text = result.address!;
+        }
+      });
+    }
   }
 
   @override
@@ -826,7 +981,21 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     const SizedBox(height: 16),
 
                     // Customer info
-                    const Text('Thông tin khách hàng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    Row(
+                      children: [
+                        const Text('Thông tin khách hàng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: _showCustomerSearch,
+                          icon: const Icon(Icons.search, size: 18),
+                          label: const Text('Tìm KH'),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameCtrl,
@@ -842,34 +1011,33 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     TextFormField(
                       controller: _phoneCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Số điện thoại *',
+                        labelText: 'Số điện thoại',
                         prefixIcon: Icon(Icons.phone, size: 20),
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
                       keyboardType: TextInputType.phone,
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Nhập SĐT' : null,
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: _addressCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Địa chỉ',
+                        prefixIcon: Icon(Icons.location_on, size: 20),
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
                     // Amount & account
                     const Text('Chi tiết thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
-                    TextFormField(
+                    CurrencyTextField(
                       controller: _amountCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Số tiền (đ) *',
-                        prefixIcon: Icon(Icons.attach_money, size: 20),
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Nhập số tiền';
-                        final amount = double.tryParse(v.replaceAll(RegExp(r'[,.]'), ''));
-                        if (amount == null || amount <= 0) return 'Số tiền không hợp lệ';
-                        return null;
-                      },
+                      label: 'Số tiền (đ)',
+                      icon: Icons.attach_money,
+                      required: true,
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -882,14 +1050,20 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                       ),
                     ),
                     const SizedBox(height: 10),
-                    TextFormField(
-                      controller: _bankCtrl,
+                    DropdownButtonFormField<String>(
+                      value: _selectedBank,
                       decoration: const InputDecoration(
                         labelText: 'Ngân hàng / Đơn vị',
                         prefixIcon: Icon(Icons.business, size: 20),
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
+                      isExpanded: true,
+                      items: kVietnameseBanks.map((bank) => DropdownMenuItem(
+                        value: bank,
+                        child: Text(bank, style: const TextStyle(fontSize: 14)),
+                      )).toList(),
+                      onChanged: (v) => setState(() => _selectedBank = v),
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -1040,21 +1214,23 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
   }
 
   Future<void> _submitRequest() async {
+    CurrencyTextField.finalizeAll();
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSending = true);
 
-    final amount = double.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[,.]'), '')) ?? 0;
+    final amount = CurrencyTextField.getValue(_amountCtrl).toDouble();
 
     final result = await PaymentRequestService.createRequest(
       customerName: _nameCtrl.text.trim(),
-      customerPhone: _phoneCtrl.text.trim(),
+      customerPhone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
+      customerAddress: _addressCtrl.text.trim().isNotEmpty ? _addressCtrl.text.trim() : null,
       customerNote: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
       paymentType: _selectedType,
       paymentTypeLabel: _selectedType == PaymentType.other ? _otherTypeCtrl.text.trim() : null,
       amount: amount,
       accountNumber: _accountCtrl.text.trim().isNotEmpty ? _accountCtrl.text.trim() : null,
-      bankName: _bankCtrl.text.trim().isNotEmpty ? _bankCtrl.text.trim() : null,
+      bankName: _selectedBank,
       description: _descCtrl.text.trim().isNotEmpty ? _descCtrl.text.trim() : null,
       images: _selectedImages.isNotEmpty ? _selectedImages : null,
     );
@@ -1098,5 +1274,129 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
       case PaymentType.insurance: return '🛡️';
       case PaymentType.other: return '📋';
     }
+  }
+}
+
+// ============== CUSTOMER SEARCH DIALOG ==============
+
+class _CustomerSearchDialog extends StatefulWidget {
+  @override
+  State<_CustomerSearchDialog> createState() => _CustomerSearchDialogState();
+}
+
+class _CustomerSearchDialogState extends State<_CustomerSearchDialog> {
+  final _searchCtrl = TextEditingController();
+  List<Customer> _allCustomers = [];
+  List<Customer> _filtered = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCustomers();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCustomers() async {
+    final customers = await CustomerService().getCustomers();
+    if (!mounted) return;
+    setState(() {
+      _allCustomers = customers;
+      _filtered = customers;
+      _isLoading = false;
+    });
+  }
+
+  void _filter(String query) {
+    final q = query.toLowerCase().trim();
+    setState(() {
+      if (q.isEmpty) {
+        _filtered = _allCustomers;
+      } else {
+        _filtered = _allCustomers.where((c) {
+          return c.name.toLowerCase().contains(q) ||
+              c.phone.contains(q) ||
+              (c.address?.toLowerCase().contains(q) ?? false);
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: Container(
+        width: double.infinity,
+        height: MediaQuery.of(context).size.height * 0.6,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.people, color: Color(0xFF075E54)),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Chọn khách hàng', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _searchCtrl,
+              decoration: InputDecoration(
+                hintText: 'Tìm theo tên, SĐT, địa chỉ...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              ),
+              onChanged: _filter,
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filtered.isEmpty
+                      ? Center(child: Text('Không tìm thấy khách hàng', style: TextStyle(color: Colors.grey.shade600)))
+                      : ListView.separated(
+                          itemCount: _filtered.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (_, i) {
+                            final c = _filtered[i];
+                            return ListTile(
+                              dense: true,
+                              leading: CircleAvatar(
+                                radius: 18,
+                                backgroundColor: const Color(0xFF075E54).withOpacity(0.1),
+                                child: Text(
+                                  c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+                                  style: const TextStyle(color: Color(0xFF075E54), fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                              subtitle: Text(
+                                [c.phone, if (c.address != null && c.address!.isNotEmpty) c.address!].join(' · '),
+                                style: const TextStyle(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onTap: () => Navigator.pop(context, c),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

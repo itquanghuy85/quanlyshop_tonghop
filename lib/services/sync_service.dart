@@ -1224,6 +1224,35 @@ class SyncService {
       debugPrint("Lỗi khởi tạo payment_intents sync: $e");
     }
 
+    // 22b. Đồng bộ PAYMENT REQUESTS (Yêu cầu đóng tiền)
+    try {
+      _subscribeToCollection(
+        collection: 'payment_requests',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deletePaymentRequestByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertPaymentRequest(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync payment_request $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('payment_requests_changed');
+        },
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo payment_requests sync: $e");
+    }
+
     // 23. Đồng bộ WORK SCHEDULES (Lịch làm việc nhân viên)
     try {
       _subscribeToCollection(
@@ -1569,6 +1598,9 @@ class SyncService {
           break;
         case 'payment_intents':
           await db.deletePaymentIntentByFirestoreId(firestoreId);
+          break;
+        case 'payment_requests':
+          await db.deletePaymentRequestByFirestoreId(firestoreId);
           break;
       }
       debugPrint(
@@ -2981,6 +3013,7 @@ class SyncService {
         'sales_returns', // FIX: Đồng bộ phiếu trả hàng
         'sales_return_items', // FIX: Đồng bộ chi tiết trả hàng
         'financial_activity_log', // FIX: Đồng bộ nhật ký tài chính
+        'payment_requests', // FIX: Đồng bộ yêu cầu đóng tiền giữa các máy
       ];
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
 
@@ -3112,6 +3145,8 @@ class SyncService {
                 await db.upsertSalesReturnItem(data);
               } else if (col == 'financial_activity_log') {
                 await db.upsertFinancialActivity(data);
+              } else if (col == 'payment_requests') {
+                await db.upsertPaymentRequest(data);
               }
               successCount++;
             } catch (e) {

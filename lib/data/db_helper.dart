@@ -7607,6 +7607,142 @@ class DBHelper {
     return results.isNotEmpty ? results.first : null;
   }
 
+  // ============ PAYMENT REQUESTS (Yêu cầu đóng tiền) ============
+
+  Future<void> upsertPaymentRequest(Map<String, dynamic> data) async {
+    final db = await database;
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payment_requests(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          firestoreId TEXT UNIQUE,
+          shopId TEXT,
+          senderId TEXT,
+          senderName TEXT,
+          customerName TEXT,
+          customerPhone TEXT,
+          customerAddress TEXT,
+          customerNote TEXT,
+          paymentType TEXT,
+          paymentTypeLabel TEXT,
+          amount REAL,
+          accountNumber TEXT,
+          bankName TEXT,
+          description TEXT,
+          imageUrls TEXT,
+          status TEXT DEFAULT 'pending',
+          processedBy TEXT,
+          processedByName TEXT,
+          rejectReason TEXT,
+          paymentMethod TEXT,
+          processedAt INTEGER,
+          createdAt INTEGER,
+          updatedAt INTEGER,
+          isSynced INTEGER DEFAULT 0,
+          deleted INTEGER DEFAULT 0
+        )
+      ''');
+    } catch (e) {
+      debugPrint('DB: ensure payment_requests table error: $e');
+    }
+
+    final sanitized = _sanitizeForSqlite(data);
+    final firestoreId = sanitized['firestoreId'];
+
+    if (firestoreId == null) {
+      debugPrint('upsertPaymentRequest: No firestoreId, skipping');
+      return;
+    }
+
+    // Convert imageUrls list to JSON string
+    if (sanitized['imageUrls'] is List) {
+      sanitized['imageUrls'] = (sanitized['imageUrls'] as List).join(',');
+    }
+
+    final existing = await db.query(
+      'payment_requests',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      final localId = existing.first['id'];
+      await db.update(
+        'payment_requests',
+        sanitized,
+        where: 'id = ?',
+        whereArgs: [localId],
+      );
+    } else {
+      await db.insert(
+        'payment_requests',
+        sanitized,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  Future<void> deletePaymentRequestByFirestoreId(String firestoreId) async {
+    final db = await database;
+    await db.delete(
+      'payment_requests',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getPaymentRequestsByPhone(String phone, String? shopId) async {
+    final db = await database;
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS payment_requests(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          firestoreId TEXT UNIQUE,
+          shopId TEXT,
+          senderId TEXT,
+          senderName TEXT,
+          customerName TEXT,
+          customerPhone TEXT,
+          customerAddress TEXT,
+          customerNote TEXT,
+          paymentType TEXT,
+          paymentTypeLabel TEXT,
+          amount REAL,
+          accountNumber TEXT,
+          bankName TEXT,
+          description TEXT,
+          imageUrls TEXT,
+          status TEXT DEFAULT 'pending',
+          processedBy TEXT,
+          processedByName TEXT,
+          rejectReason TEXT,
+          paymentMethod TEXT,
+          processedAt INTEGER,
+          createdAt INTEGER,
+          updatedAt INTEGER,
+          isSynced INTEGER DEFAULT 0,
+          deleted INTEGER DEFAULT 0
+        )
+      ''');
+    } catch (e) {
+      debugPrint('DB: ensure payment_requests table error: $e');
+    }
+
+    String where = 'customerPhone = ? AND (deleted = 0 OR deleted IS NULL)';
+    List<dynamic> args = [phone];
+    if (shopId != null) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
+    return await db.query(
+      'payment_requests',
+      where: where,
+      whereArgs: args,
+      orderBy: 'createdAt DESC',
+    );
+  }
+
   // ============ DEBUG & CLEANUP FUNCTIONS ============
 
   /// Debug: Xem chi tiết các repair_parts chưa sync

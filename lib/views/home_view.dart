@@ -4818,6 +4818,18 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
               ),
             ),
           ),
+          const SizedBox(height: 6),
+          _financeQuickCard(
+            'Yêu cầu đóng tiền',
+            Icons.receipt_long,
+            const Color(0xFF075E54),
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const PaymentRequestChatView(),
+              ),
+            ),
+          ),
 
           const SizedBox(height: 10),
           _buildSectionHeader(loc.management),

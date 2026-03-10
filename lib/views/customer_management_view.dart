@@ -637,8 +637,10 @@ class CustomerHistoryDialog extends StatelessWidget {
     final historyList = history['history'] as List<dynamic>;
     final totalSales = history['totalSales'] as int;
     final totalRepairs = history['totalRepairs'] as int;
+    final totalPayments = (history['totalPayments'] as int?) ?? 0;
     final totalSpent = history['totalSpent'] as int;
     final totalRepairCost = history['totalRepairCost'] as int;
+    final totalPaymentAmount = (history['totalPaymentAmount'] as int?) ?? 0;
 
     return Dialog(
       child: Container(
@@ -690,7 +692,7 @@ class CustomerHistoryDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildStatCard(
-                    'Tổng mua hàng',
+                    'Mua hàng',
                     '${NumberFormat('#,###').format(totalSpent)}đ',
                     '$totalSales đơn',
                     AppColors.success,
@@ -699,12 +701,23 @@ class CustomerHistoryDialog extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildStatCard(
-                    'Tổng sửa chữa',
+                    'Sửa chữa',
                     '${NumberFormat('#,###').format(totalRepairCost)}đ',
                     '$totalRepairs lần',
                     AppColors.warning,
                   ),
                 ),
+                if (totalPayments > 0) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildStatCard(
+                      'Đóng tiền',
+                      '${NumberFormat('#,###').format(totalPaymentAmount)}đ',
+                      '$totalPayments lần',
+                      Colors.blue,
+                    ),
+                  ),
+                ],
               ],
             ),
 
@@ -786,9 +799,10 @@ class CustomerHistoryDialog extends StatelessWidget {
     final amount = item['amount'] as int;
     final description = item['description'] as String;
 
-    final isSale = type == 'sale';
-    final color = isSale ? AppColors.success : AppColors.warning;
-    final icon = isSale ? Icons.shopping_cart : Icons.build;
+    final bool isSale = type == 'sale';
+    final bool isPayment = type == 'payment';
+    final Color color = isPayment ? Colors.blue : (isSale ? AppColors.success : AppColors.warning);
+    final IconData icon = isPayment ? Icons.receipt_long : (isSale ? Icons.shopping_cart : Icons.build);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
