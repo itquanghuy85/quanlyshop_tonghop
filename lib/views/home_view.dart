@@ -47,6 +47,8 @@ import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
 import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
+import 'partner_management_view.dart';
+import 'parts_inventory_view.dart';
 import 'financial_report_view.dart';
 import 'financial_activity_log_view.dart';
 import 'audit_log_view.dart';
@@ -944,6 +946,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       allConfigs.addAll(remaining.take(7 - prioritized.length));
     }
 
+    // Preserve current tab by label before rebuilding
+    final String? currentLabel = (_currentIndex < _navItems.length)
+        ? _navItems[_currentIndex].label
+        : null;
+
     _navItems = allConfigs
         .map((config) => config['item'] as BottomNavigationBarItem)
         .toList();
@@ -951,8 +958,15 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         .map((config) => config['widget'] as Widget)
         .toList();
 
-    // Adjust current index if it's out of bounds
-    if (_currentIndex >= _navItems.length) {
+    // Restore current tab by label match (prevents reset when tabs shift)
+    if (currentLabel != null) {
+      final restored = _navItems.indexWhere((item) => item.label == currentLabel);
+      if (restored >= 0) {
+        _currentIndex = restored;
+      } else if (_currentIndex >= _navItems.length) {
+        _currentIndex = 0;
+      }
+    } else if (_currentIndex >= _navItems.length) {
       _currentIndex = 0;
     }
   }
@@ -1916,6 +1930,11 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     final loc = AppLocalizations.of(context)!;
     return WillPopScope(
       onWillPop: () async {
+        // If not on home tab, go back to home tab first
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return false;
+        }
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -4816,7 +4835,34 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             ),
             subtitle: loc.viewSearchTrackRepairs,
           ),
-          // Kho Phụ Tùng đã được chuyển vào tab Linh kiện trong QUẢN LÝ KHO
+          // Partner management - requires repair permission (already in repair tab)
+          if (hasFullAccess || _permissions['allowViewRepairs'] == true)
+            _tabMenuItem(
+              'Quản lý đối tác sửa chữa',
+              Icons.handshake_outlined,
+              Colors.teal,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PartnerManagementView(),
+                ),
+              ),
+              subtitle: 'Đối tác, NCC, thanh toán, công nợ',
+            ),
+          // Parts inventory - requires repair + inventory permission
+          if (hasFullAccess || (_permissions['allowViewRepairs'] == true && _permissions['allowViewInventory'] == true))
+            _tabMenuItem(
+              'Kho phụ tùng / linh kiện',
+              Icons.settings_suggest_outlined,
+              Colors.deepOrange,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PartsInventoryView(),
+                ),
+              ),
+              subtitle: 'Quản lý linh kiện, giá nhập, tồn kho',
+            ),
         ],
       ),
       ),
