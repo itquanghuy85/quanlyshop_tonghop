@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1408,6 +1409,19 @@ class UserService {
     if (!_isSuperAdmin(currentUser)) return;
 
     await _db.collection('users').doc(uid).delete();
+  }
+
+  /// Xóa user + Auth account + dữ liệu liên quan qua Cloud Function
+  /// Chỉ Super Admin mới có quyền
+  static Future<Map<String, dynamic>> deleteUserWithData(String uid, {bool deleteAuth = true}) async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'asia-southeast1',
+    ).httpsCallable('deleteUserData');
+    final result = await callable.call({
+      'userId': uid,
+      'deleteAuth': deleteAuth,
+    });
+    return Map<String, dynamic>.from(result.data as Map);
   }
 
   static String _generateInviteCode() {

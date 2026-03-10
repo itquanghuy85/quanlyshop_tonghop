@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/user_service.dart';
 import '../services/claims_service.dart';
@@ -913,7 +914,10 @@ class UsersTab extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text('Xóa user'),
         content: Text(
-          'Bạn có chắc muốn xóa user $email? Hành động này không thể hoàn tác.',
+          'Bạn có chắc muốn xóa user $email?\n\n'
+          '• Xóa dữ liệu: Xóa tài khoản Auth + Firestore doc + dữ liệu liên quan (repairs, sales, expenses...)\n'
+          '• Chỉ xóa doc: Chỉ xóa Firestore user document\n\n'
+          'Hành động này không thể hoàn tác.',
         ),
         actions: [
           TextButton(
@@ -924,13 +928,44 @@ class UsersTab extends StatelessWidget {
             onPressed: () async {
               final messenger = ScaffoldMessenger.of(context);
               final navigator = Navigator.of(context);
-              await UserService.deleteUser(uid);
-              navigator.pop();
-              messenger.showSnackBar(
-                SnackBar(content: Text('Đã xóa user $email')),
-              );
+              try {
+                await UserService.deleteUser(uid);
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Đã xóa Firestore doc của $email')),
+                );
+              } catch (e) {
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Lỗi: $e')),
+                );
+              }
             },
-            child: const Text('Xóa'),
+            child: const Text('Chỉ xóa doc'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+              try {
+                final result = await UserService.deleteUserWithData(uid);
+                navigator.pop();
+                final deleted = (result['results']?['deleted'] as List?)?.join(', ') ?? '';
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Đã xóa $email và dữ liệu: $deleted'),
+                    duration: const Duration(seconds: 5),
+                  ),
+                );
+              } catch (e) {
+                navigator.pop();
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Lỗi xóa dữ liệu: $e')),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Xóa dữ liệu'),
           ),
         ],
       ),

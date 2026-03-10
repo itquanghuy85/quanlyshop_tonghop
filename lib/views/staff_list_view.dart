@@ -1779,6 +1779,73 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     }
   }
 
+  bool _removing = false;
+
+  Future<void> _removeFromShop() async {
+    // Cannot remove owner or self
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (widget.role == 'owner' && !widget.isSuperAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể xóa chủ shop khỏi cửa hàng')),
+      );
+      return;
+    }
+    if (currentUid == widget.uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không thể tự xóa mình khỏi cửa hàng')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xóa nhân viên khỏi shop'),
+        content: Text(
+          'Bạn có chắc muốn xóa ${widget.name} (${widget.email}) khỏi cửa hàng?\n\n'
+          'Nhân viên sẽ mất quyền truy cập dữ liệu cửa hàng.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('XÓA KHỎI SHOP'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    setState(() => _removing = true);
+    try {
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'asia-southeast1',
+      ).httpsCallable('removeUserFromShop');
+      await callable.call({'userId': widget.uid});
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Đã xóa ${widget.name} khỏi cửa hàng'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      navigator.pop(); // Close bottom sheet
+    } catch (e) {
+      debugPrint('Error removing user from shop: $e');
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _removing = false);
+    }
+  }
+
   Future<void> _assignToMyShop() async {
     if (_currentUserShopId == null || _currentUserShopId!.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2329,6 +2396,35 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
               ],
             ),
           ),
+          // Remove from shop button — visible for owner/manager/superAdmin, not for self or owner role
+          if (_staffShopId != null &&
+              _staffShopId!.isNotEmpty &&
+              widget.uid != FirebaseAuth.instance.currentUser?.uid &&
+              (widget.isSuperAdmin || widget.role != 'owner'))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _removing ? null : _removeFromShop,
+                  icon: _removing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                        )
+                      : const Icon(Icons.person_remove, size: 18, color: Colors.red),
+                  label: Text(
+                    'XÓA NHÂN VIÊN KHỎI SHOP',
+                    style: TextStyle(color: Colors.red, fontSize: AppTextStyles.body1.fontSize),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 6),
           TabBar(
             controller: _tabController,

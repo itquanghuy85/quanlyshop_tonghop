@@ -1253,3 +1253,99 @@ exports.cleanupFCMTokens = onSchedule("0 3 * * 0", async (event) => {
     console.error('Error in FCM token cleanup:', error);
   }
 });
+
+/**
+ * 🗑️ DELETE USER DATA (Super Admin only)
+ * Deletes user Firestore doc + Auth account + related data in all collections
+ */
+exports.deleteUserData = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const callerEmail = (auth.token.email || "").toLowerCase().trim();
+  if (!checkIsSuperAdmin(callerEmail)) {
+    throw new HttpsError("permission-denied", "Chỉ Super Admin mới có quyền xóa dữ liệu");
+  }
+
+  const data = request.data || {};
+  const targetUserId = (data.userId || "").toString().trim();
+  const deleteAuth = data.deleteAuth !== false; // default true
+
+  if (!targetUserId) {
+    throw new HttpsError("invalid-argument", "Thiếu userId");
+  }
+
+  // Prevent deleting self
+  if (auth.uid === targetUserId) {
+    throw new HttpsError("permission-denied", "Không thể tự xóa tài khoản của mình");
+  }
+
+  const db = admin.firestore();
+  const results = { deleted: [], errors: [] };
+
+  // 1. Get user doc to find shopId
+  const userDoc = await db.doc(`users/${targetUserId}`).get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+  const shopId = userData.shopId || null;
+
+  // 2. Delete related data in batched collections (filtered by shopId if available)
+  const collectionsToClean = [
+    { name: 'repairs', field: 'createdBy' },
+    { name: 'sales', field: 'sellerId' },
+    { name: 'expenses', field: 'createdBy' },
+    { name: 'attendance', field: 'userId' },
+    { name: 'notifications', field: 'userId' },
+    { name: 'payment_requests', field: 'senderId' },
+  ];
+
+  for (const col of collectionsToClean) {
+    try {
+      const query = db.collection(col.name)
+        .where(col.field, '==', targetUserId)
+        .limit(500);
+      const snap = await query.get();
+      if (snap.size > 0) {
+        const batch = db.batch();
+        snap.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        results.deleted.push(`${col.name}: ${snap.size} docs`);
+      }
+    } catch (err) {
+      results.errors.push(`${col.name}: ${err.message}`);
+    }
+  }
+
+  // 3. Delete user Firestore document
+  try {
+    if (userDoc.exists) {
+      await db.doc(`users/${targetUserId}`).delete();
+      results.deleted.push('users: 1 doc');
+    }
+  } catch (err) {
+    results.errors.push(`users: ${err.message}`);
+  }
+
+  // 4. Delete Firebase Auth account
+  if (deleteAuth) {
+    try {
+      await admin.auth().deleteUser(targetUserId);
+      results.deleted.push('auth: account deleted');
+    } catch (err) {
+      // User may not exist in Auth
+      if (err.code !== 'auth/user-not-found') {
+        results.errors.push(`auth: ${err.message}`);
+      }
+    }
+  }
+
+  console.log(`🗑️ deleteUserData for ${targetUserId}:`, JSON.stringify(results));
+
+  return {
+    success: true,
+    userId: targetUserId,
+    results: results,
+    message: `Đã xóa user ${userData.email || targetUserId} và dữ liệu liên quan`,
+  };
+});
