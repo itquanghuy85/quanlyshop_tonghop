@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/user_service.dart';
-import '../theme/app_text_styles.dart';
 import '../services/sync_service.dart';
 import '../services/claims_service.dart';
 import '../data/db_helper.dart';
@@ -25,7 +23,6 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
   List<Map<String, dynamic>> _shops = [];
   bool _loading = true;
   bool _switching = false;
-  bool _isSyncingClaims = false;
   String? _selectedShopId;
   String? _error;
   final _searchC = TextEditingController();
@@ -35,7 +32,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
   void initState() {
     super.initState();
     _searchC.addListener(() {
-      setState(() => _searchQuery = _searchC.text.trim().toLowerCase());
+      if (mounted) setState(() => _searchQuery = _searchC.text.trim().toLowerCase());
     });
     _loadShops();
   }
@@ -62,26 +59,17 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
 
   Future<void> _loadShops() async {
     try {
-      setState(() {
-        _loading = true;
-        _error = null;
-      });
+      if (mounted) setState(() { _loading = true; _error = null; });
 
       final shops = await UserService.getAllShops();
       debugPrint('ShopSelectorView: loaded ${shops.length} shops');
       if (mounted) {
-        setState(() {
-          _shops = shops;
-          _loading = false;
-        });
+        setState(() { _shops = shops; _loading = false; });
       }
     } catch (e) {
-      debugPrint('ShopSelectorView error loading shops: $e');
+      debugPrint('ShopSelectorView error: $e');
       if (mounted) {
-        setState(() {
-          _error = 'Không thể tải danh sách shop: $e';
-          _loading = false;
-        });
+        setState(() { _error = '$e'; _loading = false; });
       }
     }
   }
@@ -198,7 +186,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           ),
         ],
       ),
-      body: ResponsiveCenter(child: _buildBody()),
+      body: SafeArea(child: _buildBody()),
     );
   }
 
@@ -218,43 +206,38 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
 
     if (_error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
-            const SizedBox(height: 16),
-            Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _loadShops,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Thử lại'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+              const SizedBox(height: 16),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700)),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(onPressed: _loadShops, icon: const Icon(Icons.refresh), label: const Text('Thử lại')),
+            ],
+          ),
         ),
       );
     }
 
     if (_shops.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.store_outlined, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text('Không tìm thấy shop nào', style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, color: Colors.grey.shade600)),
-            const SizedBox(height: 8),
-            Text(
-              'Email: ${FirebaseAuth.instance.currentUser?.email ?? "N/A"}',
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade400),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _loadShops,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tải lại'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.store_outlined, size: 64, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text('Không tìm thấy shop', style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
+              const SizedBox(height: 8),
+              Text('Email: ${FirebaseAuth.instance.currentUser?.email ?? "N/A"}', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(onPressed: _loadShops, icon: const Icon(Icons.refresh), label: const Text('Tải lại')),
+            ],
+          ),
         ),
       );
     }
@@ -269,97 +252,50 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.deepPurple.shade50, Colors.blue.shade50],
-            ),
+            gradient: LinearGradient(colors: [Colors.deepPurple.shade50, Colors.blue.shade50]),
           ),
           child: Row(
             children: [
-              Icon(Icons.admin_panel_settings, size: 32, color: Colors.deepPurple.shade700),
-              const SizedBox(width: 12),
+              Icon(Icons.admin_panel_settings, size: 28, color: Colors.deepPurple.shade700),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Super Admin', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold, color: Colors.deepPurple.shade700)),
-                    Text('Chọn shop để quản lý dữ liệu', style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600)),
-                  ],
-                ),
+                child: Text('Super Admin · ${_shops.length} shop · $totalUsers user',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.deepPurple.shade700)),
               ),
-              _summaryChip(Icons.store, '${_shops.length}', 'Shop'),
-              const SizedBox(width: 8),
-              _summaryChip(Icons.people, '$totalUsers', 'User'),
             ],
           ),
         ),
-
         // Search bar
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
           child: TextField(
             controller: _searchC,
             decoration: InputDecoration(
               hintText: 'Tìm theo tên, email, loại hình...',
-              prefixIcon: const Icon(Icons.search, size: 22),
+              prefixIcon: const Icon(Icons.search, size: 20),
               suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => _searchC.clear())
+                  ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () => _searchC.clear())
                   : null,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               filled: true,
               fillColor: Colors.white,
             ),
+            style: const TextStyle(fontSize: 14),
           ),
         ),
-
-        if (_searchQuery.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('${filtered.length} kết quả', style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade500)),
-            ),
-          ),
-
         // Shop list
         Expanded(
           child: filtered.isEmpty
-              ? Center(child: Text('Không tìm thấy shop', style: TextStyle(color: Colors.grey.shade500)))
+              ? Center(child: Text('Không tìm thấy shop phù hợp', style: TextStyle(color: Colors.grey.shade500)))
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 80),
                   itemCount: filtered.length,
                   itemBuilder: (context, index) => _buildShopCard(filtered[index]),
                 ),
         ),
-
-        // Claims sync bar (collapsed)
-        _buildClaimsSyncBar(),
       ],
-    );
-  }
-
-  Widget _summaryChip(IconData icon, String value, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: Colors.deepPurple.shade600),
-              const SizedBox(width: 4),
-              Text(value, style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, fontWeight: FontWeight.bold, color: Colors.deepPurple.shade700)),
-            ],
-          ),
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-        ],
-      ),
     );
   }
 
@@ -408,7 +344,6 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
     final shopId = shop['id'] as String;
     final shopName = shop['name'] as String? ?? 'Shop không tên';
     final ownerEmail = shop['ownerEmail'] as String? ?? '';
-    final ownerUid = shop['ownerUid'] as String? ?? '';
     final businessType = shop['businessType'] as String?;
     final userCount = (shop['userCount'] as int?) ?? 0;
     final createdAt = shop['createdAt'];
@@ -417,99 +352,84 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
     final bColor = _businessColor(businessType);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      elevation: isSelecting ? 4 : 1,
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: isSelecting ? 3 : 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: isSelecting
-            ? BorderSide(color: bColor, width: 2)
-            : isDeleted
-                ? BorderSide(color: Colors.red.shade200)
-                : BorderSide.none,
+        borderRadius: BorderRadius.circular(12),
+        side: isSelecting ? BorderSide(color: bColor, width: 2) : BorderSide.none,
       ),
       child: InkWell(
         onTap: _switching ? null : () => _selectShop(shopId, shopName),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Opacity(
           opacity: isDeleted ? 0.5 : 1.0,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Row 1: Icon + Name + Badge
+                // Row 1: Icon + Name + Badge + Arrow
                 Row(
                   children: [
                     Container(
-                      width: 48,
-                      height: 48,
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: bColor.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(_businessIcon(businessType), size: 26, color: bColor),
+                      child: Icon(_businessIcon(businessType), size: 24, color: bColor),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            shopName,
-                            style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
+                          Text(shopName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 3),
+                          Wrap(
+                            spacing: 6,
                             children: [
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(color: bColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                                child: Text(_businessLabel(businessType), style: TextStyle(fontSize: 12, color: bColor, fontWeight: FontWeight.w600)),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(color: bColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                child: Text(_businessLabel(businessType), style: TextStyle(fontSize: 11, color: bColor, fontWeight: FontWeight.w600)),
                               ),
-                              if (isDeleted) ...[
-                                const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
+                                child: Text('$userCount NV', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                              ),
+                              if (isDeleted)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(6)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4)),
                                   child: Text('Đã xoá', style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w600)),
                                 ),
-                              ],
                             ],
                           ),
                         ],
                       ),
                     ),
                     if (isSelecting)
-                      const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
                     else
-                      Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+                      Icon(Icons.chevron_right, size: 22, color: Colors.grey.shade400),
                   ],
                 ),
-
-                const Divider(height: 20),
-
-                // Row 2: Details grid
-                Row(
-                  children: [
-                    _infoItem(Icons.email_outlined, ownerEmail.isNotEmpty ? ownerEmail : '—'),
-                    const SizedBox(width: 16),
-                    _infoItem(Icons.people_outline, '$userCount nhân viên'),
-                  ],
+                // Row 2: Details
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 54),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (ownerEmail.isNotEmpty)
+                        _detailRow(Icons.email_outlined, ownerEmail),
+                      _detailRow(Icons.calendar_today_outlined, 'Tạo: ${_formatTimestamp(createdAt)}'),
+                      _detailRow(Icons.tag, 'ID: ${shopId.length > 20 ? '${shopId.substring(0, 20)}...' : shopId}'),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    _infoItem(Icons.calendar_today_outlined, _formatTimestamp(createdAt)),
-                    const SizedBox(width: 16),
-                    _infoItem(Icons.tag, shopId.length > 12 ? '${shopId.substring(0, 12)}...' : shopId),
-                  ],
-                ),
-                if (ownerUid.isNotEmpty && ownerUid != shopId) ...[
-                  const SizedBox(height: 6),
-                  _infoItem(Icons.person_outline, 'Owner UID: ${ownerUid.length > 16 ? '${ownerUid.substring(0, 16)}...' : ownerUid}'),
-                ],
               ],
             ),
           ),
@@ -518,112 +438,19 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
     );
   }
 
-  Widget _infoItem(IconData icon, String text) {
-    return Expanded(
+  Widget _detailRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         children: [
-          Icon(icon, size: 15, color: Colors.grey.shade500),
-          const SizedBox(width: 4),
+          Icon(icon, size: 13, color: Colors.grey.shade500),
+          const SizedBox(width: 5),
           Flexible(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(text, style: TextStyle(fontSize: 12, color: Colors.grey.shade600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
   }
 
-  /// Compact claims sync bar at bottom
-  Widget _buildClaimsSyncBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        border: Border(top: BorderSide(color: Colors.orange.shade200)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.cloud_sync, size: 20, color: Colors.orange.shade700),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Đồng bộ quyền truy cập cho tất cả tài khoản',
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.orange.shade800),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 34,
-            child: ElevatedButton(
-              onPressed: _isSyncingClaims ? null : _syncAllClaims,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.shade700,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                textStyle: const TextStyle(fontSize: 13),
-              ),
-              child: _isSyncingClaims
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('SYNC CLAIMS'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Sync all claims for all users
-  Future<void> _syncAllClaims() async {
-    setState(() => _isSyncingClaims = true);
-
-    try {
-      final result = await ClaimsService().batchSyncAllClaims();
-
-      if (!mounted) return;
-
-      if (result['success'] == true) {
-        // Safely cast stats map
-        final statsRaw = result['stats'];
-        final stats = statsRaw is Map ? Map<String, dynamic>.from(statsRaw) : <String, dynamic>{};
-        final total = stats['total'] ?? 0;
-        final success = stats['success'] ?? 0;
-        final skipped = stats['skipped'] ?? 0;
-        final failed = stats['failed'] ?? 0;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Đồng bộ hoàn tất!\n'
-              'Tổng: $total | Thành công: $success | Bỏ qua: $skipped | Lỗi: $failed',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Lỗi: ${result['error'] ?? 'Không xác định'}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Lỗi: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isSyncingClaims = false);
-      }
-    }
-  }
 }
