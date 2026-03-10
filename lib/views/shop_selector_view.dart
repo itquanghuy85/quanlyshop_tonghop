@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../services/user_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/sync_service.dart';
@@ -27,11 +28,36 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
   bool _isSyncingClaims = false;
   String? _selectedShopId;
   String? _error;
+  final _searchC = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _searchC.addListener(() {
+      setState(() => _searchQuery = _searchC.text.trim().toLowerCase());
+    });
     _loadShops();
+  }
+
+  @override
+  void dispose() {
+    _searchC.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> get _filteredShops {
+    if (_searchQuery.isEmpty) return _shops;
+    return _shops.where((shop) {
+      final name = (shop['name'] as String? ?? '').toLowerCase();
+      final email = (shop['ownerEmail'] as String? ?? '').toLowerCase();
+      final id = (shop['id'] as String? ?? '').toLowerCase();
+      final biz = (shop['businessType'] as String? ?? '').toLowerCase();
+      return name.contains(_searchQuery) ||
+          email.contains(_searchQuery) ||
+          id.contains(_searchQuery) ||
+          biz.contains(_searchQuery);
+    }).toList();
   }
 
   Future<void> _loadShops() async {
@@ -150,12 +176,20 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
             ),
           ),
         ),
-        title: const Text('Chọn Shop để Xem', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text('QUẢN LÝ SHOP', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              UserService.clearCache();
+              FirebaseAuth.instance.signOut();
+            },
+            tooltip: 'Đăng xuất',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loading ? null : _loadShops,
@@ -188,11 +222,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           children: [
             Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
             const SizedBox(height: 16),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.red.shade700),
-            ),
+            Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700)),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: _loadShops,
@@ -211,217 +241,322 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           children: [
             Icon(Icons.store_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text(
-              'Không có shop nào',
-              style: TextStyle(
-                fontSize: AppTextStyles.headline2.fontSize,
-                color: Colors.grey.shade600,
-              ),
-            ),
+            Text('Không có shop nào', style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, color: Colors.grey.shade600)),
           ],
         ),
       );
     }
 
+    final filtered = _filteredShops;
+    final totalUsers = _shops.fold<int>(0, (sum, s) => sum + ((s['userCount'] as int?) ?? 0));
+
     return Column(
       children: [
-        // Header info
+        // Summary bar
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          color: Colors.deepPurple.shade50,
-          child: Column(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.deepPurple.shade50, Colors.blue.shade50],
+            ),
+          ),
+          child: Row(
             children: [
-              Icon(
-                Icons.admin_panel_settings,
-                size: 48,
-                color: Colors.deepPurple.shade700,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Super Admin',
-                style: TextStyle(
-                  fontSize: AppTextStyles.headline1.fontSize,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple.shade700,
+              Icon(Icons.admin_panel_settings, size: 32, color: Colors.deepPurple.shade700),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Super Admin', style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold, color: Colors.deepPurple.shade700)),
+                    Text('Chọn shop để quản lý dữ liệu', style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600)),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Chọn một shop để xem dữ liệu',
-                style: TextStyle(
-                  fontSize: AppTextStyles.headline4.fontSize,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${_shops.length} shop có sẵn',
-                style: TextStyle(
-                  fontSize: AppTextStyles.subtitle1.fontSize,
-                  color: Colors.grey.shade500,
-                ),
-              ),
+              _summaryChip(Icons.store, '${_shops.length}', 'Shop'),
+              const SizedBox(width: 8),
+              _summaryChip(Icons.people, '$totalUsers', 'User'),
             ],
           ),
         ),
 
-        // Claims Sync Card
-        _buildClaimsSyncCard(),
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: TextField(
+            controller: _searchC,
+            decoration: InputDecoration(
+              hintText: 'Tìm theo tên, email, loại hình...',
+              prefixIcon: const Icon(Icons.search, size: 22),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(icon: const Icon(Icons.clear, size: 20), onPressed: () => _searchC.clear())
+                  : null,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+        ),
+
+        if (_searchQuery.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('${filtered.length} kết quả', style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade500)),
+            ),
+          ),
 
         // Shop list
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _shops.length,
-            itemBuilder: (context, index) {
-              final shop = _shops[index];
-              final shopId = shop['id'] as String;
-              final shopName = shop['name'] as String? ?? 'Shop không tên';
-              final ownerEmail = shop['ownerEmail'] as String? ?? '';
-              final isSelecting = _switching && _selectedShopId == shopId;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          child: filtered.isEmpty
+              ? Center(child: Text('Không tìm thấy shop', style: TextStyle(color: Colors.grey.shade500)))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) => _buildShopCard(filtered[index]),
                 ),
-                child: InkWell(
-                  onTap: _switching ? null : () => _selectShop(shopId, shopName),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        // Shop icon
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: Colors.deepPurple.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.store,
-                            size: 28,
-                            color: Colors.deepPurple.shade700,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-
-                        // Shop info
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                shopName,
-                                style: TextStyle(
-                                  fontSize: AppTextStyles.headline3.fontSize,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              if (ownerEmail.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  ownerEmail,
-                                  style: TextStyle(
-                                    fontSize: AppTextStyles.headline5.fontSize,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 4),
-                              Text(
-                                'ID: ${shopId.substring(0, 8)}...',
-                                style: TextStyle(
-                                  fontSize: AppTextStyles.body1.fontSize,
-                                  color: Colors.grey.shade400,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Arrow or loading
-                        if (isSelecting)
-                          const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            size: 16,
-                            color: Colors.grey.shade400,
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
         ),
+
+        // Claims sync bar (collapsed)
+        _buildClaimsSyncBar(),
       ],
     );
   }
 
-  /// Build Claims Sync Card
-  Widget _buildClaimsSyncCard() {
+  Widget _summaryChip(IconData icon, String value, String label) {
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.shade200),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 24),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Đồng bộ Custom Claims',
-                  style: TextStyle(
-                    fontSize: AppTextStyles.headline4.fontSize,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade800,
-                  ),
-                ),
-              ),
+              Icon(icon, size: 16, color: Colors.deepPurple.shade600),
+              const SizedBox(width: 4),
+              Text(value, style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, fontWeight: FontWeight.bold, color: Colors.deepPurple.shade700)),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Nếu các tài khoản không thể truy cập dữ liệu, hãy bấm nút bên dưới để đồng bộ quyền truy cập cho tất cả user.',
-            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade700),
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+        ],
+      ),
+    );
+  }
+
+  IconData _businessIcon(String? type) {
+    switch (type) {
+      case 'electronics': return Icons.phone_android;
+      case 'fashion': return Icons.checkroom;
+      case 'food': return Icons.restaurant;
+      case 'pharmacy': return Icons.local_pharmacy;
+      case 'grocery': return Icons.shopping_basket;
+      default: return Icons.store;
+    }
+  }
+
+  String _businessLabel(String? type) {
+    switch (type) {
+      case 'electronics': return 'Điện tử';
+      case 'fashion': return 'Thời trang';
+      case 'food': return 'Ẩm thực';
+      case 'pharmacy': return 'Dược phẩm';
+      case 'grocery': return 'Tạp hoá';
+      default: return type ?? 'Chung';
+    }
+  }
+
+  Color _businessColor(String? type) {
+    switch (type) {
+      case 'electronics': return Colors.blue;
+      case 'fashion': return Colors.pink;
+      case 'food': return Colors.orange;
+      case 'pharmacy': return Colors.green;
+      case 'grocery': return Colors.teal;
+      default: return Colors.deepPurple;
+    }
+  }
+
+  String _formatTimestamp(dynamic ts) {
+    if (ts == null) return '—';
+    if (ts is Timestamp) {
+      return DateFormat('dd/MM/yyyy HH:mm').format(ts.toDate());
+    }
+    return '—';
+  }
+
+  Widget _buildShopCard(Map<String, dynamic> shop) {
+    final shopId = shop['id'] as String;
+    final shopName = shop['name'] as String? ?? 'Shop không tên';
+    final ownerEmail = shop['ownerEmail'] as String? ?? '';
+    final ownerUid = shop['ownerUid'] as String? ?? '';
+    final businessType = shop['businessType'] as String?;
+    final userCount = (shop['userCount'] as int?) ?? 0;
+    final createdAt = shop['createdAt'];
+    final isDeleted = shop['deleted'] == true;
+    final isSelecting = _switching && _selectedShopId == shopId;
+    final bColor = _businessColor(businessType);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: isSelecting ? 4 : 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: isSelecting
+            ? BorderSide(color: bColor, width: 2)
+            : isDeleted
+                ? BorderSide(color: Colors.red.shade200)
+                : BorderSide.none,
+      ),
+      child: InkWell(
+        onTap: _switching ? null : () => _selectShop(shopId, shopName),
+        borderRadius: BorderRadius.circular(14),
+        child: Opacity(
+          opacity: isDeleted ? 0.5 : 1.0,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Row 1: Icon + Name + Badge
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: bColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(_businessIcon(businessType), size: 26, color: bColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            shopName,
+                            style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: bColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                                child: Text(_businessLabel(businessType), style: TextStyle(fontSize: 12, color: bColor, fontWeight: FontWeight.w600)),
+                              ),
+                              if (isDeleted) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(6)),
+                                  child: Text('Đã xoá', style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w600)),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelecting)
+                      const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                    else
+                      Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+                  ],
+                ),
+
+                const Divider(height: 20),
+
+                // Row 2: Details grid
+                Row(
+                  children: [
+                    _infoItem(Icons.email_outlined, ownerEmail.isNotEmpty ? ownerEmail : '—'),
+                    const SizedBox(width: 16),
+                    _infoItem(Icons.people_outline, '$userCount nhân viên'),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    _infoItem(Icons.calendar_today_outlined, _formatTimestamp(createdAt)),
+                    const SizedBox(width: 16),
+                    _infoItem(Icons.tag, shopId.length > 12 ? '${shopId.substring(0, 12)}...' : shopId),
+                  ],
+                ),
+                if (ownerUid.isNotEmpty && ownerUid != shopId) ...[
+                  const SizedBox(height: 6),
+                  _infoItem(Icons.person_outline, 'Owner UID: ${ownerUid.length > 16 ? '${ownerUid.substring(0, 16)}...' : ownerUid}'),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoItem(IconData icon, String text) {
+    return Expanded(
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: Colors.grey.shade500),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Compact claims sync bar at bottom
+  Widget _buildClaimsSyncBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        border: Border(top: BorderSide(color: Colors.orange.shade200)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_sync, size: 20, color: Colors.orange.shade700),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Đồng bộ quyền truy cập cho tất cả tài khoản',
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.orange.shade800),
+            ),
+          ),
+          const SizedBox(width: 8),
           SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
+            height: 34,
+            child: ElevatedButton(
               onPressed: _isSyncingClaims ? null : _syncAllClaims,
-              icon: _isSyncingClaims
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.cloud_sync),
-              label: Text(_isSyncingClaims ? 'Đang đồng bộ...' : 'ĐỒNG BỘ TẤT CẢ CLAIMS'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange.shade700,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                textStyle: const TextStyle(fontSize: 13),
               ),
+              child: _isSyncingClaims
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('SYNC CLAIMS'),
             ),
           ),
         ],

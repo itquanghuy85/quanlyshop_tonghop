@@ -238,16 +238,37 @@ class UserService {
     return '';
   }
 
-  /// Lấy danh sách tất cả shops (chỉ dùng cho super admin)
+  /// Lấy danh sách tất cả shops (chỉ dùng cho super admin) kèm thông tin chi tiết
   static Future<List<Map<String, dynamic>>> getAllShops() async {
     if (!isCurrentUserSuperAdmin()) return [];
     try {
       final snap = await _db.collection('shops').get();
-      return snap.docs.map((doc) {
+      final shops = <Map<String, dynamic>>[];
+      for (final doc in snap.docs) {
         final data = doc.data();
         data['id'] = doc.id;
-        return data;
-      }).toList();
+        // Đếm số nhân viên của shop
+        try {
+          final usersSnap = await _db
+              .collection('users')
+              .where('shopId', isEqualTo: doc.id)
+              .get();
+          data['userCount'] = usersSnap.docs.length;
+        } catch (_) {
+          data['userCount'] = 0;
+        }
+        shops.add(data);
+      }
+      // Sắp xếp: shop mới nhất lên trước
+      shops.sort((a, b) {
+        final aTime = a['createdAt'] as Timestamp?;
+        final bTime = b['createdAt'] as Timestamp?;
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+      return shops;
     } catch (e) {
       debugPrint('getAllShops error: $e');
       return [];
