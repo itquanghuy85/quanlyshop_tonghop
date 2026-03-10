@@ -31,6 +31,7 @@ class PaymentRequestService {
     String? bankName,
     String? description,
     List<File>? images,
+    String? customerPaymentMethod,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -57,6 +58,7 @@ class PaymentRequestService {
         bankName: bankName,
         description: description,
         imageUrls: [],
+        customerPaymentMethod: customerPaymentMethod,
         createdAt: DateTime.now(),
       );
 
@@ -72,10 +74,81 @@ class PaymentRequestService {
         _uploadImagesInBackground(docRef.id, shopId, images);
       }
 
+      // Log income: NV thu tiền từ khách hàng
+      _logIncomeFromCustomer(
+        requestId: docRef.id,
+        customerName: customerName,
+        customerPhone: customerPhone ?? '',
+        paymentType: paymentType,
+        paymentTypeLabel: paymentTypeLabel,
+        amount: amount,
+        bankName: bankName,
+        accountNumber: accountNumber,
+        description: description,
+        customerPaymentMethod: customerPaymentMethod ?? 'TIỀN MẶT',
+      );
+
       return docRef.id;
     } catch (e) {
       debugPrint('❌ PaymentRequest create error: $e');
       return null;
+    }
+  }
+
+  /// Log thu nhập khi NV thu tiền từ khách hàng
+  static Future<void> _logIncomeFromCustomer({
+    required String requestId,
+    required String customerName,
+    required String customerPhone,
+    required PaymentType paymentType,
+    String? paymentTypeLabel,
+    required double amount,
+    String? bankName,
+    String? accountNumber,
+    String? description,
+    required String customerPaymentMethod,
+  }) async {
+    try {
+      final intAmount = amount.toInt();
+      if (intAmount <= 0) return;
+
+      String typeDisplay;
+      switch (paymentType) {
+        case PaymentType.electricity: typeDisplay = 'Tiền điện'; break;
+        case PaymentType.water: typeDisplay = 'Tiền nước'; break;
+        case PaymentType.internet: typeDisplay = 'Tiền mạng'; break;
+        case PaymentType.bankLoan: typeDisplay = 'Vay NH'; break;
+        case PaymentType.bankInstallment: typeDisplay = 'Trả góp NH'; break;
+        case PaymentType.insurance: typeDisplay = 'Bảo hiểm'; break;
+        case PaymentType.other: typeDisplay = (paymentTypeLabel?.isNotEmpty == true) ? paymentTypeLabel! : 'Đóng tiền'; break;
+      }
+
+      final incTitle = 'THU ĐÓNG TIỀN: $typeDisplay - $customerName';
+
+      final noteParts = <String>[];
+      if (customerPhone.isNotEmpty) noteParts.add('SĐT: $customerPhone');
+      if (bankName != null && bankName.isNotEmpty) noteParts.add('NH: $bankName');
+      if (accountNumber != null && accountNumber.isNotEmpty) noteParts.add('TK: $accountNumber');
+      if (description != null && description.isNotEmpty) noteParts.add(description);
+      noteParts.add('KH trả: $customerPaymentMethod');
+      final noteStr = noteParts.join(' · ');
+
+      await FinancialActivityService.logCustomActivity(
+        activityType: 'PAYMENT_REQUEST_IN',
+        amount: intAmount,
+        direction: 'IN',
+        paymentMethod: customerPaymentMethod,
+        title: incTitle,
+        description: noteStr,
+        customerName: customerName,
+        phone: customerPhone,
+        referenceType: 'payment_request',
+        referenceId: requestId,
+      );
+
+      debugPrint('✅ PaymentRequest $requestId: Income logged ($customerPaymentMethod)');
+    } catch (e) {
+      debugPrint('❌ PaymentRequest _logIncomeFromCustomer error: $e');
     }
   }
 
@@ -144,9 +217,9 @@ class PaymentRequestService {
       await _db.collection(_collection).doc(requestId).update(update);
       debugPrint('✅ PaymentRequest $requestId → ${newStatus.name}');
 
-      // Khi hoàn thành: tạo chi phí + ghi log tài chính
+      // Khi hoàn thành: tạo chi phí + ghi log tài chính (chủ shop luôn chuyển khoản cho ngân hàng)
       if (newStatus == PaymentRequestStatus.completed) {
-        await _logFinancialOnCompleted(requestId, paymentMethod ?? 'TIỀN MẶT');
+        await _logFinancialOnCompleted(requestId, 'CHUYỂN KHOẢN');
       }
 
       return true;
@@ -224,9 +297,9 @@ class PaymentRequestService {
       };
       await FirestoreService.addExpenseCloud(expData);
 
-      // 2. Ghi log tài chính (financial activity)
+      // 2. Ghi log tài chính CHI (chủ shop CK cho ngân hàng)
       await FinancialActivityService.logCustomActivity(
-        activityType: 'EXPENSE',
+        activityType: 'PAYMENT_REQUEST_OUT',
         amount: amount,
         direction: 'OUT',
         paymentMethod: paymentMethod,
@@ -264,29 +337,56 @@ class PaymentRequestService {
   static Stream<List<PaymentRequest>> requestsStream({
     PaymentRequestStatus? statusFilter,
     int limit = 50,
-  }) async* {
-    final shopId = await UserService.getCurrentShopId();
-    if (shopId == null) {
-      yield [];
-      return;
-    }
+  }) {
+    final controller = StreamController<List<PaymentRequest>>();
+    StreamSubscription? firestoreSub;
 
-    Query<Map<String, dynamic>> query = _db
-        .collection(_collection)
-        .where('shopId', isEqualTo: shopId)
-        .where('deleted', isEqualTo: false);
+    () async {
+      try {
+        final shopId = await UserService.getCurrentShopId();
+        if (shopId == null) {
+          controller.add([]);
+          await controller.close();
+          return;
+        }
 
-    if (statusFilter != null) {
-      query = query.where('status', isEqualTo: statusFilter.name);
-    }
+        Query<Map<String, dynamic>> query = _db
+            .collection(_collection)
+            .where('shopId', isEqualTo: shopId)
+            .where('deleted', isEqualTo: false);
 
-    query = query.orderBy('createdAt', descending: true).limit(limit);
+        if (statusFilter != null) {
+          query = query.where('status', isEqualTo: statusFilter.name);
+        }
 
-    yield* query.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => PaymentRequest.fromSnapshot(doc))
-          .toList();
-    });
+        query = query.orderBy('createdAt', descending: true).limit(limit);
+
+        firestoreSub = query.snapshots().listen(
+          (snapshot) {
+            final list = snapshot.docs
+                .map((doc) => PaymentRequest.fromSnapshot(doc))
+                .toList();
+            if (!controller.isClosed) controller.add(list);
+          },
+          onError: (e) {
+            debugPrint('❌ PaymentRequest stream error: $e');
+            if (!controller.isClosed) controller.addError(e);
+          },
+        );
+      } catch (e) {
+        if (!controller.isClosed) {
+          controller.addError(e);
+          await controller.close();
+        }
+      }
+    }();
+
+    controller.onCancel = () {
+      firestoreSub?.cancel();
+      if (!controller.isClosed) controller.close();
+    };
+
+    return controller.stream;
   }
 
   /// Đếm yêu cầu chờ xử lý

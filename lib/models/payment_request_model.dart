@@ -47,6 +47,9 @@ class PaymentRequest {
   // Hình ảnh đính kèm (hóa đơn, biên nhận...)
   List<String> imageUrls;
 
+  // Khách hàng thanh toán cho nhân viên bằng gì (TIỀN MẶT / CHUYỂN KHOẢN)
+  String? customerPaymentMethod;
+
   // Trạng thái
   PaymentRequestStatus status;
   String? processedBy;     // UID người xử lý (chủ shop)
@@ -78,6 +81,7 @@ class PaymentRequest {
     this.bankName,
     this.description,
     this.imageUrls = const [],
+    this.customerPaymentMethod,
     this.status = PaymentRequestStatus.pending,
     this.processedBy,
     this.processedByName,
@@ -105,6 +109,7 @@ class PaymentRequest {
       'bankName': bankName,
       'description': description,
       'imageUrls': imageUrls,
+      'customerPaymentMethod': customerPaymentMethod,
       'status': status.name,
       'processedBy': processedBy,
       'processedByName': processedByName,
@@ -134,6 +139,7 @@ class PaymentRequest {
       bankName: map['bankName'],
       description: map['description'],
       imageUrls: (map['imageUrls'] as List?)?.cast<String>() ?? [],
+      customerPaymentMethod: map['customerPaymentMethod'],
       status: _parseStatus(map['status']),
       processedBy: map['processedBy'],
       processedByName: map['processedByName'],
@@ -222,6 +228,7 @@ class PaymentRequest {
     String? bankName,
     String? description,
     List<String>? imageUrls,
+    String? customerPaymentMethod,
     PaymentRequestStatus? status,
     String? processedBy,
     String? processedByName,
@@ -248,6 +255,7 @@ class PaymentRequest {
       bankName: bankName ?? this.bankName,
       description: description ?? this.description,
       imageUrls: imageUrls ?? this.imageUrls,
+      customerPaymentMethod: customerPaymentMethod ?? this.customerPaymentMethod,
       status: status ?? this.status,
       processedBy: processedBy ?? this.processedBy,
       processedByName: processedByName ?? this.processedByName,

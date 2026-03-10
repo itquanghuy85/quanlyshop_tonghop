@@ -12,8 +12,17 @@ import '../services/customer_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/currency_text_field.dart';
 
-/// Danh sách ngân hàng Việt Nam phổ biến
-const List<String> kVietnameseBanks = [
+/// Danh sách ngân hàng / tổ chức tài chính cho vay góp, trả góp
+const List<String> kLoanBanks = [
+  'FE Credit',
+  'Home Credit',
+  'HD Saison',
+  'Mirae Asset',
+  'Shinhan Finance',
+  'JACCS',
+  'Toyota Financial',
+  'VPBank Finance (FE)',
+  'MCredit (MBBank)',
   'Vietcombank',
   'BIDV',
   'VietinBank',
@@ -25,29 +34,8 @@ const List<String> kVietnameseBanks = [
   'VPBank',
   'Sacombank',
   'HDBank',
-  'OCB',
   'SHB',
   'MSB',
-  'LPBank',
-  'SeABank',
-  'VIB',
-  'NamABank',
-  'BacABank',
-  'KienLongBank',
-  'ABBank',
-  'NCB',
-  'PGBank',
-  'VietABank',
-  'BaoVietBank',
-  'VietCapitalBank',
-  'CBBank',
-  'GPBank',
-  'PublicBank',
-  'UOB',
-  'HSBC',
-  'Shinhan',
-  'Woori',
-  'CIMB',
   'Khác',
 ];
 
@@ -130,6 +118,12 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       appBar: CustomAppBar.build(
         title: 'Yêu cầu đóng tiền',
         actions: [
+          // Create button (moved from FAB to avoid overlap with image bar)
+          IconButton(
+            onPressed: _showCreateRequestSheet,
+            icon: const Icon(Icons.add_circle, size: 28),
+            tooltip: 'Tạo yêu cầu mới',
+          ),
           // Filter button
           PopupMenuButton<PaymentRequestStatus?>(
             icon: Badge(
@@ -177,7 +171,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Nhấn + để tạo yêu cầu mới',
+                              'Nhấn ⊕ trên thanh tiêu đề để tạo mới',
                               style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                             ),
                           ],
@@ -193,11 +187,6 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           // Chat-like image input bar for sending proof images
           _buildImageChatBar(),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateRequestSheet,
-        backgroundColor: const Color(0xFF075E54), // WhatsApp green
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -323,18 +312,19 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                             _infoRow(Icons.note, req.description!),
                           if (req.customerNote != null && req.customerNote!.isNotEmpty)
                             _infoRow(Icons.comment, req.customerNote!),
-                          if (req.status == PaymentRequestStatus.completed && req.paymentMethod != null)
+                          // Badge: cách khách trả tiền cho NV
+                          if (req.customerPaymentMethod != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                  color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
                                       ? Colors.blue.shade50
                                       : Colors.green.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                    color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
                                         ? Colors.blue.shade200
                                         : Colors.green.shade200,
                                   ),
@@ -343,25 +333,53 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      req.paymentMethod == 'CHUYỂN KHOẢN'
+                                      req.customerPaymentMethod == 'CHUYỂN KHOẢN'
                                           ? Icons.account_balance
                                           : Icons.payments,
                                       size: 14,
-                                      color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                      color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
                                           ? Colors.blue.shade700
                                           : Colors.green.shade700,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      req.paymentMethod == 'CHUYỂN KHOẢN'
-                                          ? 'Đã chuyển khoản'
-                                          : 'Đã thanh toán tiền mặt',
+                                      req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                                          ? 'KH chuyển khoản'
+                                          : 'KH trả tiền mặt',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
-                                        color: req.paymentMethod == 'CHUYỂN KHOẢN'
+                                        color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
                                             ? Colors.blue.shade700
                                             : Colors.green.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          // Badge: chủ shop đã CK cho ngân hàng
+                          if (req.status == PaymentRequestStatus.completed)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.teal.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.teal.shade200),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle, size: 14, color: Colors.teal.shade700),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Chủ shop đã CK cho NH',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.teal.shade700,
                                       ),
                                     ),
                                   ],
@@ -510,10 +528,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             ),
             const SizedBox(width: 6),
           ],
-          // Complete
+          // Complete - chủ shop đã CK cho ngân hàng
           _actionBtn(
             icon: Icons.check_circle,
-            label: 'Đã TT',
+            label: 'Đã CK NH',
             color: Colors.green,
             onTap: () => _confirmStatus(req, PaymentRequestStatus.completed),
           ),
@@ -571,7 +589,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           title: const Text('Bắt đầu xử lý?'),
           content: Text(
             '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ\n'
-            'Khách: ${req.customerName}',
+            'Khách: ${req.customerName}\n'
+            '${req.bankName != null ? 'NH: ${req.bankName}' : ''}',
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
@@ -589,90 +608,75 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     }
   }
 
-  /// Dialog xác nhận hoàn thành với chọn phương thức thanh toán
+  /// Dialog xác nhận chủ shop đã chuyển khoản cho ngân hàng
   Future<void> _showCompleteDialog(PaymentRequest req) async {
-    String selectedMethod = 'CHUYỂN KHOẢN';
-    final result = await showDialog<String>(
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Xác nhận đã thanh toán'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ\n'
-                'Khách: ${req.customerName}',
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xác nhận đã CK cho ngân hàng'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ\n'
+              'Khách: ${req.customerName}',
+            ),
+            if (req.bankName != null) ...[
+              const SizedBox(height: 4),
+              Text('NH/Tổ chức: ${req.bankName}', style: const TextStyle(fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
               ),
-              const SizedBox(height: 16),
-              const Text('Phương thức thanh toán:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              const SizedBox(height: 8),
-              Row(
+              child: Row(
                 children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Tiền mặt'),
-                      avatar: const Icon(Icons.payments, size: 18),
-                      selected: selectedMethod == 'TIỀN MẶT',
-                      selectedColor: Colors.green.shade100,
-                      onSelected: (_) => setDialogState(() => selectedMethod = 'TIỀN MẶT'),
-                    ),
-                  ),
+                  Icon(Icons.account_balance, size: 16, color: Colors.blue.shade700),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: ChoiceChip(
-                      label: const Text('Chuyển khoản'),
-                      avatar: const Icon(Icons.account_balance, size: 18),
-                      selected: selectedMethod == 'CHUYỂN KHOẢN',
-                      selectedColor: Colors.blue.shade100,
-                      onSelected: (_) => setDialogState(() => selectedMethod = 'CHUYỂN KHOẢN'),
+                    child: Text(
+                      'Khoản CK cho ngân hàng sẽ được ghi vào sổ quỹ.\n'
+                      'Sau khi xác nhận, hãy gửi ảnh chụp màn hình CK để lưu bằng chứng.',
+                      style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 16, color: Colors.orange.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        selectedMethod == 'CHUYỂN KHOẢN'
-                            ? 'Khoản chuyển khoản sẽ được ghi vào sổ quỹ và trừ vào tài khoản ngân hàng'
-                            : 'Khoản chi tiền mặt sẽ được ghi vào sổ quỹ và trừ vào quỹ tiền mặt',
-                        style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, selectedMethod),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: const Text('Xác nhận đã thanh toán', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Đã CK cho NH ✓', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
-    if (result != null && req.id != null) {
+    if (confirmed == true && req.id != null) {
       await PaymentRequestService.updateStatus(
         req.id!,
         PaymentRequestStatus.completed,
-        paymentMethod: result,
+        paymentMethod: 'CHUYỂN KHOẢN',
       );
+      // Auto-select this request for image proof upload
+      if (mounted) {
+        setState(() => _selectedReqForImage = req.copyWith(status: PaymentRequestStatus.completed));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('💡 Chọn ảnh CK ngân hàng để gửi bằng chứng'),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -745,7 +749,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             if (_isOwnerOrAdmin && (req.status == PaymentRequestStatus.pending || req.status == PaymentRequestStatus.processing))
               ListTile(
                 leading: const Icon(Icons.check_circle, color: Colors.green),
-                title: const Text('Đã thanh toán'),
+                title: const Text('Đã CK cho ngân hàng'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _confirmStatus(req, PaymentRequestStatus.completed);
@@ -808,11 +812,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               if (req.customerAddress != null && req.customerAddress!.isNotEmpty)
                 _detailTile('Địa chỉ', req.customerAddress!),
               if (req.accountNumber != null) _detailTile('Số TK / Hợp đồng', req.accountNumber!),
-              if (req.bankName != null) _detailTile('Ngân hàng / Đơn vị', req.bankName!),
+              if (req.bankName != null) _detailTile('NH / Tổ chức vay', req.bankName!),
               if (req.description != null) _detailTile('Mô tả', req.description!),
               if (req.customerNote != null) _detailTile('Ghi chú', req.customerNote!),
-              if (req.paymentMethod != null)
-                _detailTile('Hình thức TT', req.paymentMethod == 'CHUYỂN KHOẢN' ? '🏦 Chuyển khoản ngân hàng' : '💵 Tiền mặt'),
+              if (req.customerPaymentMethod != null)
+                _detailTile('KH trả cho NV', req.customerPaymentMethod == 'CHUYỂN KHOẢN' ? '🏦 Chuyển khoản' : '💵 Tiền mặt'),
+              if (req.status == PaymentRequestStatus.completed)
+                _detailTile('Chủ shop CK NH', '🏦 Đã chuyển khoản cho ngân hàng'),
               _detailTile('Nhân viên gửi', req.senderName),
               _detailTile('Ngày tạo', DateFormat('dd/MM/yyyy HH:mm').format(req.createdAt)),
               if (req.processedByName != null) _detailTile('Người xử lý', req.processedByName!),
@@ -820,7 +826,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               if (req.rejectReason != null) _detailTile('Lý do từ chối', req.rejectReason!),
               if (req.imageUrls.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                const Text('Hình ảnh đính kèm:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text('Hình ảnh đính kèm (hóa đơn, CK NH):', style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -918,7 +924,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                         child: Text(
                           _selectedReqForImage != null
                               ? '${_selectedReqForImage!.paymentTypeIcon} ${_selectedReqForImage!.customerName} · ${_currencyFmt.format(_selectedReqForImage!.amount)}\u0111'
-                              : 'Ch\u1ecdn y\u00eau c\u1ea7u \u0111\u1ec3 g\u1eedi \u1ea3nh thanh to\u00e1n...',
+                              : 'Chọn yêu cầu để gửi ảnh CK ngân hàng...',
                           style: TextStyle(
                             fontSize: 13,
                             color: _selectedReqForImage != null ? Colors.black87 : Colors.grey.shade500,
@@ -987,7 +993,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             Container(
               padding: const EdgeInsets.all(12),
               child: const Text(
-                'Ch\u1ecdn y\u00eau c\u1ea7u \u0111\u1ec3 g\u1eedi \u1ea3nh thanh to\u00e1n',
+                'Chọn yêu cầu để gửi ảnh CK ngân hàng',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
@@ -1049,7 +1055,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       if (urls != null && urls.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('\u2705 \u0110\u00e3 g\u1eedi ${urls.length} \u1ea3nh thanh to\u00e1n'),
+            content: Text('✅ Đã gửi ${urls.length} ảnh CK ngân hàng'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1111,6 +1117,7 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
 
   PaymentType _selectedType = PaymentType.electricity;
   String? _selectedBank;
+  String _customerPaymentMethod = 'TIỀN MẶT';
   List<File> _selectedImages = [];
   bool _isSending = false;
 
@@ -1272,6 +1279,34 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     ),
                     const SizedBox(height: 16),
 
+                    // Khách trả tiền cho NV bằng gì
+                    const Text('Khách thanh toán cho NV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Text('Tiền mặt'),
+                            avatar: const Icon(Icons.payments, size: 18),
+                            selected: _customerPaymentMethod == 'TIỀN MẶT',
+                            selectedColor: Colors.green.shade100,
+                            onSelected: (_) => setState(() => _customerPaymentMethod = 'TIỀN MẶT'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ChoiceChip(
+                            label: const Text('Chuyển khoản'),
+                            avatar: const Icon(Icons.account_balance, size: 18),
+                            selected: _customerPaymentMethod == 'CHUYỂN KHOẢN',
+                            selectedColor: Colors.blue.shade100,
+                            onSelected: (_) => setState(() => _customerPaymentMethod = 'CHUYỂN KHOẢN'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
                     // Amount & account
                     const Text('Chi tiết thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
@@ -1295,13 +1330,13 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     DropdownButtonFormField<String>(
                       value: _selectedBank,
                       decoration: const InputDecoration(
-                        labelText: 'Ngân hàng / Đơn vị',
+                        labelText: 'NH / Tổ chức vay góp',
                         prefixIcon: Icon(Icons.business, size: 20),
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
                       isExpanded: true,
-                      items: kVietnameseBanks.map((bank) => DropdownMenuItem(
+                      items: kLoanBanks.map((bank) => DropdownMenuItem(
                         value: bank,
                         child: Text(bank, style: const TextStyle(fontSize: 14)),
                       )).toList(),
@@ -1332,7 +1367,7 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     const SizedBox(height: 16),
 
                     // Image picker
-                    const Text('Hình ảnh (hóa đơn, biên nhận...)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text('Hình ảnh (hóa đơn, CK ngân hàng...)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -1475,6 +1510,7 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
       bankName: _selectedBank,
       description: _descCtrl.text.trim().isNotEmpty ? _descCtrl.text.trim() : null,
       images: _selectedImages.isNotEmpty ? _selectedImages : null,
+      customerPaymentMethod: _customerPaymentMethod,
     );
 
     if (!mounted) return;

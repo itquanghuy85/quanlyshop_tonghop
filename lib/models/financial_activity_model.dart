@@ -546,6 +546,10 @@ class FinancialActivity {
         return 'Thưởng';
       case 'OTHER_INCOME':
         return 'Thu khác';
+      case 'PAYMENT_REQUEST_IN':
+        return 'Thu đóng tiền';
+      case 'PAYMENT_REQUEST_OUT':
+        return 'CK cho NH';
       default:
         return 'Khác';
     }
