@@ -599,6 +599,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       );
       if (confirmed == true && req.id != null) {
         await PaymentRequestService.updateStatus(req.id!, newStatus);
+        _subscribeToRequests();
       }
     }
   }
@@ -661,6 +662,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         PaymentRequestStatus.completed,
         paymentMethod: 'CHUYỂN KHOẢN',
       );
+      _subscribeToRequests();
       // Auto-select this request for image proof upload
       if (mounted) {
         setState(() => _selectedReqForImage = req.copyWith(status: PaymentRequestStatus.completed));
@@ -712,6 +714,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         PaymentRequestStatus.rejected,
         rejectReason: reasonCtrl.text.trim().isNotEmpty ? reasonCtrl.text.trim() : null,
       );
+      _subscribeToRequests();
     }
     reasonCtrl.dispose();
   }
@@ -757,6 +760,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 onTap: () async {
                   Navigator.pop(ctx);
                   await PaymentRequestService.deleteRequest(req.id!);
+                  _subscribeToRequests();
                 },
               ),
           ],
@@ -1056,6 +1060,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       );
       if (!mounted) return;
       if (urls != null && urls.isNotEmpty) {
+        _subscribeToRequests();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ Đã gửi ${urls.length} ảnh CK ngân hàng'),
@@ -1086,6 +1091,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       backgroundColor: Colors.transparent,
       builder: (_) => _CreatePaymentRequestSheet(
         onCreated: () {
+          _subscribeToRequests();
           // Scroll to top to see new request
           if (_scrollCtrl.hasClients) {
             _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
