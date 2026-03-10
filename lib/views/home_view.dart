@@ -1930,11 +1930,6 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
     final loc = AppLocalizations.of(context)!;
     return WillPopScope(
       onWillPop: () async {
-        // If not on home tab, go back to home tab first
-        if (_currentIndex != 0) {
-          setState(() => _currentIndex = 0);
-          return false;
-        }
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(

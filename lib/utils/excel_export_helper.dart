@@ -544,6 +544,7 @@ class ExcelExportHelper {
       'Email',
       'Giờ vào',
       'Giờ ra',
+      'Số giờ làm',
       'Tăng ca (phút)',
       'Trạng thái',
       'Đi muộn',
@@ -555,6 +556,14 @@ class ExcelExportHelper {
 
     for (int i = 0; i < list.length; i++) {
       final a = list[i];
+      // Calculate work hours
+      String workHours = '';
+      if (a.checkInAt != null && a.checkOutAt != null) {
+        final minutes = ((a.checkOutAt! - a.checkInAt!) / 60000).round();
+        final h = minutes ~/ 60;
+        final m = minutes % 60;
+        workHours = '${h}h${m > 0 ? ' ${m}p' : ''}';
+      }
       _writeRow(sheet, i + 1, [
         i + 1,
         a.dateKey,
@@ -562,8 +571,9 @@ class ExcelExportHelper {
         a.email,
         _fmtDateTime(a.checkInAt),
         _fmtDateTime(a.checkOutAt),
+        workHours,
         a.overtimeOn,
-        a.status,
+        a.status == 'completed' ? 'Hoàn thành' : a.status,
         a.isLate == 1 ? 'Có' : 'Không',
         a.isEarlyLeave == 1 ? 'Có' : 'Không',
         a.approvedBy ?? '',

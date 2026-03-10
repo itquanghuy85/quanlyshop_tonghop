@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -34,6 +35,9 @@ class _AttendanceViewState extends State<AttendanceView>
   String _role = 'employee';
   late TabController _tabController;
   bool _hasPermission = false;
+  Timer? _clockTimer;
+  DateTime _clockNow = DateTime.now();
+  String _userName = '';
 
   Map<String, dynamic> _workSchedule = {};
   List<Attendance> _history = [];
@@ -46,11 +50,15 @@ class _AttendanceViewState extends State<AttendanceView>
   @override
   void initState() {
     super.initState();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _clockNow = DateTime.now());
+    });
     _loadInitialData();
   }
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -65,6 +73,9 @@ class _AttendanceViewState extends State<AttendanceView>
 
     final perms = await UserService.getCurrentUserPermissions();
 
+    // Load user display name
+    final name = await UserService.getCurrentUserName();
+
     // Load shop location
     await _loadShopLocation();
 
@@ -72,6 +83,7 @@ class _AttendanceViewState extends State<AttendanceView>
     setState(() {
       _role = r;
       _hasPermission = perms['allowViewAttendance'] ?? false;
+      _userName = name.isNotEmpty ? name : (FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV');
     });
     _refreshAttendanceData();
   }
@@ -207,7 +219,7 @@ class _AttendanceViewState extends State<AttendanceView>
       final attendance = Attendance(
         userId: user.uid,
         email: user.email!,
-        name: user.email?.split('@').first.toUpperCase() ?? 'NV',
+        name: _userName,
         dateKey: DateFormat('yyyy-MM-dd').format(now),
         checkInAt: isIn ? timestamp : _today?.checkInAt,
         checkOutAt: isIn ? null : timestamp,
@@ -242,7 +254,7 @@ class _AttendanceViewState extends State<AttendanceView>
       }
 
       NotificationService.showSnackBar(
-        isIn ? "CHECK-IN THÀNH CÔNG!" : "CHECK-OUT THÀNH CÔNG!",
+        isIn ? "Chấm công vào thành công!" : "Chấm công ra thành công!",
         color: Colors.green,
       );
     } catch (e) {
@@ -355,8 +367,8 @@ class _AttendanceViewState extends State<AttendanceView>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: CustomAppBar.build(
-        title: AppLocalizations.of(context)?.attendance ?? "ATTENDANCE",
-        subtitle: AppLocalizations.of(context)?.attendanceManagement ?? "Manage work hours",
+        title: AppLocalizations.of(context)?.attendance ?? "CHẤM CÔNG",
+        subtitle: AppLocalizations.of(context)?.attendanceManagement ?? "Quản lý giờ làm việc",
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download_outlined),
@@ -379,10 +391,10 @@ class _AttendanceViewState extends State<AttendanceView>
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           tabs: [
-            Tab(text: AppLocalizations.of(context)?.today ?? "TODAY"),
-            Tab(text: AppLocalizations.of(context)?.history ?? "HISTORY"),
+            Tab(text: AppLocalizations.of(context)?.today ?? "HÔM NAY"),
+            Tab(text: AppLocalizations.of(context)?.history ?? "LỊCH SỪ"),
             if (_role == 'owner' || _role == 'manager')
-              Tab(text: AppLocalizations.of(context)?.stats ?? "STATS"),
+              Tab(text: AppLocalizations.of(context)?.stats ?? "THỐNG KÊ"),
           ],
         ),
       ),
@@ -465,7 +477,6 @@ class _AttendanceViewState extends State<AttendanceView>
   }
 
   Widget _buildClockCard() {
-    final now = DateTime.now();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -481,19 +492,30 @@ class _AttendanceViewState extends State<AttendanceView>
       child: Column(
         children: [
           Text(
-            DateFormat('HH:mm').format(now),
+            DateFormat('HH:mm:ss').format(_clockNow),
             style: AppTextStyles.headline1.copyWith(
               color: AppColors.onPrimary,
               fontWeight: FontWeight.w900,
+              fontSize: 40,
             ),
           ),
+          const SizedBox(height: 4),
           Text(
-            DateFormat('EEEE, dd MMMM', 'vi_VN').format(now).toUpperCase(),
+            DateFormat('EEEE, dd MMMM yyyy', 'vi_VN').format(_clockNow).toUpperCase(),
             style: AppTextStyles.overline.copyWith(
               color: AppColors.onPrimary.withOpacity(0.7),
               letterSpacing: 1.2,
             ),
           ),
+          if (_userName.isNotEmpty) ...[            const SizedBox(height: 8),
+            Text(
+              _userName,
+              style: AppTextStyles.body1.copyWith(
+                color: AppColors.onPrimary.withOpacity(0.9),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -506,19 +528,23 @@ class _AttendanceViewState extends State<AttendanceView>
     VoidCallback onTap, {
     bool enabled = true,
   }) {
-    return ElevatedButton.icon(
-      onPressed: enabled ? onTap : null,
-      icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold),
-      ),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: AppColors.onPrimary,
-        disabledBackgroundColor: AppColors.inactive.withOpacity(0.3),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    return SizedBox(
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: enabled ? onTap : null,
+        icon: Icon(icon, size: 20),
+        label: Text(
+          label,
+          style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: AppColors.onPrimary,
+          disabledBackgroundColor: AppColors.inactive.withOpacity(0.3),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: enabled ? 3 : 0,
+        ),
       ),
     );
   }
@@ -534,7 +560,7 @@ class _AttendanceViewState extends State<AttendanceView>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "TODAY'S STATUS / TRẠNG THÁI HÔM NAY",
+            "TRẠNG THÁI HÔM NAY",
             style: AppTextStyles.caption.copyWith(
               fontWeight: FontWeight.bold,
               color: AppColors.onSurface.withOpacity(0.7),
@@ -542,7 +568,7 @@ class _AttendanceViewState extends State<AttendanceView>
           ),
           const Divider(height: 16),
           _rowInfo(
-            "Check-in / Giờ vào",
+            "Giờ vào",
             _today?.checkInAt != null
                 ? DateFormat('HH:mm').format(
                     DateTime.fromMillisecondsSinceEpoch(_today!.checkInAt!),
@@ -551,7 +577,7 @@ class _AttendanceViewState extends State<AttendanceView>
             _today?.isLate == 1 ? AppColors.error : AppColors.success,
           ),
           _rowInfo(
-            "Check-out / Giờ ra",
+            "Giờ ra",
             _today?.checkOutAt != null
                 ? DateFormat('HH:mm').format(
                     DateTime.fromMillisecondsSinceEpoch(_today!.checkOutAt!),
@@ -559,6 +585,12 @@ class _AttendanceViewState extends State<AttendanceView>
                 : "--:--",
             _today?.isEarlyLeave == 1 ? AppColors.warning : AppColors.primary,
           ),
+          if (_today?.checkInAt != null && _today?.checkOutAt != null)
+            _rowInfo(
+              "Số giờ làm",
+              _formatWorkHours(_today!.checkInAt!, _today!.checkOutAt!),
+              AppColors.primary,
+            ),
         ],
       ),
     );
@@ -950,55 +982,96 @@ class _AttendanceViewState extends State<AttendanceView>
   Widget _buildStatsTab() {
     int totalDays = _history.length;
     int lateDays = _history.where((h) => h.isLate == 1).length;
-    return Padding(
+    int earlyDays = _history.where((h) => h.isEarlyLeave == 1).length;
+    int onTimeDays = _history.where((h) => h.isLate == 0 && h.isEarlyLeave == 0).length;
+    double onTimeRate = totalDays > 0 ? (onTimeDays / totalDays * 100) : 0;
+    int totalMinutes = 0;
+    for (final h in _history) {
+      if (h.checkInAt != null && h.checkOutAt != null) {
+        totalMinutes += ((h.checkOutAt! - h.checkInAt!) / 60000).round();
+      }
+    }
+    int avgMinutes = totalDays > 0 ? (totalMinutes / totalDays).round() : 0;
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
       child: Column(
         children: [
-          _statCard(
-            "TOTAL DAYS / TỔNG NGÀY CÔNG",
-            "$totalDays",
-            AppColors.primary,
+          // Summary grid
+          Row(
+            children: [
+              Expanded(child: _statCard("Tổng ngày công", "$totalDays", AppColors.primary, Icons.calendar_today)),
+              const SizedBox(width: 8),
+              Expanded(child: _statCard("Đúng giờ", "$onTimeDays", AppColors.success, Icons.check_circle)),
+            ],
           ),
           const SizedBox(height: 8),
-          _statCard(
-            "LATE COUNT / SỐ LẦN ĐI MUỘN",
-            "$lateDays",
-            AppColors.error,
+          Row(
+            children: [
+              Expanded(child: _statCard("Đi muộn", "$lateDays", AppColors.error, Icons.access_time_filled)),
+              const SizedBox(width: 8),
+              Expanded(child: _statCard("Về sớm", "$earlyDays", AppColors.warning, Icons.directions_run)),
+            ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _statCard("Tỷ lệ đúng giờ", "${onTimeRate.toStringAsFixed(0)}%", Colors.teal, Icons.trending_up)),
+              const SizedBox(width: 8),
+              Expanded(child: _statCard("TB giờ/ngày", _formatMinutes(avgMinutes), Colors.indigo, Icons.hourglass_bottom)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _statCard("Tổng giờ làm việc", _formatMinutes(totalMinutes), Colors.deepPurple, Icons.work_history),
         ],
       ),
     );
   }
 
-  Widget _statCard(String l, String v, Color c) => Container(
+  String _formatMinutes(int minutes) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return '${h}h${m > 0 ? ' ${m}p' : ''}';
+  }
+
+  String _formatWorkHours(int checkInMs, int checkOutMs) {
+    final minutes = ((checkOutMs - checkInMs) / 60000).round();
+    return _formatMinutes(minutes);
+  }
+
+  Widget _statCard(String l, String v, Color c, IconData icon) => Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(12),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(10),
+      color: c.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: c.withOpacity(0.2)),
     ),
     child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: c.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: c, size: 20),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
             l,
             style: AppTextStyles.body2.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: AppColors.onSurface.withOpacity(0.7),
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            v,
-            style: AppTextStyles.headline3.copyWith(
-              fontWeight: FontWeight.w900,
-              color: c,
-            ),
-            textAlign: TextAlign.end,
-            overflow: TextOverflow.ellipsis,
+        Text(
+          v,
+          style: AppTextStyles.headline4.copyWith(
+            fontWeight: FontWeight.w900,
+            color: c,
           ),
         ),
       ],
