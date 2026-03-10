@@ -59,6 +59,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   // Filter
   PaymentRequestStatus? _statusFilter;
 
+  // Search
+  bool _isSearching = false;
+  final _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
   // Current user info
   String? _currentUid;
   String _userRole = 'employee';
@@ -106,83 +111,163 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   void dispose() {
     _subscription?.cancel();
     _scrollCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
   bool get _isOwnerOrAdmin =>
       _userRole == 'owner' || _userRole == 'manager' || _userRole == 'admin' || _userRole == 'superadmin';
 
+  /// Filter requests by search query
+  List<PaymentRequest> get _filteredRequests {
+    if (_searchQuery.isEmpty) return _requests;
+    final q = _searchQuery.toLowerCase();
+    return _requests.where((r) {
+      return r.customerName.toLowerCase().contains(q) ||
+          r.customerPhone.toLowerCase().contains(q) ||
+          (r.bankName ?? '').toLowerCase().contains(q) ||
+          (r.accountNumber ?? '').toLowerCase().contains(q) ||
+          (r.description ?? '').toLowerCase().contains(q) ||
+          (r.customerAddress ?? '').toLowerCase().contains(q) ||
+          (r.customerNote ?? '').toLowerCase().contains(q) ||
+          r.paymentTypeDisplay.toLowerCase().contains(q) ||
+          r.senderName.toLowerCase().contains(q) ||
+          _currencyFmt.format(r.amount).contains(q);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final displayed = _filteredRequests;
     return Scaffold(
       backgroundColor: const Color(0xFFECE5DD), // WhatsApp-like bg
-      appBar: CustomAppBar.build(
-        title: 'Yêu cầu đóng tiền',
-        actions: [
-          // Create button (moved from FAB to avoid overlap with image bar)
-          IconButton(
-            onPressed: _showCreateRequestSheet,
-            icon: const Icon(Icons.add_circle, size: 28),
-            tooltip: 'Tạo yêu cầu mới',
-          ),
-          // Filter button
-          PopupMenuButton<PaymentRequestStatus?>(
-            icon: Badge(
-              isLabelVisible: _statusFilter != null,
-              backgroundColor: Colors.orange,
-              child: const Icon(Icons.filter_list),
+      appBar: _isSearching
+          ? AppBar(
+              backgroundColor: const Color(0xFF075E54),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _searchCtrl.clear();
+                    _searchQuery = '';
+                  });
+                },
+              ),
+              title: TextField(
+                controller: _searchCtrl,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                decoration: const InputDecoration(
+                  hintText: 'Tìm tên, SĐT, NH, số tiền...',
+                  hintStyle: TextStyle(color: Colors.white60),
+                  border: InputBorder.none,
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              ),
+              actions: [
+                if (_searchCtrl.text.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear, color: Colors.white),
+                    onPressed: () {
+                      _searchCtrl.clear();
+                      setState(() => _searchQuery = '');
+                    },
+                  ),
+              ],
+            )
+          : CustomAppBar.build(
+              title: 'Yêu cầu đóng tiền',
+              actions: [
+                // Search button
+                IconButton(
+                  onPressed: () => setState(() => _isSearching = true),
+                  icon: const Icon(Icons.search),
+                  tooltip: 'Tìm kiếm',
+                ),
+                // Create button (moved from FAB to avoid overlap with image bar)
+                IconButton(
+                  onPressed: _showCreateRequestSheet,
+                  icon: const Icon(Icons.add_circle, size: 28),
+                  tooltip: 'Tạo yêu cầu mới',
+                ),
+                // Filter button
+                PopupMenuButton<PaymentRequestStatus?>(
+                  icon: Badge(
+                    isLabelVisible: _statusFilter != null,
+                    backgroundColor: Colors.orange,
+                    child: const Icon(Icons.filter_list),
+                  ),
+                  onSelected: (val) {
+                    setState(() {
+                      _statusFilter = val;
+                      _isLoading = true;
+                    });
+                    _subscribeToRequests();
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: null, child: Text('Tất cả')),
+                    const PopupMenuItem(value: PaymentRequestStatus.pending, child: Text('⏳ Chờ xử lý')),
+                    const PopupMenuItem(value: PaymentRequestStatus.processing, child: Text('🔄 Đang xử lý')),
+                    const PopupMenuItem(value: PaymentRequestStatus.completed, child: Text('✅ Đã thanh toán')),
+                    const PopupMenuItem(value: PaymentRequestStatus.rejected, child: Text('❌ Từ chối')),
+                  ],
+                ),
+              ],
             ),
-            onSelected: (val) {
-              setState(() {
-                _statusFilter = val;
-                _isLoading = true;
-              });
-              _subscribeToRequests();
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: null, child: Text('Tất cả')),
-              const PopupMenuItem(value: PaymentRequestStatus.pending, child: Text('⏳ Chờ xử lý')),
-              const PopupMenuItem(value: PaymentRequestStatus.processing, child: Text('🔄 Đang xử lý')),
-              const PopupMenuItem(value: PaymentRequestStatus.completed, child: Text('✅ Đã thanh toán')),
-              const PopupMenuItem(value: PaymentRequestStatus.rejected, child: Text('❌ Từ chối')),
-            ],
-          ),
-        ],
-      ),
       body: Column(
         children: [
           // Summary bar
           _buildSummaryBar(),
+          // Search result count
+          if (_searchQuery.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              color: Colors.blue.shade50,
+              child: Text(
+                'Tìm thấy ${displayed.length} kết quả cho "$_searchQuery"',
+                style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+              ),
+            ),
           // Chat-like list
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _requests.isEmpty
+                : displayed.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.payment, size: 64, color: Colors.grey.shade300),
+                            Icon(
+                              _searchQuery.isNotEmpty ? Icons.search_off : Icons.payment,
+                              size: 64,
+                              color: Colors.grey.shade300,
+                            ),
                             const SizedBox(height: 12),
                             Text(
-                              _statusFilter != null
-                                  ? 'Không có yêu cầu ${_statusFilter!.name}'
-                                  : 'Chưa có yêu cầu đóng tiền',
+                              _searchQuery.isNotEmpty
+                                  ? 'Không tìm thấy "$_searchQuery"'
+                                  : _statusFilter != null
+                                      ? 'Không có yêu cầu ${_statusFilter!.name}'
+                                      : 'Chưa có yêu cầu đóng tiền',
                               style: TextStyle(fontSize: 15, color: Colors.grey.shade500),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Nhấn ⊕ trên thanh tiêu đề để tạo mới',
-                              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                            ),
+                            if (_searchQuery.isEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Nhấn ⊕ trên thanh tiêu đề để tạo mới',
+                                style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                              ),
+                            ],
                           ],
                         ),
                       )
                     : ListView.builder(
                         controller: _scrollCtrl,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        itemCount: _requests.length,
-                        itemBuilder: (ctx, i) => _buildRequestBubble(_requests[i]),
+                        itemCount: displayed.length,
+                        itemBuilder: (ctx, i) => _buildRequestBubble(displayed[i]),
                       ),
           ),
           // Chat-like image input bar for sending proof images

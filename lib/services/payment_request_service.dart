@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/payment_request_model.dart';
+import '../models/expense_model.dart';
+import '../data/db_helper.dart';
 import '../services/financial_activity_service.dart';
 import '../services/firestore_service.dart';
 import '../services/event_bus.dart';
@@ -77,8 +79,8 @@ class PaymentRequestService {
         _uploadImagesInBackground(docRef.id, shopId, images);
       }
 
-      // Log income: NV thu tiền từ khách hàng
-      _logIncomeFromCustomer(
+      // Log income: NV thu tiền từ khách hàng (await to ensure it completes)
+      await _logIncomeFromCustomer(
         requestId: docRef.id,
         customerName: customerName,
         customerPhone: customerPhone ?? '',
@@ -150,6 +152,24 @@ class PaymentRequestService {
         'type': 'THU',
       };
       await FirestoreService.addExpenseCloud(incData);
+
+      // 1b. Ghi vào SQLite local để hiển thị ngay (không chờ sync)
+      try {
+        final localExpense = Expense(
+          firestoreId: incFirestoreId,
+          title: incTitle,
+          amount: intAmount,
+          category: 'THU ĐÓNG TIỀN',
+          date: now,
+          note: noteStr,
+          paymentMethod: customerPaymentMethod,
+          type: 'THU',
+          isSynced: true,
+        );
+        await DBHelper().upsertExpense(localExpense);
+      } catch (e) {
+        debugPrint('⚠️ PaymentRequest local expense write error: $e');
+      }
 
       // 2. Ghi log tài chính THU (financial activity)
       await FinancialActivityService.logCustomActivity(
@@ -320,6 +340,24 @@ class PaymentRequestService {
         'type': 'CHI',
       };
       await FirestoreService.addExpenseCloud(expData);
+
+      // 1b. Ghi vào SQLite local để hiển thị ngay
+      try {
+        final localExpense = Expense(
+          firestoreId: expFirestoreId,
+          title: expTitle,
+          amount: amount,
+          category: expCategory,
+          date: now,
+          note: noteStr,
+          paymentMethod: paymentMethod,
+          type: 'CHI',
+          isSynced: true,
+        );
+        await DBHelper().upsertExpense(localExpense);
+      } catch (e) {
+        debugPrint('⚠️ PaymentRequest local expense write error: $e');
+      }
 
       // 2. Ghi log tài chính CHI (chủ shop CK cho ngân hàng)
       await FinancialActivityService.logCustomActivity(
