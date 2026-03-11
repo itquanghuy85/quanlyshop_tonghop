@@ -139,8 +139,7 @@ class _InventoryViewState extends State<InventoryView>
   @override
   void initState() {
     super.initState();
-    _filterType = widget.initialFilterType;
-    _tabController = TabController(length: 1, vsync: this);
+    _tabController = TabController(length: 2, vsync: this); // 2 tabs: Kho chính + Kho LK sửa chữa
     _init(); // _init sẽ gọi _initCheckData sau khi load shop settings
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
@@ -2208,24 +2207,83 @@ class _InventoryViewState extends State<InventoryView>
       ),
       body: ResponsiveCenter(
         child: Column(
-          children: [
-            // Category filter chips - always visible
-            _buildCategoryChips(),
-            Expanded(
-              child: _filterType == 'LINH_KIEN'
-                  ? const PartsInventoryViewContent()
-                  : _buildInventoryTab(),
-            ),
-            // Unified bottom bar with labels
+        children: [
+          // Tab Bar
+          if (_businessType == 'electronics')
             Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: const Offset(0, -1),
+              color: AppColors.surface,
+              child: TabBar(
+                controller: _tabController,
+                labelColor: const Color(0xFF0068FF),
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: const Color(0xFF0068FF),
+                indicatorWeight: 3,
+                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                unselectedLabelStyle: const TextStyle(fontSize: 13),
+                tabs: [
+                  Tab(
+                    icon: const Icon(Icons.inventory_2, size: 18),
+                    text: 'Kho chính',
+                    height: 50,
                   ),
+                  Tab(
+                    icon: const Icon(Icons.build_circle, size: 18),
+                    text: 'LK sửa chữa',
+                    height: 50,
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: _businessType == 'electronics'
+                ? TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildInventoryTab(),
+                      const PartsInventoryViewContent(),
+                    ],
+                  )
+                : _buildInventoryTab(),
+          ),
+          // Unified bottom bar with labels
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, -1))],
+            ),
+            padding: const EdgeInsets.only(top: 6, bottom: 6, left: 4, right: 4),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _bottomBarItem(Icons.add_box_rounded, 'Nhập kho', Colors.green, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SmartStockInView())).then((_) => _refresh());
+                  }),
+                  if (_businessType == 'electronics')
+                    _bottomBarItem(Icons.flash_on, 'Nhanh', Colors.orange, () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const FastStockInView())).then((_) => _refresh());
+                    }),
+                  if (_businessType == 'electronics')
+                    _bottomBarItem(Icons.build_circle, _terms.category3, const Color(0xFF0068FF), () {
+                      _tabController.animateTo(1);
+                    }),
+                  _bottomBarItem(Icons.shopping_cart_checkout_rounded, 'Bán hàng', Colors.teal, () {
+                    HapticFeedback.mediumImpact();
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView())).then((_) => _refresh());
+                  }),
+                  _bottomBarItem(Icons.business_center, 'NCC', Colors.indigo, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SupplierListView()));
+                  }),
+                  _bottomBarItem(Icons.qr_code_2_rounded, 'In tem', Colors.purple, () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()));
+                  }),
+                  _bottomBarItem(Icons.file_download_outlined, 'Excel', Colors.blueGrey, () async {
+                    final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
+                    if (result == null) return;
+                    if (!mounted) return;
+                    await ExcelExportHelper.exportProducts(context, startMs: result['startMs'], endMs: result['endMs']);
+                  }),
                 ],
               ),
               padding: const EdgeInsets.only(
