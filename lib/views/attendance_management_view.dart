@@ -632,88 +632,113 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   // ==================== TAB 2: APPROVAL ====================
 
   Widget _buildApprovalTab() {
-    final loc = AppLocalizations.of(context)!;
-    // Collect ALL attendance that needs approval (pending with checkIn)
-    List<Attendance> pending = [];
-    for (final staff in _staffList) {
-      final records = _staffAttendance[staff['id']] ?? [];
-      for (final r in records) {
-        if (r.status == 'pending' && r.checkInAt != null) pending.add(r);
+    try {
+      final loc = AppLocalizations.of(context)!;
+      // Collect ALL attendance that needs approval (pending with checkIn)
+      List<Attendance> pending = [];
+      for (final staff in _staffList) {
+        final records = _staffAttendance[staff['id']] ?? [];
+        for (final r in records) {
+          if (r.status == 'pending' && r.checkInAt != null) pending.add(r);
+        }
       }
-    }
-    // Also include forgot check-in requests from _pendingRequests
-    for (final r in _pendingRequests) {
-      if (!pending.any((p) => p.firestoreId == r.firestoreId)) pending.add(r);
-    }
+      // Also include forgot check-in requests from _pendingRequests
+      for (final r in _pendingRequests) {
+        if (!pending.any((p) => p.firestoreId == r.firestoreId)) pending.add(r);
+      }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Bulk approve bar
-          if (pending.isNotEmpty)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: AppColors.warning.withOpacity(0.1),
-              child: Row(
-                children: [
-                  Icon(Icons.pending_actions, size: 18, color: AppColors.warning),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text('${pending.length} yêu cầu chờ duyệt',
-                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.w500))),
-                  TextButton.icon(
-                    onPressed: () => _bulkApprove(pending),
-                    icon: const Icon(Icons.check_circle, size: 16),
-                    label: Text(loc.bulkApprove, style: const TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.success),
-                  ),
-                ],
-              ),
-            ),
-          // Action buttons
-          Padding(
+      // Build children list imperatively (no collection-if/for/spread in list literal)
+      final children = <Widget>[];
+
+      // Bulk approve bar
+      if (pending.isNotEmpty) {
+        children.add(
+          Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: AppColors.warning.withOpacity(0.1),
             child: Row(
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _showForgotCheckinDialog,
-                    icon: const Icon(Icons.add_alarm, size: 16),
-                    label: Text(loc.forgotCheckin, style: const TextStyle(fontSize: 12)),
-                    style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-                  ),
-                ),
+                Icon(Icons.pending_actions, size: 18, color: AppColors.warning),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _showEditOvertimeDialog,
-                    icon: const Icon(Icons.more_time, size: 16),
-                    label: Text(loc.editOvertime, style: const TextStyle(fontSize: 12)),
-                    style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-                  ),
+                Expanded(child: Text('${pending.length} yêu cầu chờ duyệt',
+                  style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.w500))),
+                TextButton.icon(
+                  onPressed: () => _bulkApprove(pending),
+                  icon: const Icon(Icons.check_circle, size: 16),
+                  label: Text(loc.bulkApprove, style: const TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.success),
                 ),
               ],
             ),
           ),
-          // Pending list or empty state
-          if (pending.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 80),
-              child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.check_circle_outline, size: 48, color: AppColors.success.withOpacity(0.5)),
-                const SizedBox(height: 8),
-                Text(loc.noPendingRequests, style: TextStyle(color: AppColors.inactive)),
-              ])),
-            ),
-          for (final record in pending)
+        );
+      }
+
+      // Action buttons (always visible)
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showForgotCheckinDialog,
+                  icon: const Icon(Icons.add_alarm, size: 16),
+                  label: Text(loc.forgotCheckin, style: const TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showEditOvertimeDialog,
+                  icon: const Icon(Icons.more_time, size: 16),
+                  label: Text(loc.editOvertime, style: const TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Empty state or cards
+      if (pending.isEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 80),
+            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.check_circle_outline, size: 48, color: AppColors.success.withOpacity(0.5)),
+              const SizedBox(height: 8),
+              Text(loc.noPendingRequests, style: TextStyle(color: AppColors.inactive)),
+            ])),
+          ),
+        );
+      } else {
+        for (final record in pending) {
+          children.add(
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: _buildApprovalCard(record),
             ),
-        ],
-      ),
-    );
+          );
+        }
+      }
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      );
+    } catch (e, s) {
+      debugPrint('❌ _buildApprovalTab error: $e\n$s');
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('Lỗi tab duyệt: $e', style: const TextStyle(color: Colors.red)),
+      ));
+    }
   }
 
   Widget _buildApprovalCard(Attendance record) {
@@ -723,6 +748,53 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     final typeLabel = isForget ? 'Quên chấm công' : isOTEdit ? 'Sửa tăng ca' : 'Chấm công';
     final typeColor = isForget ? AppColors.warning : isOTEdit ? Colors.deepOrange : AppColors.primary;
 
+    // Build card children imperatively (no collection-if/spread)
+    final cardChildren = <Widget>[
+      Row(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(color: typeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+          child: Text(typeLabel, style: TextStyle(fontSize: 10, color: typeColor, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 6),
+        Expanded(child: Text(staffName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize), overflow: TextOverflow.ellipsis)),
+        Text(record.dateKey, style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
+      ]),
+      const SizedBox(height: 6),
+    ];
+
+    // Time info row
+    final timeWidgets = <Widget>[];
+    if (record.checkInAt != null) {
+      timeWidgets.add(Text('Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))} ', style: TextStyle(fontSize: 12, color: AppColors.success)));
+    }
+    if (record.checkOutAt != null) {
+      timeWidgets.add(Text('Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))} ', style: TextStyle(fontSize: 12, color: AppColors.error)));
+    }
+    if (record.overtimeOn > 0) {
+      timeWidgets.add(Text('OT: ${record.overtimeOn}p ', style: const TextStyle(fontSize: 12, color: Colors.deepOrange)));
+    }
+    cardChildren.add(Row(children: timeWidgets));
+
+    if (record.note != null && record.note!.isNotEmpty) {
+      cardChildren.add(Padding(padding: const EdgeInsets.only(top: 4), child: Text('Ghi chú: ${record.note}', style: TextStyle(fontSize: 11, color: AppColors.inactive))));
+    }
+
+    cardChildren.add(const Divider(height: 12));
+    cardChildren.add(Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+      TextButton(
+        onPressed: () => _rejectAttendance(record),
+        style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
+        child: Text(AppLocalizations.of(context)!.rejectAttendance, style: const TextStyle(fontSize: 12)),
+      ),
+      const SizedBox(width: 8),
+      ElevatedButton(
+        onPressed: () => _approveAttendance(record),
+        style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
+        child: Text(AppLocalizations.of(context)!.approveAttendance, style: const TextStyle(fontSize: 12)),
+      ),
+    ]));
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
@@ -731,40 +803,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: typeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text(typeLabel, style: TextStyle(fontSize: 10, color: typeColor, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 6),
-              Expanded(child: Text(staffName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize), overflow: TextOverflow.ellipsis)),
-              Text(record.dateKey, style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
-            ]),
-            const SizedBox(height: 6),
-            Row(children: [
-              if (record.checkInAt != null) Text('Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))} ', style: TextStyle(fontSize: 12, color: AppColors.success)),
-              if (record.checkOutAt != null) Text('Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))} ', style: TextStyle(fontSize: 12, color: AppColors.error)),
-              if (record.overtimeOn > 0) Text('OT: ${record.overtimeOn}p ', style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
-            ]),
-            if (record.note != null && record.note!.isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 4), child: Text('Ghi chú: ${record.note}', style: TextStyle(fontSize: 11, color: AppColors.inactive))),
-            const Divider(height: 12),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                onPressed: () => _rejectAttendance(record),
-                style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
-                child: Text(AppLocalizations.of(context)!.rejectAttendance, style: const TextStyle(fontSize: 12)),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () => _approveAttendance(record),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
-                child: Text(AppLocalizations.of(context)!.approveAttendance, style: const TextStyle(fontSize: 12)),
-              ),
-            ]),
-          ],
+          children: cardChildren,
         ),
       ),
     );
@@ -1007,65 +1046,105 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   // ==================== TAB 3: LEAVE REQUESTS ====================
 
   Widget _buildLeaveTab() {
-    final loc = AppLocalizations.of(context)!;
-    final pending = _leaveRequests.where((l) => l.status == 'pending').toList();
-    final processed = _leaveRequests.where((l) => l.status != 'pending').toList();
+    try {
+      final loc = AppLocalizations.of(context)!;
+      final pending = _leaveRequests.where((l) => l.status == 'pending').toList();
+      final processed = _leaveRequests.where((l) => l.status != 'pending').toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Create button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _showCreateLeaveDialog,
-                icon: const Icon(Icons.add, size: 16),
-                label: Text(loc.createLeaveRequest, style: const TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-              ),
+      // Build children list imperatively (no collection-if/for/spread in list literal)
+      final children = <Widget>[];
+
+      // Create button (always visible)
+      children.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _showCreateLeaveDialog,
+              icon: const Icon(Icons.add, size: 16),
+              label: Text(loc.createLeaveRequest, style: const TextStyle(fontSize: 12)),
+              style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
             ),
           ),
-          // Empty state
-          if (_leaveRequests.isEmpty)
+        ),
+      );
+
+      // Empty state
+      if (_leaveRequests.isEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 80),
+            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.event_available, size: 48, color: AppColors.inactive.withOpacity(0.5)),
+              const SizedBox(height: 8),
+              Text(loc.noLeaveRequests, style: TextStyle(color: AppColors.inactive)),
+            ])),
+          ),
+        );
+      }
+
+      // Pending section
+      if (pending.isNotEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 6),
+            child: Text('Chờ duyệt (${pending.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.warning)),
+          ),
+        );
+        for (final lr in pending) {
+          children.add(
             Padding(
-              padding: const EdgeInsets.only(top: 80),
-              child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.event_available, size: 48, color: AppColors.inactive.withOpacity(0.5)),
-                const SizedBox(height: 8),
-                Text(loc.noLeaveRequests, style: TextStyle(color: AppColors.inactive)),
-              ])),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: _buildLeaveCard(lr),
             ),
-          // Pending section
-          if (pending.isNotEmpty) ...[
+          );
+        }
+      }
+
+      // Processed section
+      if (processed.isNotEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
+            child: Text('Đã xử lý (${processed.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.inactive)),
+          ),
+        );
+        for (final lr in processed) {
+          children.add(
             Padding(
-              padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 6),
-              child: Text('Chờ duyệt (${pending.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.warning)),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: _buildLeaveCard(lr),
             ),
-            for (final lr in pending)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: _buildLeaveCard(lr),
-              ),
-          ],
-          // Processed section
-          if (processed.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
-              child: Text('Đã xử lý (${processed.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.inactive)),
-            ),
-            for (final lr in processed)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: _buildLeaveCard(lr),
-              ),
-          ],
-        ],
-      ),
-    );
+          );
+        }
+      }
+
+      // Debug info when data exists but nothing renders
+      if (_leaveRequests.isNotEmpty && pending.isEmpty && processed.isEmpty) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Debug: ${_leaveRequests.length} requests loaded, statuses: ${_leaveRequests.map((l) => l.status).toSet()}',
+              style: TextStyle(color: AppColors.inactive, fontSize: 11)),
+          ),
+        );
+      }
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      );
+    } catch (e, s) {
+      debugPrint('❌ _buildLeaveTab error: $e\n$s');
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('Lỗi tab nghỉ: $e', style: const TextStyle(color: Colors.red)),
+      ));
+    }
   }
 
   Widget _buildLeaveCard(LeaveRequest lr) {
@@ -1079,6 +1158,51 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     }
     final leaveLabel = LeaveRequest.leaveTypeDisplayVi(lr.leaveType);
 
+    // Build card children imperatively (no collection-if/spread)
+    final cardChildren = <Widget>[
+      Row(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+          child: Text(statusLabel, style: TextStyle(fontSize: 10, color: statusColor, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+          child: Text(leaveLabel, style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
+        ),
+        const Spacer(),
+        Text('${lr.totalDays} ngày', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold)),
+      ]),
+      const SizedBox(height: 6),
+      Text(lr.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize)),
+      const SizedBox(height: 2),
+      Text('${lr.startDate} → ${lr.endDate}', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
+    ];
+    if (lr.reason != null && lr.reason!.isNotEmpty) {
+      cardChildren.add(Padding(padding: const EdgeInsets.only(top: 2), child: Text('Lý do: ${lr.reason}', style: TextStyle(fontSize: 11, color: AppColors.onSurface.withOpacity(0.7)))));
+    }
+    if (lr.rejectReason != null && lr.rejectReason!.isNotEmpty) {
+      cardChildren.add(Padding(padding: const EdgeInsets.only(top: 2), child: Text('Từ chối: ${lr.rejectReason}', style: TextStyle(fontSize: 11, color: AppColors.error))));
+    }
+    if (lr.status == 'pending') {
+      cardChildren.add(const Divider(height: 12));
+      cardChildren.add(Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+        TextButton(
+          onPressed: () => _rejectLeave(lr),
+          style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
+          child: Text(loc.rejectLeave, style: const TextStyle(fontSize: 12)),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: () => _approveLeave(lr),
+          style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
+          child: Text(loc.approveLeave, style: const TextStyle(fontSize: 12)),
+        ),
+      ]));
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 1,
@@ -1087,47 +1211,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text(statusLabel, style: TextStyle(fontSize: 10, color: statusColor, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text(leaveLabel, style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
-              ),
-              const Spacer(),
-              Text('${lr.totalDays} ngày', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold)),
-            ]),
-            const SizedBox(height: 6),
-            Text(lr.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize)),
-            const SizedBox(height: 2),
-            Text('${lr.startDate} → ${lr.endDate}', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
-            if (lr.reason != null && lr.reason!.isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 2), child: Text('Lý do: ${lr.reason}', style: TextStyle(fontSize: 11, color: AppColors.onSurface.withOpacity(0.7)))),
-            if (lr.rejectReason != null && lr.rejectReason!.isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 2), child: Text('Từ chối: ${lr.rejectReason}', style: TextStyle(fontSize: 11, color: AppColors.error))),
-            if (lr.status == 'pending') ...[
-              const Divider(height: 12),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                TextButton(
-                  onPressed: () => _rejectLeave(lr),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
-                  child: Text(loc.rejectLeave, style: const TextStyle(fontSize: 12)),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () => _approveLeave(lr),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
-                  child: Text(loc.approveLeave, style: const TextStyle(fontSize: 12)),
-                ),
-              ]),
-            ],
-          ],
+          children: cardChildren,
         ),
       ),
     );
