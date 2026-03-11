@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../data/db_helper.dart';
 import '../models/repair_partner_model.dart';
 import '../models/partner_repair_history_model.dart';
@@ -145,17 +146,67 @@ class RepairPartnerService {
     return null;
   }
 
-  Future<List<PartnerRepairHistory>> getPartnerRepairHistory({int? partnerId, String? partnerFirestoreId, String? repairOrderId}) async {
+  Future<List<PartnerRepairHistory>> getPartnerRepairHistory({int? partnerId, String? partnerFirestoreId, String? repairOrderId, String? partnerName}) async {
     final shopId = await UserService.getCurrentShopId();
     final data = await db.getPartnerRepairHistory(
       partnerId: partnerId,
       partnerFirestoreId: partnerFirestoreId,
       repairOrderId: repairOrderId,
     );
-    return data
+    final histories = data
         .where((h) => h['shopId'] == shopId)
         .map((h) => PartnerRepairHistory.fromMap(h))
         .toList();
+
+    // If history table is empty but repairs exist with this partner, build virtual entries
+    if (histories.isEmpty && partnerId != null) {
+      final virtualHistories = await _buildHistoriesFromRepairs(partnerId, partnerName, shopId);
+      if (virtualHistories.isNotEmpty) return virtualHistories;
+    }
+    return histories;
+  }
+
+  /// Build PartnerRepairHistory entries from repairs table services JSON
+  Future<List<PartnerRepairHistory>> _buildHistoriesFromRepairs(int partnerId, String? partnerName, String? shopId) async {
+    final dbInstance = await db.database;
+    final nameUpper = (partnerName ?? '').toUpperCase().trim();
+    String where = "(deleted IS NULL OR deleted = 0)";
+    List<dynamic> args = [];
+    if (shopId != null) {
+      where += " AND shopId = ?";
+      args.add(shopId);
+    }
+    final rows = await dbInstance.query('repairs', where: where, whereArgs: args,
+        columns: ['firestoreId', 'customerName', 'model', 'services', 'createdAt', 'shopId']);
+    final List<PartnerRepairHistory> results = [];
+    for (final row in rows) {
+      final servicesJson = row['services'];
+      if (servicesJson == null || servicesJson.toString().isEmpty) continue;
+      try {
+        final services = jsonDecode(servicesJson.toString()) as List;
+        for (final s in services) {
+          if (s is! Map) continue;
+          final sPartnerId = s['partnerId'];
+          final sPartnerName = (s['partnerName'] ?? '').toString().toUpperCase().trim();
+          if (sPartnerId == partnerId || (nameUpper.isNotEmpty && sPartnerName == nameUpper)) {
+            results.add(PartnerRepairHistory(
+              repairOrderId: row['firestoreId']?.toString() ?? '',
+              partnerId: partnerId,
+              customerName: row['customerName']?.toString() ?? '',
+              deviceModel: row['model']?.toString() ?? '',
+              issue: s['serviceName']?.toString() ?? '',
+              partnerCost: (s['cost'] as num?)?.toInt() ?? 0,
+              repairContent: s['serviceName']?.toString(),
+              sentAt: row['createdAt'] as int? ?? 0,
+              shopId: shopId ?? '',
+            ));
+            break;
+          }
+        }
+      } catch (_) {}
+    }
+    results.sort((a, b) => b.sentAt.compareTo(a.sentAt));
+    return results;
   }
 
   Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? partnerFirestoreId, String? partnerName}) async {
@@ -180,12 +231,67 @@ class RepairPartnerService {
       paymentArgs,
     );
     final totalPaid = payments.isNotEmpty ? (payments.first['totalPaid'] as int? ?? 0) : 0;
+
+    // Also count repairs directly from repairs table where services reference this partner
+    // This catches cases where partner_repair_history was not created
+    final repairStats = await _countRepairsForPartner(partnerId, partnerName, shopId);
+    final historyOrders = (dbStats?['totalRepairs'] ?? 0) as int;
+    final repairOrders = repairStats['count'] as int;
+    final repairCost = repairStats['totalCost'] as int;
+    final repairLastDate = repairStats['lastDate'] as int?;
+
+    // Use the higher count (repairs table is source of truth)
+    final actualOrders = repairOrders > historyOrders ? repairOrders : historyOrders;
+    final actualCost = repairOrders > historyOrders ? repairCost : ((dbStats?['totalCost'] ?? 0) as int);
+    final actualLastDate = repairOrders > historyOrders ? repairLastDate : dbStats?['lastRepairDate'];
+
     return {
       ...?dbStats,
-      'totalOrders': dbStats?['totalRepairs'] ?? 0,
-      'totalCost': dbStats?['totalCost'] ?? 0,
+      'totalOrders': actualOrders,
+      'totalCost': actualCost,
       'totalPaid': totalPaid,
+      'avgCost': actualOrders > 0 ? (actualCost / actualOrders).round() : 0,
+      'lastRepairDate': actualLastDate,
     };
+  }
+
+  /// Count repairs from repairs table that have services referencing this partner
+  Future<Map<String, dynamic>> _countRepairsForPartner(int partnerId, String? partnerName, String? shopId) async {
+    final dbInstance = await db.database;
+    final nameUpper = (partnerName ?? '').toUpperCase().trim();
+    // Query repairs with services JSON containing this partnerId or partnerName
+    String where = "(deleted IS NULL OR deleted = 0)";
+    List<dynamic> args = [];
+    if (shopId != null) {
+      where += " AND shopId = ?";
+      args.add(shopId);
+    }
+    final rows = await dbInstance.query('repairs', where: where, whereArgs: args, columns: ['services', 'createdAt']);
+    int count = 0;
+    int totalCost = 0;
+    int? lastDate;
+    for (final row in rows) {
+      final servicesJson = row['services'];
+      if (servicesJson == null || servicesJson.toString().isEmpty) continue;
+      try {
+        final services = jsonDecode(servicesJson.toString()) as List;
+        for (final s in services) {
+          if (s is! Map) continue;
+          final sPartnerId = s['partnerId'];
+          final sPartnerName = (s['partnerName'] ?? '').toString().toUpperCase().trim();
+          if (sPartnerId == partnerId || (nameUpper.isNotEmpty && sPartnerName == nameUpper)) {
+            count++;
+            totalCost += (s['cost'] as num?)?.toInt() ?? 0;
+            final createdAt = row['createdAt'] as int?;
+            if (createdAt != null && (lastDate == null || createdAt > lastDate)) {
+              lastDate = createdAt;
+            }
+            break; // Count each repair once even if multiple services reference same partner
+          }
+        }
+      } catch (_) {}
+    }
+    return {'count': count, 'totalCost': totalCost, 'lastDate': lastDate};
   }
 
   // Combined operation for repair order with partner

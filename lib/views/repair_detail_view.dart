@@ -3855,19 +3855,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       // Handle partner history/payment only when adding a new partner service.
       // Editing an existing service must not auto-create an extra payment/debt record.
       if (service.partnerId != null && editIndex == null) {
-        // Chỉ tạo partner history nếu có firestoreId
-        if (r.firestoreId != null) {
-          final partnerService = RepairPartnerService();
-          await partnerService.createPartnerHistoryForRepair(
-            repairOrderId: r.firestoreId!,
-            partnerId: service.partnerId!,
-            partnerCost: service.cost,
-            customerName: r.customerName,
-            deviceModel: r.model,
-            issue: service.serviceName,
-            repairContent: service.serviceName,
-          );
-        }
+        // Tạo partner history - dùng firestoreId hoặc local id làm repairOrderId
+        final repairOrderId = r.firestoreId ?? 'local_${r.id}';
+        final partnerService = RepairPartnerService();
+        await partnerService.createPartnerHistoryForRepair(
+          repairOrderId: repairOrderId,
+          partnerId: service.partnerId!,
+          partnerCost: service.cost,
+          customerName: r.customerName,
+          deviceModel: r.model,
+          issue: service.serviceName,
+          repairContent: service.serviceName,
+        );
 
         // Ghi nhận thanh toán hoặc công nợ đối tác (LUÔN tạo PaymentIntent)
         debugPrint(

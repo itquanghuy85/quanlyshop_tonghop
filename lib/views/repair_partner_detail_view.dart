@@ -65,6 +65,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       final histories = await _partnerService.getPartnerRepairHistory(
         partnerId: widget.partner.id,
         partnerFirestoreId: widget.partner.firestoreId,
+        partnerName: widget.partner.name,
       );
       // Lấy debts theo personName giống như supplier_detail_view
       final allDebts = await _db.getAllDebts();
