@@ -258,8 +258,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       body: ResponsiveCenter(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabCtrl,
+            : IndexedStack(
+                index: _tabCtrl.index,
                 children: [
                   _buildOverviewTab(),
                   _buildApprovalTab(),
