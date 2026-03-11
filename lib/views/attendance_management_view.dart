@@ -258,8 +258,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       body: ResponsiveCenter(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : IndexedStack(
-                index: _tabCtrl.index,
+            : TabBarView(
+                controller: _tabCtrl,
                 children: [
                   _buildOverviewTab(),
                   _buildApprovalTab(),
@@ -291,6 +291,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   Widget _buildOverviewTab() {
     return CustomScrollView(
+      primary: false,
       slivers: [
         SliverToBoxAdapter(child: _buildSummaryHeader()),
         SliverToBoxAdapter(child: _buildDateSelector()),
@@ -647,6 +648,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     }
 
     return CustomScrollView(
+      primary: false,
       slivers: [
         // Bulk approve bar
         if (pending.isNotEmpty)
@@ -1017,6 +1019,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     final processed = _leaveRequests.where((l) => l.status != 'pending').toList();
 
     return CustomScrollView(
+      primary: false,
       slivers: [
         // Create button
         SliverToBoxAdapter(
