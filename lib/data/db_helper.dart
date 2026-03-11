@@ -12,6 +12,7 @@ import '../models/expense_model.dart';
 import '../models/debt_model.dart';
 import '../models/purchase_order_model.dart';
 import '../models/attendance_model.dart';
+import '../models/leave_request_model.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 
@@ -95,7 +96,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 89,
+      version: 90,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -119,7 +120,10 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, debtType TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, linkedType TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT, deleted INTEGER DEFAULT 0, updatedAt INTEGER)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS attendance(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, dateKey TEXT, checkInAt INTEGER, checkOutAt INTEGER, overtimeOn INTEGER DEFAULT 0, overtimeStartAt INTEGER, overtimeEndAt INTEGER, photoIn TEXT, photoOut TEXT, note TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, requestType TEXT, locked INTEGER DEFAULT 0, createdAt INTEGER, location TEXT, isLate INTEGER DEFAULT 0, isEarlyLeave INTEGER DEFAULT 0, workSchedule TEXT, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
+        );
+        await db.execute(
+          'CREATE TABLE IF NOT EXISTS leave_requests(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, leaveType TEXT, startDate TEXT, endDate TEXT, totalDays REAL, reason TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, summary TEXT, role TEXT, email TEXT, payload TEXT, entityType TEXT, entityId TEXT)',
@@ -414,6 +418,9 @@ class DBHelper {
         // attendance
         await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_dateKey ON attendance(dateKey)');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_userId ON attendance(userId)');
+        // leave_requests
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_userId ON leave_requests(userId)');
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)');
         // debt_payments
         await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_paidAt ON debt_payments(paidAt)');
         await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_debtId ON debt_payments(debtId)');
@@ -1041,6 +1048,23 @@ class DBHelper {
             try {
               await db.execute('ALTER TABLE debt_payments ADD COLUMN $col');
             } catch (_) {}
+          }
+        }
+        if (oldV < 90) {
+          // v90: Attendance management overhaul - add overtime window, request type; create leave_requests table
+          for (final col in ['overtimeStartAt INTEGER', 'overtimeEndAt INTEGER', 'requestType TEXT']) {
+            try {
+              await db.execute('ALTER TABLE attendance ADD COLUMN $col');
+            } catch (_) {}
+          }
+          try {
+            await db.execute(
+              'CREATE TABLE IF NOT EXISTS leave_requests(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, leaveType TEXT, startDate TEXT, endDate TEXT, totalDays REAL, reason TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
+            );
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_userId ON leave_requests(userId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)');
+          } catch (e) {
+            debugPrint('v90 error (leave_requests): $e');
           }
         }
         if (oldV < 26) {
@@ -4400,6 +4424,81 @@ class DBHelper {
       ...schedule,
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  // --- LEAVE REQUESTS ---
+  Future<void> upsertLeaveRequest(LeaveRequest lr) async => _upsert(
+    'leave_requests',
+    lr.toMap(),
+    lr.firestoreId ?? "lr_${lr.userId}_${lr.startDate}",
+  );
+
+  Future<int> insertLeaveRequest(LeaveRequest lr) async {
+    await upsertLeaveRequest(lr);
+    return 1;
+  }
+
+  Future<int> updateLeaveRequest(LeaveRequest lr) async => (await database).update(
+    'leave_requests',
+    lr.toMap(),
+    where: 'id = ?',
+    whereArgs: [lr.id],
+  );
+
+  Future<int> deleteLeaveRequestByFirestoreId(String fId) async =>
+      (await database).delete(
+        'leave_requests',
+        where: 'firestoreId = ?',
+        whereArgs: [fId],
+      );
+
+  Future<List<LeaveRequest>> getAllLeaveRequests() async {
+    final maps = await (await database).query(
+      'leave_requests',
+      where: 'deleted = 0',
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => LeaveRequest.fromMap(m)).toList();
+  }
+
+  Future<List<LeaveRequest>> getLeaveRequestsByUser(String userId) async {
+    final maps = await (await database).query(
+      'leave_requests',
+      where: 'userId = ? AND deleted = 0',
+      whereArgs: [userId],
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => LeaveRequest.fromMap(m)).toList();
+  }
+
+  Future<List<LeaveRequest>> getLeaveRequestsByStatus(String status) async {
+    final maps = await (await database).query(
+      'leave_requests',
+      where: 'status = ? AND deleted = 0',
+      whereArgs: [status],
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => LeaveRequest.fromMap(m)).toList();
+  }
+
+  Future<List<LeaveRequest>> getLeaveRequestsByDateRange(String start, String end) async {
+    final maps = await (await database).query(
+      'leave_requests',
+      where: 'deleted = 0 AND ((startDate BETWEEN ? AND ?) OR (endDate BETWEEN ? AND ?))',
+      whereArgs: [start, end, start, end],
+      orderBy: 'startDate ASC',
+    );
+    return maps.map((m) => LeaveRequest.fromMap(m)).toList();
+  }
+
+  Future<List<Attendance>> getPendingAttendanceRequests() async {
+    final maps = await (await database).query(
+      'attendance',
+      where: 'status = ? AND deleted = 0',
+      whereArgs: ['pending'],
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => Attendance.fromMap(m)).toList();
   }
 
   // --- PURCHASE ORDERS ---

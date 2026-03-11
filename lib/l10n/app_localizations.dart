@@ -2180,7 +2180,7 @@ abstract class AppLocalizations {
   /// No description provided for @confirmAction.
   ///
   /// In en, this message translates to:
-  /// **'Confirm action'**
+  /// **'Confirm'**
   String get confirmAction;
 
   /// No description provided for @loading.
@@ -9700,6 +9700,318 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{fieldName} is required'**
   String fieldRequired(String fieldName);
+
+  /// No description provided for @approveAttendance.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get approveAttendance;
+
+  /// No description provided for @rejectAttendance.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get rejectAttendance;
+
+  /// No description provided for @bulkApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve all'**
+  String get bulkApprove;
+
+  /// No description provided for @forgotCheckin.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot check-in'**
+  String get forgotCheckin;
+
+  /// No description provided for @forgotCheckinRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot check-in request'**
+  String get forgotCheckinRequest;
+
+  /// No description provided for @editOvertime.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit overtime'**
+  String get editOvertime;
+
+  /// No description provided for @overtimeFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'OT from'**
+  String get overtimeFrom;
+
+  /// No description provided for @overtimeTo.
+  ///
+  /// In en, this message translates to:
+  /// **'OT to'**
+  String get overtimeTo;
+
+  /// No description provided for @overtimeMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'OT minutes'**
+  String get overtimeMinutes;
+
+  /// No description provided for @editCheckTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit time'**
+  String get editCheckTime;
+
+  /// No description provided for @leaveRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave request'**
+  String get leaveRequest;
+
+  /// No description provided for @leaveRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'LEAVE REQUESTS'**
+  String get leaveRequests;
+
+  /// No description provided for @createLeaveRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Create leave request'**
+  String get createLeaveRequest;
+
+  /// No description provided for @leaveType.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave type'**
+  String get leaveType;
+
+  /// No description provided for @annualLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Annual leave'**
+  String get annualLeave;
+
+  /// No description provided for @sickLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Sick leave'**
+  String get sickLeave;
+
+  /// No description provided for @unpaidLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpaid leave'**
+  String get unpaidLeave;
+
+  /// No description provided for @personalLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal leave'**
+  String get personalLeave;
+
+  /// No description provided for @maternityLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Maternity leave'**
+  String get maternityLeave;
+
+  /// No description provided for @startDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start date'**
+  String get startDate;
+
+  /// No description provided for @endDate.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get endDate;
+
+  /// No description provided for @totalDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Total days'**
+  String get totalDays;
+
+  /// No description provided for @leaveReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get leaveReason;
+
+  /// No description provided for @approveLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get approveLeave;
+
+  /// No description provided for @rejectLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get rejectLeave;
+
+  /// No description provided for @rejectReasonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejection reason...'**
+  String get rejectReasonHint;
+
+  /// No description provided for @noLeaveRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No leave requests'**
+  String get noLeaveRequests;
+
+  /// No description provided for @noPendingRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending requests'**
+  String get noPendingRequests;
+
+  /// No description provided for @attendanceApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'ATTENDANCE APPROVAL'**
+  String get attendanceApproval;
+
+  /// No description provided for @confirmAttendanceMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm this attendance counts toward salary?'**
+  String get confirmAttendanceMsg;
+
+  /// No description provided for @rejectAttendanceMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject this attendance record?'**
+  String get rejectAttendanceMsg;
+
+  /// No description provided for @approvedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved: {count}'**
+  String approvedCount(int count);
+
+  /// No description provided for @bulkApproveSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved {count} attendance records'**
+  String bulkApproveSuccess(int count);
+
+  /// No description provided for @leaveRequestCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave request created'**
+  String get leaveRequestCreated;
+
+  /// No description provided for @leaveRequestApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave request approved'**
+  String get leaveRequestApproved;
+
+  /// No description provided for @leaveRequestRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave request rejected'**
+  String get leaveRequestRejected;
+
+  /// No description provided for @attendanceApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Attendance confirmed'**
+  String get attendanceApproved;
+
+  /// No description provided for @attendanceRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Attendance rejected'**
+  String get attendanceRejected;
+
+  /// No description provided for @overtimeUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Overtime updated'**
+  String get overtimeUpdated;
+
+  /// No description provided for @timeUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Time updated'**
+  String get timeUpdated;
+
+  /// No description provided for @forgotCheckinCreated.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot check-in request sent'**
+  String get forgotCheckinCreated;
+
+  /// No description provided for @tabApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Approval'**
+  String get tabApproval;
+
+  /// No description provided for @tabLeave.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave'**
+  String get tabLeave;
+
+  /// No description provided for @tabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get tabOverview;
+
+  /// No description provided for @pendingApprovalCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending'**
+  String pendingApprovalCount(int count);
+
+  /// No description provided for @selectTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Select time'**
+  String get selectTime;
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelAction;
+
+  /// No description provided for @submitRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit request'**
+  String get submitRequest;
+
+  /// No description provided for @forgotCheckinDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date forgot check-in'**
+  String get forgotCheckinDate;
+
+  /// No description provided for @forgotCheckinTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-in time'**
+  String get forgotCheckinTime;
+
+  /// No description provided for @forgotCheckoutTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Check-out time'**
+  String get forgotCheckoutTime;
+
+  /// No description provided for @requestNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Note'**
+  String get requestNote;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

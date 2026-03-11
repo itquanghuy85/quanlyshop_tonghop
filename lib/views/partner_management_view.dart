@@ -192,7 +192,7 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
-        title: const Text('QUẢN LÝ ĐỐI TÁC & NHÀ CUNG CẤP', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: const Text('Quản lý đối tác & NCC', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
         bottom: TabBar(
           controller: _tabController,
           labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),

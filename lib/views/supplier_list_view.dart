@@ -425,14 +425,14 @@ class _SupplierListViewState extends State<SupplierListView>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'QUẢN LÝ ĐỐI TÁC',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline2.fontSize),
+              'Quản lý đối tác',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
             ),
             Text(
               _isElectronics
                   ? '${_items.length} NCC • ${_partners.length} đối tác'
                   : '${_items.length} nhà cung cấp',
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.white70),
+              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.white70),
             ),
           ],
         ),
@@ -513,12 +513,12 @@ class _SupplierListViewState extends State<SupplierListView>
         : RefreshIndicator(
             onRefresh: _load,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               children: [
                 _buildHeader(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildSearchFilter(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 ...filtered.map(_buildCard),
                 if (filtered.isEmpty)
                   Padding(
@@ -544,12 +544,12 @@ class _SupplierListViewState extends State<SupplierListView>
         : RefreshIndicator(
             onRefresh: _loadPartners,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               children: [
                 _buildPartnerHeader(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildPartnerSearchFilter(),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 ...filtered.map(_buildPartnerCard),
                 if (filtered.isEmpty)
                   Padding(
@@ -620,32 +620,39 @@ class _SupplierListViewState extends State<SupplierListView>
 
   Widget _headerTile(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: AppTextStyles.headline6.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: AppTextStyles.headline6.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                Text(
+                  label,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.onSurface.withOpacity(0.7),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
             ),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.onSurface.withOpacity(0.7),
-            ),
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -770,14 +777,17 @@ class _SupplierListViewState extends State<SupplierListView>
                 Row(
                   children: [
                     Text('Nợ: ', style: AppTextStyles.caption),
-                    Text(
-                      MoneyUtils.formatCurrency(d.remain),
-                      style: AppTextStyles.caption.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        MoneyUtils.formatCurrency(d.remain),
+                        style: AppTextStyles.caption.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Text(
                       'GD: $date',
                       style: AppTextStyles.caption.copyWith(
@@ -798,6 +808,7 @@ class _SupplierListViewState extends State<SupplierListView>
               if (d.remain > 0)
                 IconButton(
                   onPressed: () async => await _openPayDialog(d),
+
                   icon: const Icon(Icons.payments, size: 20),
                   color: AppColors.success,
                   tooltip: 'Thanh toán',
@@ -1226,11 +1237,14 @@ class _SupplierListViewState extends State<SupplierListView>
                 Row(
                   children: [
                     Text('Nợ: ', style: AppTextStyles.caption),
-                    Text(
-                      MoneyUtils.formatCurrency(d.remain),
-                      style: AppTextStyles.caption.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        MoneyUtils.formatCurrency(d.remain),
+                        style: AppTextStyles.caption.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),

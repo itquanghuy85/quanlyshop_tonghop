@@ -207,7 +207,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       itemCount: _histories.length,
       itemBuilder: (ctx, i) {
         final h = _histories[i];
@@ -215,12 +215,12 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
           'dd/MM/yyyy HH:mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(h.sentAt));
         return Card(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: const EdgeInsets.only(bottom: 8),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -253,9 +253,9 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text('Khách: ${h.customerName}', style: AppTextStyles.caption),
-                Text('Lỗi: ${h.issue}', style: AppTextStyles.caption),
+                Text('Lỗi: ${h.issue}', style: AppTextStyles.caption, maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (h.repairContent != null && h.repairContent!.isNotEmpty)
                   Text(
                     'Nội dung sửa: ${h.repairContent}',
@@ -280,7 +280,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             children: [
               _statChip('Tổng nợ', _totalDebt, AppColors.warning),
@@ -297,7 +297,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
         ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
               Text('Các khoản nợ', style: AppTextStyles.headline6),
               const SizedBox(height: 8),
@@ -413,23 +413,25 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
   Widget _statChip(String label, int value, Color color) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: AppTextStyles.caption.copyWith(color: color)),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               MoneyUtils.formatCurrency(value),
               style: AppTextStyles.headline6.copyWith(
                 color: color,
-                fontSize: AppTextStyles.headline4.fontSize,
+                fontWeight: FontWeight.bold,
               ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ],
         ),

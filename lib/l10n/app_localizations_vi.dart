@@ -384,7 +384,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get developerName => 'Quang Huy';
 
   @override
-  String get developerRole => 'Chuyên gia phát triển ứng dụng mobile web';
+  String get developerRole => 'Chuyên gia phát triển ứng dụng mobile';
 
   @override
   String get contactPhone => 'SĐT/Zalo: 0964 095 979';
@@ -1064,7 +1064,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get confirm => 'Xác nhận';
 
   @override
-  String get confirmAction => 'Xác nhận hành động';
+  String get confirmAction => 'Xác nhận';
 
   @override
   String get loading => 'Đang tải...';
@@ -5070,4 +5070,166 @@ class AppLocalizationsVi extends AppLocalizations {
   String fieldRequired(String fieldName) {
     return '$fieldName là bắt buộc';
   }
+
+  @override
+  String get approveAttendance => 'Xác nhận';
+
+  @override
+  String get rejectAttendance => 'Từ chối';
+
+  @override
+  String get bulkApprove => 'Duyệt tất cả';
+
+  @override
+  String get forgotCheckin => 'Quên chấm công';
+
+  @override
+  String get forgotCheckinRequest => 'Yêu cầu bổ sung chấm công';
+
+  @override
+  String get editOvertime => 'Sửa tăng ca';
+
+  @override
+  String get overtimeFrom => 'Tăng ca từ';
+
+  @override
+  String get overtimeTo => 'Tăng ca đến';
+
+  @override
+  String get overtimeMinutes => 'Phút tăng ca';
+
+  @override
+  String get editCheckTime => 'Sửa giờ';
+
+  @override
+  String get leaveRequest => 'Xin nghỉ';
+
+  @override
+  String get leaveRequests => 'XIN NGHỈ PHÉP';
+
+  @override
+  String get createLeaveRequest => 'Tạo đơn xin nghỉ';
+
+  @override
+  String get leaveType => 'Loại nghỉ';
+
+  @override
+  String get annualLeave => 'Nghỉ phép năm';
+
+  @override
+  String get sickLeave => 'Nghỉ ốm';
+
+  @override
+  String get unpaidLeave => 'Nghỉ không lương';
+
+  @override
+  String get personalLeave => 'Nghỉ việc riêng';
+
+  @override
+  String get maternityLeave => 'Nghỉ thai sản';
+
+  @override
+  String get startDate => 'Ngày bắt đầu';
+
+  @override
+  String get endDate => 'Ngày kết thúc';
+
+  @override
+  String get totalDays => 'Tổng ngày nghỉ';
+
+  @override
+  String get leaveReason => 'Lý do';
+
+  @override
+  String get approveLeave => 'Duyệt';
+
+  @override
+  String get rejectLeave => 'Từ chối';
+
+  @override
+  String get rejectReasonHint => 'Lý do từ chối...';
+
+  @override
+  String get noLeaveRequests => 'Không có đơn xin nghỉ';
+
+  @override
+  String get noPendingRequests => 'Không có yêu cầu chờ duyệt';
+
+  @override
+  String get attendanceApproval => 'DUYỆT CHẤM CÔNG';
+
+  @override
+  String get confirmAttendanceMsg => 'Xác nhận chấm công này tính vào lương?';
+
+  @override
+  String get rejectAttendanceMsg => 'Từ chối bản ghi chấm công này?';
+
+  @override
+  String approvedCount(int count) {
+    return 'Đã duyệt: $count';
+  }
+
+  @override
+  String bulkApproveSuccess(int count) {
+    return 'Đã duyệt $count bản ghi chấm công';
+  }
+
+  @override
+  String get leaveRequestCreated => 'Đã tạo đơn xin nghỉ';
+
+  @override
+  String get leaveRequestApproved => 'Đã duyệt đơn xin nghỉ';
+
+  @override
+  String get leaveRequestRejected => 'Đã từ chối đơn xin nghỉ';
+
+  @override
+  String get attendanceApproved => 'Đã xác nhận chấm công';
+
+  @override
+  String get attendanceRejected => 'Đã từ chối chấm công';
+
+  @override
+  String get overtimeUpdated => 'Đã cập nhật tăng ca';
+
+  @override
+  String get timeUpdated => 'Đã cập nhật giờ';
+
+  @override
+  String get forgotCheckinCreated => 'Đã gửi yêu cầu bổ sung chấm công';
+
+  @override
+  String get tabApproval => 'Duyệt';
+
+  @override
+  String get tabLeave => 'Xin nghỉ';
+
+  @override
+  String get tabOverview => 'Tổng quan';
+
+  @override
+  String pendingApprovalCount(int count) {
+    return '$count chờ duyệt';
+  }
+
+  @override
+  String get selectTime => 'Chọn giờ';
+
+  @override
+  String get cancelAction => 'Hủy';
+
+  @override
+  String get submitRequest => 'Gửi yêu cầu';
+
+  @override
+  String get forgotCheckinDate => 'Ngày quên chấm công';
+
+  @override
+  String get forgotCheckinTime => 'Giờ vào';
+
+  @override
+  String get forgotCheckoutTime => 'Giờ ra';
+
+  @override
+  String get requestNote => 'Ghi chú';
 }

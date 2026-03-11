@@ -2400,5 +2400,82 @@
         "type": "String"
       }
     }
-  }
+  },
+  "approveAttendance": "Xác nhận",
+  "rejectAttendance": "Từ chối",
+  "approvedStatus": "Đã duyệt",
+  "rejectedStatus": "Từ chối",
+  "pendingStatus": "Chờ duyệt",
+  "bulkApprove": "Duyệt tất cả",
+  "forgotCheckin": "Quên chấm công",
+  "forgotCheckinRequest": "Yêu cầu bổ sung chấm công",
+  "editOvertime": "Sửa tăng ca",
+  "overtimeFrom": "Tăng ca từ",
+  "overtimeTo": "Tăng ca đến",
+  "overtimeMinutes": "Phút tăng ca",
+  "editCheckTime": "Sửa giờ",
+  "leaveRequest": "Xin nghỉ",
+  "leaveRequests": "XIN NGHỈ PHÉP",
+  "createLeaveRequest": "Tạo đơn xin nghỉ",
+  "leaveType": "Loại nghỉ",
+  "annualLeave": "Nghỉ phép năm",
+  "sickLeave": "Nghỉ ốm",
+  "unpaidLeave": "Nghỉ không lương",
+  "personalLeave": "Nghỉ việc riêng",
+  "maternityLeave": "Nghỉ thai sản",
+  "startDate": "Ngày bắt đầu",
+  "endDate": "Ngày kết thúc",
+  "totalDays": "Tổng ngày nghỉ",
+  "leaveReason": "Lý do",
+  "approveLeave": "Duyệt",
+  "rejectLeave": "Từ chối",
+  "rejectReasonHint": "Lý do từ chối...",
+  "noLeaveRequests": "Không có đơn xin nghỉ",
+  "noPendingRequests": "Không có yêu cầu chờ duyệt",
+  "attendanceApproval": "DUYỆT CHẤM CÔNG",
+  "confirmAttendanceMsg": "Xác nhận chấm công này tính vào lương?",
+  "rejectAttendanceMsg": "Từ chối bản ghi chấm công này?",
+  "approvedCount": "Đã duyệt: {count}",
+  "@approvedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bulkApproveSuccess": "Đã duyệt {count} bản ghi chấm công",
+  "@bulkApproveSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "leaveRequestCreated": "Đã tạo đơn xin nghỉ",
+  "leaveRequestApproved": "Đã duyệt đơn xin nghỉ",
+  "leaveRequestRejected": "Đã từ chối đơn xin nghỉ",
+  "attendanceApproved": "Đã xác nhận chấm công",
+  "attendanceRejected": "Đã từ chối chấm công",
+  "overtimeUpdated": "Đã cập nhật tăng ca",
+  "timeUpdated": "Đã cập nhật giờ",
+  "forgotCheckinCreated": "Đã gửi yêu cầu bổ sung chấm công",
+  "tabApproval": "Duyệt",
+  "tabLeave": "Xin nghỉ",
+  "tabOverview": "Tổng quan",
+  "pendingApprovalCount": "{count} chờ duyệt",
+  "@pendingApprovalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectTime": "Chọn giờ",
+  "confirmAction": "Xác nhận",
+  "cancelAction": "Hủy",
+  "submitRequest": "Gửi yêu cầu",
+  "forgotCheckinDate": "Ngày quên chấm công",
+  "forgotCheckinTime": "Giờ vào",
+  "forgotCheckoutTime": "Giờ ra",
+  "requestNote": "Ghi chú"
 }

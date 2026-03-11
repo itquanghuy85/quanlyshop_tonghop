@@ -1064,7 +1064,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirm => 'Confirm';
 
   @override
-  String get confirmAction => 'Confirm action';
+  String get confirmAction => 'Confirm';
 
   @override
   String get loading => 'Loading...';
@@ -5070,4 +5070,166 @@ class AppLocalizationsEn extends AppLocalizations {
   String fieldRequired(String fieldName) {
     return '$fieldName is required';
   }
+
+  @override
+  String get approveAttendance => 'Confirm';
+
+  @override
+  String get rejectAttendance => 'Reject';
+
+  @override
+  String get bulkApprove => 'Approve all';
+
+  @override
+  String get forgotCheckin => 'Forgot check-in';
+
+  @override
+  String get forgotCheckinRequest => 'Forgot check-in request';
+
+  @override
+  String get editOvertime => 'Edit overtime';
+
+  @override
+  String get overtimeFrom => 'OT from';
+
+  @override
+  String get overtimeTo => 'OT to';
+
+  @override
+  String get overtimeMinutes => 'OT minutes';
+
+  @override
+  String get editCheckTime => 'Edit time';
+
+  @override
+  String get leaveRequest => 'Leave request';
+
+  @override
+  String get leaveRequests => 'LEAVE REQUESTS';
+
+  @override
+  String get createLeaveRequest => 'Create leave request';
+
+  @override
+  String get leaveType => 'Leave type';
+
+  @override
+  String get annualLeave => 'Annual leave';
+
+  @override
+  String get sickLeave => 'Sick leave';
+
+  @override
+  String get unpaidLeave => 'Unpaid leave';
+
+  @override
+  String get personalLeave => 'Personal leave';
+
+  @override
+  String get maternityLeave => 'Maternity leave';
+
+  @override
+  String get startDate => 'Start date';
+
+  @override
+  String get endDate => 'End date';
+
+  @override
+  String get totalDays => 'Total days';
+
+  @override
+  String get leaveReason => 'Reason';
+
+  @override
+  String get approveLeave => 'Approve';
+
+  @override
+  String get rejectLeave => 'Reject';
+
+  @override
+  String get rejectReasonHint => 'Rejection reason...';
+
+  @override
+  String get noLeaveRequests => 'No leave requests';
+
+  @override
+  String get noPendingRequests => 'No pending requests';
+
+  @override
+  String get attendanceApproval => 'ATTENDANCE APPROVAL';
+
+  @override
+  String get confirmAttendanceMsg => 'Confirm this attendance counts toward salary?';
+
+  @override
+  String get rejectAttendanceMsg => 'Reject this attendance record?';
+
+  @override
+  String approvedCount(int count) {
+    return 'Approved: $count';
+  }
+
+  @override
+  String bulkApproveSuccess(int count) {
+    return 'Approved $count attendance records';
+  }
+
+  @override
+  String get leaveRequestCreated => 'Leave request created';
+
+  @override
+  String get leaveRequestApproved => 'Leave request approved';
+
+  @override
+  String get leaveRequestRejected => 'Leave request rejected';
+
+  @override
+  String get attendanceApproved => 'Attendance confirmed';
+
+  @override
+  String get attendanceRejected => 'Attendance rejected';
+
+  @override
+  String get overtimeUpdated => 'Overtime updated';
+
+  @override
+  String get timeUpdated => 'Time updated';
+
+  @override
+  String get forgotCheckinCreated => 'Forgot check-in request sent';
+
+  @override
+  String get tabApproval => 'Approval';
+
+  @override
+  String get tabLeave => 'Leave';
+
+  @override
+  String get tabOverview => 'Overview';
+
+  @override
+  String pendingApprovalCount(int count) {
+    return '$count pending';
+  }
+
+  @override
+  String get selectTime => 'Select time';
+
+  @override
+  String get cancelAction => 'Cancel';
+
+  @override
+  String get submitRequest => 'Submit request';
+
+  @override
+  String get forgotCheckinDate => 'Date forgot check-in';
+
+  @override
+  String get forgotCheckinTime => 'Check-in time';
+
+  @override
+  String get forgotCheckoutTime => 'Check-out time';
+
+  @override
+  String get requestNote => 'Note';
 }

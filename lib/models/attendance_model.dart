@@ -8,6 +8,8 @@ class Attendance {
   int? checkInAt;
   int? checkOutAt;
   int overtimeOn;
+  int? overtimeStartAt; // Overtime window start (ms epoch)
+  int? overtimeEndAt; // Overtime window end (ms epoch)
   String? photoIn;
   String? photoOut;
   String? note;
@@ -15,6 +17,7 @@ class Attendance {
   String? approvedBy;
   int? approvedAt;
   String? rejectReason;
+  String? requestType; // normal, forgot_checkin, forgot_checkout, overtime_edit
   int locked;
   int createdAt;
   String? location;
@@ -34,6 +37,8 @@ class Attendance {
     this.checkInAt,
     this.checkOutAt,
     this.overtimeOn = 0,
+    this.overtimeStartAt,
+    this.overtimeEndAt,
     this.photoIn,
     this.photoOut,
     this.note,
@@ -41,6 +46,7 @@ class Attendance {
     this.approvedBy,
     this.approvedAt,
     this.rejectReason,
+    this.requestType,
     this.locked = 0,
     required this.createdAt,
     this.location,
@@ -62,6 +68,8 @@ class Attendance {
       'checkInAt': checkInAt,
       'checkOutAt': checkOutAt,
       'overtimeOn': overtimeOn,
+      'overtimeStartAt': overtimeStartAt,
+      'overtimeEndAt': overtimeEndAt,
       'photoIn': photoIn,
       'photoOut': photoOut,
       'note': note,
@@ -69,6 +77,7 @@ class Attendance {
       'approvedBy': approvedBy,
       'approvedAt': approvedAt,
       'rejectReason': rejectReason,
+      'requestType': requestType,
       'locked': locked,
       'createdAt': createdAt,
       'location': location,
@@ -91,6 +100,8 @@ class Attendance {
       checkInAt: map['checkInAt'],
       checkOutAt: map['checkOutAt'],
       overtimeOn: map['overtimeOn'] ?? 0,
+      overtimeStartAt: map['overtimeStartAt'],
+      overtimeEndAt: map['overtimeEndAt'],
       photoIn: map['photoIn'],
       photoOut: map['photoOut'],
       note: map['note'],
@@ -98,6 +109,7 @@ class Attendance {
       approvedBy: map['approvedBy'],
       approvedAt: map['approvedAt'],
       rejectReason: map['rejectReason'],
+      requestType: map['requestType'],
       locked: map['locked'] ?? 0,
       createdAt: map['createdAt'],
       location: map['location'],

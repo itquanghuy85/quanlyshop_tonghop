@@ -2589,5 +2589,82 @@
         "type": "String"
       }
     }
-  }
+  },
+  "approveAttendance": "Confirm",
+  "rejectAttendance": "Reject",
+  "approvedStatus": "Approved",
+  "rejectedStatus": "Rejected",
+  "pendingStatus": "Pending",
+  "bulkApprove": "Approve all",
+  "forgotCheckin": "Forgot check-in",
+  "forgotCheckinRequest": "Forgot check-in request",
+  "editOvertime": "Edit overtime",
+  "overtimeFrom": "OT from",
+  "overtimeTo": "OT to",
+  "overtimeMinutes": "OT minutes",
+  "editCheckTime": "Edit time",
+  "leaveRequest": "Leave request",
+  "leaveRequests": "LEAVE REQUESTS",
+  "createLeaveRequest": "Create leave request",
+  "leaveType": "Leave type",
+  "annualLeave": "Annual leave",
+  "sickLeave": "Sick leave",
+  "unpaidLeave": "Unpaid leave",
+  "personalLeave": "Personal leave",
+  "maternityLeave": "Maternity leave",
+  "startDate": "Start date",
+  "endDate": "End date",
+  "totalDays": "Total days",
+  "leaveReason": "Reason",
+  "approveLeave": "Approve",
+  "rejectLeave": "Reject",
+  "rejectReasonHint": "Rejection reason...",
+  "noLeaveRequests": "No leave requests",
+  "noPendingRequests": "No pending requests",
+  "attendanceApproval": "ATTENDANCE APPROVAL",
+  "confirmAttendanceMsg": "Confirm this attendance counts toward salary?",
+  "rejectAttendanceMsg": "Reject this attendance record?",
+  "approvedCount": "Approved: {count}",
+  "@approvedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "bulkApproveSuccess": "Approved {count} attendance records",
+  "@bulkApproveSuccess": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "leaveRequestCreated": "Leave request created",
+  "leaveRequestApproved": "Leave request approved",
+  "leaveRequestRejected": "Leave request rejected",
+  "attendanceApproved": "Attendance confirmed",
+  "attendanceRejected": "Attendance rejected",
+  "overtimeUpdated": "Overtime updated",
+  "timeUpdated": "Time updated",
+  "forgotCheckinCreated": "Forgot check-in request sent",
+  "tabApproval": "Approval",
+  "tabLeave": "Leave",
+  "tabOverview": "Overview",
+  "pendingApprovalCount": "{count} pending",
+  "@pendingApprovalCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectTime": "Select time",
+  "confirmAction": "Confirm",
+  "cancelAction": "Cancel",
+  "submitRequest": "Submit request",
+  "forgotCheckinDate": "Date forgot check-in",
+  "forgotCheckinTime": "Check-in time",
+  "forgotCheckoutTime": "Check-out time",
+  "requestNote": "Note"
 }
