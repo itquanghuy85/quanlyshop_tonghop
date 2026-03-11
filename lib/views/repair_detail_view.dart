@@ -991,6 +991,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           referenceType: 'repair',
           personName: r.customerName,
           personPhone: r.phone,
+          idempotencyKey: r.firestoreId,
           metadata: {
             'repairId': r.id,
             'repairFirestoreId': r.firestoreId,
@@ -1030,8 +1031,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         desc: loc.approvedDelivery(r.model, r.customerName, r.warranty),
       );
 
-      // Financial activity log
-      if (r.price > 0 && r.paymentMethod != 'CÔNG NỢ') {
+      // Financial activity log (only for debt repairs - non-debt handled by PaymentIntentService)
+      if (r.price > 0 && r.paymentMethod == 'CÔNG NỢ') {
         await FinancialActivityService.logRepair(
           firestoreId: r.firestoreId ?? 'repair_${r.createdAt}',
           amount: r.price,
@@ -1479,6 +1480,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             referenceId: r.firestoreId,
             referenceType: 'parts_payment',
             personName: supplierName,
+            idempotencyKey: 'parts_${r.firestoreId}_${totalCost}_$paymentMethod',
             metadata: {
               'repairId': r.id,
               'repairFirestoreId': r.firestoreId,

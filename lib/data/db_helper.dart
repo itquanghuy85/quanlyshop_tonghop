@@ -7485,6 +7485,62 @@ class DBHelper {
     );
   }
 
+  /// Remove duplicate financial activities:
+  /// 1. Entries with NULL firestoreId that have a matching referenceType+referenceId
+  ///    already covered by an entry WITH firestoreId
+  /// 2. Keep only the latest entry for each referenceType+referenceId combo
+  Future<int> deduplicateFinancialActivities() async {
+    final db = await database;
+    int totalDeleted = 0;
+
+    // Step 1: Remove NULL firestoreId entries that duplicate an existing entry
+    // with the same referenceType+referenceId
+    final nullEntries = await db.rawQuery('''
+      SELECT a.id FROM financial_activity_log a
+      WHERE a.firestoreId IS NULL
+        AND a.referenceType IS NOT NULL
+        AND a.referenceId IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM financial_activity_log b
+          WHERE b.referenceType = a.referenceType
+            AND b.referenceId = a.referenceId
+            AND b.firestoreId IS NOT NULL
+            AND b.id != a.id
+        )
+    ''');
+    for (final row in nullEntries) {
+      await db.delete('financial_activity_log', where: 'id = ?', whereArgs: [row['id']]);
+      totalDeleted++;
+    }
+
+    // Step 2: For remaining NULL firestoreId duplicates (same referenceType+referenceId),
+    // keep only the latest one
+    final dupGroups = await db.rawQuery('''
+      SELECT referenceType, referenceId, COUNT(*) as cnt, MAX(id) as keepId
+      FROM financial_activity_log
+      WHERE firestoreId IS NULL
+        AND referenceType IS NOT NULL
+        AND referenceId IS NOT NULL
+      GROUP BY referenceType, referenceId
+      HAVING cnt > 1
+    ''');
+    for (final group in dupGroups) {
+      final deleted = await db.rawDelete('''
+        DELETE FROM financial_activity_log
+        WHERE firestoreId IS NULL
+          AND referenceType = ?
+          AND referenceId = ?
+          AND id != ?
+      ''', [group['referenceType'], group['referenceId'], group['keepId']]);
+      totalDeleted += deleted;
+    }
+
+    if (totalDeleted > 0) {
+      debugPrint('🧹 Dedup: removed $totalDeleted duplicate financial activities');
+    }
+    return totalDeleted;
+  }
+
   // =====================================================================
   // PAYMENT INTENTS METHODS
   // =====================================================================

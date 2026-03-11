@@ -42,7 +42,13 @@ class MoneyTransactionService {
       final shopId = UserService.getShopIdSync();
       final now = DateTime.now().millisecondsSinceEpoch;
       
+      // Generate deterministic firestoreId for dedup
+      final faId = (referenceType != null && referenceId != null)
+          ? 'fa_${referenceType}_${referenceId}'
+          : 'fa_ledger_${activityType.toLowerCase()}_$now';
+
       final activity = FinancialActivity(
+        firestoreId: faId,
         activityType: activityType,
         direction: direction,
         amount: amount,
@@ -57,8 +63,8 @@ class MoneyTransactionService {
       );
       
       final data = activity.toMap();
-      final id = await _db.insertFinancialActivity(data);
-      return id;
+      await _db.upsertFinancialActivity(data);
+      return 1;
     } catch (e, stack) {
       debugPrint('MoneyTransactionService.appendLedger error: $e');
       debugPrint(stack.toString());
@@ -70,8 +76,8 @@ class MoneyTransactionService {
   static Future<int?> appendLedgerFromModel(FinancialActivity activity) async {
     try {
       final data = activity.toMap();
-      final id = await _db.insertFinancialActivity(data);
-      return id;
+      await _db.upsertFinancialActivity(data);
+      return 1;
     } catch (e, stack) {
       debugPrint('MoneyTransactionService.appendLedgerFromModel error: $e');
       debugPrint(stack.toString());
@@ -83,8 +89,8 @@ class MoneyTransactionService {
   /// Caller must ensure the payload matches financial_activity_log schema.
   static Future<int?> appendLedgerRaw(Map<String, dynamic> data) async {
     try {
-      final id = await _db.insertFinancialActivity(data);
-      return id;
+      await _db.upsertFinancialActivity(data);
+      return 1;
     } catch (e, stack) {
       debugPrint('MoneyTransactionService.appendLedgerRaw error: $e');
       debugPrint(stack.toString());

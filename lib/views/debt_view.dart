@@ -15,7 +15,6 @@ import '../services/first_time_guide_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
-import '../services/financial_activity_service.dart';
 import '../services/audit_service.dart';
 import '../services/user_service.dart';
 import '../constants/financial_constants.dart';
@@ -526,6 +525,7 @@ class _DebtViewState extends State<DebtView>
                   referenceType: 'debt',
                   personName: debt['personName'],
                   personPhone: debt['phone'],
+                  idempotencyKey: debt['firestoreId'],
                   metadata: {
                     'debtId': debt['id'],
                     'debtFirestoreId': debt['firestoreId'],
@@ -535,25 +535,6 @@ class _DebtViewState extends State<DebtView>
                 );
 
                 if (result.success) {
-                  // Financial activity log
-                  if (isCustomerDebt) {
-                    await FinancialActivityService.logDebtCollection(
-                      firestoreId: debt['firestoreId'] ?? 'debt_${DateTime.now().millisecondsSinceEpoch}',
-                      amount: payAmount,
-                      paymentMethod: payMethod,
-                      customerName: debt['personName'] ?? 'N/A',
-                      phone: debt['phone'] ?? '',
-                      createdBy: user?.email,
-                    );
-                  } else {
-                    await FinancialActivityService.logSupplierPayment(
-                      firestoreId: debt['firestoreId'] ?? 'debt_${DateTime.now().millisecondsSinceEpoch}',
-                      amount: payAmount,
-                      paymentMethod: payMethod,
-                      supplierName: debt['personName'] ?? 'N/A',
-                      createdBy: user?.email,
-                    );
-                  }
                   // Audit log
                   await AuditService.logAction(
                     action: isCustomerDebt ? 'DEBT_COLLECTED' : 'SUPPLIER_PAID',

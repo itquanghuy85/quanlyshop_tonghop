@@ -1029,6 +1029,7 @@ class _SupplierListViewState extends State<SupplierListView>
         personName: d.supplier.name,
         personPhone: d.supplier.phone,
         notes: note.isNotEmpty ? note : null,
+        idempotencyKey: debtFId,
         metadata: {
           'supplierId': d.supplier.id,
           'supplierName': d.supplier.name,

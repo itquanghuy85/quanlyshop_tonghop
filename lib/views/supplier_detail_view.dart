@@ -387,6 +387,7 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
       personName: widget.supplier.name,
       personPhone: widget.supplier.phone,
       notes: note.isNotEmpty ? note : null,
+      idempotencyKey: debtFId,
       metadata: {
         'supplierId': widget.supplier.id,
         'supplierName': widget.supplier.name,

@@ -226,6 +226,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       await SyncOrchestrator().init();
       _syncOrchestratorInitialized = true;
       debugPrint('✅ SyncOrchestrator initialized');
+      // One-time cleanup: remove duplicate financial activity entries
+      DBHelper().deduplicateFinancialActivities();
     } catch (e) {
       debugPrint('❌ SyncOrchestrator init failed: $e');
     }

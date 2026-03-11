@@ -43,7 +43,7 @@ class FinancialActivityService {
         bankName: bankName,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint('📝 FinancialActivity: Logged SALE - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logSale error: $e');
@@ -78,7 +78,7 @@ class FinancialActivityService {
         shopId: shopId,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint('📝 FinancialActivity: Logged EXPENSE - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logExpense error: $e');
@@ -113,7 +113,7 @@ class FinancialActivityService {
         shopId: shopId,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint('📝 FinancialActivity: Logged PURCHASE - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logPurchase error: $e');
@@ -148,7 +148,7 @@ class FinancialActivityService {
         note: note,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint(
         '📝 FinancialActivity: Logged DEBT_COLLECT - ${activity.title}',
       );
@@ -185,7 +185,7 @@ class FinancialActivityService {
         shopId: shopId,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint('📝 FinancialActivity: Logged SETTLEMENT - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logSettlement error: $e');
@@ -218,7 +218,7 @@ class FinancialActivityService {
         shopId: shopId,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint('📝 FinancialActivity: Logged DEBT_PAY - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logSupplierPayment error: $e');
@@ -253,7 +253,7 @@ class FinancialActivityService {
         shopId: shopId,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint('📝 FinancialActivity: Logged REPAIR - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logRepair error: $e');
@@ -298,7 +298,7 @@ class FinancialActivityService {
         shopId: shopId,
       );
 
-      await _db.insertFinancialActivity(activity.toMap());
+      await _db.upsertFinancialActivity(activity.toMap());
       debugPrint('📝 FinancialActivity: Logged CUSTOM - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logCustomActivity error: $e');

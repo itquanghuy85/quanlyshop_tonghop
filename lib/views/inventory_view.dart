@@ -3144,6 +3144,7 @@ class _InventoryViewState extends State<InventoryView>
                     referenceId: p.firestoreId,
                     referenceType: 'inventory_stockin',
                     personName: supplier,
+                    idempotencyKey: p.firestoreId,
                     metadata: {
                       'productId': savedProduct?.id,
                       'productName': p.name,

@@ -603,6 +603,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       personName: widget.partner.name,
       personPhone: widget.partner.phone,
       notes: note.isNotEmpty ? note : null,
+      idempotencyKey: debtFId,
       metadata: {
         'partnerId': widget.partner.id,
         'partnerName': widget.partner.name,
