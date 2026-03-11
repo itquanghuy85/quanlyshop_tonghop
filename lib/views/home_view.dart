@@ -1948,8 +1948,10 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    return WillPopScope(
-      onWillPop: () async {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -1966,7 +1968,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             ],
           ),
         );
-        return ok ?? false;
+        if (ok == true && context.mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
