@@ -1440,4 +1440,118 @@ class ExcelExportHelper {
     final fileName = _buildFileName('so_quy_giao_dich', startOfDay, endOfDay);
     await _saveAndShare(excel, fileName, context);
   }
+
+  // ──────────────────────────────────────────────
+  //  16. EXPORT SUPPLIER IMPORT HISTORY (LỊCH SỬ NHẬP NCC)
+  // ──────────────────────────────────────────────
+
+  static Future<void> exportSupplierImportHistory(
+    BuildContext context, {
+    required String supplierName,
+    required List<Map<String, dynamic>> imports,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Lịch sử nhập'];
+
+    _writeHeaders(sheet, [
+      'STT',
+      'Sản phẩm',
+      'Ngày nhập',
+      'Số tiền',
+      'Ghi chú',
+    ]);
+
+    int totalAmount = 0;
+    for (int i = 0; i < imports.length; i++) {
+      final h = imports[i];
+      final amount = h['totalAmount'] as int? ?? 0;
+      totalAmount += amount;
+      _writeRow(sheet, i + 1, [
+        i + 1,
+        h['productName'] ?? '',
+        _fmtDate(h['importDate']),
+        _fmtMoney(amount),
+        h['notes'] ?? '',
+      ]);
+    }
+
+    // Summary row
+    final summaryRow = imports.length + 2;
+    _writeRow(sheet, summaryRow, [
+      '',
+      'TỔNG',
+      '${imports.length} lần nhập',
+      _fmtMoney(totalAmount),
+      '',
+    ]);
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final safeName = supplierName.replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(' ', '_');
+    final now = DateFormat('ddMMyyyy_HHmm').format(DateTime.now());
+    final fileName = 'nhap_hang_${safeName}_$now.xlsx';
+    await _saveAndShare(excel, fileName, context);
+  }
+
+  // ──────────────────────────────────────────────
+  //  17. EXPORT PARTNER REPAIR ORDERS (ĐƠN GỬI SỬA ĐỐI TÁC)
+  // ──────────────────────────────────────────────
+
+  static Future<void> exportPartnerRepairOrders(
+    BuildContext context, {
+    required String partnerName,
+    required List<Map<String, dynamic>> orders,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Đơn gửi sửa'];
+
+    _writeHeaders(sheet, [
+      'STT',
+      'Dòng máy',
+      'Khách hàng',
+      'Lỗi / Yêu cầu',
+      'Nội dung sửa',
+      'Chi phí',
+      'Ngày gửi',
+    ]);
+
+    int totalCost = 0;
+    for (int i = 0; i < orders.length; i++) {
+      final h = orders[i];
+      final cost = h['partnerCost'] as int? ?? 0;
+      totalCost += cost;
+      _writeRow(sheet, i + 1, [
+        i + 1,
+        h['deviceModel'] ?? '',
+        h['customerName'] ?? '',
+        h['issue'] ?? '',
+        h['repairContent'] ?? '',
+        _fmtMoney(cost),
+        _fmtDateTime(h['sentAt']),
+      ]);
+    }
+
+    // Summary row
+    final summaryRow = orders.length + 2;
+    _writeRow(sheet, summaryRow, [
+      '',
+      'TỔNG',
+      '${orders.length} đơn',
+      '',
+      '',
+      _fmtMoney(totalCost),
+      '',
+    ]);
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final safeName = partnerName.replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(' ', '_');
+    final now = DateFormat('ddMMyyyy_HHmm').format(DateTime.now());
+    final fileName = 'don_gui_sua_${safeName}_$now.xlsx';
+    await _saveAndShare(excel, fileName, context);
+  }
 }

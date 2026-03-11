@@ -15,6 +15,7 @@ import '../widgets/currency_text_field.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_fab.dart';
+import '../utils/excel_export_helper.dart';
 
 class RepairPartnerDetailView extends StatefulWidget {
   final RepairPartner partner;
@@ -143,6 +144,18 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (_tab.index == 0 && _histories.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.file_download),
+              tooltip: 'Xuất Excel',
+              onPressed: () => ExcelExportHelper.exportPartnerRepairOrders(
+                context,
+                partnerName: widget.partner.name,
+                orders: _histories.map((h) => h.toMap()).toList(),
+              ),
+            ),
+        ],
         bottom: TabBar(
           controller: _tab,
           labelColor: Colors.white,

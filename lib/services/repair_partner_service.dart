@@ -170,14 +170,10 @@ class RepairPartnerService {
   Future<List<PartnerRepairHistory>> _buildHistoriesFromRepairs(int partnerId, String? partnerName, String? shopId) async {
     final dbInstance = await db.database;
     final nameUpper = (partnerName ?? '').toUpperCase().trim();
-    String where = "(deleted IS NULL OR deleted = 0)";
-    List<dynamic> args = [];
-    if (shopId != null) {
-      where += " AND shopId = ?";
-      args.add(shopId);
-    }
-    final rows = await dbInstance.query('repairs', where: where, whereArgs: args,
-        columns: ['firestoreId', 'customerName', 'model', 'services', 'createdAt', 'shopId']);
+    // repairs table has no shopId column — all local repairs belong to current shop
+    const where = "(deleted IS NULL OR deleted = 0)";
+    final rows = await dbInstance.query('repairs', where: where,
+        columns: ['firestoreId', 'customerName', 'model', 'services', 'createdAt']);
     final List<PartnerRepairHistory> results = [];
     for (final row in rows) {
       final servicesJson = row['services'];
@@ -259,14 +255,9 @@ class RepairPartnerService {
   Future<Map<String, dynamic>> _countRepairsForPartner(int partnerId, String? partnerName, String? shopId) async {
     final dbInstance = await db.database;
     final nameUpper = (partnerName ?? '').toUpperCase().trim();
-    // Query repairs with services JSON containing this partnerId or partnerName
-    String where = "(deleted IS NULL OR deleted = 0)";
-    List<dynamic> args = [];
-    if (shopId != null) {
-      where += " AND shopId = ?";
-      args.add(shopId);
-    }
-    final rows = await dbInstance.query('repairs', where: where, whereArgs: args, columns: ['services', 'createdAt']);
+    // repairs table has no shopId column — all local repairs belong to current shop
+    const where = "(deleted IS NULL OR deleted = 0)";
+    final rows = await dbInstance.query('repairs', where: where, columns: ['services', 'createdAt']);
     int count = 0;
     int totalCost = 0;
     int? lastDate;

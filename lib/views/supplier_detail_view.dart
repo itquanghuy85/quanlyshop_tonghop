@@ -15,6 +15,7 @@ import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_fab.dart';
+import '../utils/excel_export_helper.dart';
 
 class SupplierDetailView extends StatefulWidget {
   final Supplier supplier;
@@ -100,6 +101,18 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          if (_tab.index == 0 && _imports.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.file_download),
+              tooltip: 'Xuất Excel',
+              onPressed: () => ExcelExportHelper.exportSupplierImportHistory(
+                context,
+                supplierName: widget.supplier.name,
+                imports: _imports,
+              ),
+            ),
+        ],
         bottom: TabBar(
           controller: _tab,
           labelColor: Colors.white,
