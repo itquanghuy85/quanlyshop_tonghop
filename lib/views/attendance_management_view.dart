@@ -632,123 +632,44 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   // ==================== TAB 2: APPROVAL ====================
 
   Widget _buildApprovalTab() {
-    try {
-    final loc = AppLocalizations.of(context)!;
-    // Collect ALL attendance that needs approval (pending with checkIn)
-    List<Attendance> pending = [];
+    // STEP 1: Absolute minimum test - does this tab render AT ALL?
+    final pendingFromAttendance = <Attendance>[];
     for (final staff in _staffList) {
       final records = _staffAttendance[staff['id']] ?? [];
       for (final r in records) {
-        if (r.status == 'pending' && r.checkInAt != null) pending.add(r);
+        if (r.status == 'pending' && r.checkInAt != null) pendingFromAttendance.add(r);
       }
     }
-    // Also include forgot check-in requests from _pendingRequests
-    for (final r in _pendingRequests) {
-      if (!pending.any((p) => p.firestoreId == r.firestoreId)) pending.add(r);
-    }
 
-    // Build all widgets into a flat list
-    final items = <Widget>[
-      // DIAGNOSTIC BANNER - will remove after debugging
-      Container(
-        width: double.infinity,
-        color: Colors.orange,
-        padding: const EdgeInsets.all(6),
-        child: Text(
-          'v11.1.26 | staff:${_staffList.length} pend:${pending.length} req:${_pendingRequests.length}',
-          style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    ];
-
-    // Bulk approve bar
-    if (pending.isNotEmpty) {
-      items.add(
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: AppColors.warning.withOpacity(0.1),
-          child: Row(
-            children: [
-              Icon(Icons.pending_actions, size: 18, color: AppColors.warning),
-              const SizedBox(width: 8),
-              Expanded(child: Text('${pending.length} yêu cầu chờ duyệt',
-                style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.w500))),
-              TextButton.icon(
-                onPressed: () => _bulkApprove(pending),
-                icon: const Icon(Icons.check_circle, size: 16),
-                label: Text(loc.bulkApprove, style: const TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(foregroundColor: AppColors.success),
-              ),
-            ],
+    return Container(
+      color: Colors.white,
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            color: Colors.red,
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'APPROVAL TAB v11.1.27\n'
+              'staff=${_staffList.length}\n'
+              'attendanceKeys=${_staffAttendance.keys.length}\n'
+              'pendingFromAtt=${pendingFromAttendance.length}\n'
+              'pendingRequests=${_pendingRequests.length}',
+              style: const TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
           ),
-        ),
-      );
-    }
-
-    // Action buttons
-    items.add(
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _showForgotCheckinDialog,
-                icon: const Icon(Icons.add_alarm, size: 16),
-                label: Text(loc.forgotCheckin, style: const TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _showEditOvertimeDialog,
-                icon: const Icon(Icons.more_time, size: 16),
-                label: Text(loc.editOvertime, style: const TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-              ),
-            ),
-          ],
-        ),
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text('Nếu bạn đọc được dòng này = TAB HOẠT ĐỘNG',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
-
-    // Empty state or cards
-    if (pending.isEmpty) {
-      items.add(
-        Padding(
-          padding: const EdgeInsets.only(top: 80),
-          child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.check_circle_outline, size: 48, color: AppColors.success.withOpacity(0.5)),
-            const SizedBox(height: 8),
-            Text(loc.noPendingRequests, style: TextStyle(color: AppColors.inactive)),
-          ])),
-        ),
-      );
-    }
-    for (final record in pending) {
-      items.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: _buildApprovalCard(record),
-        ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
-      children: items,
-    );
-    } catch (e, s) {
-      debugPrint('❌ _buildApprovalTab CRASH: $e\n$s');
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text('LỖI TAB DUYỆT:\n$e', style: const TextStyle(color: Colors.red, fontSize: 14)),
-        ),
-      );
-    }
   }
 
   Widget _buildApprovalCard(Attendance record) {
