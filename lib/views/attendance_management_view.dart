@@ -258,8 +258,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       body: ResponsiveCenter(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabCtrl,
+            : IndexedStack(
+                index: _tabCtrl.index,
                 children: [
                   _buildOverviewTab(),
                   _buildApprovalTab(),
@@ -778,16 +778,20 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
               Padding(padding: const EdgeInsets.only(top: 4), child: Text('Ghi chú: ${record.note}', style: TextStyle(fontSize: 11, color: AppColors.inactive))),
             const Divider(height: 12),
             Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              TextButton(
-                onPressed: () => _rejectAttendance(record),
-                style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
-                child: Text(AppLocalizations.of(context)!.rejectAttendance, style: const TextStyle(fontSize: 12)),
+              Flexible(
+                child: TextButton(
+                  onPressed: () => _rejectAttendance(record),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
+                  child: Text(AppLocalizations.of(context)!.rejectAttendance, style: const TextStyle(fontSize: 12)),
+                ),
               ),
               const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: () => _approveAttendance(record),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
-                child: Text(AppLocalizations.of(context)!.approveAttendance, style: const TextStyle(fontSize: 12)),
+              Flexible(
+                child: ElevatedButton(
+                  onPressed: () => _approveAttendance(record),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
+                  child: Text(AppLocalizations.of(context)!.approveAttendance, style: const TextStyle(fontSize: 12)),
+                ),
               ),
             ]),
           ],
@@ -1166,19 +1170,23 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
               Padding(padding: const EdgeInsets.only(top: 2), child: Text('Lý do: ${lr.reason}', style: TextStyle(fontSize: 11, color: AppColors.onSurface.withOpacity(0.7)))),
             if (lr.rejectReason != null && lr.rejectReason!.isNotEmpty)
               Padding(padding: const EdgeInsets.only(top: 2), child: Text('Từ chối: ${lr.rejectReason}', style: TextStyle(fontSize: 11, color: AppColors.error))),
-            if (lr.status == 'pending') ...[  
+            if (lr.status?.toLowerCase() == 'pending') ...[  
               const Divider(height: 12),
               Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                TextButton(
-                  onPressed: () => _rejectLeave(lr),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
-                  child: Text(loc.rejectLeave, style: const TextStyle(fontSize: 12)),
+                Flexible(
+                  child: TextButton(
+                    onPressed: () => _rejectLeave(lr),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
+                    child: Text(loc.rejectLeave, style: const TextStyle(fontSize: 12)),
+                  ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () => _approveLeave(lr),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
-                  child: Text(loc.approveLeave, style: const TextStyle(fontSize: 12)),
+                Flexible(
+                  child: ElevatedButton(
+                    onPressed: () => _approveLeave(lr),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
+                    child: Text(loc.approveLeave, style: const TextStyle(fontSize: 12)),
+                  ),
                 ),
               ]),
             ],
