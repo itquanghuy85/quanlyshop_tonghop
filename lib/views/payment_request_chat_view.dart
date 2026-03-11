@@ -59,6 +59,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   // Filter
   PaymentRequestStatus? _statusFilter;
+  String _dateRange = 'today'; // today, week, month, all
 
   // Search
   bool _isSearching = false;
@@ -119,22 +120,66 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   bool get _isOwnerOrAdmin =>
       _userRole == 'owner' || _userRole == 'manager' || _userRole == 'admin' || _userRole == 'superadmin';
 
-  /// Filter requests by search query
+  /// Filter requests by search query and date range, with overdue priority sorting
   List<PaymentRequest> get _filteredRequests {
-    if (_searchQuery.isEmpty) return _requests;
-    final q = _searchQuery;
-    return _requests.where((r) {
-      return VietnameseUtils.containsVietnamese(r.customerName, q) ||
-          r.customerPhone.toLowerCase().contains(q.toLowerCase()) ||
-          VietnameseUtils.containsVietnamese(r.bankName ?? '', q) ||
-          (r.accountNumber ?? '').toLowerCase().contains(q.toLowerCase()) ||
-          VietnameseUtils.containsVietnamese(r.description ?? '', q) ||
-          VietnameseUtils.containsVietnamese(r.customerAddress ?? '', q) ||
-          VietnameseUtils.containsVietnamese(r.customerNote ?? '', q) ||
-          VietnameseUtils.containsVietnamese(r.paymentTypeDisplay, q) ||
-          VietnameseUtils.containsVietnamese(r.senderName, q) ||
-          _currencyFmt.format(r.amount).contains(q);
-    }).toList();
+    var list = _requests;
+
+    // Date range filter
+    if (_dateRange != 'all') {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      late DateTime rangeStart;
+      switch (_dateRange) {
+        case 'week':
+          rangeStart = todayStart.subtract(Duration(days: todayStart.weekday - 1));
+          break;
+        case 'month':
+          rangeStart = DateTime(now.year, now.month, 1);
+          break;
+        default: // 'today'
+          rangeStart = todayStart;
+      }
+      list = list.where((r) {
+        if (r.createdAt.isAfter(rangeStart) || r.createdAt.isAtSameMomentAs(rangeStart)) return true;
+        // Always include overdue unprocessed items from before the range
+        if (r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing) {
+          return r.createdAt.isBefore(rangeStart);
+        }
+        return false;
+      }).toList();
+    }
+
+    // Search filter
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery;
+      list = list.where((r) {
+        return VietnameseUtils.containsVietnamese(r.customerName, q) ||
+            r.customerPhone.toLowerCase().contains(q.toLowerCase()) ||
+            VietnameseUtils.containsVietnamese(r.bankName ?? '', q) ||
+            (r.accountNumber ?? '').toLowerCase().contains(q.toLowerCase()) ||
+            VietnameseUtils.containsVietnamese(r.description ?? '', q) ||
+            VietnameseUtils.containsVietnamese(r.customerAddress ?? '', q) ||
+            VietnameseUtils.containsVietnamese(r.customerNote ?? '', q) ||
+            VietnameseUtils.containsVietnamese(r.paymentTypeDisplay, q) ||
+            VietnameseUtils.containsVietnamese(r.senderName, q) ||
+            _currencyFmt.format(r.amount).contains(q);
+      }).toList();
+    }
+
+    // Sort: overdue unprocessed first, then newest first
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    list.sort((a, b) {
+      final aOverdue = (a.status == PaymentRequestStatus.pending || a.status == PaymentRequestStatus.processing) &&
+          a.createdAt.isBefore(todayStart);
+      final bOverdue = (b.status == PaymentRequestStatus.pending || b.status == PaymentRequestStatus.processing) &&
+          b.createdAt.isBefore(todayStart);
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+    return list;
   }
 
   @override
@@ -221,6 +266,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         children: [
           // Summary bar
           _buildSummaryBar(),
+          // Date filter chips
+          _buildDateFilterChips(),
           // Search result count
           if (_searchQuery.isNotEmpty)
             Container(
@@ -319,24 +366,110 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     );
   }
 
+  Widget _buildDateFilterChips() {
+    const chips = [
+      ('today', 'Hôm nay'),
+      ('week', 'Tuần này'),
+      ('month', 'Tháng này'),
+      ('all', 'Tất cả'),
+    ];
+    // Count overdue items
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final overdueCount = _requests.where((r) =>
+      (r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing) &&
+      r.createdAt.isBefore(todayStart)
+    ).length;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
+      child: Row(
+        children: [
+          ...chips.map((c) {
+            final isSelected = _dateRange == c.$1;
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: InkWell(
+                onTap: () => setState(() => _dateRange = c.$1),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFF075E54) : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    c.$2,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected ? Colors.white : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+          if (overdueCount > 0) ...[
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '⚠ $overdueCount quá hạn',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   // ============== CHAT BUBBLE ==============
 
   Widget _buildRequestBubble(PaymentRequest req) {
     final isMe = req.senderId == _currentUid;
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final color = isMe ? const Color(0xFFDCF8C6) : Colors.white; // WhatsApp bubble colors
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final isOverdue = (req.status == PaymentRequestStatus.pending || req.status == PaymentRequestStatus.processing) &&
+        req.createdAt.isBefore(todayStart);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         crossAxisAlignment: align,
         children: [
-          // Sender name + time
+          // Sender name + time + overdue
           Padding(
             padding: EdgeInsets.only(left: isMe ? 60 : 4, right: isMe ? 4 : 60, bottom: 2),
-            child: Text(
-              '${req.senderName} · ${DateFormat('dd/MM HH:mm').format(req.createdAt)}',
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isOverdue) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    margin: const EdgeInsets.only(right: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade600,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('QUÁ HẠN', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+                Flexible(
+                  child: Text(
+                    '${req.senderName} · ${DateFormat('dd/MM HH:mm').format(req.createdAt)}',
+                    style: TextStyle(fontSize: 11, color: isOverdue ? Colors.red.shade600 : Colors.grey.shade600),
+                  ),
+                ),
+              ],
             ),
           ),
           // Bubble

@@ -6855,14 +6855,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   ? activityItems.length.clamp(1, 6)
                   : (r2.isTablet
                       ? activityItems.length.clamp(1, 5)
-                      : activityItems.length.clamp(1, 6));
+                      : activityItems.length.clamp(1, 5));
               return GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisCount: crossAxisCount,
                 mainAxisSpacing: 2,
                 crossAxisSpacing: 2,
-                childAspectRatio: 0.85,
+                childAspectRatio: 0.78,
                 children: activityItems,
               );
             }),

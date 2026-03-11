@@ -316,7 +316,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                               color: _primaryColor,
                               child: ListView.builder(
                                 controller: _scrollController,
-                                padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+                                padding: const EdgeInsets.fromLTRB(8, 0, 8, 80),
                                 itemCount: _filteredParts.length,
                                 itemBuilder: (ctx, i) => _buildPartCard(_filteredParts[i], i + 1),
                           ),
@@ -659,23 +659,24 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     final qty = p['quantity'] as int? ?? 0;
     final cost = p['cost'] as int? ?? 0;
     final price = p['price'] as int? ?? 0;
-    final createdAt = p['createdAt'] as int?;
     final updatedAt = p['updatedAt'] as int?;
+    final createdAt = p['createdAt'] as int?;
     final isLow = qty > 0 && qty <= 2;
     final isOut = qty == 0;
     final supplierName = _getSupplierName(p['supplierId'] as int?);
-    final updatedText = updatedAt != null
-      ? DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(updatedAt))
+    final dateMs = updatedAt ?? createdAt;
+    final dateText = dateMs != null
+      ? DateFormat('dd/MM/yy').format(DateTime.fromMillisecondsSinceEpoch(dateMs))
       : null;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: isSelected ? 4 : 1,
+      margin: const EdgeInsets.only(bottom: 4),
+      elevation: isSelected ? 3 : 0.5,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: isSelected 
             ? const BorderSide(color: _primaryColor, width: 2)
-            : BorderSide.none,
+            : BorderSide(color: Colors.grey.shade200, width: 0.5),
       ),
       child: InkWell(
         onTap: () {
@@ -686,50 +687,59 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           }
         },
         onLongPress: () => _toggleSelection(id),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: [
               // Leading icon/checkbox
               if (_isSelectionMode)
-                Checkbox(
-                  value: isSelected,
-                  onChanged: (_) => _toggleSelection(id),
-                  activeColor: _primaryColor,
+                SizedBox(
+                  width: 36, height: 36,
+                  child: Checkbox(
+                    value: isSelected,
+                    onChanged: (_) => _toggleSelection(id),
+                    activeColor: _primaryColor,
+                  ),
                 )
               else
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: isOut 
-                        ? Colors.grey.shade200 
+                        ? Colors.grey.shade100 
                         : isLow 
-                            ? Colors.orange.withOpacity(0.15)
-                            : _primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
+                            ? Colors.orange.withOpacity(0.12)
+                            : _primaryColor.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    isOut ? Icons.block : Icons.build_circle,
-                    color: isOut ? Colors.grey : isLow ? Colors.orange : _primaryColor,
-                    size: 24,
+                  child: Center(
+                    child: Text(
+                      '$qty',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isOut ? Colors.grey : isLow ? Colors.orange : _primaryColor,
+                      ),
+                    ),
                   ),
                 ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Row 1: Name + badge
                     Row(
                       children: [
                         Expanded(
                           child: Text(
                             p['partName'] ?? 'N/A',
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: AppTextStyles.headline4.fontSize,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
                               color: isOut ? Colors.grey : Colors.black87,
                             ),
                             maxLines: 1,
@@ -738,88 +748,66 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                         ),
                         if (isLow && !isOut)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.orange.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(3),
                             ),
                             child: const Text('SẮP HẾT', style: TextStyle(
-                              fontSize: AppTextStyles.overlineSize,
+                              fontSize: 9,
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
                             )),
                           ),
                         if (isOut)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(3),
                             ),
-                            child: const Text('HẾT HÀNG', style: TextStyle(
-                              fontSize: AppTextStyles.overlineSize,
+                            child: const Text('HẾT', style: TextStyle(
+                              fontSize: 9,
                               color: Colors.grey,
                               fontWeight: FontWeight.bold,
                             )),
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
+                    // Row 2: Compatible models
                     Text(
-                      p['compatibleModels'] ?? 'Tương thích: N/A',
-                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade600),
+                      p['compatibleModels'] ?? '',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        _infoChip(Icons.inventory_2, 'SL: $qty', isLow ? Colors.orange : Colors.blue),
-                        if (_canViewCostPrice) ...[
-                          const SizedBox(width: 8),
-                          _infoChip(Icons.attach_money, NumberFormat.compact().format(cost), Colors.green),
+                    const SizedBox(height: 3),
+                    // Row 3: Compact info line
+                    DefaultTextStyle(
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      child: Row(
+                        children: [
+                          if (_canViewCostPrice) ...[
+                            Text('Vốn: ${NumberFormat.compact().format(cost)}',
+                              style: TextStyle(color: Colors.green.shade700)),
+                            Text(' · '),
+                          ],
+                          Text('Bán: ${NumberFormat('#,###').format(price)}đ',
+                            style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600)),
+                          if (supplierName != 'Không xác định') ...[
+                            Text(' · '),
+                            Flexible(child: Text(supplierName, overflow: TextOverflow.ellipsis)),
+                          ],
+                          if (dateText != null) ...[
+                            Text(' · '),
+                            Text(dateText),
+                          ],
                         ],
-                        const SizedBox(width: 8),
-                        _infoChip(Icons.sell, NumberFormat.compact().format(price), Colors.red),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        if (supplierName != 'Không xác định')
-                          _infoChip(Icons.store, supplierName, _primaryColor),
-                        if (updatedText != null)
-                          _infoChip(Icons.update, 'Cập nhật: $updatedText', Colors.grey.shade700),
-                        if (createdAt != null && updatedAt == null)
-                          _infoChip(
-                            Icons.schedule,
-                            'Tạo: ${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(createdAt))}',
-                            Colors.grey.shade700,
-                          ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              // Trailing - Giá bán
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '${NumberFormat('#,###').format(price)}đ',
-                    style: TextStyle(
-                      fontSize: AppTextStyles.headline3.fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: isOut ? Colors.grey : Colors.red.shade700,
-                    ),
-                  ),
-                  Text(
-                    'Giá bán',
-                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade500),
-                  ),
-                ],
               ),
             ],
           ),

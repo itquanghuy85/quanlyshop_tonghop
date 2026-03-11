@@ -78,8 +78,7 @@ class _InventoryViewState extends State<InventoryView>
   String _searchQuery = "";
   bool _showOutOfStock = false; // Hiển thị cả hàng hết
   String _filterType =
-      'TẤT CẢ'; // Filter theo loại: TẤT CẢ, DIEN_THOAI, PHỤ KIỆN, LINH KIỆN
-  bool _showOnlyPending = false; // Filter chỉ hiện kho tạm
+      'TẤT CẢ'; // Filter theo loại: TẤT CẢ, DIEN_THOAI, PHỤ KIỆN
   
   // ScrollController for lazy loading
   final ScrollController _scrollController = ScrollController();
@@ -88,7 +87,6 @@ class _InventoryViewState extends State<InventoryView>
   bool get _needsFullData => 
       _searchQuery.isNotEmpty || 
       _filterType != 'TẤT CẢ' || 
-      _showOnlyPending ||
       _showOutOfStock;
 
   final Set<int> _selectedIds = {};
@@ -1539,7 +1537,7 @@ class _InventoryViewState extends State<InventoryView>
         return [
           DropdownMenuItem(value: 'DIEN_THOAI', child: Text('📱 ${_terms.category1}')),
           DropdownMenuItem(value: 'PHU_KIEN', child: Text('🔧 ${_terms.category2} (Kho sửa chữa)')),
-          DropdownMenuItem(value: 'LINH_KIEN', child: Text('⚙️ ${_terms.category3} (${_terms.productLabel})')),
+
         ];
     }
   }
@@ -2103,11 +2101,6 @@ class _InventoryViewState extends State<InventoryView>
       filteredList = filteredList.where((p) => p.type == _filterType).toList();
     }
 
-    // Lọc theo trạng thái Kho Tạm
-    if (_showOnlyPending) {
-      filteredList = filteredList.where((p) => p.isPending).toList();
-    }
-
     // Nếu không bật showOutOfStock, chỉ hiện còn hàng (quantity > 0)
     if (!_showOutOfStock) {
       filteredList = filteredList.where((p) => p.quantity > 0).toList();
@@ -2593,14 +2586,7 @@ class _InventoryViewState extends State<InventoryView>
                   Colors.green,
                 ),
                 const SizedBox(width: 8),
-                _buildTypeFilterChip(
-                  'LINH_KIEN',
-                  Icons.build,
-                  Colors.orange,
-                ),
-                const SizedBox(width: 8),
-                // Filter Kho Tạm
-                _buildPendingFilterChip(),
+
               ],
             ),
           ),
@@ -2696,8 +2682,6 @@ class _InventoryViewState extends State<InventoryView>
         ? _terms.category1
         : type == 'PHU_KIEN'
         ? _terms.category2
-        : type == 'LINH_KIEN'
-        ? _terms.category3
         : 'Tất cả';
 
     // Đếm số lượng theo type
@@ -2750,66 +2734,6 @@ class _InventoryViewState extends State<InventoryView>
                 ),
                 child: Text(
                   '$count',
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPendingFilterChip() {
-    final pendingCount = _products.where((p) => p.isPending).length;
-    final isSelected = _showOnlyPending;
-
-    return InkWell(
-      onTap: () => setState(() => _showOnlyPending = !_showOnlyPending),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Colors.orange.withOpacity(0.15)
-              : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? Colors.orange : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.hourglass_empty,
-              size: 16,
-              color: isSelected ? Colors.orange : Colors.grey,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'Kho tạm',
-              style: AppTextStyles.subtitle1.copyWith(
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected
-                    ? Colors.orange.shade700
-                    : Colors.grey.shade700,
-              ),
-            ),
-            if (pendingCount > 0) ...[
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$pendingCount',
                   style: AppTextStyles.caption.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
