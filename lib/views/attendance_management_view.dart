@@ -207,7 +207,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       final start = DateFormat('yyyy-MM-dd').format(DateTime(_selectedMonth.year, _selectedMonth.month, 1));
       final end = DateFormat('yyyy-MM-dd').format(DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0));
       _leaveRequests = await AttendanceApprovalService.getLeaveRequestsByDateRange(start, end);
+      debugPrint('📋 Loaded ${_leaveRequests.length} leave requests for $start → $end');
     } catch (e) {
+      debugPrint('❌ _loadLeaveRequests error: $e');
       _leaveRequests = [];
     }
   }
@@ -1010,15 +1012,26 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   // ==================== TAB 3: LEAVE REQUESTS ====================
 
   Widget _buildLeaveTab() {
+    // Wrap in Builder to catch any potential runtime errors gracefully
+    return Builder(builder: (context) {
+      try {
+        return _buildLeaveTabContent();
+      } catch (e) {
+        debugPrint('❌ _buildLeaveTab error: $e');
+        return Center(child: Text('Lỗi tải dữ liệu: $e'));
+      }
+    });
+  }
+
+  Widget _buildLeaveTabContent() {
     final loc = AppLocalizations.of(context)!;
     final pending = _leaveRequests.where((l) => l.status == 'pending').toList();
     final processed = _leaveRequests.where((l) => l.status != 'pending').toList();
 
-    // Build a flat list of widgets
-    final List<Widget> items = [];
+    debugPrint('📋 _buildLeaveTab: total=${_leaveRequests.length}, pending=${pending.length}, processed=${processed.length}');
 
-    // Create button
-    items.add(Padding(
+    // Create button widget
+    final createButton = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: SizedBox(
         width: double.infinity,
@@ -1029,47 +1042,80 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
           style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
       ),
-    ));
+    );
 
+    // Empty state
     if (_leaveRequests.isEmpty) {
-      return Column(children: [
-        items.first,
-        Expanded(child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.event_available, size: 48, color: AppColors.inactive.withOpacity(0.5)),
-          const SizedBox(height: 8),
-          Text(loc.noLeaveRequests, style: TextStyle(color: AppColors.inactive)),
-        ]))),
-      ]);
+      return Column(
+        children: [
+          createButton,
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.event_available, size: 48, color: AppColors.inactive.withOpacity(0.5)),
+                  const SizedBox(height: 8),
+                  Text(loc.noLeaveRequests, style: TextStyle(color: AppColors.inactive)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
     }
 
-    if (pending.isNotEmpty) {
-      items.add(Padding(
-        padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 6),
-        child: Text('Chờ duyệt (${pending.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.warning)),
-      ));
-      for (final lr in pending) {
-        items.add(Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: _buildLeaveCard(lr),
-        ));
-      }
-    }
-    if (processed.isNotEmpty) {
-      items.add(Padding(
-        padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
-        child: Text('Đã xử lý (${processed.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.inactive)),
-      ));
-      for (final lr in processed) {
-        items.add(Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: _buildLeaveCard(lr),
-        ));
-      }
-    }
+    // Build items list
+    return Column(
+      children: [
+        createButton,
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: pending.length + processed.length + (pending.isNotEmpty ? 1 : 0) + (processed.isNotEmpty ? 1 : 0),
+            itemBuilder: (context, index) {
+              int offset = 0;
 
-    return ListView(
-      padding: const EdgeInsets.only(bottom: 16),
-      children: items,
+              // Pending section header
+              if (pending.isNotEmpty) {
+                if (index == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 6),
+                    child: Text('Chờ duyệt (${pending.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.warning)),
+                  );
+                }
+                offset = 1;
+                if (index < offset + pending.length) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _buildLeaveCard(pending[index - offset]),
+                  );
+                }
+                offset += pending.length;
+              }
+
+              // Processed section header
+              if (processed.isNotEmpty) {
+                if (index == offset) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
+                    child: Text('Đã xử lý (${processed.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.inactive)),
+                  );
+                }
+                final processedOffset = offset + 1;
+                if (index < processedOffset + processed.length) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _buildLeaveCard(processed[index - processedOffset]),
+                  );
+                }
+              }
+
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      ],
     );
   }
 
