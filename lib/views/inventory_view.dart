@@ -78,7 +78,8 @@ class _InventoryViewState extends State<InventoryView>
   String _searchQuery = "";
   bool _showOutOfStock = false; // Hiển thị cả hàng hết
   String _filterType =
-      'TẤT CẢ'; // Filter theo loại: TẤT CẢ, DIEN_THOAI, PHỤ KIỆN
+      'TẤT CẢ'; // Filter theo loại: TẤT CẢ, DIEN_THOAI, PHỤ KIỆN, LINH_KIEN
+  int _repairPartsCount = 0; // Count for repair parts tab chip
   
   // ScrollController for lazy loading
   final ScrollController _scrollController = ScrollController();
@@ -133,7 +134,7 @@ class _InventoryViewState extends State<InventoryView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // 2 tabs: Kho chính + Kho LK sửa chữa
+    _tabController = TabController(length: 1, vsync: this);
     _init(); // _init sẽ gọi _initCheckData sau khi load shop settings
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
@@ -1606,6 +1607,10 @@ class _InventoryViewState extends State<InventoryView>
     final suppliers = await supplierService.getSuppliers();
     final unsyncedCount = await db.getUnsyncedQuickInputCodesCount();
     
+    // Load repair parts count for category chip
+    final parts = await db.getAllParts();
+    final partsCount = parts.where((p) => (p['quantity'] as int? ?? 0) > 0 || _showOutOfStock).length;
+    
     // ALWAYS load total summary from DB first (for correct totals)
     final summary = await db.getInventorySummary(type: _filterType == 'TẤT CẢ' ? null : _filterType);
     
@@ -1621,6 +1626,7 @@ class _InventoryViewState extends State<InventoryView>
         _unsyncedCount = unsyncedCount;
         _totalQtyFromDB = summary['totalQty'] ?? 0;
         _totalCapitalFromDB = summary['totalCapital'] ?? 0;
+        _repairPartsCount = partsCount;
         _isLoading = false;
         _hasMore = false;
       });
@@ -1635,6 +1641,7 @@ class _InventoryViewState extends State<InventoryView>
         _unsyncedCount = unsyncedCount;
         _totalQtyFromDB = summary['totalQty'] ?? 0;
         _totalCapitalFromDB = summary['totalCapital'] ?? 0;
+        _repairPartsCount = partsCount;
         _currentOffset = _pageSize;
         _isLoading = false;
         _hasMore = firstPage.length >= _pageSize;
@@ -2014,41 +2021,11 @@ class _InventoryViewState extends State<InventoryView>
       body: ResponsiveCenter(
         child: Column(
         children: [
-          // Tab Bar
-          if (_businessType == 'electronics')
-            Container(
-              color: AppColors.surface,
-              child: TabBar(
-                controller: _tabController,
-                labelColor: const Color(0xFF0068FF),
-                unselectedLabelColor: Colors.grey,
-                indicatorColor: const Color(0xFF0068FF),
-                indicatorWeight: 3,
-                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                unselectedLabelStyle: const TextStyle(fontSize: 13),
-                tabs: [
-                  Tab(
-                    icon: const Icon(Icons.inventory_2, size: 18),
-                    text: 'Kho chính',
-                    height: 50,
-                  ),
-                  Tab(
-                    icon: const Icon(Icons.build_circle, size: 18),
-                    text: 'LK sửa chữa',
-                    height: 50,
-                  ),
-                ],
-              ),
-            ),
+          // Category filter chips - always visible
+          _buildCategoryChips(),
           Expanded(
-            child: _businessType == 'electronics'
-                ? TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildInventoryTab(),
-                      const PartsInventoryViewContent(),
-                    ],
-                  )
+            child: _filterType == 'LINH_KIEN'
+                ? const PartsInventoryViewContent()
                 : _buildInventoryTab(),
           ),
           // Unified bottom bar with labels
@@ -2070,10 +2047,7 @@ class _InventoryViewState extends State<InventoryView>
                     _bottomBarItem(Icons.flash_on, 'Nhanh', Colors.orange, () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const FastStockInView())).then((_) => _refresh());
                     }),
-                  if (_businessType == 'electronics')
-                    _bottomBarItem(Icons.build_circle, _terms.category3, const Color(0xFF0068FF), () {
-                      _tabController.animateTo(1);
-                    }),
+
                   _bottomBarItem(Icons.shopping_cart_checkout_rounded, 'Bán hàng', Colors.teal, () {
                     HapticFeedback.mediumImpact();
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView())).then((_) => _refresh());
@@ -2085,10 +2059,15 @@ class _InventoryViewState extends State<InventoryView>
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()));
                   }),
                   _bottomBarItem(Icons.file_download_outlined, 'Excel', Colors.blueGrey, () async {
-                    final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
-                    if (result == null) return;
-                    if (!mounted) return;
-                    await ExcelExportHelper.exportProducts(context, startMs: result['startMs'], endMs: result['endMs']);
+                    if (_filterType == 'LINH_KIEN') {
+                      final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho linh kiện');
+                      if (result == null || !mounted) return;
+                      await ExcelExportHelper.exportRepairParts(context, startMs: result['startMs'], endMs: result['endMs']);
+                    } else {
+                      final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
+                      if (result == null || !mounted) return;
+                      await ExcelExportHelper.exportProducts(context, startMs: result['startMs'], endMs: result['endMs']);
+                    }
                   }),
                 ],
               ),
@@ -2593,38 +2572,36 @@ class _InventoryViewState extends State<InventoryView>
     );
   }
 
+  /// Category filter chips - always visible at top
+  Widget _buildCategoryChips() {
+    return Container(
+      color: AppColors.surface,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildTypeFilterChip('TẤT CẢ', Icons.apps, Colors.blue),
+            const SizedBox(width: 8),
+            _buildTypeFilterChip('DIEN_THOAI', Icons.smartphone, Colors.indigo),
+            const SizedBox(width: 8),
+            _buildTypeFilterChip('PHU_KIEN', Icons.headset_mic, Colors.green),
+            if (_businessType == 'electronics') ...[
+              const SizedBox(width: 8),
+              _buildTypeFilterChip('LINH_KIEN', Icons.build_circle, const Color(0xFF0068FF)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchBox() {
     // Đếm sản phẩm hết hàng
     final outOfStockCount = _products.where((p) => p.quantity <= 0).length;
 
     return Column(
       children: [
-        // Filter theo loại hàng
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildTypeFilterChip('TẤT CẢ', Icons.apps, Colors.blue),
-                const SizedBox(width: 8),
-                _buildTypeFilterChip(
-                  'DIEN_THOAI',
-                  Icons.smartphone,
-                  Colors.indigo,
-                ),
-                const SizedBox(width: 8),
-                _buildTypeFilterChip(
-                  'PHU_KIEN',
-                  Icons.headset_mic,
-                  Colors.green,
-                ),
-                const SizedBox(width: 8),
-
-              ],
-            ),
-          ),
-        ),
         // Search box và toggle hết hàng
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -2716,10 +2693,14 @@ class _InventoryViewState extends State<InventoryView>
         ? _terms.category1
         : type == 'PHU_KIEN'
         ? _terms.category2
+        : type == 'LINH_KIEN'
+        ? _terms.category3
         : 'Tất cả';
 
     // Đếm số lượng theo type
-    int count = type == 'TẤT CẢ'
+    int count = type == 'LINH_KIEN'
+        ? _repairPartsCount
+        : type == 'TẤT CẢ'
         ? _products.where((p) => p.quantity > 0 || _showOutOfStock).length
         : _products
               .where(

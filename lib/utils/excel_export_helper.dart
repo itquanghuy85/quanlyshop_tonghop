@@ -662,6 +662,79 @@ class ExcelExportHelper {
   }
 
   // ──────────────────────────────────────────────
+  //  5b. EXPORT REPAIR PARTS (KHO LINH KIỆN SỬA CHỮA)
+  // ──────────────────────────────────────────────
+
+  static Future<void> exportRepairParts(
+    BuildContext context, {
+    int? startMs,
+    int? endMs,
+  }) async {
+    List<Map<String, dynamic>> parts = await _db.getAllParts();
+
+    // Filter by createdAt if date range specified
+    if (startMs != null || endMs != null) {
+      parts = parts.where((p) {
+        final ts = p['createdAt'] as int? ?? 0;
+        if (startMs != null && ts < startMs) return false;
+        if (endMs != null && ts > endMs) return false;
+        return true;
+      }).toList();
+    }
+
+    // Load suppliers for name lookup
+    final suppliers = await _db.getSuppliers();
+    String getSupplierName(int? id) {
+      if (id == null) return '';
+      final s = suppliers.firstWhere((s) => s['id'] == id, orElse: () => {});
+      return s['name'] as String? ?? '';
+    }
+
+    final excel = Excel.createExcel();
+    final sheet = excel['Kho linh kiện'];
+
+    _writeHeaders(sheet, [
+      'STT',
+      'Tên linh kiện',
+      'Dòng máy tương thích',
+      'Số lượng tồn',
+      'Giá vốn',
+      'Giá bán',
+      'Tổng vốn tồn',
+      'Nhà cung cấp',
+      'Hình thức TT',
+      'Ngày nhập',
+      'Cập nhật lần cuối',
+    ]);
+
+    for (int i = 0; i < parts.length; i++) {
+      final p = parts[i];
+      final qty = p['quantity'] as int? ?? 0;
+      final cost = p['cost'] as int? ?? 0;
+      _writeRow(sheet, i + 1, [
+        i + 1,
+        p['partName'] ?? '',
+        p['compatibleModels'] ?? '',
+        qty,
+        _fmtMoney(cost),
+        _fmtMoney(p['price'] ?? 0),
+        _fmtMoney(cost * qty),
+        getSupplierName(p['supplierId'] as int?),
+        p['paymentMethod'] ?? '',
+        _fmtDateTime(p['createdAt']),
+        _fmtDateTime(p['updatedAt']),
+      ]);
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final fileName = _buildFileName('kho_linh_kien', startMs, endMs);
+    await _saveAndShare(excel, fileName, context);
+  }
+
+  // ──────────────────────────────────────────────
   //  6. EXPORT CUSTOMERS (KHÁCH HÀNG)
   // ──────────────────────────────────────────────
 
