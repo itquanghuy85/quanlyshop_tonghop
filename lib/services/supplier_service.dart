@@ -12,6 +12,9 @@ class SupplierService {
 
   /// Default warehouse supplier name
   static const String khoTongName = 'KHO TỔNG';
+  
+  /// Flag to only run dedup once per session
+  static bool _dedupDone = false;
 
   /// Ensure KHO TỔNG (central warehouse) supplier exists for the current shop.
   /// Called when supplier list is loaded or stock in view is opened.
@@ -65,6 +68,12 @@ class SupplierService {
   Future<List<Supplier>> getSuppliers() async {
     // Ensure KHO TỔNG exists before listing
     await ensureDefaultSuppliers();
+    
+    // Dọn dẹp NCC trùng lặp (chỉ chạy 1 lần mỗi session)
+    if (!_dedupDone) {
+      _dedupDone = true;
+      await db.deduplicateSuppliers();
+    }
 
     final shopId = await UserService.getCurrentShopId();
     debugPrint('SupplierService.getSuppliers: shopId=$shopId');
@@ -127,9 +136,14 @@ class SupplierService {
           };
           // Remove null id to let DB auto-generate
           mapped.remove('id');
-          // Cache locally for offline use and get the local ID
-          final localId = await db.insertSupplier(mapped);
-          suppliers.add(Supplier.fromMap({...mapped, 'id': localId}));
+          // Cache locally for offline use — use upsert to avoid duplicates
+          await db.upsertSupplier(mapped);
+          final cached = await db.getSuppliers();
+          final local = cached.firstWhere(
+            (s) => s['firestoreId'] == doc.id,
+            orElse: () => mapped,
+          );
+          suppliers.add(Supplier.fromMap({...local, 'shopId': shopId!}));
         }
         debugPrint('SupplierService.getSuppliers: Firestore fallback found ${snapshot.docs.length} suppliers');
       } catch (e) {
@@ -144,6 +158,18 @@ class SupplierService {
     final shopId = await UserService.getCurrentShopId();
     debugPrint('SupplierService.addSupplier: shopId=$shopId, name=${supplier.name}');
     
+    // Kiểm tra NCC trùng tên trước khi thêm
+    final existingSuppliers = await db.getSuppliers();
+    final duplicate = existingSuppliers.where((s) =>
+      (s['name'] as String?)?.toUpperCase() == supplier.name.toUpperCase() &&
+      s['shopId'] == shopId &&
+      (s['deleted'] != 1 && s['deleted'] != true)
+    ).toList();
+    if (duplicate.isNotEmpty) {
+      debugPrint('SupplierService.addSupplier: duplicate found for "${supplier.name}", returning existing');
+      return Supplier.fromMap({...duplicate.first, 'shopId': shopId ?? ''});
+    }
+
     final supplierMap = supplier.toMap();
     supplierMap['shopId'] = shopId ?? '';
     supplierMap['createdAt'] = DateTime.now().millisecondsSinceEpoch;

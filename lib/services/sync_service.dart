@@ -2420,6 +2420,22 @@ class SyncService {
           "syncAllToCloud: có ${suppliers.length} suppliers cần kiểm tra sync",
         );
         if (suppliers.isNotEmpty) {
+          // Query existing Firestore suppliers for this shop to avoid duplicates
+          final existingSnapshot = await _db
+              .collection('suppliers')
+              .where('shopId', isEqualTo: shopId)
+              .get();
+          final Map<String, String> existingByName = {};
+          for (var doc in existingSnapshot.docs) {
+            final data = doc.data();
+            if (data['deleted'] == true) continue;
+            final decrypted = EncryptionService.decryptMap(data);
+            final name = (decrypted['name'] ?? '').toString().toLowerCase().trim();
+            if (name.isNotEmpty) {
+              existingByName[name] = doc.id;
+            }
+          }
+
           final WriteBatch supplierBatch = _db.batch();
           final List<Map<String, dynamic>> suppliersToMarkSynced = [];
           for (var supplierMap in suppliers) {
@@ -2439,8 +2455,10 @@ class SyncService {
               data.remove('isSynced');
               data.remove('firestoreId');
 
-              final docId =
-                  "supplier_${supplierMap['createdAt']}_${supplierMap['name'].toString().replaceAll(' ', '_')}";
+              // Check if supplier with same name already exists in Firestore
+              final nameKey = (supplierMap['name'] ?? '').toString().toLowerCase().trim();
+              final docId = existingByName[nameKey] ??
+                  "supplier_${DateTime.now().millisecondsSinceEpoch}_${supplierMap['id']}";
               supplierBatch.set(
                 _db.collection('suppliers').doc(docId),
                 data,

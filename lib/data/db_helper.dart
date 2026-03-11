@@ -3799,24 +3799,39 @@ class DBHelper {
           where: 'firestoreId = ?',
           whereArgs: [firestoreId],
         );
+        // Xóa duplicate cùng tên nhưng khác firestoreId (nếu có)
+        if (name != null && shopId != null) {
+          await db.delete(
+            'suppliers',
+            where: "name = ? AND shopId = ? AND firestoreId != ? AND (deleted = 0 OR deleted IS NULL)",
+            whereArgs: [name, shopId, firestoreId],
+          );
+        }
         return;
       }
 
-      // Nếu không tìm thấy theo firestoreId, tìm theo name + shopId (trường hợp insert local chưa có firestoreId)
+      // Nếu không tìm thấy theo firestoreId, tìm theo name + shopId (bất kể firestoreId)
       if (name != null && shopId != null) {
         final existingByName = await db.query(
           'suppliers',
-            where:
-              "name = ? AND shopId = ? AND (firestoreId IS NULL OR firestoreId = '')",
+          where: "name = ? AND shopId = ? AND (deleted = 0 OR deleted IS NULL)",
           whereArgs: [name, shopId],
+          limit: 1,
         );
         if (existingByName.isNotEmpty) {
           // Update record cũ với firestoreId mới
+          final existingId = existingByName.first['id'];
           await db.update(
             'suppliers',
             cleanData,
             where: 'id = ?',
-            whereArgs: [existingByName.first['id']],
+            whereArgs: [existingId],
+          );
+          // Xóa các bản duplicate khác cùng tên
+          await db.delete(
+            'suppliers',
+            where: "name = ? AND shopId = ? AND id != ? AND (deleted = 0 OR deleted IS NULL)",
+            whereArgs: [name, shopId, existingId],
           );
           return;
         }
@@ -3829,7 +3844,24 @@ class DBHelper {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } else {
-      // Không có firestoreId, insert mới
+      // Không có firestoreId - tìm theo name + shopId trước
+      if (name != null && shopId != null) {
+        final existingByName = await db.query(
+          'suppliers',
+          where: "name = ? AND shopId = ? AND (deleted = 0 OR deleted IS NULL)",
+          whereArgs: [name, shopId],
+          limit: 1,
+        );
+        if (existingByName.isNotEmpty) {
+          await db.update(
+            'suppliers',
+            cleanData,
+            where: 'id = ?',
+            whereArgs: [existingByName.first['id']],
+          );
+          return;
+        }
+      }
       await db.insert(
         'suppliers',
         cleanData,
@@ -3856,6 +3888,53 @@ class DBHelper {
     );
     debugPrint('DBHelper.getSuppliers: found ${res.length} suppliers');
     return res;
+  }
+
+  /// Dọn dẹp NCC trùng lặp - giữ lại bản có firestoreId, xóa bản duplicate
+  Future<int> deduplicateSuppliers() async {
+    final db = await database;
+    // Tìm các nhóm NCC trùng tên + shopId
+    final duplicates = await db.rawQuery('''
+      SELECT name, shopId, COUNT(*) as cnt, 
+             GROUP_CONCAT(id) as ids,
+             GROUP_CONCAT(COALESCE(firestoreId, '')) as fids
+      FROM suppliers 
+      WHERE (deleted = 0 OR deleted IS NULL)
+      GROUP BY LOWER(name), shopId 
+      HAVING cnt > 1
+    ''');
+
+    int removed = 0;
+    for (final group in duplicates) {
+      final ids = (group['ids'] as String).split(',').map(int.parse).toList();
+      final fids = (group['fids'] as String).split(',');
+
+      // Ưu tiên giữ bản có firestoreId, nếu không thì giữ id nhỏ nhất (cũ nhất)
+      int keepId = ids.first;
+      for (int i = 0; i < ids.length; i++) {
+        if (fids[i].isNotEmpty) {
+          keepId = ids[i];
+          break;
+        }
+      }
+
+      // Merge: cập nhật bản giữ lại với thông tin mới nhất
+      final keepRow = await db.query('suppliers', where: 'id = ?', whereArgs: [keepId]);
+      if (keepRow.isEmpty) continue;
+
+      // Xóa các bản duplicate
+      for (final id in ids) {
+        if (id != keepId) {
+          await db.delete('suppliers', where: 'id = ?', whereArgs: [id]);
+          removed++;
+        }
+      }
+      debugPrint('🔧 Dedup supplier: kept id=$keepId, removed ${ids.length - 1} duplicates for "${group['name']}"');
+    }
+    if (removed > 0) {
+      debugPrint('🔧 deduplicateSuppliers: removed $removed duplicates total');
+    }
+    return removed;
   }
 
   Future<int> deleteSupplier(int id) async =>
