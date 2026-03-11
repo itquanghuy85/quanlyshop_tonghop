@@ -343,9 +343,12 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           _statChip('✅', '$completed', Colors.green),
           const Spacer(),
           if (totalAmount > 0)
-            Text(
-              '${_currencyFmt.format(totalAmount)}đ',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red),
+            Flexible(
+              child: Text(
+                '${_currencyFmt.format(totalAmount)}đ',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
         ],
       ),
@@ -384,48 +387,51 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
-      child: Row(
-        children: [
-          ...chips.map((c) {
-            final isSelected = _dateRange == c.$1;
-            return Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: InkWell(
-                onTap: () => setState(() => _dateRange = c.$1),
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFF075E54) : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Text(
-                    c.$2,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected ? Colors.white : Colors.grey.shade700,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ...chips.map((c) {
+              final isSelected = _dateRange == c.$1;
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: InkWell(
+                  onTap: () => setState(() => _dateRange = c.$1),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF075E54) : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      c.$2,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isSelected ? Colors.white : Colors.grey.shade700,
+                      ),
                     ),
                   ),
                 ),
+              );
+            }),
+            if (overdueCount > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '⚠ $overdueCount quá hạn',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700),
+                ),
               ),
-            );
-          }),
-          if (overdueCount > 0) ...[
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '⚠ $overdueCount quá hạn',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700),
-              ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
