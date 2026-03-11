@@ -288,11 +288,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   // ==================== TAB 1: OVERVIEW ====================
 
   Widget _buildOverviewTab() {
-    return Column(
-      children: [
-        _buildSummaryHeader(),
-        _buildDateSelector(),
-        Expanded(child: _buildStaffList()),
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: _buildSummaryHeader()),
+        SliverToBoxAdapter(child: _buildDateSelector()),
+        _buildStaffSliver(),
       ],
     );
   }
@@ -427,29 +427,36 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     }
   }
 
-  Widget _buildStaffList() {
+  Widget _buildStaffSliver() {
     if (_staffList.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 48, color: AppColors.inactive),
-            const SizedBox(height: 8),
-            Text(AppLocalizations.of(context)!.noStaffYet, style: TextStyle(color: AppColors.inactive)),
-          ],
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.people_outline, size: 48, color: AppColors.inactive),
+              const SizedBox(height: 8),
+              Text(AppLocalizations.of(context)!.noStaffYet, style: TextStyle(color: AppColors.inactive)),
+            ],
+          ),
         ),
       );
     }
-    return ListView.builder(
+    return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: _staffList.length,
-      itemBuilder: (_, i) {
-        final staff = _staffList[i];
-        final userId = staff['id'] as String;
-        final records = _staffAttendance[userId] ?? [];
-        final stats = _monthlyStats[userId];
-        return _viewMode == 'day' ? _buildDayCard(staff, records) : _buildMonthCard(staff, records, stats);
-      },
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) {
+            final staff = _staffList[i];
+            final userId = staff['id'] as String;
+            final records = _staffAttendance[userId] ?? [];
+            final stats = _monthlyStats[userId];
+            return _viewMode == 'day' ? _buildDayCard(staff, records) : _buildMonthCard(staff, records, stats);
+          },
+          childCount: _staffList.length,
+        ),
+      ),
     );
   }
 
@@ -637,67 +644,77 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       if (!pending.any((p) => p.firestoreId == r.firestoreId)) pending.add(r);
     }
 
-    return Column(
-      children: [
+    return CustomScrollView(
+      slivers: [
         // Bulk approve bar
         if (pending.isNotEmpty)
-          Container(
+          SliverToBoxAdapter(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              color: AppColors.warning.withOpacity(0.1),
+              child: Row(
+                children: [
+                  Icon(Icons.pending_actions, size: 18, color: AppColors.warning),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('${pending.length} ${loc.noPendingRequests.contains('không') ? 'yêu cầu chờ duyệt' : loc.pendingStatus}',
+                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.w500))),
+                  TextButton.icon(
+                    onPressed: () => _bulkApprove(pending),
+                    icon: const Icon(Icons.check_circle, size: 16),
+                    label: Text(loc.bulkApprove, style: const TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(foregroundColor: AppColors.success),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        // Action buttons
+        SliverToBoxAdapter(
+          child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: AppColors.warning.withOpacity(0.1),
             child: Row(
               children: [
-                Icon(Icons.pending_actions, size: 18, color: AppColors.warning),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _showForgotCheckinDialog,
+                    icon: const Icon(Icons.add_alarm, size: 16),
+                    label: Text(loc.forgotCheckin, style: const TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: Text('${pending.length} ${loc.noPendingRequests.contains('không') ? 'yêu cầu chờ duyệt' : loc.pendingStatus}',
-                  style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.w500))),
-                TextButton.icon(
-                  onPressed: () => _bulkApprove(pending),
-                  icon: const Icon(Icons.check_circle, size: 16),
-                  label: Text(loc.bulkApprove, style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.success),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _showEditOvertimeDialog,
+                    icon: const Icon(Icons.more_time, size: 16),
+                    label: Text(loc.editOvertime, style: const TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
                 ),
               ],
             ),
           ),
-        // Action buttons
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _showForgotCheckinDialog,
-                  icon: const Icon(Icons.add_alarm, size: 16),
-                  label: Text(loc.forgotCheckin, style: const TextStyle(fontSize: 12)),
-                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _showEditOvertimeDialog,
-                  icon: const Icon(Icons.more_time, size: 16),
-                  label: Text(loc.editOvertime, style: const TextStyle(fontSize: 12)),
-                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-                ),
-              ),
-            ],
-          ),
         ),
         // Pending list
-        Expanded(
-          child: pending.isEmpty
-              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.check_circle_outline, size: 48, color: AppColors.success.withOpacity(0.5)),
-                  const SizedBox(height: 8),
-                  Text(loc.noPendingRequests, style: TextStyle(color: AppColors.inactive)),
-                ]))
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: pending.length,
-                  itemBuilder: (_, i) => _buildApprovalCard(pending[i]),
-                ),
-        ),
+        if (pending.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.check_circle_outline, size: 48, color: AppColors.success.withOpacity(0.5)),
+              const SizedBox(height: 8),
+              Text(loc.noPendingRequests, style: TextStyle(color: AppColors.inactive)),
+            ])),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => _buildApprovalCard(pending[i]),
+                childCount: pending.length,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -997,47 +1014,67 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     final pending = _leaveRequests.where((l) => l.status == 'pending').toList();
     final processed = _leaveRequests.where((l) => l.status != 'pending').toList();
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _showCreateLeaveDialog,
-              icon: const Icon(Icons.add, size: 16),
-              label: Text(loc.createLeaveRequest, style: const TextStyle(fontSize: 12)),
-              style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showCreateLeaveDialog,
+                icon: const Icon(Icons.add, size: 16),
+                label: Text(loc.createLeaveRequest, style: const TextStyle(fontSize: 12)),
+                style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+              ),
             ),
           ),
         ),
-        Expanded(
-          child: _leaveRequests.isEmpty
-              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.event_available, size: 48, color: AppColors.inactive.withOpacity(0.5)),
-                  const SizedBox(height: 8),
-                  Text(loc.noLeaveRequests, style: TextStyle(color: AppColors.inactive)),
-                ]))
-              : ListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  children: [
-                    if (pending.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4, bottom: 6),
-                        child: Text('Chờ duyệt (${pending.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.warning)),
-                      ),
-                      ...pending.map(_buildLeaveCard),
-                    ],
-                    if (processed.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 6),
-                        child: Text('Đã xử lý (${processed.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.inactive)),
-                      ),
-                      ...processed.map(_buildLeaveCard),
-                    ],
-                  ],
+        if (_leaveRequests.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.event_available, size: 48, color: AppColors.inactive.withOpacity(0.5)),
+              const SizedBox(height: 8),
+              Text(loc.noLeaveRequests, style: TextStyle(color: AppColors.inactive)),
+            ])),
+          )
+        else ...[
+          if (pending.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 6),
+                child: Text('Chờ duyệt (${pending.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.warning)),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => _buildLeaveCard(pending[i]),
+                  childCount: pending.length,
                 ),
-        ),
+              ),
+            ),
+          ],
+          if (processed.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
+                child: Text('Đã xử lý (${processed.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.inactive)),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => _buildLeaveCard(processed[i]),
+                  childCount: processed.length,
+                ),
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }
