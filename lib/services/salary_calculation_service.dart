@@ -1006,6 +1006,7 @@ class SalaryCalculationService {
           .map((e) => CustomSalaryAdjustment.fromMap(e))
           .toList();
 
+      final futures = <Future<SalaryBreakdown>>[];
       for (final staff in staffList) {
         final staffId = staff['uid'] ?? staff['id'] ?? '';
         final staffName = staff['name'] ?? staff['displayName'] ?? 'NV';
@@ -1014,7 +1015,7 @@ class SalaryCalculationService {
 
         if (staffId.isEmpty) continue;
 
-        final breakdown = await calculateMonthlySalary(
+        futures.add(calculateMonthlySalary(
           staffId: staffId,
           staffName: staffName,
           staffEmail: staffEmail,
@@ -1023,10 +1024,11 @@ class SalaryCalculationService {
           deductionSettings: deductionSettings,
           customAdjustments: customAdjustments,
           numDependents: numDependents,
-        );
-
-        results.add(breakdown);
+        ));
       }
+
+      final computed = await Future.wait(futures);
+      results.addAll(computed);
 
       // Sắp xếp theo tổng lương giảm dần
       results.sort((a, b) => b.totalSalary.compareTo(a.totalSalary));

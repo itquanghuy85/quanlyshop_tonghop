@@ -470,9 +470,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.people_outline, size: 64, color: Colors.grey),
+            Icon(Icons.people_outline, size: 64, color: AppColors.inactive),
             const SizedBox(height: 16),
-            Text(AppLocalizations.of(context)!.noStaffYet, style: const TextStyle(color: Colors.grey)),
+            Text(AppLocalizations.of(context)!.noStaffYet, style: TextStyle(color: AppColors.inactive)),
           ],
         ),
       );
@@ -506,16 +506,16 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     final isLate = records.isNotEmpty && records.first.isLate == 1;
     final isEarly = records.isNotEmpty && records.first.isEarlyLeave == 1;
     
-    Color statusColor = Colors.grey;
+    Color statusColor = AppColors.inactive;
     String statusText = AppLocalizations.of(context)!.notCheckedIn;
     IconData statusIcon = Icons.remove_circle_outline;
     
     if (hasCheckedIn && hasCheckedOut) {
-      statusColor = isLate || isEarly ? Colors.orange : Colors.green;
+      statusColor = isLate || isEarly ? AppColors.warning : AppColors.success;
       statusText = AppLocalizations.of(context)!.completedStatus;
       statusIcon = Icons.check_circle;
     } else if (hasCheckedIn) {
-      statusColor = isLate ? Colors.orange : Colors.blue;
+      statusColor = isLate ? AppColors.warning : AppColors.primary;
       statusText = AppLocalizations.of(context)!.workingStatus;
       statusIcon = Icons.work;
     }
@@ -591,12 +591,12 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
+                            color: AppColors.warning.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
                               AppLocalizations.of(context)!.lateArrival,
-                              style: TextStyle(color: Colors.orange, fontSize: AppTextStyles.caption.fontSize),
+                              style: TextStyle(color: AppColors.warning, fontSize: AppTextStyles.caption.fontSize),
                             ),
                           ),
                         ],
@@ -612,15 +612,15 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                   if (hasCheckedIn)
                     Text(
                       '${AppLocalizations.of(context)!.checkInTimeShort}: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkInAt!))}',
-                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.green),
+                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: AppColors.success),
                     ),
                   if (hasCheckedOut)
                     Text(
                       '${AppLocalizations.of(context)!.checkOutTimeShort}: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkOutAt!))}',
-                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.red),
+                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: AppColors.error),
                     ),
                   if (!hasCheckedIn)
-                    Text('--:--', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey)),
+                    Text('--:--', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: AppColors.inactive)),
                 ],
               ),
             ],
@@ -666,12 +666,12 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                       children: [
                         Row(
                           children: [
-                            Text(staff['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize)),
                             const SizedBox(width: 8),
                             _buildRoleBadge(staff['role']),
                           ],
                         ),
-                        Text(staff['email'], style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey)),
+                        Text(staff['email'], style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: AppColors.inactive)),
                       ],
                     ),
                   ),
@@ -681,9 +681,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _monthStatItem(AppLocalizations.of(context)!.workDaysCount, '$totalDays', Colors.blue),
-                  _monthStatItem(AppLocalizations.of(context)!.lateArrival, '$lateDays', Colors.orange),
-                  _monthStatItem(AppLocalizations.of(context)!.workHoursCount, '${totalHours}h', Colors.green),
+                  _monthStatItem(AppLocalizations.of(context)!.workDaysCount, '$totalDays', AppColors.primary),
+                  _monthStatItem(AppLocalizations.of(context)!.lateArrival, '$lateDays', AppColors.warning),
+                  _monthStatItem(AppLocalizations.of(context)!.workHoursCount, '${totalHours}h', AppColors.success),
                 ],
               ),
             ],
@@ -706,7 +706,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
         ),
         Text(
           label,
-          style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey),
+          style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: AppColors.inactive),
         ),
       ],
     );
@@ -719,19 +719,19 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
     switch (role) {
       case 'owner':
         label = AppLocalizations.of(context)!.roleOwnerShort;
-        color = Colors.blue;
+        color = AppColors.primary;
         break;
       case 'manager':
         label = AppLocalizations.of(context)!.roleManagerShort;
-        color = Colors.blue;
+        color = AppColors.primary;
         break;
       case 'technician':
         label = AppLocalizations.of(context)!.roleTechnicianShort;
-        color = Colors.teal;
+        color = AppColors.success;
         break;
       default:
         label = AppLocalizations.of(context)!.roleEmployeeShort;
-        color = Colors.grey;
+        color = AppColors.inactive;
     }
     
     return Container(
@@ -750,13 +750,13 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
   Color _getRoleColor(String? role) {
     switch (role) {
       case 'owner':
-        return Colors.blue;
+        return AppColors.primary;
       case 'manager':
-        return Colors.blue;
+        return AppColors.primary;
       case 'technician':
-        return Colors.teal;
+        return AppColors.success;
       default:
-        return Colors.grey;
+        return AppColors.inactive;
     }
   }
 
@@ -794,7 +794,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                   backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
                     (staff['name'] as String).substring(0, 1),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -803,7 +803,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
-                      Text(staff['email'], style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
+                      Text(staff['email'], style: TextStyle(color: AppColors.inactive, fontSize: AppTextStyles.subtitle1.fontSize)),
                     ],
                   ),
                 ),
@@ -849,7 +849,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             
             // Photos
             if (record.photoIn != null || record.photoOut != null) ...[
-              Text(AppLocalizations.of(context)!.attendancePhotos, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(AppLocalizations.of(context)!.attendancePhotos, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -914,7 +914,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                   backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
                     (staff['name'] as String).substring(0, 1),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -923,7 +923,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize)),
-                      Text(AppLocalizations.of(context)!.monthYearFormat(DateFormat('MM/yyyy').format(_selectedMonth)), style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize)),
+                      Text(AppLocalizations.of(context)!.monthYearFormat(DateFormat('MM/yyyy').format(_selectedMonth)), style: TextStyle(color: AppColors.inactive, fontSize: AppTextStyles.subtitle1.fontSize)),
                     ],
                   ),
                 ),
@@ -938,7 +938,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
             // List of days
             Expanded(
               child: records.isEmpty
-                  ? Center(child: Text(AppLocalizations.of(context)!.noAttendanceData))
+                  ? Center(child: Text(AppLocalizations.of(context)!.noAttendanceData, style: TextStyle(color: AppColors.inactive, fontSize: AppTextStyles.body1.fontSize)))
                   : ListView.builder(
                       itemCount: records.length,
                       itemBuilder: (context, index) {
@@ -949,7 +949,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: r.isLate == 1 ? Colors.orange.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                              color: r.isLate == 1 ? AppColors.warning.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             alignment: Alignment.center,
@@ -957,7 +957,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                               r.dateKey.split('-').last,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: r.isLate == 1 ? Colors.orange : Colors.green,
+                                color: r.isLate == 1 ? AppColors.warning : AppColors.success,
                               ),
                             ),
                           ),
@@ -970,8 +970,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
                             style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                           ),
                           trailing: r.isLate == 1
-                              ? const Icon(Icons.warning, color: Colors.orange, size: 16)
-                              : const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                              ? Icon(Icons.warning, color: AppColors.warning, size: 16)
+                              : Icon(Icons.check_circle, color: AppColors.success, size: 16),
                         );
                       },
                     ),
@@ -988,8 +988,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text(label, style: TextStyle(color: AppColors.inactive, fontSize: AppTextStyles.body1.fontSize)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w500, fontSize: AppTextStyles.body1.fontSize)),
         ],
       ),
     );

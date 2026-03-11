@@ -206,7 +206,7 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: SafeArea(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -257,25 +257,18 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withAlpha(25),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(height: 4),
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: AppTextStyles.overlineSize,
                 fontWeight: FontWeight.w600,
                 color: color,
               ),

@@ -12,6 +12,7 @@ import '../services/customer_service.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/app_cached_image.dart';
+import '../utils/vietnamese_utils.dart';
 
 /// Danh sách ngân hàng / tổ chức tài chính cho vay góp, trả góp
 const List<String> kLoanBanks = [
@@ -121,17 +122,17 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   /// Filter requests by search query
   List<PaymentRequest> get _filteredRequests {
     if (_searchQuery.isEmpty) return _requests;
-    final q = _searchQuery.toLowerCase();
+    final q = _searchQuery;
     return _requests.where((r) {
-      return r.customerName.toLowerCase().contains(q) ||
-          r.customerPhone.toLowerCase().contains(q) ||
-          (r.bankName ?? '').toLowerCase().contains(q) ||
-          (r.accountNumber ?? '').toLowerCase().contains(q) ||
-          (r.description ?? '').toLowerCase().contains(q) ||
-          (r.customerAddress ?? '').toLowerCase().contains(q) ||
-          (r.customerNote ?? '').toLowerCase().contains(q) ||
-          r.paymentTypeDisplay.toLowerCase().contains(q) ||
-          r.senderName.toLowerCase().contains(q) ||
+      return VietnameseUtils.containsVietnamese(r.customerName, q) ||
+          r.customerPhone.toLowerCase().contains(q.toLowerCase()) ||
+          VietnameseUtils.containsVietnamese(r.bankName ?? '', q) ||
+          (r.accountNumber ?? '').toLowerCase().contains(q.toLowerCase()) ||
+          VietnameseUtils.containsVietnamese(r.description ?? '', q) ||
+          VietnameseUtils.containsVietnamese(r.customerAddress ?? '', q) ||
+          VietnameseUtils.containsVietnamese(r.customerNote ?? '', q) ||
+          VietnameseUtils.containsVietnamese(r.paymentTypeDisplay, q) ||
+          VietnameseUtils.containsVietnamese(r.senderName, q) ||
           _currencyFmt.format(r.amount).contains(q);
     }).toList();
   }
@@ -143,9 +144,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       backgroundColor: const Color(0xFFECE5DD), // WhatsApp-like bg
       appBar: _isSearching
           ? AppBar(
-              backgroundColor: const Color(0xFF075E54),
+              backgroundColor: Colors.white,
+              elevation: 1,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back, color: Colors.black87),
                 onPressed: () {
                   setState(() {
                     _isSearching = false;
@@ -157,10 +159,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               title: TextField(
                 controller: _searchCtrl,
                 autofocus: true,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                decoration: const InputDecoration(
+                style: const TextStyle(color: Colors.black87, fontSize: 16),
+                cursorColor: const Color(0xFF075E54),
+                decoration: InputDecoration(
                   hintText: 'Tìm tên, SĐT, NH, số tiền...',
-                  hintStyle: TextStyle(color: Colors.white60),
+                  hintStyle: TextStyle(color: Colors.grey.shade500),
                   border: InputBorder.none,
                 ),
                 onChanged: (v) => setState(() => _searchQuery = v.trim()),
@@ -168,7 +171,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               actions: [
                 if (_searchCtrl.text.isNotEmpty)
                   IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.white),
+                    icon: const Icon(Icons.clear, color: Colors.black54),
                     onPressed: () {
                       _searchCtrl.clear();
                       setState(() => _searchQuery = '');
@@ -207,8 +210,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: null, child: Text('Tất cả')),
-                    const PopupMenuItem(value: PaymentRequestStatus.pending, child: Text('⏳ Chờ xử lý')),
-                    const PopupMenuItem(value: PaymentRequestStatus.processing, child: Text('🔄 Đang xử lý')),
+                    const PopupMenuItem(value: PaymentRequestStatus.pending, child: Text('⏳ Chờ duyệt')),
                     const PopupMenuItem(value: PaymentRequestStatus.completed, child: Text('✅ Đã thanh toán')),
                     const PopupMenuItem(value: PaymentRequestStatus.rejected, child: Text('❌ Từ chối')),
                   ],
@@ -278,8 +280,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   }
 
   Widget _buildSummaryBar() {
-    final pending = _requests.where((r) => r.status == PaymentRequestStatus.pending).length;
-    final processing = _requests.where((r) => r.status == PaymentRequestStatus.processing).length;
+    final pending = _requests.where((r) => r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing).length;
     final completed = _requests.where((r) => r.status == PaymentRequestStatus.completed).length;
     final totalAmount = _requests
         .where((r) => r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing)
@@ -291,8 +292,6 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       child: Row(
         children: [
           _statChip('⏳', '$pending', Colors.orange),
-          const SizedBox(width: 8),
-          _statChip('🔄', '$processing', Colors.blue),
           const SizedBox(width: 8),
           _statChip('✅', '$completed', Colors.green),
           const Spacer(),
@@ -598,20 +597,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          if (req.status == PaymentRequestStatus.pending) ...[
-            // Mark processing
-            _actionBtn(
-              icon: Icons.play_arrow,
-              label: 'Xử lý',
-              color: Colors.blue,
-              onTap: () => _confirmStatus(req, PaymentRequestStatus.processing),
-            ),
-            const SizedBox(width: 6),
-          ],
           // Complete - chủ shop đã CK cho ngân hàng
           _actionBtn(
             icon: Icons.check_circle,
-            label: 'Đã CK NH',
+            label: 'Thanh toán',
             color: Colors.green,
             onTap: () => _confirmStatus(req, PaymentRequestStatus.completed),
           ),
@@ -660,32 +649,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   Future<void> _confirmStatus(PaymentRequest req, PaymentRequestStatus newStatus) async {
     if (newStatus == PaymentRequestStatus.completed) {
-      // Show payment method selection dialog
       await _showCompleteDialog(req);
-    } else {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Bắt đầu xử lý?'),
-          content: Text(
-            '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ\n'
-            'Khách: ${req.customerName}\n'
-            '${req.bankName != null ? 'NH: ${req.bankName}' : ''}',
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              child: const Text('Xác nhận', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      );
-      if (confirmed == true && req.id != null) {
-        await PaymentRequestService.updateStatus(req.id!, newStatus);
-        _subscribeToRequests();
-      }
     }
   }
 
@@ -820,19 +784,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 _showDetailSheet(req);
               },
             ),
-            if (_isOwnerOrAdmin && req.status == PaymentRequestStatus.pending)
-              ListTile(
-                leading: const Icon(Icons.play_arrow, color: Colors.blue),
-                title: const Text('Đánh dấu đang xử lý'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _confirmStatus(req, PaymentRequestStatus.processing);
-                },
-              ),
             if (_isOwnerOrAdmin && (req.status == PaymentRequestStatus.pending || req.status == PaymentRequestStatus.processing))
               ListTile(
                 leading: const Icon(Icons.check_circle, color: Colors.green),
-                title: const Text('Đã CK cho ngân hàng'),
+                title: const Text('Thanh toán (CK cho NH)'),
                 onTap: () {
                   Navigator.pop(ctx);
                   _confirmStatus(req, PaymentRequestStatus.completed);

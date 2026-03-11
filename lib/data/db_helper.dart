@@ -5233,6 +5233,9 @@ class DBHelper {
         'partner_repair_history',
         'sync_queue',
         'adjustment_entries',
+        'sales_returns',
+        'payment_intents',
+        'payment_requests',
       ];
       for (var t in tables) {
         try {
