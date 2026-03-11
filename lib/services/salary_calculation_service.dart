@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/salary_breakdown_model.dart';
+import '../models/leave_request_model.dart';
 import '../services/encryption_service.dart';
 import '../models/employee_salary_model.dart';
 import '../models/shop_deduction_settings.dart';
@@ -152,7 +153,8 @@ class SalaryCalculationService {
           final checkInAt = data['checkInAt'] as int?;
           final checkOutAt = data['checkOutAt'] as int?;
           
-          if (!deleted && checkInAt != null) {
+          final status = (data['status'] ?? 'pending').toString();
+          if (!deleted && checkInAt != null && status == 'approved') {
             workDays++;
 
             // Tính giờ làm
@@ -185,7 +187,7 @@ class SalaryCalculationService {
       final staffAttendance = attendanceRecords.where((r) => r.userId == staffId).toList();
       
       for (final record in staffAttendance) {
-        if (record.checkInAt != null) {
+        if (record.checkInAt != null && record.status == 'approved') {
           workDays++;
           if (record.checkOutAt != null) {
             final hours = (record.checkOutAt! - record.checkInAt!) / 3600000.0;
@@ -203,16 +205,49 @@ class SalaryCalculationService {
       }
     }
 
-    debugPrint('📊 [SalaryCalc] $staffName: Tìm thấy $workDays ngày chấm công trong tháng $month/$year');
+    debugPrint('📊 [SalaryCalc] $staffName: Tìm thấy $workDays ngày chấm công (đã duyệt) trong tháng $month/$year');
+
+    // ===== TÍNH NGÀY NGHỈ PHÉP ĐÃ DUYỆT =====
+    double paidLeaveDays = 0;
+    double unpaidLeaveDays = 0;
+    try {
+      final leaveRecords = await _db.getLeaveRequestsByUser(staffId);
+      for (final lr in leaveRecords) {
+        if (lr.status != 'approved') continue;
+        // Check if leave overlaps with this month
+        final leaveStart = DateTime.tryParse(lr.startDate);
+        final leaveEnd = DateTime.tryParse(lr.endDate);
+        if (leaveStart == null || leaveEnd == null) continue;
+        if (leaveEnd.isBefore(startDate) || leaveStart.isAfter(endDate)) continue;
+        // Count days within this month
+        final effectiveStart = leaveStart.isBefore(startDate) ? startDate : leaveStart;
+        final effectiveEnd = leaveEnd.isAfter(endDate) ? endDate : leaveEnd;
+        final days = effectiveEnd.difference(effectiveStart).inDays + 1.0;
+        if (lr.leaveType == 'unpaid') {
+          unpaidLeaveDays += days;
+        } else {
+          // annual, sick, personal, maternity = paid leave
+          paidLeaveDays += days;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching leave requests: $e');
+    }
 
     // Tính số ngày nghỉ (dựa trên số ngày làm việc tiêu chuẩn trong tháng)
     final workingDaysInMonth = _getWorkingDaysInMonth(year, month, configuredWorkDays);
-    // Đảm bảo absentDays không âm (nếu NV làm thêm ngày)
-    final absentDays = (workingDaysInMonth - workDays).clamp(0, workingDaysInMonth);
+    // Ngày nghỉ không phép = tổng ngày cần làm - ngày đã chấm công - ngày nghỉ phép có lương
+    final absentDays = (workingDaysInMonth - workDays - paidLeaveDays.round()).clamp(0, workingDaysInMonth);
 
     notes.add(
-      '📅 Chấm công: $workDays/$workingDaysInMonth ngày, ${totalWorkHours.toStringAsFixed(1)}h làm việc',
+      '📅 Chấm công: $workDays/$workingDaysInMonth ngày (đã duyệt), ${totalWorkHours.toStringAsFixed(1)}h làm việc',
     );
+    if (paidLeaveDays > 0) {
+      notes.add('🏖️ Nghỉ phép có lương: ${paidLeaveDays.toStringAsFixed(0)} ngày');
+    }
+    if (unpaidLeaveDays > 0) {
+      notes.add('📋 Nghỉ không lương: ${unpaidLeaveDays.toStringAsFixed(0)} ngày');
+    }
     if (overtimeHours > 0) {
       notes.add('⏰ OT: ${overtimeHours.toStringAsFixed(1)} giờ');
     }
@@ -223,7 +258,7 @@ class SalaryCalculationService {
       notes.add('⚠️ Về sớm: $earlyLeaveDays lần');
     }
     if (absentDays > 0) {
-      notes.add('❌ Nghỉ: $absentDays ngày');
+      notes.add('❌ Nghỉ không phép: $absentDays ngày');
     }
 
     // ===== 4. LẤY DOANH SỐ BÁN HÀNG TỪ FIRESTORE =====
