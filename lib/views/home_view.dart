@@ -112,10 +112,13 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, WidgetsBindingObserver {
+  static const String _lastTabIndexPrefKey = 'home_last_tab_index_v1';
+
   final db = DBHelper();
   int totalPendingRepair = 0;
   int todaySaleCount = 0;
   int _currentIndex = 0; // Bottom navigation index
+  int? _restoredTabIndex;
   /// Getter for localization - dùng chung cho tất cả methods
   AppLocalizations get loc => AppLocalizations.of(context)!;
 
@@ -127,6 +130,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this); // Lifecycle observer for iOS background handling
+    _loadSavedTabIndex();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkNotificationStatus();
       _initialSetup();
@@ -172,6 +176,34 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         }
       });
     });
+  }
+
+  Future<void> _loadSavedTabIndex() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getInt(_lastTabIndexPrefKey);
+      if (!mounted || saved == null || saved < 0) return;
+      setState(() {
+        _restoredTabIndex = saved;
+      });
+    } catch (e) {
+      debugPrint('HomeView: Failed to load saved tab index: $e');
+    }
+  }
+
+  void _setCurrentTab(int index) {
+    if (index < 0 || index >= _navItems.length) return;
+    setState(() => _currentIndex = index);
+    unawaited(_persistCurrentTabIndex(index));
+  }
+
+  Future<void> _persistCurrentTabIndex(int index) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_lastTabIndexPrefKey, index);
+    } catch (e) {
+      debugPrint('HomeView: Failed to persist tab index: $e');
+    }
   }
 
   @override
@@ -971,9 +1003,14 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       } else if (_currentIndex >= _navItems.length) {
         _currentIndex = 0;
       }
+    } else if (_restoredTabIndex != null && _restoredTabIndex! < _navItems.length) {
+      _currentIndex = _restoredTabIndex!;
+      _restoredTabIndex = null;
     } else if (_currentIndex >= _navItems.length) {
       _currentIndex = 0;
     }
+
+    unawaited(_persistCurrentTabIndex(_currentIndex));
   }
 
   /// Rebuild ONLY the home tab widget to reflect updated stats.
@@ -2129,7 +2166,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                   selectedIndex: _currentIndex.clamp(0, _navItems.length - 1),
                   onDestinationSelected: (index) {
                     HapticFeedback.lightImpact();
-                    setState(() => _currentIndex = index);
+                    _setCurrentTab(index);
                   },
                   labelType: NavigationRailLabelType.all,
                   backgroundColor: AppColors.surface,
@@ -2242,7 +2279,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       child: GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
-          setState(() => _currentIndex = index);
+          _setCurrentTab(index);
         },
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
@@ -6864,7 +6901,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     onTap: () {
                       final expiryTabIndex = _navItems.indexWhere((item) => item.label == 'HSD');
                       if (expiryTabIndex != -1) {
-                        setState(() => _currentIndex = expiryTabIndex);
+                        _setCurrentTab(expiryTabIndex);
                       }
                     },
                   ),
@@ -6877,7 +6914,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     onTap: () {
                       final variantTabIndex = _navItems.indexWhere((item) => item.label == 'Size/Màu');
                       if (variantTabIndex != -1) {
-                        setState(() => _currentIndex = variantTabIndex);
+                        _setCurrentTab(variantTabIndex);
                       }
                     },
                   ),
