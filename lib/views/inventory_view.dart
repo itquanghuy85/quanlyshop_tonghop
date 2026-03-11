@@ -133,7 +133,7 @@ class _InventoryViewState extends State<InventoryView>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this); // 1 tab: Kho chính
+    _tabController = TabController(length: 2, vsync: this); // 2 tabs: Kho chính + Kho LK sửa chữa
     _init(); // _init sẽ gọi _initCheckData sau khi load shop settings
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
@@ -2014,8 +2014,42 @@ class _InventoryViewState extends State<InventoryView>
       body: ResponsiveCenter(
         child: Column(
         children: [
+          // Tab Bar
+          if (_businessType == 'electronics')
+            Container(
+              color: AppColors.surface,
+              child: TabBar(
+                controller: _tabController,
+                labelColor: const Color(0xFF0068FF),
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: const Color(0xFF0068FF),
+                indicatorWeight: 3,
+                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                unselectedLabelStyle: const TextStyle(fontSize: 13),
+                tabs: [
+                  Tab(
+                    icon: const Icon(Icons.inventory_2, size: 18),
+                    text: 'Kho chính',
+                    height: 50,
+                  ),
+                  Tab(
+                    icon: const Icon(Icons.build_circle, size: 18),
+                    text: 'LK sửa chữa',
+                    height: 50,
+                  ),
+                ],
+              ),
+            ),
           Expanded(
-            child: _buildInventoryTab(),
+            child: _businessType == 'electronics'
+                ? TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildInventoryTab(),
+                      const PartsInventoryViewContent(),
+                    ],
+                  )
+                : _buildInventoryTab(),
           ),
           // Unified bottom bar with labels
           Container(
@@ -2038,7 +2072,7 @@ class _InventoryViewState extends State<InventoryView>
                     }),
                   if (_businessType == 'electronics')
                     _bottomBarItem(Icons.build_circle, _terms.category3, const Color(0xFF0068FF), () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PartsInventoryView())).then((_) => _refresh());
+                      _tabController.animateTo(1);
                     }),
                   _bottomBarItem(Icons.shopping_cart_checkout_rounded, 'Bán hàng', Colors.teal, () {
                     HapticFeedback.mediumImpact();

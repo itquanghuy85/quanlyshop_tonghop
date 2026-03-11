@@ -335,6 +335,18 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
                     ),
                   ),
+                // Add new part FAB
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: FloatingActionButton.extended(
+                    heroTag: 'addPartFAB',
+                    onPressed: _showAddNewPartDialog,
+                    backgroundColor: _primaryColor,
+                    icon: const Icon(Icons.add, color: Colors.white),
+                    label: Text('Thêm ${_terms.category3}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
               ],
             ),
     );
@@ -669,14 +681,19 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       ? DateFormat('dd/MM/yy').format(DateTime.fromMillisecondsSinceEpoch(dateMs))
       : null;
 
+    // Color coding
+    final bgColor = isOut ? Colors.grey.shade50 : (isLow ? Colors.orange.shade50 : Colors.white);
+    final borderColor = isSelected 
+        ? _primaryColor 
+        : (isOut ? Colors.grey.shade300 : (isLow ? Colors.orange.shade200 : Colors.grey.shade200));
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: 6),
       elevation: isSelected ? 3 : 0.5,
+      color: bgColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: isSelected 
-            ? const BorderSide(color: _primaryColor, width: 2)
-            : BorderSide(color: Colors.grey.shade200, width: 0.5),
+        side: BorderSide(color: borderColor, width: isSelected ? 2 : 1),
       ),
       child: InkWell(
         onTap: () {
@@ -692,7 +709,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Row(
             children: [
-              // Leading icon/checkbox
+              // Leading: index + quantity badge
               if (_isSelectionMode)
                 SizedBox(
                   width: 36, height: 36,
@@ -703,27 +720,32 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   ),
                 )
               else
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: isOut 
-                        ? Colors.grey.shade100 
-                        : isLow 
-                            ? Colors.orange.withOpacity(0.12)
-                            : _primaryColor.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$qty',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isOut ? Colors.grey : isLow ? Colors.orange : _primaryColor,
+                Column(
+                  children: [
+                    Text('$index', style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                    Container(
+                      width: 38,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: isOut 
+                            ? Colors.grey.shade200 
+                            : isLow 
+                                ? Colors.orange.withOpacity(0.15)
+                                : _primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'x$qty',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: isOut ? Colors.grey : isLow ? Colors.orange : _primaryColor,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               const SizedBox(width: 10),
               // Content
@@ -731,14 +753,15 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Row 1: Name + badge
+                    // Row 1: Name + status badge
                     Row(
                       children: [
+                        const Text('🔧 ', style: TextStyle(fontSize: 13)),
                         Expanded(
                           child: Text(
                             p['partName'] ?? 'N/A',
                             style: TextStyle(
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.bold,
                               fontSize: 14,
                               color: isOut ? Colors.grey : Colors.black87,
                             ),
@@ -750,63 +773,79 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(3),
+                              color: Colors.orange.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(4),
                             ),
                             child: const Text('SẮP HẾT', style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold,
                             )),
                           ),
                         if (isOut)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(3),
+                              color: Colors.grey.shade200,
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('HẾT', style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold,
+                            child: const Text('HẾT HÀNG', style: TextStyle(
+                              fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold,
                             )),
                           ),
                       ],
                     ),
                     const SizedBox(height: 2),
                     // Row 2: Compatible models
-                    Text(
-                      p['compatibleModels'] ?? '',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    // Row 3: Compact info line
-                    DefaultTextStyle(
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                      child: Row(
-                        children: [
-                          if (_canViewCostPrice) ...[
-                            Text('Vốn: ${NumberFormat.compact().format(cost)}',
-                              style: TextStyle(color: Colors.green.shade700)),
-                            Text(' · '),
-                          ],
-                          Text('Bán: ${NumberFormat('#,###').format(price)}đ',
-                            style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w600)),
-                          if (supplierName != 'Không xác định') ...[
-                            Text(' · '),
-                            Flexible(child: Text(supplierName, overflow: TextOverflow.ellipsis)),
-                          ],
-                          if (dateText != null) ...[
-                            Text(' · '),
-                            Text(dateText),
-                          ],
-                        ],
+                    if ((p['compatibleModels'] ?? '').toString().isNotEmpty)
+                      Text(
+                        'Dùng cho: ${p['compatibleModels']}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    const SizedBox(height: 4),
+                    // Row 3: Info chips
+                    Row(
+                      children: [
+                        if (_canViewCostPrice)
+                          _infoChip(Icons.attach_money, 'Vốn: ${NumberFormat.compact().format(cost)}', Colors.green.shade700),
+                        if (_canViewCostPrice)
+                          const SizedBox(width: 6),
+                        _infoChip(Icons.sell, 'Bán: ${NumberFormat('#,###').format(price)}đ', Colors.red.shade600),
+                        if (supplierName != 'Không xác định') ...[
+                          const SizedBox(width: 6),
+                          Flexible(child: _infoChip(Icons.local_shipping, supplierName, _primaryColor)),
+                        ],
+                      ],
                     ),
+                    if (dateText != null) ...[
+                      const SizedBox(height: 2),
+                      Text(dateText, style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                    ],
                   ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Trailing: quick stock-in button
+              InkWell(
+                onTap: () => _showQuickStockInDialog(p),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_shopping_cart, size: 18, color: Colors.green.shade700),
+                      Text(
+                        '${NumberFormat.compact().format(price)} đ',
+                        style: TextStyle(fontSize: 9, color: Colors.red.shade600, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -855,6 +894,234 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         ],
       ),
     );
+  }
+
+  /// Quick stock-in dialog for repair parts - nhập thêm số lượng nhanh
+  void _showQuickStockInDialog(Map<String, dynamic> p) {
+    final partName = p['partName'] as String? ?? '';
+    final currentQty = p['quantity'] as int? ?? 0;
+    final currentCost = p['cost'] as int? ?? 0;
+    final qtyCtrl = TextEditingController(text: '1');
+    final costCtrl = TextEditingController(text: currentCost > 0 ? CurrencyTextField.formatDisplay(currentCost) : '');
+    String paymentMethod = 'TIỀN MẶT';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.add_shopping_cart, color: Colors.green.shade700, size: 22),
+                const SizedBox(width: 8),
+                Expanded(child: Text('NHẬP THÊM', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Part info
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🔧', style: TextStyle(fontSize: 22)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(partName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text('Tồn kho hiện tại: $currentQty', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Quantity
+                  TextField(
+                    controller: qtyCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Số lượng nhập thêm',
+                      prefixIcon: const Icon(Icons.add_circle_outline),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Cost price
+                  CurrencyTextField(
+                    controller: costCtrl,
+                    label: 'Giá nhập (VNĐ)',
+                    icon: Icons.attach_money,
+                  ),
+                  const SizedBox(height: 12),
+                  // Payment method
+                  DropdownButtonFormField<String>(
+                    value: paymentMethod,
+                    decoration: InputDecoration(
+                      labelText: 'Phương thức thanh toán',
+                      prefixIcon: const Icon(Icons.payment),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'TIỀN MẶT', child: Text('Tiền mặt')),
+                      DropdownMenuItem(value: 'CHUYỂN KHOẢN', child: Text('Chuyển khoản')),
+                      DropdownMenuItem(value: 'CÔNG NỢ', child: Text('Công nợ')),
+                    ],
+                    onChanged: (v) => setDialogState(() => paymentMethod = v!),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.check, color: Colors.white),
+                label: const Text('NHẬP KHO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () async {
+                  CurrencyTextField.finalizeAll();
+                  final addQty = int.tryParse(qtyCtrl.text) ?? 0;
+                  if (addQty <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Vui lòng nhập số lượng hợp lệ'), backgroundColor: Colors.red),
+                    );
+                    return;
+                  }
+                  final cost = CurrencyTextField.parseValueWithMultiply(costCtrl.text);
+                  Navigator.pop(ctx);
+                  await _processQuickPartStockIn(p, addQty, cost, paymentMethod);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _processQuickPartStockIn(Map<String, dynamic> p, int addQty, int cost, String paymentMethod) async {
+    try {
+      final partId = p['id'] as int;
+      final partName = p['partName'] as String? ?? '';
+      final currentQty = p['quantity'] as int? ?? 0;
+      final newQty = currentQty + addQty;
+      final firestoreId = p['firestoreId'] as String?;
+      final supplierId = p['supplierId'] as int?;
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final shopId = await UserService.getCurrentShopId();
+
+      // Update local DB quantity
+      await db.updatePart(partId, {
+        'quantity': newQty,
+        'cost': cost > 0 ? cost : (p['cost'] as int? ?? 0),
+        'updatedAt': now,
+      });
+
+      // Sync to Firestore immediately
+      if (firestoreId != null && firestoreId.isNotEmpty) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('repair_parts')
+              .doc(firestoreId)
+              .update({
+            'quantity': newQty,
+            'cost': cost > 0 ? cost : (p['cost'] as int? ?? 0),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        } catch (e) {
+          debugPrint('⚠️ Quick stock-in Firestore sync error: $e');
+        }
+      }
+
+      // Log audit
+      final supplierName = _getSupplierName(supplierId);
+      await AuditService.logAction(
+        action: 'PART_IMPORT',
+        entityType: 'repair_part',
+        entityId: firestoreId ?? partId.toString(),
+        summary: 'Nhập thêm ${_terms.category3}: $partName +$addQty (${NumberFormat('#,###').format(cost * addQty)}đ) - $paymentMethod',
+        payload: {
+          'partName': partName,
+          'addQuantity': addQty,
+          'newQuantity': newQty,
+          'cost': cost,
+          'totalCost': cost * addQty,
+          'paymentMethod': paymentMethod,
+          'supplierName': supplierName,
+        },
+      );
+
+      // Record financial activity
+      if (cost > 0) {
+        try {
+          final supplierNameForActivity = _getSupplierName(supplierId);
+          final expFId = 'exp_part_${now}_$partName';
+          await FinancialActivityService.logPurchase(
+            firestoreId: expFId,
+            amount: cost * addQty,
+            productName: partName,
+            quantity: addQty,
+            paymentMethod: paymentMethod,
+            supplierName: supplierNameForActivity,
+          );
+        } catch (e) {
+          debugPrint('⚠️ Financial activity record error: $e');
+        }
+      }
+
+      // Record supplier import history if applicable
+      if (supplierId != null && cost > 0) {
+        try {
+          final user = FirebaseAuth.instance.currentUser;
+          final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+          await db.insertSupplierImportHistory({
+            'supplierId': supplierId,
+            'supplierName': supplierName,
+            'productName': partName,
+            'productBrand': _terms.category3.toUpperCase(),
+            'productModel': p['compatibleModels'] ?? '',
+            'quantity': addQty,
+            'costPrice': cost,
+            'totalAmount': cost * addQty,
+            'paymentMethod': paymentMethod,
+            'importDate': now,
+            'importedBy': userName,
+            'notes': 'Nhập thêm vào kho ${_terms.category3}',
+            'shopId': shopId,
+            'isSynced': 0,
+          });
+        } catch (e) {
+          debugPrint('⚠️ Supplier import history error: $e');
+        }
+      }
+
+      // Refresh and notify
+      _refreshParts();
+      EventBus().emit('parts_changed');
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Đã nhập thêm $addQty $partName (tổng: $newQty)'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Quick part stock-in error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _showPartDetailSheet(Map<String, dynamic> p) {
@@ -962,10 +1229,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const PartsInventoryView()),
-                        ).then((_) => _refreshParts());
+                        _showEditPartDialog(p);
                       },
                       icon: const Icon(Icons.edit),
                       label: const Text('Sửa'),
@@ -981,21 +1245,52 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.pop(ctx);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const PartsInventoryView()),
-                        ).then((_) => _refreshParts());
+                        _showQuickStockInDialog(p);
                       },
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(Icons.add_shopping_cart),
                       label: const Text('Nhập thêm'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _primaryColor,
+                        backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              // Delete button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                        title: const Text('Xác nhận xóa'),
+                        content: Text('Bạn có chắc muốn xóa "${p['partName']}"?'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('HỦY')),
+                          ElevatedButton(
+                            onPressed: () => Navigator.pop(c, true),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            child: const Text('XÓA', style: TextStyle(color: Colors.white)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await _deleteSinglePart(p);
+                    }
+                  },
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  label: const Text('Xóa linh kiện', style: TextStyle(color: Colors.red)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1016,6 +1311,563 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         )),
       ],
     );
+  }
+
+  /// Edit part dialog - chỉ sửa thông tin (tên, dòng máy, giá bán)
+  void _showEditPartDialog(Map<String, dynamic> p) {
+    final nameC = TextEditingController(text: p['partName']);
+    final modelC = TextEditingController(text: p['compatibleModels']);
+    final priceC = TextEditingController(
+      text: CurrencyTextField.formatDisplay(p['price'] ?? 0),
+    );
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("SỬA ${_terms.category3.toUpperCase()}"),
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ValidatedTextField(
+                  controller: nameC,
+                  label: "Tên ${_terms.category3}",
+                  icon: Icons.inventory,
+                  uppercase: true,
+                  required: true,
+                ),
+                ValidatedTextField(
+                  controller: modelC,
+                  label: "Dòng máy tương thích",
+                  icon: Icons.phone_android,
+                  uppercase: true,
+                ),
+                const SizedBox(height: 12),
+                // Info banner
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Chỉ sửa thông tin & giá bán. Muốn nhập thêm số lượng → dùng nút NHẬP THÊM.',
+                          style: TextStyle(color: Colors.blue, height: 1.3, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Read-only cost
+                if (_canViewCostPrice)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.attach_money, size: 18, color: Colors.grey),
+                        const SizedBox(width: 8),
+                        Text('Giá vốn: ${NumberFormat('#,###').format(p['cost'] ?? 0)}đ',
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                CurrencyTextField(
+                  controller: priceC,
+                  label: "Giá bán",
+                  icon: Icons.sell,
+                ),
+                const SizedBox(height: 8),
+                // Read-only quantity
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.inventory_2, size: 18, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text('Tồn kho: ${p['quantity'] ?? 0}',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY")),
+          ElevatedButton(
+            onPressed: () async {
+              CurrencyTextField.finalizeAll();
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              try {
+                final partId = p['id'] as int;
+                final partName = nameC.text.toUpperCase();
+                final price = CurrencyTextField.parseValueWithMultiply(priceC.text);
+                final now = DateTime.now().millisecondsSinceEpoch;
+
+                final editData = {
+                  'partName': partName,
+                  'compatibleModels': modelC.text.toUpperCase(),
+                  'price': price,
+                  'updatedAt': now,
+                  'isSynced': 0,
+                };
+                await (await db.database).update(
+                  'repair_parts', editData,
+                  where: 'id = ?', whereArgs: [partId],
+                );
+
+                // Sync to cloud
+                final firestoreId = p['firestoreId'] as String?;
+                if (firestoreId != null && firestoreId.isNotEmpty) {
+                  await SyncOrchestrator().enqueue(
+                    entityType: SyncEntityType.repairPart,
+                    entityId: partId,
+                    firestoreId: firestoreId,
+                    operation: SyncOperation.update,
+                    data: {...editData, 'id': partId, 'firestoreId': firestoreId},
+                  );
+                }
+
+                await AuditService.logAction(
+                  action: 'PART_INFO_UPDATE',
+                  entityType: 'repair_part',
+                  entityId: partId.toString(),
+                  summary: 'Cập nhật ${_terms.category3}: $partName',
+                  payload: {'partName': partName, 'price': price, 'oldPrice': p['price']},
+                );
+
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                _refreshParts();
+                EventBus().emit('parts_changed');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('✅ Đã cập nhật $partName'), backgroundColor: Colors.green),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            child: const Text("LƯU"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Add new part dialog - nhập linh kiện mới đầy đủ
+  void _showAddNewPartDialog() {
+    final nameC = TextEditingController();
+    final modelC = TextEditingController();
+    final costC = TextEditingController();
+    final priceC = TextEditingController();
+    final qtyC = TextEditingController(text: '1');
+    final formKey = GlobalKey<FormState>();
+    int? selectedSupplierId;
+    String paymentMethod = 'TIỀN MẶT';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          return AlertDialog(
+            title: Text("NHẬP ${_terms.category3.toUpperCase()} MỚI"),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ValidatedTextField(
+                      controller: nameC,
+                      label: "Tên ${_terms.category3} (VD: PIN IPHONE 11)",
+                      icon: Icons.inventory,
+                      uppercase: true,
+                      required: true,
+                    ),
+                    ValidatedTextField(
+                      controller: modelC,
+                      label: "Dòng máy tương thích",
+                      icon: Icons.phone_android,
+                      uppercase: true,
+                    ),
+                    const SizedBox(height: 12),
+                    // Supplier
+                    if (_suppliers.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                                SizedBox(width: 8),
+                                Expanded(child: Text('Chưa có nhà cung cấp.')),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () async {
+                                  final result = await Navigator.push(ctx,
+                                    MaterialPageRoute(builder: (_) => const SupplierFormView()));
+                                  if (result == true) { await _loadSuppliers(); setS(() {}); }
+                                },
+                                icon: const Icon(Icons.add, size: 16),
+                                label: const Text('THÊM NCC MỚI'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.orange,
+                                  side: const BorderSide(color: Colors.orange),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SupplierSearchField(
+                            suppliers: _suppliers,
+                            selectedSupplierId: selectedSupplierId,
+                            onChanged: (v) => setS(() => selectedSupplierId = v),
+                          ),
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                final result = await Navigator.push(ctx,
+                                  MaterialPageRoute(builder: (_) => const SupplierFormView()));
+                                if (result == true) { await _loadSuppliers(); setS(() {}); }
+                              },
+                              icon: const Icon(Icons.add_circle_outline, size: 16),
+                              label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 14)),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.teal,
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (_canViewCostPrice)
+                          Expanded(
+                            child: CurrencyTextField(
+                              controller: costC,
+                              label: "Giá vốn",
+                              icon: Icons.attach_money,
+                            ),
+                          ),
+                        if (_canViewCostPrice) const SizedBox(width: 10),
+                        Expanded(
+                          child: CurrencyTextField(
+                            controller: priceC,
+                            label: "Giá bán",
+                            icon: Icons.sell,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: qtyC,
+                      decoration: const InputDecoration(labelText: "Số lượng nhập"),
+                      keyboardType: TextInputType.number,
+                      validator: (v) {
+                        final parsed = int.tryParse((v ?? '').trim()) ?? 0;
+                        if (parsed <= 0) return 'Nhập số lượng hợp lệ';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Hình thức thanh toán:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((m) {
+                        final selected = paymentMethod == m;
+                        return ChoiceChip(
+                          label: Text(m, style: TextStyle(color: selected ? Colors.white : Colors.black)),
+                          selected: selected,
+                          selectedColor: Colors.blue,
+                          onSelected: (_) => setS(() => paymentMethod = m),
+                        );
+                      }).toList(),
+                    ),
+                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text('Sẽ tạo công nợ với: ${_getSupplierName(selectedSupplierId)}',
+                                style: const TextStyle(color: Colors.orange))),
+                          ],
+                        ),
+                      ),
+                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId == null)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, color: Colors.red, size: 18),
+                            SizedBox(width: 8),
+                            Expanded(child: Text('Chọn nhà cung cấp để ghi nhận công nợ.',
+                                style: TextStyle(color: Colors.red))),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY")),
+              ElevatedButton(
+                onPressed: () async {
+                  CurrencyTextField.finalizeAll();
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  try {
+                    final now = DateTime.now().millisecondsSinceEpoch;
+                    final partName = nameC.text.toUpperCase();
+                    final cost = CurrencyTextField.parseValueWithMultiply(costC.text);
+                    final price = CurrencyTextField.parseValueWithMultiply(priceC.text);
+                    final qty = int.tryParse(qtyC.text) ?? 0;
+                    if (qty <= 0) return;
+
+                    final shopId = await UserService.getCurrentShopId();
+                    final firestoreId = 'part_${now}_${partName.hashCode}';
+                    final data = {
+                      'partName': partName,
+                      'compatibleModels': modelC.text.toUpperCase(),
+                      'cost': cost,
+                      'price': price,
+                      'quantity': qty,
+                      'supplierId': selectedSupplierId,
+                      'paymentMethod': paymentMethod,
+                      'updatedAt': now,
+                      'firestoreId': firestoreId,
+                      'shopId': shopId,
+                    };
+
+                    final insertedId = await db.insertPart(data);
+
+                    // Queue sync
+                    await SyncOrchestrator().enqueue(
+                      entityType: SyncEntityType.repairPart,
+                      entityId: insertedId,
+                      firestoreId: firestoreId,
+                      operation: SyncOperation.create,
+                      data: {...data, 'id': insertedId},
+                    );
+
+                    final supplierName = _getSupplierName(selectedSupplierId);
+                    await AuditService.logAction(
+                      action: 'PART_IMPORT',
+                      entityType: 'repair_part',
+                      entityId: insertedId.toString(),
+                      summary: 'Nhập ${_terms.category3}: $partName x$qty - ${NumberFormat('#,###').format(cost * qty)}đ ($paymentMethod)',
+                      payload: {
+                        'partName': partName, 'quantity': qty, 'cost': cost,
+                        'totalCost': cost * qty, 'paymentMethod': paymentMethod,
+                        'supplierName': supplierName,
+                      },
+                    );
+
+                    // Supplier import history
+                    if (selectedSupplierId != null) {
+                      final user = FirebaseAuth.instance.currentUser;
+                      final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+                      final importHistory = {
+                        'supplierId': selectedSupplierId,
+                        'supplierName': supplierName,
+                        'productName': partName,
+                        'productBrand': _terms.category3.toUpperCase(),
+                        'productModel': modelC.text.toUpperCase(),
+                        'quantity': qty,
+                        'costPrice': cost,
+                        'totalAmount': cost * qty,
+                        'paymentMethod': paymentMethod,
+                        'importDate': now,
+                        'importedBy': userName,
+                        'notes': 'Nhập từ kho ${_terms.category3}',
+                        'shopId': shopId,
+                        'isSynced': 0,
+                      };
+                      final importHistoryId = await db.insertSupplierImportHistory(importHistory);
+                      if (importHistoryId > 0) {
+                        await SyncOrchestrator().enqueueSupplierImportHistory(
+                          importHistoryId,
+                          firestoreId: importHistory['firestoreId'] as String?,
+                          operation: SyncOperation.create,
+                        );
+                      }
+                      await db.updateSupplierStats(selectedSupplierId!, cost * qty, qty);
+                      EventBus().emit('suppliers_changed');
+                    }
+
+                    // Financial records
+                    final totalCost = cost * qty;
+                    if (totalCost > 0) {
+                      if (paymentMethod == 'CÔNG NỢ') {
+                        final debtFId = 'debt_part_${now}_${selectedSupplierId ?? 0}';
+                        final debtData = {
+                          'firestoreId': debtFId,
+                          'personName': supplierName,
+                          'phone': '',
+                          'totalAmount': totalCost,
+                          'paidAmount': 0,
+                          'type': 'SHOP_OWES',
+                          'status': 'ACTIVE',
+                          'createdAt': now,
+                          'note': 'Nhập ${_terms.category3}: $partName x$qty',
+                          'linkedId': null,
+                          'isSynced': 0,
+                          'shopId': shopId,
+                        };
+                        final debtId = await db.insertDebt(debtData);
+                        if (debtId > 0) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.debt,
+                            entityId: debtId,
+                            firestoreId: debtFId,
+                            operation: SyncOperation.create,
+                            data: debtData,
+                          );
+                        }
+                        EventBus().emit('debts_changed');
+                      } else {
+                        final expFId = 'exp_part_${now}_$partName';
+                        final expenseData = {
+                          'firestoreId': expFId,
+                          'title': 'Nhập ${_terms.category3}: $partName',
+                          'description': 'NCC: $supplierName - SL: $qty',
+                          'amount': totalCost,
+                          'category': 'NHẬP ${_terms.category3.toUpperCase()}',
+                          'date': now,
+                          'note': 'Nhập từ kho ${_terms.category3} - $paymentMethod',
+                          'paymentMethod': paymentMethod,
+                          'createdAt': now,
+                          'shopId': shopId,
+                          'isSynced': 0,
+                        };
+                        final expenseId = await db.insertExpense(expenseData);
+                        if (expenseId > 0) {
+                          await SyncOrchestrator().enqueue(
+                            entityType: SyncEntityType.expense,
+                            entityId: expenseId,
+                            firestoreId: expFId,
+                            operation: SyncOperation.create,
+                            data: expenseData,
+                          );
+                        }
+                        await FinancialActivityService.logPurchase(
+                          firestoreId: expFId,
+                          amount: totalCost,
+                          productName: partName,
+                          quantity: qty,
+                          paymentMethod: paymentMethod,
+                          supplierName: supplierName,
+                        );
+                        EventBus().emit('expenses_changed');
+                      }
+                    }
+
+                    if (!mounted) return;
+                    Navigator.pop(ctx);
+                    _refreshParts();
+                    EventBus().emit('parts_changed');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('✅ Đã nhập $partName x$qty'), backgroundColor: Colors.green),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                },
+                child: const Text("XÁC NHẬN"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// Soft delete single part
+  Future<void> _deleteSinglePart(Map<String, dynamic> p) async {
+    try {
+      final partId = p['id'] as int;
+      final database = await db.database;
+      await database.update(
+        'repair_parts',
+        {
+          'deleted': 1,
+          'isSynced': 0,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [partId],
+      );
+
+      await AuditService.logAction(
+        action: 'DELETE_PART',
+        entityType: 'repair_parts',
+        entityId: p['firestoreId'] ?? partId.toString(),
+        summary: 'Xóa ${_terms.category3}: ${p['partName']}',
+      );
+
+      _refreshParts();
+      EventBus().emit('repair_parts_changed');
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Đã xóa ${p['partName']}'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi khi xóa: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<void> _deleteSelectedParts() async {
