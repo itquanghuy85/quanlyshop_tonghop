@@ -64,6 +64,7 @@ import '../widgets/simple_sync_indicator.dart';
 import '../widgets/shop_switcher_widget.dart';
 import '../widgets/custom_app_bar.dart';
 import '../services/sync_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/sync_health_check.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
@@ -2022,21 +2023,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
             // Simple sync indicator - tự động sync, tap để force sync
             const SimpleSyncIndicator(),
             IconButton(
-              onPressed: () async {
-                await SyncService.cancelAllSubscriptions();
-                EncryptionService.reset(); // Reset mã hóa khi đăng xuất
-                UserService.clearCache(); // Xóa cache shopId
-                CurrentShopService().clear(); // Clear multi-shop cache
-                UserService.setAdminSelectedShop(
-                  null,
-                ); // Xóa shop đã chọn của admin
-                await DBHelper().clearAllData(); // Xóa dữ liệu local
-                try {
-                  await FirebaseAuth.instance.signOut();
-                } catch (e) {
-                  debugPrint('Logout error: $e');
-                }
-              },
+              onPressed: () => _handleLogout(context),
               icon: const Icon(Icons.logout_rounded, color: AppColors.error),
             ),
           ],
@@ -2045,6 +2032,83 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         bottomNavigationBar: _buildResponsiveBottomNav(),
       ),
     );
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
+    // Check for unsynced data before logout
+    final unsynced = await DBHelper().countAllUnsyncedData();
+    final totalUnsynced = unsynced.values.fold<int>(0, (a, b) => a + b);
+
+    if (totalUnsynced > 0 && mounted) {
+      final details = unsynced.entries
+          .map((e) => '• ${e.key}: ${e.value} bản ghi')
+          .join('\n');
+      final shouldContinue = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 8),
+            Expanded(child: Text('Dữ liệu chưa đồng bộ!', style: TextStyle(fontSize: 16))),
+          ]),
+          content: Text(
+            'Có $totalUnsynced bản ghi chưa được đồng bộ lên server:\n\n$details\n\n'
+            'Nếu đăng xuất ngay, dữ liệu này sẽ BỊ MẤT.\n\n'
+            'Hãy kiểm tra kết nối mạng và thử đồng bộ trước.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                // Try force sync
+                NotificationService.showSnackBar('Đang đồng bộ...', color: Colors.blue);
+                try {
+                  await SyncOrchestrator().syncAll();
+                  // Re-check
+                  final remaining = await DBHelper().countAllUnsyncedData();
+                  final remainCount = remaining.values.fold<int>(0, (a, b) => a + b);
+                  if (remainCount == 0) {
+                    NotificationService.showSnackBar('✅ Đã đồng bộ xong!', color: Colors.green);
+                  } else {
+                    NotificationService.showSnackBar(
+                      '⚠️ Còn $remainCount bản ghi chưa sync. Kiểm tra mạng.',
+                      color: Colors.orange,
+                    );
+                  }
+                } catch (e) {
+                  NotificationService.showSnackBar('❌ Lỗi sync: $e', color: Colors.red);
+                }
+              },
+              icon: const Icon(Icons.sync, size: 16),
+              label: const Text('Thử đồng bộ'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('Vẫn đăng xuất'),
+            ),
+          ],
+        ),
+      );
+      if (shouldContinue != true) return;
+    }
+
+    await SyncService.cancelAllSubscriptions();
+    EncryptionService.reset();
+    UserService.clearCache();
+    CurrentShopService().clear();
+    UserService.setAdminSelectedShop(null);
+    await DBHelper().clearAllData();
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (e) {
+      debugPrint('Logout error: $e');
+    }
   }
 
   /// Responsive body: NavigationRail on wide screens, IndexedStack on mobile

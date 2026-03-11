@@ -5379,6 +5379,25 @@ class DBHelper {
     return totalDeleted;
   }
 
+  /// Count all unsynced records across critical tables
+  /// Returns a map of tableName -> count of unsynced records
+  Future<Map<String, int>> countAllUnsyncedData() async {
+    final db = await database;
+    final tables = ['sales', 'products', 'repairs', 'expenses', 'debts',
+      'customers', 'purchase_orders', 'debt_payments', 'attendance'];
+    final result = <String, int>{};
+    for (final t in tables) {
+      try {
+        final rows = await db.rawQuery(
+          'SELECT COUNT(*) as c FROM $t WHERE isSynced = 0 OR isSynced IS NULL',
+        );
+        final count = Sqflite.firstIntValue(rows) ?? 0;
+        if (count > 0) result[t] = count;
+      } catch (_) {}
+    }
+    return result;
+  }
+
   Future<void> clearAllData() async {
     final db = await database;
     await db.transaction((txn) async {
