@@ -93,7 +93,9 @@ import 'fashion/variant_management_view.dart';
 import 'onboarding/business_type_wizard.dart';
 import 'dashboard_settings_view.dart';
 import 'payment_request_chat_view.dart';
+import 'reminders_view.dart';
 import '../services/test_data_service.dart';
+import '../services/reminder_service.dart';
 import '../services/dashboard_config_service.dart';
 import '../widgets/dashboard_cards.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -209,6 +211,7 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   int _partnerDebtRemain = 0; // Nợ đối tác SC
   int expiringWarranties = 0;
   int unreadChatCount = 0;
+  int _totalReminderCount = 0; // Tổng số nhắc nhở
   String _latestChatMessage = ''; // Tin nhắn mới nhất
   String _latestChatSender = ''; // Người gửi tin mới nhất
   Locale _currentLocale = const Locale('vi');
@@ -1790,10 +1793,25 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
         });
       }
 
-      // === DEFERRED: Load chat info from Firestore (don't block dashboard) ===
+      // === DEFERRED: Load chat info and reminders (don't block dashboard) ===
       _loadChatInfo();
+      _loadReminderCount();
     } finally {
       _isLoadingStats = false;
+    }
+  }
+
+  Future<void> _loadReminderCount() async {
+    try {
+      final count = await ReminderService.getTotalReminderCount(
+        role: widget.role,
+        permissions: _permissions,
+      );
+      if (mounted && count != _totalReminderCount) {
+        setState(() => _totalReminderCount = count);
+      }
+    } catch (e) {
+      debugPrint('HomeView._loadReminderCount error: $e');
     }
   }
 
@@ -6814,6 +6832,21 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
                     context,
                     MaterialPageRoute(builder: (_) => const DebtView()),
                   ),
+                ),
+                _activityCard(
+                  icon: Icons.notifications_active_rounded,
+                  label: 'Nhắc nhở',
+                  value: _totalReminderCount.toString(),
+                  color: _totalReminderCount > 0 ? const Color(0xFFE65100) : AppColors.inactive,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RemindersView(
+                        role: widget.role,
+                        permissions: _permissions,
+                      ),
+                    ),
+                  ).then((_) => _loadReminderCount()),
                 ),
               ];
               // Use GridView for consistent layout regardless of item count
