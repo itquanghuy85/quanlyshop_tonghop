@@ -29,6 +29,8 @@ class SyncCheckResult {
   final int cloudOnly; // Có cloud nhưng không có local
   final int matched; // Có cả hai
   final int unsyncedLocal; // Chưa sync lên cloud
+  final int pendingCreateLocal; // Local mới, chưa có firestoreId
+  final int pendingUpdateLocal; // Đã có firestoreId nhưng còn cờ unsynced
   final List<String> missingOnCloud; // IDs có local mà không có cloud
   final List<String> missingOnLocal; // IDs có cloud mà không có local
   final String? error;
@@ -41,12 +43,17 @@ class SyncCheckResult {
     required this.cloudOnly,
     required this.matched,
     required this.unsyncedLocal,
+    this.pendingCreateLocal = 0,
+    this.pendingUpdateLocal = 0,
     this.missingOnCloud = const [],
     this.missingOnLocal = const [],
     this.error,
   });
 
-  bool get isHealthy => localOnly == 0 && cloudOnly == 0 && unsyncedLocal == 0;
+  int get effectiveMismatchCount =>
+      cloudOnly + localOnly + pendingCreateLocal + pendingUpdateLocal;
+
+  bool get isHealthy => effectiveMismatchCount == 0;
   bool get hasIssues => !isHealthy;
 
   double get syncPercentage {
@@ -88,6 +95,7 @@ class SyncHealthReport {
 class SyncHealthCheck {
   static final _db = FirebaseFirestore.instance;
   static final _localDb = DBHelper();
+  static final Map<String, Set<String>> _tableColumnsCache = {};
 
   /// Kiểm tra toàn bộ sync health
   static Future<SyncHealthReport> runFullCheck() async {
@@ -105,7 +113,9 @@ class SyncHealthCheck {
     // Cần có shopId để check (super admin phải chọn shop trước)
     if (shopId == null) {
       if (isSuperAdmin) {
-        debugPrint('⚠️ runFullCheck: Super admin chưa chọn shop, bỏ qua kiểm tra');
+        debugPrint(
+          '⚠️ runFullCheck: Super admin chưa chọn shop, bỏ qua kiểm tra',
+        );
       } else {
         debugPrint('⚠️ runFullCheck: Không có shopId, bỏ qua kiểm tra');
       }
@@ -122,267 +132,37 @@ class SyncHealthCheck {
 
     // Có shopId (bao gồm cả super admin đã chọn shop) - tiến hành check
     final String validShopId = shopId;
-    
+
     final List<SyncCheckResult> results = [];
     int totalLocal = 0;
     int totalCloud = 0;
     int totalMismatches = 0;
 
-    // Check REPAIRS
-    results.add(
-      await _checkCollection(
-        collection: 'repairs',
-        shopId: validShopId,
-        getLocalIds: () async {
-          final repairs = await _localDb.getAllRepairs();
-          return repairs
-              .where((r) => r.firestoreId != null)
-              .map((r) => r.firestoreId!)
-              .toList();
-        },
-        getLocalCount: () async => (await _localDb.getAllRepairs()).length,
-        getUnsyncedCount: () async {
-          final repairs = await _localDb.getAllRepairs();
-          return repairs.where((r) => !r.isSynced).length;
-        },
-      ),
-    );
+    const collections = [
+      'repairs',
+      'sales',
+      'products',
+      'expenses',
+      'debts',
+      'attendance',
+      'customers',
+      'suppliers',
+      'quick_input_codes',
+      'repair_parts',
+      'debt_payments',
+    ];
 
-    // Check SALES
-    results.add(
-      await _checkCollection(
-        collection: 'sales',
-        shopId: validShopId,
-        getLocalIds: () async {
-          final sales = await _localDb.getAllSales();
-          return sales
-              .where((s) => s.firestoreId != null)
-              .map((s) => s.firestoreId!)
-              .toList();
-        },
-        getLocalCount: () async => (await _localDb.getAllSales()).length,
-        getUnsyncedCount: () async {
-          final sales = await _localDb.getAllSales();
-          return sales.where((s) => !s.isSynced).length;
-        },
-      ),
-    );
-
-    // Check PRODUCTS
-    results.add(
-      await _checkCollection(
-        collection: 'products',
-        shopId: shopId,
-        getLocalIds: () async {
-          final products = await _localDb.getAllProducts();
-          return products
-              .where((p) => p.firestoreId != null)
-              .map((p) => p.firestoreId!)
-              .toList();
-        },
-        getLocalCount: () async => (await _localDb.getAllProducts()).length,
-        getUnsyncedCount: () async {
-          final products = await _localDb.getAllProducts();
-          return products.where((p) => p.isSynced != true).length;
-        },
-      ),
-    );
-
-    // Check EXPENSES
-    results.add(
-      await _checkCollection(
-        collection: 'expenses',
-        shopId: shopId,
-        getLocalIds: () async {
-          final expenses = await _localDb.getAllExpenses();
-          return expenses
-              .where((e) => e['firestoreId'] != null)
-              .map((e) => e['firestoreId'] as String)
-              .toList();
-        },
-        getLocalCount: () async => (await _localDb.getAllExpenses()).length,
-        getUnsyncedCount: () async {
-          final expenses = await _localDb.getAllExpenses();
-          return expenses.where((e) => e['isSynced'] != 1).length;
-        },
-      ),
-    );
-
-    // Check DEBTS
-    results.add(
-      await _checkCollection(
-        collection: 'debts',
-        shopId: shopId,
-        getLocalIds: () async {
-          final debts = await _localDb.getAllDebts();
-          return debts
-              .where((d) => d['firestoreId'] != null)
-              .map((d) => d['firestoreId'] as String)
-              .toList();
-        },
-        getLocalCount: () async => (await _localDb.getAllDebts()).length,
-        getUnsyncedCount: () async {
-          final debts = await _localDb.getAllDebts();
-          return debts.where((d) => d['isSynced'] != 1).length;
-        },
-      ),
-    );
-
-    // Check ATTENDANCE
-    results.add(
-      await _checkCollection(
-        collection: 'attendance',
-        shopId: shopId,
-        getLocalIds: () async {
-          final attendance = await _localDb.getAllAttendance();
-          return attendance
-              .where((a) => a.firestoreId != null)
-              .map((a) => a.firestoreId!)
-              .toList();
-        },
-        getLocalCount: () async => (await _localDb.getAllAttendance()).length,
-        getUnsyncedCount: () async {
-          final attendance = await _localDb.getAllAttendance();
-          return attendance.where((a) => a.isSynced != true).length;
-        },
-      ),
-    );
-
-    // Check CUSTOMERS
-    results.add(
-      await _checkCollection(
-        collection: 'customers',
-        shopId: shopId,
-        getLocalIds: () async {
-          final db = await _localDb.database;
-          final customers = await db.query('customers');
-          return customers
-              .where((c) => c['firestoreId'] != null)
-              .map((c) => c['firestoreId'] as String)
-              .toList();
-        },
-        getLocalCount: () async {
-          final db = await _localDb.database;
-          final customers = await db.query('customers');
-          return customers.length;
-        },
-        getUnsyncedCount: () async {
-          final db = await _localDb.database;
-          final customers = await db.query('customers');
-          return customers.where((c) => c['isSynced'] != 1).length;
-        },
-      ),
-    );
-
-    // Check SUPPLIERS
-    results.add(
-      await _checkCollection(
-        collection: 'suppliers',
-        shopId: shopId,
-        getLocalIds: () async {
-          final db = await _localDb.database;
-          final suppliers = await db.query('suppliers');
-          return suppliers
-              .where((s) => s['firestoreId'] != null)
-              .map((s) => s['firestoreId'] as String)
-              .toList();
-        },
-        getLocalCount: () async {
-          final db = await _localDb.database;
-          final suppliers = await db.query('suppliers');
-          return suppliers.length;
-        },
-        getUnsyncedCount: () async {
-          final db = await _localDb.database;
-          final suppliers = await db.query('suppliers');
-          return suppliers.where((s) => s['isSynced'] != 1).length;
-        },
-      ),
-    );
-
-    // Check QUICK_INPUT_CODES
-    results.add(
-      await _checkCollection(
-        collection: 'quick_input_codes',
-        shopId: shopId,
-        getLocalIds: () async {
-          final db = await _localDb.database;
-          final codes = await db.query('quick_input_codes');
-          return codes
-              .where((c) => c['firestoreId'] != null)
-              .map((c) => c['firestoreId'] as String)
-              .toList();
-        },
-        getLocalCount: () async {
-          final db = await _localDb.database;
-          final codes = await db.query('quick_input_codes');
-          return codes.length;
-        },
-        getUnsyncedCount: () async {
-          final db = await _localDb.database;
-          final codes = await db.query('quick_input_codes');
-          return codes.where((c) => c['isSynced'] != 1).length;
-        },
-      ),
-    );
-
-    // Check REPAIR_PARTS (Kho linh kiện)
-    results.add(
-      await _checkCollection(
-        collection: 'repair_parts',
-        shopId: shopId,
-        getLocalIds: () async {
-          final db = await _localDb.database;
-          final parts = await db.query('repair_parts', where: 'deleted = 0 OR deleted IS NULL');
-          return parts
-              .where((p) => p['firestoreId'] != null)
-              .map((p) => p['firestoreId'] as String)
-              .toList();
-        },
-        getLocalCount: () async {
-          final db = await _localDb.database;
-          final parts = await db.query('repair_parts', where: 'deleted = 0 OR deleted IS NULL');
-          return parts.length;
-        },
-        getUnsyncedCount: () async {
-          final db = await _localDb.database;
-          final parts = await db.query('repair_parts', where: 'deleted = 0 OR deleted IS NULL');
-          return parts.where((p) => p['isSynced'] != 1).length;
-        },
-      ),
-    );
-
-    // Check DEBT_PAYMENTS (Lịch sử thanh toán công nợ)
-    results.add(
-      await _checkCollection(
-        collection: 'debt_payments',
-        shopId: shopId,
-        getLocalIds: () async {
-          final db = await _localDb.database;
-          final payments = await db.query('debt_payments');
-          return payments
-              .where((p) => p['firestoreId'] != null)
-              .map((p) => p['firestoreId'] as String)
-              .toList();
-        },
-        getLocalCount: () async {
-          final db = await _localDb.database;
-          final payments = await db.query('debt_payments');
-          return payments.length;
-        },
-        getUnsyncedCount: () async {
-          final db = await _localDb.database;
-          final payments = await db.query('debt_payments');
-          return payments.where((p) => p['isSynced'] != 1).length;
-        },
-      ),
-    );
+    for (final collection in collections) {
+      results.add(
+        await _checkCollection(collection: collection, shopId: validShopId),
+      );
+    }
 
     // Tính tổng
     for (var r in results) {
       totalLocal += r.localCount;
       totalCloud += r.cloudCount;
-      totalMismatches += r.localOnly + r.cloudOnly + r.unsyncedLocal;
+      totalMismatches += r.effectiveMismatchCount;
     }
 
     final report = SyncHealthReport(
@@ -421,9 +201,6 @@ class SyncHealthCheck {
   static Future<SyncCheckResult> _checkCollection({
     required String collection,
     required String shopId,
-    required Future<List<String>> Function() getLocalIds,
-    required Future<int> Function() getLocalCount,
-    required Future<int> Function() getUnsyncedCount,
   }) async {
     try {
       // Lấy dữ liệu từ cloud - chỉ dùng 1 where để tránh cần composite index
@@ -434,13 +211,19 @@ class SyncHealthCheck {
           .get();
 
       // DEBUG: Log chi tiết để tìm nguyên nhân cloud = 0
-      debugPrint('📊 _checkCollection $collection: shopId=$shopId, cloudDocs=${cloudSnap.docs.length}');
+      debugPrint(
+        '📊 _checkCollection $collection: shopId=$shopId, cloudDocs=${cloudSnap.docs.length}',
+      );
       if (cloudSnap.docs.isEmpty) {
         // Thử query không filter shopId để xem có data không
         final allDocs = await _db.collection(collection).limit(5).get();
         if (allDocs.docs.isNotEmpty) {
-          final sampleShopIds = allDocs.docs.map((d) => d.data()['shopId']).toSet();
-          debugPrint('⚠️ $collection có ${allDocs.docs.length}+ docs trên cloud nhưng shopId khác: $sampleShopIds');
+          final sampleShopIds = allDocs.docs
+              .map((d) => d.data()['shopId'])
+              .toSet();
+          debugPrint(
+            '⚠️ $collection có ${allDocs.docs.length}+ docs trên cloud nhưng shopId khác: $sampleShopIds',
+          );
         } else {
           debugPrint('ℹ️ $collection không có data nào trên cloud');
         }
@@ -451,19 +234,36 @@ class SyncHealthCheck {
           .where((d) => d.data()['deleted'] != true)
           .map((d) => d.id)
           .toSet();
-      final localIds = (await getLocalIds()).toSet();
-      final localCount = await getLocalCount();
-      final unsyncedCount = await getUnsyncedCount();
-      
-      debugPrint('   → localCount=$localCount, localWithFirestoreId=${localIds.length}, cloudCount=${cloudIds.length}, unsynced=$unsyncedCount');
+      final localRows = await _getActiveLocalRows(collection, shopId: shopId);
+      final localIds = localRows
+          .map(_firestoreIdFromRow)
+          .whereType<String>()
+          .toSet();
+      final localCount = localRows.length;
+      final unsyncedCount = localRows.where(_isUnsyncedRow).length;
+      final pendingCreateLocal = localRows
+          .where(
+            (row) => _isUnsyncedRow(row) && _firestoreIdFromRow(row) == null,
+          )
+          .length;
+      final pendingUpdateLocal = localRows.where((row) {
+        final firestoreId = _firestoreIdFromRow(row);
+        return _isUnsyncedRow(row) &&
+            firestoreId != null &&
+            cloudIds.contains(firestoreId);
+      }).length;
 
-      final matched = localIds.intersection(cloudIds).length;
-      final localOnly = localIds.difference(cloudIds).length;
+      debugPrint(
+        '   → localCount=$localCount, localWithFirestoreId=${localIds.length}, cloudCount=${cloudIds.length}, unsynced=$unsyncedCount, pendingCreate=$pendingCreateLocal, pendingUpdate=$pendingUpdateLocal',
+      );
+
       final cloudOnly = cloudIds.difference(localIds).length;
 
       // AUTO-FIX: Tự động download records thiếu trên local
       if (cloudOnly > 0) {
-        debugPrint('   🔧 Auto-fix: Tải $cloudOnly records thiếu cho $collection...');
+        debugPrint(
+          '   🔧 Auto-fix: Tải $cloudOnly records thiếu cho $collection...',
+        );
         final missingIds = cloudIds.difference(localIds);
         int fixed = 0;
         for (final docId in missingIds) {
@@ -481,23 +281,47 @@ class SyncHealthCheck {
             debugPrint('   ❌ Không tải được $docId: $e');
           }
         }
-        debugPrint('   ✅ Đã tải $fixed/$cloudOnly records thiếu cho $collection');
+        debugPrint(
+          '   ✅ Đã tải $fixed/$cloudOnly records thiếu cho $collection',
+        );
       }
 
       // Re-count sau auto-fix
-      final localIdsAfter = (await getLocalIds()).toSet();
-      final localCountAfter = await getLocalCount();
+      final localRowsAfter = await _getActiveLocalRows(
+        collection,
+        shopId: shopId,
+      );
+      final localIdsAfter = localRowsAfter
+          .map(_firestoreIdFromRow)
+          .whereType<String>()
+          .toSet();
+      final localCountAfter = localRowsAfter.length;
       final matchedAfter = localIdsAfter.intersection(cloudIds).length;
       final cloudOnlyAfter = cloudIds.difference(localIdsAfter).length;
+      final localOnlyAfter = localIdsAfter.difference(cloudIds).length;
+      final unsyncedAfter = localRowsAfter.where(_isUnsyncedRow).length;
+      final pendingCreateAfter = localRowsAfter
+          .where(
+            (row) => _isUnsyncedRow(row) && _firestoreIdFromRow(row) == null,
+          )
+          .length;
+      final pendingUpdateAfter = localRowsAfter.where((row) {
+        final firestoreId = _firestoreIdFromRow(row);
+        return _isUnsyncedRow(row) &&
+            firestoreId != null &&
+            cloudIds.contains(firestoreId);
+      }).length;
 
       return SyncCheckResult(
         collection: collection,
         localCount: localCountAfter,
         cloudCount: cloudIds.length,
-        localOnly: localIdsAfter.difference(cloudIds).length,
+        localOnly: localOnlyAfter,
         cloudOnly: cloudOnlyAfter,
         matched: matchedAfter,
-        unsyncedLocal: await getUnsyncedCount(),
+        unsyncedLocal: unsyncedAfter,
+        pendingCreateLocal: pendingCreateAfter,
+        pendingUpdateLocal: pendingUpdateAfter,
         missingOnCloud: localIdsAfter.difference(cloudIds).take(10).toList(),
         missingOnLocal: cloudIds.difference(localIdsAfter).take(10).toList(),
       );
@@ -511,9 +335,66 @@ class SyncHealthCheck {
         cloudOnly: 0,
         matched: 0,
         unsyncedLocal: 0,
+        pendingCreateLocal: 0,
+        pendingUpdateLocal: 0,
         error: e.toString(),
       );
     }
+  }
+
+  static Future<Set<String>> _getTableColumns(String table) async {
+    final cached = _tableColumnsCache[table];
+    if (cached != null) return cached;
+
+    final db = await _localDb.database;
+    final info = await db.rawQuery('PRAGMA table_info($table)');
+    final columns = info
+        .map((row) => row['name']?.toString())
+        .whereType<String>()
+        .toSet();
+    _tableColumnsCache[table] = columns;
+    return columns;
+  }
+
+  static Future<List<Map<String, dynamic>>> _getActiveLocalRows(
+    String collection, {
+    required String shopId,
+  }) async {
+    final db = await _localDb.database;
+    final columns = await _getTableColumns(collection);
+    final whereClauses = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (columns.contains('deleted')) {
+      whereClauses.add('(deleted IS NULL OR deleted = 0)');
+    }
+    if (columns.contains('shopId')) {
+      whereClauses.add('(shopId = ? OR shopId IS NULL)');
+      whereArgs.add(shopId);
+    }
+
+    return db.query(
+      collection,
+      where: whereClauses.isEmpty ? null : whereClauses.join(' AND '),
+      whereArgs: whereArgs.isEmpty ? null : whereArgs,
+    );
+  }
+
+  static String? _firestoreIdFromRow(Map<String, dynamic> row) {
+    final value = row['firestoreId']?.toString().trim();
+    if (value == null || value.isEmpty) return null;
+    return value;
+  }
+
+  static bool _isUnsyncedRow(Map<String, dynamic> row) {
+    final value = row['isSynced'];
+    if (value is bool) return value != true;
+    if (value is num) return value.toInt() != 1;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized != '1' && normalized != 'true';
+    }
+    return true;
   }
 
   /// Tự động sửa các vấn đề sync (download + upload + mark synced)
@@ -542,7 +423,7 @@ class SyncHealthCheck {
     // Danh sách các collection cần sync
     final collections = [
       'repairs',
-      'sales', 
+      'sales',
       'products',
       'expenses',
       'debts',
@@ -557,7 +438,7 @@ class SyncHealthCheck {
     for (var collection in collections) {
       try {
         debugPrint('   📥 Đang xử lý $collection...');
-        
+
         // Lấy tất cả từ cloud
         final cloudSnap = await _db
             .collection(collection)
@@ -566,22 +447,26 @@ class SyncHealthCheck {
 
         // Lấy local IDs
         final localIds = await _getLocalIds(collection);
-        
+
         // Đếm cloud docs (không bị deleted)
-        final activeCloudDocs = cloudSnap.docs.where((d) => d.data()['deleted'] != true).toList();
-        debugPrint('      Cloud total: ${cloudSnap.docs.length}, active: ${activeCloudDocs.length}, local: ${localIds.length}');
-        
+        final activeCloudDocs = cloudSnap.docs
+            .where((d) => d.data()['deleted'] != true)
+            .toList();
+        debugPrint(
+          '      Cloud total: ${cloudSnap.docs.length}, active: ${activeCloudDocs.length}, local: ${localIds.length}',
+        );
+
         int collectionFixed = 0;
         int collectionUpdated = 0;
         for (var doc in activeCloudDocs) {
           var data = Map<String, dynamic>.from(doc.data());
           data = EncryptionService.decryptMap(data);
-          
+
           data['firestoreId'] = doc.id;
           data['isSynced'] = 1; // Đánh dấu đã sync
           data['deleted'] = data['deleted'] ?? 0; // Ensure deleted field exists
           SyncService.convertTimestampFieldsPublic(data);
-          
+
           try {
             // Upsert tất cả - cả records mới lẫn records cần cập nhật isSynced
             await _upsertToLocal(collection, data);
@@ -596,9 +481,11 @@ class SyncHealthCheck {
             debugPrint('      ❌ Lỗi xử lý ${doc.id}: $e');
           }
         }
-        
+
         // Xóa local records đã bị xóa trên cloud
-        final deletedCloudDocs = cloudSnap.docs.where((d) => d.data()['deleted'] == true).toList();
+        final deletedCloudDocs = cloudSnap.docs
+            .where((d) => d.data()['deleted'] == true)
+            .toList();
         int deletedLocally = 0;
         for (var doc in deletedCloudDocs) {
           if (localIds.contains(doc.id)) {
@@ -612,8 +499,10 @@ class SyncHealthCheck {
             }
           }
         }
-        
-        debugPrint('   ✅ $collection: +$collectionFixed mới, ~$collectionUpdated cập nhật, -$deletedLocally xóa');
+
+        debugPrint(
+          '   ✅ $collection: +$collectionFixed mới, ~$collectionUpdated cập nhật, -$deletedLocally xóa',
+        );
       } catch (e) {
         debugPrint('   ❌ Lỗi xử lý $collection: $e');
       }
@@ -635,10 +524,22 @@ class SyncHealthCheck {
   /// Đánh dấu tất cả records có firestoreId là đã sync
   static Future<void> _markAllAsSynced() async {
     final db = await _localDb.database;
-    
+
     // Cập nhật isSynced = 1 cho tất cả records có firestoreId
-    final tables = ['repairs', 'sales', 'products', 'expenses', 'debts', 'attendance', 'customers', 'suppliers', 'quick_input_codes', 'repair_parts', 'debt_payments'];
-    
+    final tables = [
+      'repairs',
+      'sales',
+      'products',
+      'expenses',
+      'debts',
+      'attendance',
+      'customers',
+      'suppliers',
+      'quick_input_codes',
+      'repair_parts',
+      'debt_payments',
+    ];
+
     for (var table in tables) {
       try {
         await db.rawUpdate(
@@ -655,41 +556,104 @@ class SyncHealthCheck {
   static Future<Set<String>> _getLocalIds(String collection) async {
     final db = _localDb;
     final dbInstance = await db.database;
-    
+
     switch (collection) {
       case 'repairs':
-        final repairs = await dbInstance.query('repairs', where: '(deleted = 0 OR deleted IS NULL)');
-        return repairs.where((r) => r['firestoreId'] != null).map((r) => r['firestoreId'] as String).toSet();
+        final repairs = await dbInstance.query(
+          'repairs',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return repairs
+            .where((r) => r['firestoreId'] != null)
+            .map((r) => r['firestoreId'] as String)
+            .toSet();
       case 'sales':
-        final sales = await dbInstance.query('sales', where: '(deleted = 0 OR deleted IS NULL)');
-        return sales.where((s) => s['firestoreId'] != null).map((s) => s['firestoreId'] as String).toSet();
+        final sales = await dbInstance.query(
+          'sales',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return sales
+            .where((s) => s['firestoreId'] != null)
+            .map((s) => s['firestoreId'] as String)
+            .toSet();
       case 'products':
-        final products = await dbInstance.query('products', where: '(deleted = 0 OR deleted IS NULL)');
-        return products.where((p) => p['firestoreId'] != null).map((p) => p['firestoreId'] as String).toSet();
+        final products = await dbInstance.query(
+          'products',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return products
+            .where((p) => p['firestoreId'] != null)
+            .map((p) => p['firestoreId'] as String)
+            .toSet();
       case 'expenses':
-        final expenses = await dbInstance.query('expenses', where: '(deleted = 0 OR deleted IS NULL)');
-        return expenses.where((e) => e['firestoreId'] != null).map((e) => e['firestoreId'] as String).toSet();
+        final expenses = await dbInstance.query(
+          'expenses',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return expenses
+            .where((e) => e['firestoreId'] != null)
+            .map((e) => e['firestoreId'] as String)
+            .toSet();
       case 'debts':
-        final debts = await dbInstance.query('debts', where: '(deleted = 0 OR deleted IS NULL)');
-        return debts.where((d) => d['firestoreId'] != null).map((d) => d['firestoreId'] as String).toSet();
+        final debts = await dbInstance.query(
+          'debts',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return debts
+            .where((d) => d['firestoreId'] != null)
+            .map((d) => d['firestoreId'] as String)
+            .toSet();
       case 'attendance':
-        final attendance = await dbInstance.query('attendance', where: '(deleted = 0 OR deleted IS NULL)');
-        return attendance.where((a) => a['firestoreId'] != null).map((a) => a['firestoreId'] as String).toSet();
+        final attendance = await dbInstance.query(
+          'attendance',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return attendance
+            .where((a) => a['firestoreId'] != null)
+            .map((a) => a['firestoreId'] as String)
+            .toSet();
       case 'customers':
-        final customers = await dbInstance.query('customers', where: '(deleted = 0 OR deleted IS NULL)');
-        return customers.where((c) => c['firestoreId'] != null).map((c) => c['firestoreId'] as String).toSet();
+        final customers = await dbInstance.query(
+          'customers',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return customers
+            .where((c) => c['firestoreId'] != null)
+            .map((c) => c['firestoreId'] as String)
+            .toSet();
       case 'suppliers':
-        final suppliers = await dbInstance.query('suppliers', where: '(deleted = 0 OR deleted IS NULL)');
-        return suppliers.where((s) => s['firestoreId'] != null).map((s) => s['firestoreId'] as String).toSet();
+        final suppliers = await dbInstance.query(
+          'suppliers',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return suppliers
+            .where((s) => s['firestoreId'] != null)
+            .map((s) => s['firestoreId'] as String)
+            .toSet();
       case 'quick_input_codes':
-        final codes = await dbInstance.query('quick_input_codes', where: '(deleted = 0 OR deleted IS NULL)');
-        return codes.where((c) => c['firestoreId'] != null).map((c) => c['firestoreId'] as String).toSet();
+        final codes = await dbInstance.query(
+          'quick_input_codes',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return codes
+            .where((c) => c['firestoreId'] != null)
+            .map((c) => c['firestoreId'] as String)
+            .toSet();
       case 'repair_parts':
-        final parts = await dbInstance.query('repair_parts', where: '(deleted = 0 OR deleted IS NULL)');
-        return parts.where((p) => p['firestoreId'] != null).map((p) => p['firestoreId'] as String).toSet();
+        final parts = await dbInstance.query(
+          'repair_parts',
+          where: '(deleted = 0 OR deleted IS NULL)',
+        );
+        return parts
+            .where((p) => p['firestoreId'] != null)
+            .map((p) => p['firestoreId'] as String)
+            .toSet();
       case 'debt_payments':
         final payments = await dbInstance.query('debt_payments');
-        return payments.where((p) => p['firestoreId'] != null).map((p) => p['firestoreId'] as String).toSet();
+        return payments
+            .where((p) => p['firestoreId'] != null)
+            .map((p) => p['firestoreId'] as String)
+            .toSet();
       default:
         return {};
     }
@@ -740,9 +704,12 @@ class SyncHealthCheck {
   }
 
   /// Đánh dấu record đã bị xóa trong local DB
-  static Future<void> _markDeletedInLocal(String collection, String firestoreId) async {
+  static Future<void> _markDeletedInLocal(
+    String collection,
+    String firestoreId,
+  ) async {
     final db = await _localDb.database;
-    
+
     try {
       await db.update(
         collection,
