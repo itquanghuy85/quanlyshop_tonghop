@@ -10,6 +10,58 @@ import '../core/utils/money_utils.dart';
 class RepairPartnerService {
   final db = DBHelper();
 
+  static String generateServiceFirestoreId() {
+    return 'svc_${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  static String buildPartnerDebtFirestoreId({
+    required String repairOrderId,
+    required String serviceFirestoreId,
+    required int partnerId,
+    required int partnerCost,
+  }) {
+    final normalized = _normalizeTrackingKey(
+      'debt_${repairOrderId}_${serviceFirestoreId}_${partnerId}_$partnerCost',
+    );
+    return 'debt_partner_$normalized';
+  }
+
+  static String buildPartnerPaymentIdempotencyKey({
+    required String repairOrderId,
+    required String serviceFirestoreId,
+    required int partnerId,
+    required int partnerCost,
+    required String paymentMethod,
+  }) {
+    return _normalizeTrackingKey(
+      'partner_payment_${repairOrderId}_${serviceFirestoreId}_${partnerId}_${paymentMethod.trim().toUpperCase()}_$partnerCost',
+    );
+  }
+
+  static String buildPartnerTrackingNote({
+    required String repairOrderId,
+    required String serviceFirestoreId,
+    required String serviceName,
+    required String deviceModel,
+    required String customerName,
+    required bool isDebt,
+  }) {
+    final label = isDebt ? 'Công nợ đối tác' : 'Thanh toán đối tác';
+    return '$label: $serviceName - Đơn sửa $deviceModel ($customerName) [repair:$repairOrderId|service:$serviceFirestoreId]';
+  }
+
+  static String _normalizeTrackingKey(String value) {
+    final normalized = value
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+    if (normalized.length <= 80) {
+      return normalized;
+    }
+    return normalized.substring(0, 80);
+  }
+
   // Repair Partner CRUD
   Future<List<RepairPartner>> getRepairPartners() async {
     final shopId = await UserService.getCurrentShopId();
@@ -296,14 +348,38 @@ class RepairPartnerService {
     String? repairContent,
   }) async {
     final shopId = await UserService.getCurrentShopId() ?? '';
+    final normalizedIssue = issue.trim().toUpperCase();
+    final normalizedRepairContent = (repairContent ?? '').trim().toUpperCase();
+
+    final existingHistories = await db.getPartnerRepairHistory(
+      repairOrderId: repairOrderId,
+    );
+    final duplicate = existingHistories.any((history) {
+      final samePartner = history['partnerId'] == partnerId;
+      final sameIssue =
+          (history['issue'] ?? '').toString().trim().toUpperCase() ==
+          normalizedIssue;
+      final sameRepairContent =
+          (history['repairContent'] ?? '').toString().trim().toUpperCase() ==
+          normalizedRepairContent;
+      final sameCost = (history['partnerCost'] as num?)?.toInt() == partnerCost;
+      return samePartner && sameIssue && sameRepairContent && sameCost;
+    });
+
+    if (duplicate) {
+      return true;
+    }
+
     final history = PartnerRepairHistory(
       repairOrderId: repairOrderId,
       partnerId: partnerId,
       customerName: customerName,
       deviceModel: deviceModel,
-      issue: issue,
+      issue: normalizedIssue,
       partnerCost: partnerCost,
-      repairContent: repairContent,
+      repairContent: normalizedRepairContent.isEmpty
+          ? null
+          : normalizedRepairContent,
       sentAt: DateTime.now().millisecondsSinceEpoch,
       shopId: shopId,
     );

@@ -1124,6 +1124,22 @@ class FirestoreService {
     }
   }
 
+  static Future<void> deletePartnerRepairHistoryByFirestoreId(
+    String firestoreId,
+  ) async {
+    try {
+      await _db.collection('partner_repair_history').doc(firestoreId).update({
+        'deleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      try {
+        await _db.collection('partner_repair_history').doc(firestoreId).delete();
+      } catch (_) {}
+      debugPrint('Firestore deletePartnerRepairHistoryByFirestoreId error: $e');
+    }
+  }
+
   // --- SUPPLIERS ---
   static Future<String?> addSupplier(Map<String, dynamic> supplierData) async {
     try {

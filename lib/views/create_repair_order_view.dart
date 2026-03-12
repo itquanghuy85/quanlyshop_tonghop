@@ -534,8 +534,10 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       final partnerServices = _services.where((s) => s.partnerId != null).toList();
       for (var serviceIndex = 0; serviceIndex < partnerServices.length; serviceIndex++) {
         final s = partnerServices[serviceIndex];
+        final repairOrderId = rWithCloudId.firestoreId!;
+        final serviceFirestoreId = s.firestoreId ?? RepairPartnerService.generateServiceFirestoreId();
         final success = await service.createPartnerHistoryForRepair(
-          repairOrderId: rWithCloudId.firestoreId!,
+          repairOrderId: repairOrderId,
           partnerId: s.partnerId!,
           partnerCost: s.cost,
           customerName: r.customerName,
@@ -553,11 +555,24 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         if (s.paymentMethod != null) {
           final shopId = await UserService.getCurrentShopId() ?? '';
           final nowTs = DateTime.now().millisecondsSinceEpoch;
+          final trackingNote = RepairPartnerService.buildPartnerTrackingNote(
+            repairOrderId: repairOrderId,
+            serviceFirestoreId: serviceFirestoreId,
+            serviceName: s.serviceName,
+            deviceModel: r.model,
+            customerName: r.customerName,
+            isDebt: s.paymentMethod == 'CÔNG NỢ',
+          );
           
           if (s.paymentMethod == 'CÔNG NỢ') {
             // CÔNG NỢ → tạo debt record vào bảng debts
             try {
-              final debtFId = 'debt_partner_${nowTs}_${s.partnerId}';
+              final debtFId = RepairPartnerService.buildPartnerDebtFirestoreId(
+                repairOrderId: repairOrderId,
+                serviceFirestoreId: serviceFirestoreId,
+                partnerId: s.partnerId!,
+                partnerCost: s.cost,
+              );
               final debtData = {
                 'firestoreId': debtFId,
                 'type': 'SHOP_OWES', // Shop nợ đối tác
@@ -566,11 +581,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 'phone': '',
                 'totalAmount': s.cost,
                 'paidAmount': 0,
-                'note': 'Công nợ đối tác: ${s.serviceName} - Đơn sửa ${r.model} (${r.customerName})',
+                'note': trackingNote,
                 'status': 'ACTIVE',
                 'createdAt': nowTs,
                 'shopId': shopId,
-                'linkedId': rWithCloudId.firestoreId ?? '',
+                'linkedId': repairOrderId,
                 'relatedPartId': s.partnerId?.toString() ?? '',
                 'deleted': 0,
                 'isSynced': 0,
@@ -603,19 +618,27 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 paymentMethod: PaymentMethod.fromCode(s.paymentMethod),
                 description: 'Trả đối tác: ${s.partnerName ?? "N/A"} - ${s.serviceName}',
                 executedBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
-                referenceId: rWithCloudId.firestoreId,
+                referenceId: repairOrderId,
                 referenceType: 'repair_partner_service',
                 personName: s.partnerName,
+                notes: trackingNote,
                 metadata: {
                   'repairId': rWithCloudId.id,
-                  'repairFirestoreId': rWithCloudId.firestoreId,
+                  'repairFirestoreId': repairOrderId,
                   'partnerId': s.partnerId,
                   'partnerName': s.partnerName,
                   'serviceName': s.serviceName,
                   'paymentMethod': s.paymentMethod,
+                  'serviceFirestoreId': serviceFirestoreId,
                 },
                 idempotencyKey:
-                    'create_${rWithCloudId.firestoreId}_${s.partnerId}_${serviceIndex}_${s.serviceName}_${s.cost}_${s.paymentMethod}',
+                    RepairPartnerService.buildPartnerPaymentIdempotencyKey(
+                      repairOrderId: repairOrderId,
+                      serviceFirestoreId: serviceFirestoreId,
+                      partnerId: s.partnerId!,
+                      partnerCost: s.cost,
+                      paymentMethod: s.paymentMethod!,
+                    ),
               );
               debugPrint('💳 Partner payment ${payResult.success ? "OK" : "FAILED"}: ${s.cost}đ');
             } catch (e) {
@@ -875,6 +898,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 // Không nhân 1000 - user đã nhập số đầy đủ với formatter
                 final cost = MoneyUtils.parseCurrency(costCtrl.text);
                 final service = RepairService(
+                  firestoreId: editService?.firestoreId ?? RepairPartnerService.generateServiceFirestoreId(),
                   serviceName: serviceCtrl.text.trim().toUpperCase(),
                   cost: cost,
                   partnerId: selectedPartner?.id,

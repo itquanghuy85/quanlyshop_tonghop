@@ -7285,6 +7285,19 @@ class DBHelper {
     );
   }
 
+  Future<Map<String, dynamic>?> getRepairPartnerPaymentByFirestoreId(
+    String firestoreId,
+  ) async {
+    final db = await database;
+    final rows = await db.query(
+      'repair_partner_payments',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return rows.isNotEmpty ? rows.first : null;
+  }
+
   Future<void> upsertRepairPartnerPayment(Map<String, dynamic> payment) async {
     final db = await database;
     final firestoreId = payment['firestoreId'];

@@ -549,6 +549,24 @@ class PaymentIntentService {
     return 'pi_direct_${type.code.toLowerCase()}_$safe';
   }
 
+  static String? buildDirectPaymentIntentId({
+    required PaymentIntentType type,
+    String? idempotencyKey,
+  }) {
+    return _buildDirectIntentId(type, idempotencyKey);
+  }
+
+  static String? buildDirectPaymentRecordFirestoreId({
+    required PaymentIntentType type,
+    String? idempotencyKey,
+  }) {
+    final intentId = _buildDirectIntentId(type, idempotencyKey);
+    if (intentId == null || intentId.isEmpty) {
+      return null;
+    }
+    return 'rpp_$intentId';
+  }
+
   // ---------------------------------------------------------------------------
   // PAYMENT EXECUTION (ONLY ALLOWED FROM UNIFIED PAYMENT PAGE)
   // ---------------------------------------------------------------------------

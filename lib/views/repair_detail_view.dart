@@ -3818,6 +3818,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 // Ví dụ: nhập "50.000" → parse ra 50000 VNĐ (đúng)
                 final cost = MoneyUtils.parseCurrency(costCtrl.text);
                 final service = RepairService(
+                  firestoreId: editService?.firestoreId ?? RepairPartnerService.generateServiceFirestoreId(),
                   serviceName: serviceCtrl.text.trim().toUpperCase(),
                   cost: cost,
                   partnerId: selectedPartner?.id,
@@ -3835,14 +3836,360 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
   }
 
+  String _repairOrderTrackingId() {
+    final firestoreId = r.firestoreId?.trim();
+    if (firestoreId != null && firestoreId.isNotEmpty) {
+      return firestoreId;
+    }
+    return 'local_${r.id ?? 0}';
+  }
+
+  bool _didPartnerHistoryChange(RepairService? oldService, RepairService newService) {
+    if (oldService == null) {
+      return newService.partnerId != null;
+    }
+    return oldService.partnerId != newService.partnerId ||
+        (oldService.serviceName.trim().toUpperCase() !=
+            newService.serviceName.trim().toUpperCase()) ||
+        oldService.cost != newService.cost;
+  }
+
+  bool _didPartnerFinancialStateChange(RepairService? oldService, RepairService newService) {
+    if (oldService == null) {
+      return newService.partnerId != null;
+    }
+    return oldService.partnerId != newService.partnerId ||
+        oldService.cost != newService.cost ||
+        (oldService.paymentMethod ?? '') != (newService.paymentMethod ?? '');
+  }
+
+  Future<void> _cleanupPartnerHistoryForService(RepairService service) async {
+    if (service.partnerId == null) {
+      return;
+    }
+
+    final normalizedServiceName = service.serviceName.trim().toUpperCase();
+    final histories = await db.getPartnerRepairHistory(
+      repairOrderId: _repairOrderTrackingId(),
+    );
+    final dbInstance = await db.database;
+
+    for (final history in histories) {
+      final samePartner = history['partnerId'] == service.partnerId;
+      final sameIssue =
+          (history['issue'] ?? '').toString().trim().toUpperCase() ==
+          normalizedServiceName;
+      final sameRepairContent =
+          (history['repairContent'] ?? '').toString().trim().toUpperCase() ==
+          normalizedServiceName;
+      final sameCost = (history['partnerCost'] as num?)?.toInt() == service.cost;
+      if (!samePartner || !sameIssue || !sameRepairContent || !sameCost) {
+        continue;
+      }
+
+      final firestoreId = history['firestoreId']?.toString();
+      if (firestoreId != null && firestoreId.isNotEmpty) {
+        await db.deletePartnerRepairHistoryByFirestoreId(firestoreId);
+        await FirestoreService.deletePartnerRepairHistoryByFirestoreId(firestoreId);
+        continue;
+      }
+
+      final localId = history['id'] as int?;
+      if (localId != null) {
+        await dbInstance.delete(
+          'partner_repair_history',
+          where: 'id = ?',
+          whereArgs: [localId],
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteDebtSnapshot(Map<String, dynamic> debtRow) async {
+    final debtFId = debtRow['firestoreId']?.toString();
+    final localId = debtRow['id'] as int?;
+    if (debtFId == null || debtFId.isEmpty || localId == null) {
+      return;
+    }
+
+    await db.deleteDebtByFirestoreId(debtFId);
+    await SyncOrchestrator().enqueue(
+      entityType: SyncEntityType.debt,
+      entityId: localId,
+      firestoreId: debtFId,
+      operation: SyncOperation.delete,
+      data: {...debtRow, 'deleted': true},
+    );
+  }
+
+  Future<void> _cleanupPartnerDebtForService(RepairService service) async {
+    if (service.partnerId == null || (service.paymentMethod ?? '').isEmpty) {
+      return;
+    }
+
+    final repairOrderId = _repairOrderTrackingId();
+    final serviceFirestoreId = service.firestoreId?.trim();
+    if (serviceFirestoreId != null && serviceFirestoreId.isNotEmpty) {
+      final stableDebtId = RepairPartnerService.buildPartnerDebtFirestoreId(
+        repairOrderId: repairOrderId,
+        serviceFirestoreId: serviceFirestoreId,
+        partnerId: service.partnerId!,
+        partnerCost: service.cost,
+      );
+      final stableDebt = await db.getDebtByFirestoreId(stableDebtId);
+      if (stableDebt != null) {
+        await _deleteDebtSnapshot(stableDebt);
+      }
+    }
+
+    final dbInstance = await db.database;
+    final legacyRows = await dbInstance.query(
+      'debts',
+      where:
+          'linkedId = ? AND relatedPartId = ? AND totalAmount = ? AND (deleted IS NULL OR deleted = 0)',
+      whereArgs: [repairOrderId, service.partnerId.toString(), service.cost],
+    );
+    final serviceName = service.serviceName.trim().toUpperCase();
+    final seenIds = <int>{};
+    for (final row in legacyRows) {
+      final localId = row['id'] as int?;
+      if (localId == null || seenIds.contains(localId)) {
+        continue;
+      }
+      final note = (row['note'] ?? '').toString().toUpperCase();
+      if (!note.contains(serviceName)) {
+        continue;
+      }
+      seenIds.add(localId);
+      await _deleteDebtSnapshot(Map<String, dynamic>.from(row));
+    }
+  }
+
+  Future<void> _deletePartnerPaymentSnapshot(Map<String, dynamic> paymentRow) async {
+    final paymentFId = paymentRow['firestoreId']?.toString();
+    final localId = paymentRow['id'] as int?;
+    if (paymentFId == null || paymentFId.isEmpty || localId == null) {
+      return;
+    }
+
+    await db.deleteRepairPartnerPaymentByFirestoreId(paymentFId);
+    await SyncOrchestrator().enqueue(
+      entityType: SyncEntityType.partnerPayment,
+      entityId: localId,
+      firestoreId: paymentFId,
+      operation: SyncOperation.delete,
+      data: {...paymentRow, 'deleted': true},
+    );
+  }
+
+  Future<void> _cleanupPartnerDirectPaymentForService(
+    RepairService service,
+    int? legacyIndex,
+  ) async {
+    if (service.partnerId == null ||
+        service.paymentMethod == null ||
+        service.paymentMethod == 'CÔNG NỢ') {
+      return;
+    }
+
+    final repairOrderId = _repairOrderTrackingId();
+    final serviceFirestoreId = service.firestoreId?.trim();
+    final keyCandidates = <String>{};
+
+    if (serviceFirestoreId != null && serviceFirestoreId.isNotEmpty) {
+      keyCandidates.add(
+        RepairPartnerService.buildPartnerPaymentIdempotencyKey(
+          repairOrderId: repairOrderId,
+          serviceFirestoreId: serviceFirestoreId,
+          partnerId: service.partnerId!,
+          partnerCost: service.cost,
+          paymentMethod: service.paymentMethod!,
+        ),
+      );
+    }
+
+    if (legacyIndex != null && r.firestoreId != null) {
+      keyCandidates.add(
+        'detail_${r.firestoreId}_${service.partnerId}_${legacyIndex}_${service.serviceName}_${service.cost}_${service.paymentMethod}',
+      );
+      keyCandidates.add(
+        'create_${r.firestoreId}_${service.partnerId}_${legacyIndex}_${service.serviceName}_${service.cost}_${service.paymentMethod}',
+      );
+    }
+
+    for (final key in keyCandidates) {
+      final paymentFirestoreId =
+          PaymentIntentService.buildDirectPaymentRecordFirestoreId(
+            type: PaymentIntentType.repairPartnerDebt,
+            idempotencyKey: key,
+          );
+      final intentId = PaymentIntentService.buildDirectPaymentIntentId(
+        type: PaymentIntentType.repairPartnerDebt,
+        idempotencyKey: key,
+      );
+      if (paymentFirestoreId == null || intentId == null) {
+        continue;
+      }
+
+      final paymentRow = await db.getRepairPartnerPaymentByFirestoreId(
+        paymentFirestoreId,
+      );
+      if (paymentRow != null) {
+        await _deletePartnerPaymentSnapshot(paymentRow);
+      }
+      await db.deletePaymentIntent(intentId);
+    }
+  }
+
+  Future<void> _cleanupPartnerServiceRecords(
+    RepairService service,
+    int? legacyIndex,
+  ) async {
+    await _cleanupPartnerHistoryForService(service);
+    await _cleanupPartnerDebtForService(service);
+    await _cleanupPartnerDirectPaymentForService(service, legacyIndex);
+  }
+
+  Future<void> _createPartnerFinancialRecordsForService(RepairService service) async {
+    if (service.partnerId == null) {
+      return;
+    }
+
+    final repairOrderId = _repairOrderTrackingId();
+    final partnerService = RepairPartnerService();
+    await partnerService.createPartnerHistoryForRepair(
+      repairOrderId: repairOrderId,
+      partnerId: service.partnerId!,
+      partnerCost: service.cost,
+      customerName: r.customerName,
+      deviceModel: r.model,
+      issue: service.serviceName,
+      repairContent: service.serviceName,
+    );
+
+    if (service.paymentMethod == null || service.paymentMethod!.isEmpty) {
+      return;
+    }
+
+    final serviceFirestoreId = service.firestoreId?.trim();
+    if (serviceFirestoreId == null || serviceFirestoreId.isEmpty) {
+      return;
+    }
+
+    final trackingNote = RepairPartnerService.buildPartnerTrackingNote(
+      repairOrderId: repairOrderId,
+      serviceFirestoreId: serviceFirestoreId,
+      serviceName: service.serviceName,
+      deviceModel: r.model,
+      customerName: r.customerName,
+      isDebt: service.paymentMethod == 'CÔNG NỢ',
+    );
+
+    if (service.paymentMethod != 'CÔNG NỢ') {
+      final payResult = await PaymentIntentService.executePaymentDirect(
+        type: PaymentIntentType.repairPartnerDebt,
+        amount: service.cost,
+        paymentMethod: PaymentMethod.fromCode(service.paymentMethod),
+        description:
+            'Trả đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
+        executedBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
+        referenceId: repairOrderId,
+        referenceType: 'repair_partner_service',
+        personName: service.partnerName,
+        notes: trackingNote,
+        metadata: {
+          'repairId': r.id,
+          'repairFirestoreId': repairOrderId,
+          'partnerId': service.partnerId,
+          'partnerName': service.partnerName,
+          'serviceName': service.serviceName,
+          'paymentMethod': service.paymentMethod,
+          'serviceFirestoreId': serviceFirestoreId,
+        },
+        idempotencyKey: RepairPartnerService.buildPartnerPaymentIdempotencyKey(
+          repairOrderId: repairOrderId,
+          serviceFirestoreId: serviceFirestoreId,
+          partnerId: service.partnerId!,
+          partnerCost: service.cost,
+          paymentMethod: service.paymentMethod!,
+        ),
+      );
+      debugPrint(
+        '💳 Partner payment ${payResult.success ? "OK" : "FAILED"}: ${service.cost}đ',
+      );
+      return;
+    }
+
+    try {
+      final shopId = await UserService.getCurrentShopId() ?? '';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final debtFId = RepairPartnerService.buildPartnerDebtFirestoreId(
+        repairOrderId: repairOrderId,
+        serviceFirestoreId: serviceFirestoreId,
+        partnerId: service.partnerId!,
+        partnerCost: service.cost,
+      );
+      final debtData = {
+        'firestoreId': debtFId,
+        'type': 'SHOP_OWES',
+        'debtType': 'SHOP_OWES',
+        'personName': service.partnerName ?? 'Đối tác sửa chữa',
+        'phone': '',
+        'totalAmount': service.cost,
+        'paidAmount': 0,
+        'note': trackingNote,
+        'status': 'ACTIVE',
+        'createdAt': now,
+        'shopId': shopId,
+        'linkedId': repairOrderId,
+        'relatedPartId': service.partnerId?.toString() ?? '',
+        'deleted': 0,
+        'isSynced': 0,
+      };
+      final debtId = await db.insertDebt(debtData);
+      if (debtId > 0) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.debt,
+          entityId: debtId,
+          firestoreId: debtFId,
+          operation: SyncOperation.create,
+          data: debtData,
+        );
+      }
+      EventBus().emit('debts_changed');
+    } catch (e) {
+      debugPrint('❌ Error creating partner debt: $e');
+    }
+  }
+
   Future<void> _saveService(RepairService service, int? editIndex) async {
     setState(() => _isUpdating = true);
     try {
       final newServices = List<RepairService>.from(r.services);
+      final oldService = editIndex != null ? newServices[editIndex] : null;
+      final trackedService = service.copyWith(
+        firestoreId:
+            service.firestoreId ??
+            oldService?.firestoreId ??
+            RepairPartnerService.generateServiceFirestoreId(),
+      );
+
+      final shouldRefreshHistory =
+          editIndex == null || _didPartnerHistoryChange(oldService, trackedService);
+      final shouldRefreshFinancials =
+          editIndex == null ||
+          _didPartnerFinancialStateChange(oldService, trackedService);
+
+      if (editIndex != null && oldService != null) {
+        if (shouldRefreshHistory || shouldRefreshFinancials) {
+          await _cleanupPartnerServiceRecords(oldService, editIndex);
+        }
+      }
+
       if (editIndex != null) {
-        newServices[editIndex] = service;
+        newServices[editIndex] = trackedService;
       } else {
-        newServices.add(service);
+        newServices.add(trackedService);
       }
       r.services = newServices;
       r.cost = newServices.fold(0, (sum, s) => sum + s.cost);
@@ -3850,102 +4197,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       r.isSynced = false;
       await db.upsertRepair(r);
 
-      // Handle partner history/payment only when adding a new partner service.
-      // Editing an existing service must not auto-create an extra payment/debt record.
-      if (service.partnerId != null && editIndex == null) {
-        // Tạo partner history - dùng firestoreId hoặc local id làm repairOrderId
-        final repairOrderId = r.firestoreId ?? 'local_${r.id}';
-        final partnerService = RepairPartnerService();
-        await partnerService.createPartnerHistoryForRepair(
-          repairOrderId: repairOrderId,
-          partnerId: service.partnerId!,
-          partnerCost: service.cost,
-          customerName: r.customerName,
-          deviceModel: r.model,
-          issue: service.serviceName,
-          repairContent: service.serviceName,
-        );
-
-        // Ghi nhận thanh toán hoặc công nợ đối tác (LUÔN tạo PaymentIntent)
-        debugPrint(
-          '🔍 Partner payment check: partnerId=${service.partnerId}, paymentMethod=${service.paymentMethod}',
-        );
-        if (service.paymentMethod != null) {
-          if (service.paymentMethod != 'CÔNG NỢ') {
-            // Thanh toán ngay → ghi nhận trực tiếp
-            final payResult = await PaymentIntentService.executePaymentDirect(
-              type: PaymentIntentType.repairPartnerDebt,
-              amount: service.cost,
-              paymentMethod: PaymentMethod.fromCode(service.paymentMethod),
-              description:
-                  'Trả đối tác: ${service.partnerName ?? "N/A"} - ${service.serviceName}',
-              executedBy: FirebaseAuth.instance.currentUser?.uid ?? 'unknown',
-              referenceId: r.firestoreId,
-              referenceType: 'repair_partner_service',
-              personName: service.partnerName,
-              metadata: {
-                'repairId': r.id,
-                'repairFirestoreId': r.firestoreId,
-                'partnerId': service.partnerId,
-                'partnerName': service.partnerName,
-                'serviceName': service.serviceName,
-                'paymentMethod': service.paymentMethod,
-              },
-              idempotencyKey:
-                  'detail_${r.firestoreId}_${service.partnerId}_${newServices.length - 1}_${service.serviceName}_${service.cost}_${service.paymentMethod}',
-            );
-            debugPrint(
-              '💳 Partner payment ${payResult.success ? "OK" : "FAILED"}: ${service.cost}đ',
-            );
-          } else {
-            // CÔNG NỢ → tạo debt record vào bảng debts để hiện trong trang Quản lý công nợ
-            try {
-              final shopId = await UserService.getCurrentShopId() ?? '';
-              final now = DateTime.now().millisecondsSinceEpoch;
-              final debtFId = 'debt_partner_${now}_${service.partnerId}';
-              final debtData = {
-                'firestoreId': debtFId,
-                'type': 'SHOP_OWES', // Shop nợ đối tác
-                'debtType': 'SHOP_OWES', // Thêm debtType cho consistency
-                'personName': service.partnerName ?? 'Đối tác sửa chữa',
-                'phone': '',
-                'totalAmount': service.cost,
-                'paidAmount': 0,
-                'note':
-                    'Công nợ đối tác: ${service.serviceName} - Đơn sửa ${r.model} (${r.customerName})',
-                'status': 'ACTIVE',
-                'createdAt': now,
-                'shopId': shopId,
-                'linkedId': r.firestoreId ?? '', // Liên kết với đơn sửa
-                'relatedPartId':
-                    service.partnerId?.toString() ?? '', // ID đối tác
-                'deleted': 0,
-                'isSynced': 0,
-              };
-              final debtId = await db.insertDebt(debtData);
-
-              // Sync debt to cloud
-              if (debtId > 0) {
-                await SyncOrchestrator().enqueue(
-                  entityType: SyncEntityType.debt,
-                  entityId: debtId,
-                  firestoreId: debtFId,
-                  operation: SyncOperation.create,
-                  data: debtData,
-                );
-              }
-
-              // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
-              debugPrint(
-                '✅ Partner debt recorded: $debtFId for ${service.partnerName}',
-              );
-              EventBus().emit('debts_changed');
-            } catch (e) {
-              debugPrint('❌ Error creating partner debt: $e');
-              // Vẫn tiếp tục, không throw lỗi để không ảnh hưởng việc lưu dịch vụ
-            }
-          }
-        }
+      if (trackedService.partnerId != null && (shouldRefreshHistory || shouldRefreshFinancials)) {
+        await _createPartnerFinancialRecordsForService(trackedService);
       }
 
       NotificationService.showSnackBar(
@@ -3977,6 +4230,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     setState(() => _isUpdating = true);
     try {
       final newServices = List<RepairService>.from(r.services);
+      final removedService = newServices[index];
+      await _cleanupPartnerServiceRecords(removedService, index);
       newServices.removeAt(index);
       r.services = newServices;
       r.cost = newServices.fold(0, (sum, s) => sum + s.cost);
