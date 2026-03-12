@@ -59,6 +59,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   bool get _isInstallmentNH => s.paymentMethod.toUpperCase() == "TRẢ GÓP (NH)";
   bool _managerUnlocked = false;
   bool _checkingManager = false;
+  bool _canViewRevenue = false;
+  bool _canViewCostPrice = false;
   
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
@@ -79,8 +81,20 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   void initState() {
     super.initState();
     s = widget.sale;
+    _checkPermissions();
     _loadShopInfo();
     _loadReturnInfo();
+  }
+
+  Future<void> _checkPermissions() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    final isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+    if (!mounted) return;
+    setState(() {
+      _canViewRevenue = isSuperAdmin || (perms['allowViewRevenue'] ?? false);
+      _canViewCostPrice =
+          isSuperAdmin || (perms['allowViewCostPrice'] ?? false);
+    });
   }
 
   Future<void> _loadReturnInfo() async {
@@ -311,6 +325,14 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   }
 
   Future<void> _openSettlementDialog() async {
+    if (!_canViewRevenue) {
+      NotificationService.showSnackBar(
+        'Bạn không có quyền xem hoặc xử lý tài chính',
+        color: Colors.orange,
+      );
+      return;
+    }
+
     final formKey = GlobalKey<FormState>();
     final totalLoan = s.loanAmount + s.loanAmount2;
     final amountCtrl = TextEditingController(
@@ -1133,7 +1155,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            if (_isInstallmentNH && (s.settlementReceivedAt == null || s.settlementAmount < s.loanAmount + s.loanAmount2))
+            if (_canViewRevenue &&
+                _isInstallmentNH &&
+                (s.settlementReceivedAt == null ||
+                    s.settlementAmount < s.loanAmount + s.loanAmount2))
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -1151,7 +1176,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                       : "NHẬN TIỀN TỪ NGÂN HÀNG"),
                 ),
               ),
-            if (_isInstallmentNH) const SizedBox(height: 10),
+            if (_canViewRevenue && _isInstallmentNH)
+              const SizedBox(height: 10),
 
             // Return indicator
             if (_allReturns.isNotEmpty)
@@ -1202,7 +1228,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               _item("Thời gian", _fmtDate(s.soldAt)),
               _item("Hình thức", s.paymentMethod),
               // Hiển thị chi tiết kết hợp thanh toán
-              if (s.paymentMethod.toUpperCase() == 'KẾT HỢP' && (s.cashAmount > 0 || s.transferAmount > 0)) ...[
+              if (_canViewRevenue &&
+                  s.paymentMethod.toUpperCase() == 'KẾT HỢP' &&
+                  (s.cashAmount > 0 || s.transferAmount > 0)) ...[
                 _item(
                   "💵 Tiền mặt",
                   "${MoneyUtils.formatCurrency(s.cashAmount)} Đ",
@@ -1216,19 +1244,22 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               ],
               if (s.notes != null && s.notes!.isNotEmpty)
                 _item("Ghi chú", s.notes!),
-              if (s.discount > 0)
+              if (_canViewRevenue && s.discount > 0)
                 _item(
                   "Giảm giá",
                   "-${MoneyUtils.formatCurrency(s.discount)} Đ",
                   color: Colors.orange,
                 ),
-              _item(
-                "Tổng tiền",
-                "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
-                color: Colors.red,
-              ),
+              if (_canViewRevenue)
+                _item(
+                  "Tổng tiền",
+                  "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
+                  color: Colors.red,
+                )
+              else
+                _item("Tài chính", "Ẩn theo phân quyền"),
             ]),
-            if (_isInstallmentNH)
+            if (_canViewRevenue && _isInstallmentNH)
               _card("TRẢ GÓP - NGÂN HÀNG", [
                 _item(
                   "Down payment",
@@ -1307,7 +1338,13 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         Flexible(
           child: Text(
             v,
-            style: TextStyle(fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: color,
+              fontStyle: v == 'Ẩn theo phân quyền'
+                  ? FontStyle.italic
+                  : FontStyle.normal,
+            ),
             textAlign: TextAlign.end,
             maxLines: 3,
             overflow: TextOverflow.ellipsis,

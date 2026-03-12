@@ -47,10 +47,8 @@ import 'create_repair_order_view.dart';
 import 'about_developer_view.dart';
 import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
-import 'partner_management_view.dart';
 import 'parts_inventory_view.dart';
 import 'financial_report_view.dart';
-import 'financial_activity_log_view.dart';
 import 'audit_log_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
@@ -5728,20 +5726,6 @@ class _HomeViewState extends State<HomeView>
               ),
               subtitle: loc.viewSearchTrackRepairs,
             ),
-            // Partner management - requires repair permission (already in repair tab)
-            if (hasFullAccess || _permissions['allowViewRepairs'] == true)
-              _tabMenuItem(
-                'Quản lý đối tác sửa chữa',
-                Icons.handshake_outlined,
-                Colors.teal,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PartnerManagementView(),
-                  ),
-                ),
-                subtitle: 'Đối tác, NCC, thanh toán, công nợ',
-              ),
             // Parts inventory - requires repair + inventory permission
             if (hasFullAccess ||
                 (_permissions['allowViewRepairs'] == true &&
