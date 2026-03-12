@@ -3279,15 +3279,35 @@ class DBHelper {
   }
 
   // --- HÀM HỖ TRỢ CHUNG ---
+  dynamic _normalizeSqliteValue(dynamic value) {
+    if (value is Timestamp) {
+      return value.millisecondsSinceEpoch;
+    }
+    if (value is DateTime) {
+      return value.millisecondsSinceEpoch;
+    }
+    if (value is bool) {
+      return value ? 1 : 0;
+    }
+    if (value is Map) {
+      return value.map(
+        (key, item) => MapEntry(key.toString(), _normalizeSqliteValue(item)),
+      );
+    }
+    if (value is List) {
+      return value.map(_normalizeSqliteValue).toList();
+    }
+    return value;
+  }
+
   Map<String, dynamic> _sanitizeForSqlite(Map<String, dynamic> input) {
     final sanitized = <String, dynamic>{};
     input.forEach((key, value) {
-      if (value is bool) {
-        sanitized[key] = value ? 1 : 0;
-      } else if (value is Map || value is List) {
-        sanitized[key] = jsonEncode(value);
+      final normalized = _normalizeSqliteValue(value);
+      if (normalized is Map || normalized is List) {
+        sanitized[key] = jsonEncode(normalized);
       } else {
-        sanitized[key] = value;
+        sanitized[key] = normalized;
       }
     });
     return sanitized;

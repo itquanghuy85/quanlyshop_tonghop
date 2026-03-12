@@ -47,7 +47,9 @@ Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
       final binding = WidgetsFlutterBinding.ensureInitialized();
-      FlutterNativeSplash.preserve(widgetsBinding: binding);
+      if (!kIsWeb) {
+        FlutterNativeSplash.preserve(widgetsBinding: binding);
+      }
       await initializeDateFormatting('vi_VN');
 
       // iOS-specific: Run app FIRST to show splash screen immediately

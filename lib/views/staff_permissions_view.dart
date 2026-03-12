@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../widgets/custom_app_bar.dart';
@@ -10,11 +11,21 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
+import '../services/storage_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
-  if (path.startsWith('http')) return CachedNetworkImageProvider(path);
+  if (path.startsWith('http') ||
+      path.startsWith('blob:') ||
+      path.startsWith('data:')) {
+    return CachedNetworkImageProvider(path);
+  }
+  if (StorageService.isGsStoragePath(path) ||
+      StorageService.isStorageRelativePath(path) ||
+      kIsWeb) {
+    return null;
+  }
   final file = File(path);
   return file.existsSync() ? FileImage(file) : null;
 }

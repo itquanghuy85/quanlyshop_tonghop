@@ -114,12 +114,14 @@ class HomeView extends StatefulWidget {
 class _HomeViewState extends State<HomeView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _lastTabIndexPrefKey = 'home_last_tab_index_v1';
+  static const String _homeTabId = 'home';
 
   final db = DBHelper();
   int totalPendingRepair = 0;
   int todaySaleCount = 0;
   int _currentIndex = 0; // Bottom navigation index
   int? _restoredTabIndex;
+  final Map<String, GlobalKey<NavigatorState>> _tabNavigatorKeys = {};
 
   /// Getter for localization - dùng chung cho tất cả methods
   AppLocalizations get loc => AppLocalizations.of(context)!;
@@ -201,6 +203,54 @@ class _HomeViewState extends State<HomeView>
     if (index < 0 || index >= _navItems.length) return;
     setState(() => _currentIndex = index);
     unawaited(_persistCurrentTabIndex(index));
+  }
+
+  String _tabIdAt(int index) {
+    if (index < 0 || index >= _tabConfigs.length) return _homeTabId;
+    return _tabConfigs[index]['id'] as String? ?? 'tab_$index';
+  }
+
+  bool _usesNestedNavigator(int index) {
+    return _tabIdAt(index) != _homeTabId;
+  }
+
+  GlobalKey<NavigatorState> _navigatorKeyForTab(int index) {
+    final tabId = _tabIdAt(index);
+    return _tabNavigatorKeys.putIfAbsent(
+      tabId,
+      () => GlobalKey<NavigatorState>(debugLabel: 'home_tab_$tabId'),
+    );
+  }
+
+  Future<T?> _pushRoute<T>(BuildContext context, Route<T> route) {
+    final index = _currentIndex.clamp(0, _tabConfigs.length - 1);
+    if (_usesNestedNavigator(index)) {
+      final navigator = _navigatorKeyForTab(index).currentState;
+      if (navigator != null) {
+        return navigator.push(route);
+      }
+    }
+    return Navigator.of(context).push(route);
+  }
+
+  Future<bool> _maybePopCurrentTabNavigator() async {
+    final index = _currentIndex.clamp(0, _tabConfigs.length - 1);
+    if (!_usesNestedNavigator(index)) return false;
+    final navigator = _navigatorKeyForTab(index).currentState;
+    if (navigator == null) return false;
+    return navigator.maybePop();
+  }
+
+  Widget _buildTabHost(int index) {
+    final child = _tabWidgets[index];
+    if (!_usesNestedNavigator(index)) {
+      return child;
+    }
+
+    return Navigator(
+      key: _navigatorKeyForTab(index),
+      onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => child),
+    );
   }
 
   Future<void> _persistCurrentTabIndex(int index) async {
@@ -298,6 +348,7 @@ class _HomeViewState extends State<HomeView>
     final loc = AppLocalizations.of(context)!;
     _tabConfigs = [
       {
+        'id': _homeTabId,
         'permission': null, // Home always accessible
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.home_outlined),
@@ -307,6 +358,7 @@ class _HomeViewState extends State<HomeView>
         'widget': _buildHomeTab(),
       },
       {
+        'id': 'sales',
         'permission': 'allowViewSales',
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.shopping_cart_outlined),
@@ -318,6 +370,7 @@ class _HomeViewState extends State<HomeView>
       // Only show Repairs tab for electronics shops
       if (_enableRepair)
         {
+          'id': 'repairs',
           'permission': 'allowViewRepairs',
           'item': BottomNavigationBarItem(
             icon: const Icon(Icons.build_outlined),
@@ -327,6 +380,7 @@ class _HomeViewState extends State<HomeView>
           'widget': _buildRepairsTab(),
         },
       {
+        'id': 'inventory',
         'permission': 'allowViewInventory',
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.inventory_2_outlined),
@@ -338,6 +392,7 @@ class _HomeViewState extends State<HomeView>
       // Phase 2: Expiry tab for Food shops
       if (_enableExpiry)
         {
+          'id': 'expiry',
           'permission': 'allowViewInventory', // Same as inventory access
           'item': BottomNavigationBarItem(
             icon: Badge(
@@ -357,6 +412,7 @@ class _HomeViewState extends State<HomeView>
       // Phase 3: Variants tab for Fashion shops
       if (_enableVariants)
         {
+          'id': 'variants',
           'permission': 'allowViewInventory', // Same as inventory access
           'item': BottomNavigationBarItem(
             icon: Badge(
@@ -374,6 +430,7 @@ class _HomeViewState extends State<HomeView>
           'widget': const VariantManagementView(),
         },
       {
+        'id': 'staff',
         'permission':
             'allowManageStaff', // Staff tab requires manage staff permission
         'item': BottomNavigationBarItem(
@@ -384,6 +441,7 @@ class _HomeViewState extends State<HomeView>
         'widget': _buildStaffTab(),
       },
       {
+        'id': 'finance',
         'permission':
             'allowViewRevenue', // Finance tab requires revenue permission
         'item': BottomNavigationBarItem(
@@ -394,6 +452,7 @@ class _HomeViewState extends State<HomeView>
         'widget': _buildFinanceTab(),
       },
       {
+        'id': 'settings',
         'permission':
             null, // Settings always open for all, only Super Admin can lock
         'item': BottomNavigationBarItem(
@@ -2165,7 +2224,7 @@ class _HomeViewState extends State<HomeView>
           NotificationBadge(
             unreadCount: FirestoreService.getUnreadCount(),
             child: IconButton(
-              onPressed: () => Navigator.push(
+              onPressed: () => _pushRoute(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationsView()),
               ),
@@ -2181,7 +2240,7 @@ class _HomeViewState extends State<HomeView>
             ),
           ),
           IconButton(
-            onPressed: () => Navigator.push(
+            onPressed: () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => QrScanView(role: widget.role)),
             ),
@@ -2191,7 +2250,7 @@ class _HomeViewState extends State<HomeView>
             ),
           ),
           IconButton(
-            onPressed: () => Navigator.push(
+            onPressed: () => _pushRoute(
               context,
               MaterialPageRoute(
                 builder: (_) => GlobalSearchView(role: widget.role),
@@ -2220,6 +2279,9 @@ class _HomeViewState extends State<HomeView>
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        if (await _maybePopCurrentTabNavigator()) {
+          return;
+        }
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -2394,12 +2456,18 @@ class _HomeViewState extends State<HomeView>
           ),
           const VerticalDivider(thickness: 1, width: 1),
           Expanded(
-            child: IndexedStack(index: _currentIndex, children: _tabWidgets),
+            child: IndexedStack(
+              index: _currentIndex,
+              children: List.generate(_tabWidgets.length, _buildTabHost),
+            ),
           ),
         ],
       );
     }
-    return IndexedStack(index: _currentIndex, children: _tabWidgets);
+    return IndexedStack(
+      index: _currentIndex,
+      children: List.generate(_tabWidgets.length, _buildTabHost),
+    );
   }
 
   /// Bottom nav: only show on narrow screens
@@ -2620,7 +2688,7 @@ class _HomeViewState extends State<HomeView>
               enableWarranty: _enableWarranty && canWarranty,
               enableExpiry: _enableExpiry && canStock,
               onPendingRepairsTap: canRepair
-                  ? () => Navigator.push(
+                  ? () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) => OrderListView(
@@ -2631,7 +2699,7 @@ class _HomeViewState extends State<HomeView>
                     )
                   : null,
               onPendingStockTap: canStock
-                  ? () => Navigator.push(
+                  ? () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const PendingStockListView(),
@@ -2639,7 +2707,7 @@ class _HomeViewState extends State<HomeView>
                     )
                   : null,
               onWarrantyTap: canWarranty
-                  ? () => Navigator.push(
+                  ? () => _pushRoute(
                       context,
                       MaterialPageRoute(builder: (_) => const WarrantyView()),
                     )
@@ -2664,7 +2732,7 @@ class _HomeViewState extends State<HomeView>
               netProfit: _todayNetProfit,
               currentFund:
                   _previousClosingTotal + _todayTotalIn - _todayTotalOut,
-              onTap: () => Navigator.push(
+              onTap: () => _pushRoute(
                 context,
                 MaterialPageRoute(builder: (_) => const CashClosingView()),
               ),
@@ -2678,7 +2746,7 @@ class _HomeViewState extends State<HomeView>
             ActivityFeedCard(
               key: const ValueKey('activity_feed'),
               enableRepair: _enableRepair,
-              onViewAll: () => Navigator.push(
+              onViewAll: () => _pushRoute(
                 context,
                 MaterialPageRoute(
                   builder: (_) =>
@@ -3296,7 +3364,7 @@ class _HomeViewState extends State<HomeView>
           side: BorderSide(color: Colors.cyan.shade200),
         ),
         child: InkWell(
-          onTap: () => Navigator.push(
+          onTap: () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const AdvancedChatView()),
           ),
@@ -3915,13 +3983,13 @@ class _HomeViewState extends State<HomeView>
     VoidCallback? _getShortcutAction(ShortcutType type) {
       switch (type) {
         case ShortcutType.sellCreate:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const CreateSaleView()),
           );
         case ShortcutType.repairCreate:
           return _enableRepair
-              ? () => Navigator.push(
+              ? () => _pushRoute(
                   context,
                   MaterialPageRoute(
                     builder: (_) => CreateRepairOrderView(role: widget.role),
@@ -3929,23 +3997,23 @@ class _HomeViewState extends State<HomeView>
                 )
               : null;
         case ShortcutType.stockIn:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const SmartStockInView()),
           );
         case ShortcutType.pendingStock:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const PendingStockListView()),
           );
         case ShortcutType.saleList:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const SaleListView()),
           );
         case ShortcutType.repairList:
           return _enableRepair
-              ? () => Navigator.push(
+              ? () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const OrderListView()),
                 )
@@ -3955,103 +4023,103 @@ class _HomeViewState extends State<HomeView>
         case ShortcutType.addIncome:
           return _showQuickIncomeDialog;
         case ShortcutType.inventoryCheck:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const FastInventoryCheckView()),
           );
         case ShortcutType.report:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const RevenueView()),
           );
         case ShortcutType.attendance:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const AttendanceView()),
           );
         case ShortcutType.warranty:
           return _enableWarranty
-              ? () => Navigator.push(
+              ? () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const WarrantyView()),
                 )
               : null;
         case ShortcutType.cashClosing:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const CashClosingView()),
           );
         case ShortcutType.customers:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const CustomerManagementView()),
           );
         case ShortcutType.suppliers:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const SupplierListView()),
           );
         case ShortcutType.debt:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const DebtView()),
           );
         case ShortcutType.qrScan:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const QrScanView()),
           );
         case ShortcutType.financialReport:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const FinancialReportView()),
           );
         case ShortcutType.activityLog:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const AuditLogView()),
           );
         case ShortcutType.printer:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const PrinterSettingsView()),
           );
         case ShortcutType.quickCodes:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const QuickInputCodesView()),
           );
         case ShortcutType.bankInstallment:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(
               builder: (_) => const BankInstallmentReportView(),
             ),
           );
         case ShortcutType.globalSearch:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(
               builder: (_) => GlobalSearchView(role: widget.role),
             ),
           );
         case ShortcutType.staff:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const StaffListView()),
           );
         case ShortcutType.expenses:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const ExpenseView()),
           );
         case ShortcutType.expiryManage:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const ExpiryManagementView()),
           );
         case ShortcutType.paymentRequest:
-          return () => Navigator.push(
+          return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const PaymentRequestChatView()),
           );
@@ -4090,7 +4158,7 @@ class _HomeViewState extends State<HomeView>
             Icons.add_shopping_cart,
             'Bán hàng',
             Colors.green,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const CreateSaleView()),
             ),
@@ -4100,7 +4168,7 @@ class _HomeViewState extends State<HomeView>
             Icons.build_circle,
             'Đơn sửa',
             Colors.blue,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(
                 builder: (_) => CreateRepairOrderView(role: widget.role),
@@ -4112,7 +4180,7 @@ class _HomeViewState extends State<HomeView>
             Icons.add_box,
             'Nhập kho',
             Colors.teal,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const SmartStockInView()),
             ),
@@ -4122,7 +4190,7 @@ class _HomeViewState extends State<HomeView>
             Icons.pending_actions,
             'Chờ XN',
             Colors.orange,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const PendingStockListView()),
             ),
@@ -4132,7 +4200,7 @@ class _HomeViewState extends State<HomeView>
             Icons.receipt_long,
             'Đơn bán',
             Colors.indigo,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const SaleListView()),
             ),
@@ -4142,7 +4210,7 @@ class _HomeViewState extends State<HomeView>
             Icons.list_alt,
             'DS sửa',
             Colors.deepPurple,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const OrderListView()),
             ),
@@ -4166,7 +4234,7 @@ class _HomeViewState extends State<HomeView>
             Icons.qr_code_scanner,
             'Kiểm kho',
             Colors.cyan,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const FastInventoryCheckView()),
             ),
@@ -4176,7 +4244,7 @@ class _HomeViewState extends State<HomeView>
             Icons.bar_chart,
             'Báo cáo',
             Colors.purple,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const RevenueView()),
             ),
@@ -4186,7 +4254,7 @@ class _HomeViewState extends State<HomeView>
             Icons.access_time,
             'Chấm công',
             Colors.teal.shade700,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const AttendanceView()),
             ),
@@ -4196,7 +4264,7 @@ class _HomeViewState extends State<HomeView>
             Icons.shield,
             'Bảo hành',
             Colors.amber.shade800,
-            () => Navigator.push(
+            () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const WarrantyView()),
             ),
@@ -4588,7 +4656,7 @@ class _HomeViewState extends State<HomeView>
                   title: loc.pendingStockShort,
                   subtitle: loc.stockIn,
                   color: Colors.orange,
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const PendingStockListView(),
@@ -4604,7 +4672,7 @@ class _HomeViewState extends State<HomeView>
                   title: loc.incomeExpense,
                   subtitle: 'Ghi thu chi',
                   color: Colors.green,
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const ExpenseView()),
                   ),
@@ -4622,7 +4690,7 @@ class _HomeViewState extends State<HomeView>
                   title: loc.salesOrder,
                   subtitle: loc.salesOrderList,
                   color: Colors.blue,
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const SaleListView()),
                   ),
@@ -4637,7 +4705,7 @@ class _HomeViewState extends State<HomeView>
                     title: loc.repairOrderTitle,
                     subtitle: loc.repairOrderList,
                     color: Colors.deepPurple,
-                    onTap: () => Navigator.push(
+                    onTap: () => _pushRoute(
                       context,
                       MaterialPageRoute(builder: (_) => const OrderListView()),
                     ),
@@ -4651,7 +4719,7 @@ class _HomeViewState extends State<HomeView>
                     title: loc.customers,
                     subtitle: loc.customersAndSuppliers,
                     color: Colors.teal,
-                    onTap: () => Navigator.push(
+                    onTap: () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const CustomerManagementView(),
@@ -4846,7 +4914,7 @@ class _HomeViewState extends State<HomeView>
               size: 14,
               color: Colors.green,
             ),
-            onTap: () => Navigator.push(
+            onTap: () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const CreateSaleView()),
             ),
@@ -4894,7 +4962,7 @@ class _HomeViewState extends State<HomeView>
                 size: 14,
                 color: Colors.blue,
               ),
-              onTap: () => Navigator.push(
+              onTap: () => _pushRoute(
                 context,
                 MaterialPageRoute(
                   builder: (_) => CreateRepairOrderView(role: widget.role),
@@ -4915,7 +4983,7 @@ class _HomeViewState extends State<HomeView>
                   side: BorderSide(color: Colors.green.shade300, width: 2),
                 ),
                 child: InkWell(
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const SmartStockInView()),
                   ),
@@ -4965,7 +5033,7 @@ class _HomeViewState extends State<HomeView>
                   side: BorderSide(color: Colors.blue.shade200),
                 ),
                 child: InkWell(
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const FastInventoryCheckView(),
@@ -5023,7 +5091,7 @@ class _HomeViewState extends State<HomeView>
                   side: BorderSide(color: Colors.indigo.shade200),
                 ),
                 child: InkWell(
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const RevenueView()),
                   ),
@@ -5073,7 +5141,7 @@ class _HomeViewState extends State<HomeView>
                   side: BorderSide(color: Colors.teal.shade200),
                 ),
                 child: InkWell(
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const AttendanceView()),
                   ),
@@ -5258,7 +5326,7 @@ class _HomeViewState extends State<HomeView>
                 size: 14,
                 color: Colors.amber,
               ),
-              onTap: () => Navigator.push(
+              onTap: () => _pushRoute(
                 context,
                 MaterialPageRoute(builder: (_) => const WarrantyView()),
               ),
@@ -5281,7 +5349,7 @@ class _HomeViewState extends State<HomeView>
                 loc.createSale,
                 Icons.add_shopping_cart,
                 AppColors.secondary,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const CreateSaleView()),
                 ),
@@ -5293,7 +5361,7 @@ class _HomeViewState extends State<HomeView>
                 loc.createRepair,
                 Icons.build_circle,
                 AppColors.primary,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(
                     builder: (_) => CreateRepairOrderView(role: widget.role),
@@ -5311,7 +5379,7 @@ class _HomeViewState extends State<HomeView>
                 loc.stockIn,
                 Icons.inventory,
                 AppColors.success,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(
                     // Electronics: FastInventoryInputView (has IMEI)
@@ -5329,7 +5397,7 @@ class _HomeViewState extends State<HomeView>
                 loc.checkInventory,
                 Icons.qr_code_scanner,
                 AppColors.warning,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(
                     builder: (_) => const FastInventoryCheckView(),
@@ -5347,7 +5415,7 @@ class _HomeViewState extends State<HomeView>
                 loc.revenueReport,
                 Icons.bar_chart,
                 AppColors.primaryDark,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const RevenueView()),
                 ),
@@ -5359,7 +5427,7 @@ class _HomeViewState extends State<HomeView>
                 loc.attendance,
                 Icons.access_time,
                 AppColors.info,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const AttendanceView()),
                 ),
@@ -5375,7 +5443,7 @@ class _HomeViewState extends State<HomeView>
                 "Chat",
                 Icons.chat,
                 AppColors.primary,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const AdvancedChatView()),
                 ),
@@ -5388,7 +5456,7 @@ class _HomeViewState extends State<HomeView>
                 "Bảo hành",
                 Icons.shield,
                 AppColors.warning,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const WarrantyView()),
                 ),
@@ -5487,7 +5555,7 @@ class _HomeViewState extends State<HomeView>
               loc.createNewSaleOrder,
               Icons.add_shopping_cart,
               Colors.green,
-              () => Navigator.push(
+              () => _pushRoute(
                 context,
                 MaterialPageRoute(builder: (_) => const CreateSaleView()),
               ),
@@ -5507,7 +5575,7 @@ class _HomeViewState extends State<HomeView>
                   loc.saleOrderList,
                   Icons.list_alt,
                   Colors.blue,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const SaleListView()),
                   ),
@@ -5517,7 +5585,7 @@ class _HomeViewState extends State<HomeView>
                   loc.customerManagement,
                   Icons.people,
                   Colors.blue,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const CustomerManagementView(),
@@ -5529,7 +5597,7 @@ class _HomeViewState extends State<HomeView>
                   loc.warranty,
                   Icons.verified_user,
                   Colors.orange,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const WarrantyView()),
                   ),
@@ -5539,7 +5607,7 @@ class _HomeViewState extends State<HomeView>
                   'Trả hàng',
                   Icons.assignment_return,
                   Colors.red,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const SalesReturnListView(),
@@ -5577,7 +5645,7 @@ class _HomeViewState extends State<HomeView>
               loc.createNewRepairOrder,
               Icons.build_circle,
               Colors.blue,
-              () => Navigator.push(
+              () => _pushRoute(
                 context,
                 MaterialPageRoute(
                   builder: (_) => CreateRepairOrderView(role: widget.role),
@@ -5589,7 +5657,7 @@ class _HomeViewState extends State<HomeView>
               'Yêu cầu đóng tiền',
               Icons.receipt_long,
               const Color(0xFF075E54),
-              () => Navigator.push(
+              () => _pushRoute(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const PaymentRequestChatView(),
@@ -5603,7 +5671,7 @@ class _HomeViewState extends State<HomeView>
               loc.repairOrderList,
               Icons.list_alt,
               Colors.indigo,
-              () => Navigator.push(
+              () => _pushRoute(
                 context,
                 MaterialPageRoute(
                   builder: (_) => OrderListView(role: widget.role),
@@ -5617,7 +5685,7 @@ class _HomeViewState extends State<HomeView>
                 'Quản lý đối tác sửa chữa',
                 Icons.handshake_outlined,
                 Colors.teal,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(
                     builder: (_) => const PartnerManagementView(),
@@ -5633,7 +5701,7 @@ class _HomeViewState extends State<HomeView>
                 'Kho phụ tùng / linh kiện',
                 Icons.settings_suggest_outlined,
                 Colors.deepOrange,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const PartsInventoryView()),
                 ),
@@ -5701,7 +5769,7 @@ class _HomeViewState extends State<HomeView>
                       side: BorderSide(color: Colors.green.shade300, width: 2),
                     ),
                     child: InkWell(
-                      onTap: () => Navigator.push(
+                      onTap: () => _pushRoute(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const SmartStockInView(),
@@ -5761,7 +5829,7 @@ class _HomeViewState extends State<HomeView>
                         side: BorderSide(color: Colors.orange.shade200),
                       ),
                       child: InkWell(
-                        onTap: () => Navigator.push(
+                        onTap: () => _pushRoute(
                           context,
                           MaterialPageRoute(
                             builder: (_) => const FastInventoryInputView(),
@@ -5819,7 +5887,7 @@ class _HomeViewState extends State<HomeView>
                       side: BorderSide(color: Colors.blue.shade200),
                     ),
                     child: InkWell(
-                      onTap: () => Navigator.push(
+                      onTap: () => _pushRoute(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const FastInventoryCheckView(),
@@ -5885,7 +5953,7 @@ class _HomeViewState extends State<HomeView>
                   loc.pendingConfirmation,
                   Icons.pending_actions,
                   Colors.orange,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const PendingStockListView(),
@@ -5897,7 +5965,7 @@ class _HomeViewState extends State<HomeView>
                   loc.productList,
                   Icons.inventory,
                   Colors.blue,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => InventoryView(role: widget.role),
@@ -5909,7 +5977,7 @@ class _HomeViewState extends State<HomeView>
                   loc.suppliersPartners,
                   Icons.business_center,
                   Colors.teal,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const SupplierListView()),
                   ),
@@ -5919,7 +5987,7 @@ class _HomeViewState extends State<HomeView>
                   loc.quickInputCodeList,
                   Icons.qr_code,
                   Colors.indigo,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const QuickInputCodesView(),
@@ -5980,7 +6048,7 @@ class _HomeViewState extends State<HomeView>
               loc.attendance,
               Icons.fingerprint,
               Colors.teal,
-              () => Navigator.push(
+              () => _pushRoute(
                 context,
                 MaterialPageRoute(builder: (_) => const AttendanceView()),
               ),
@@ -6004,7 +6072,7 @@ class _HomeViewState extends State<HomeView>
                   loc.staffListLabel,
                   Icons.people,
                   Colors.blue,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffListView()),
                   ),
@@ -6013,7 +6081,7 @@ class _HomeViewState extends State<HomeView>
                   loc.salaryCalculation,
                   Icons.bar_chart,
                   Colors.orange,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const StaffPerformanceView(),
@@ -6025,7 +6093,7 @@ class _HomeViewState extends State<HomeView>
                   loc.workSchedule,
                   Icons.schedule,
                   Colors.blue,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const WorkScheduleSettingsView(),
@@ -6036,7 +6104,7 @@ class _HomeViewState extends State<HomeView>
                   loc.salaryCommissionSettings,
                   Icons.account_balance_wallet,
                   Colors.green,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const HRSalarySettingsView(),
@@ -6060,7 +6128,7 @@ class _HomeViewState extends State<HomeView>
                   loc.attendanceTracking,
                   Icons.people_outline,
                   Colors.teal,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const AttendanceManagementView(),
@@ -6072,7 +6140,7 @@ class _HomeViewState extends State<HomeView>
                   loc.personalAttendance,
                   Icons.history,
                   Colors.indigo,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const AttendanceView()),
                   ),
@@ -6298,7 +6366,7 @@ class _HomeViewState extends State<HomeView>
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
-              Navigator.push(
+              _pushRoute(
                 context,
                 MaterialPageRoute(builder: (_) => const StaffPerformanceView()),
               );
@@ -6390,7 +6458,7 @@ class _HomeViewState extends State<HomeView>
                       'Sổ quỹ',
                       Icons.menu_book,
                       Colors.green,
-                      () => Navigator.push(
+                      () => _pushRoute(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const CashClosingView(),
@@ -6407,7 +6475,7 @@ class _HomeViewState extends State<HomeView>
                       'Thu Chi',
                       Icons.swap_vert,
                       Colors.blue,
-                      () => Navigator.push(
+                      () => _pushRoute(
                         context,
                         MaterialPageRoute(builder: (_) => const ExpenseView()),
                       ),
@@ -6436,7 +6504,7 @@ class _HomeViewState extends State<HomeView>
                     'Báo cáo doanh thu',
                     Icons.trending_up,
                     Colors.blue,
-                    () => Navigator.push(
+                    () => _pushRoute(
                       context,
                       MaterialPageRoute(builder: (_) => const RevenueView()),
                     ),
@@ -6445,7 +6513,7 @@ class _HomeViewState extends State<HomeView>
                     'Quản lý công nợ',
                     Icons.account_balance,
                     Colors.orange,
-                    () => Navigator.push(
+                    () => _pushRoute(
                       context,
                       MaterialPageRoute(builder: (_) => const DebtView()),
                     ),
@@ -6454,7 +6522,7 @@ class _HomeViewState extends State<HomeView>
                     'Lịch sử tài chính',
                     Icons.receipt_long,
                     Colors.indigo,
-                    () => Navigator.push(
+                    () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) =>
@@ -6466,7 +6534,7 @@ class _HomeViewState extends State<HomeView>
                     'Nhật ký hệ thống',
                     Icons.history,
                     Colors.purple,
-                    () => Navigator.push(
+                    () => _pushRoute(
                       context,
                       MaterialPageRoute(builder: (_) => const AuditLogView()),
                     ),
@@ -6475,7 +6543,7 @@ class _HomeViewState extends State<HomeView>
                     'Lợi nhuận theo tháng',
                     Icons.bar_chart,
                     Colors.teal,
-                    () => Navigator.push(
+                    () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const MonthlyProfitReportView(),
@@ -6623,7 +6691,7 @@ class _HomeViewState extends State<HomeView>
   /// Debt summary card for Finance tab: Khách nợ / NCC nợ / Đối tác nợ
   Widget _buildDebtSummaryCard() {
     return GestureDetector(
-      onTap: () => Navigator.push(
+      onTap: () => _pushRoute(
         context,
         MaterialPageRoute(builder: (_) => const DebtView()),
       ),
@@ -7004,7 +7072,7 @@ class _HomeViewState extends State<HomeView>
                 loc.shopSettings,
                 Icons.store,
                 Colors.blue,
-                () => Navigator.push(
+                () => _pushRoute(
                   context,
                   MaterialPageRoute(builder: (_) => const ShopSettingsView()),
                 ),
@@ -7028,7 +7096,7 @@ class _HomeViewState extends State<HomeView>
                   loc.notifications,
                   Icons.notifications,
                   AppColors.primary,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const NotificationSettingsView(),
@@ -7040,7 +7108,7 @@ class _HomeViewState extends State<HomeView>
                   loc.printer,
                   Icons.print,
                   AppColors.success,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const PrinterSettingsView(),
@@ -7053,7 +7121,7 @@ class _HomeViewState extends State<HomeView>
                     loc.adminCenter,
                     Icons.admin_panel_settings,
                     AppColors.error,
-                    () => Navigator.push(
+                    () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const admin_view.SuperAdminView(),
@@ -7065,7 +7133,7 @@ class _HomeViewState extends State<HomeView>
                   loc.aboutDeveloper,
                   Icons.info,
                   AppColors.secondary,
-                  () => Navigator.push(
+                  () => _pushRoute(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const AboutDeveloperView(),
@@ -7487,7 +7555,7 @@ class _HomeViewState extends State<HomeView>
     );
 
     return GestureDetector(
-      onTap: () => Navigator.push(
+      onTap: () => _pushRoute(
         context,
         MaterialPageRoute(builder: (_) => const CashClosingView()),
       ),
@@ -7683,7 +7751,7 @@ class _HomeViewState extends State<HomeView>
                       label: loc.pendingRepairs,
                       value: totalPendingRepair.toString(),
                       color: AppColors.primary,
-                      onTap: () => Navigator.push(
+                      onTap: () => _pushRoute(
                         context,
                         MaterialPageRoute(
                           builder: (_) => OrderListView(
@@ -7699,7 +7767,7 @@ class _HomeViewState extends State<HomeView>
                       label: loc.pendingStatus,
                       value: pendingApprovalCount.toString(),
                       color: AppColors.repairPendingApproval,
-                      onTap: () => Navigator.push(
+                      onTap: () => _pushRoute(
                         context,
                         MaterialPageRoute(
                           builder: (_) => OrderListView(
@@ -7744,7 +7812,7 @@ class _HomeViewState extends State<HomeView>
                     label: loc.saleOrders,
                     value: todaySaleCount.toString(),
                     color: AppColors.success,
-                    onTap: () => Navigator.push(
+                    onTap: () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const SaleListView(todayOnly: true),
@@ -7756,7 +7824,7 @@ class _HomeViewState extends State<HomeView>
                     label: loc.debt,
                     value: MoneyUtils.formatCompact(totalDebtRemain),
                     color: AppColors.warning,
-                    onTap: () => Navigator.push(
+                    onTap: () => _pushRoute(
                       context,
                       MaterialPageRoute(builder: (_) => const DebtView()),
                     ),
@@ -7768,7 +7836,7 @@ class _HomeViewState extends State<HomeView>
                     color: _totalReminderCount > 0
                         ? const Color(0xFFE65100)
                         : AppColors.inactive,
-                    onTap: () => Navigator.push(
+                    onTap: () => _pushRoute(
                       context,
                       MaterialPageRoute(
                         builder: (_) => RemindersView(
@@ -8085,7 +8153,7 @@ class _HomeViewState extends State<HomeView>
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: InkWell(
         onTap: () {
-          Navigator.push(
+          _pushRoute(
             context,
             MaterialPageRoute(
               builder: (_) => UserGuideView(userRole: widget.role),
@@ -8183,7 +8251,7 @@ class _HomeViewState extends State<HomeView>
                   icon: Icons.menu_book,
                   label: 'Sổ quỹ',
                   color: Colors.green,
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const CashClosingView()),
                   ),
@@ -8195,7 +8263,7 @@ class _HomeViewState extends State<HomeView>
                   icon: Icons.account_balance_wallet,
                   label: 'Công nợ',
                   color: Colors.orange,
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const DebtView()),
                   ),
@@ -8207,7 +8275,7 @@ class _HomeViewState extends State<HomeView>
                   icon: Icons.swap_vert,
                   label: 'Thu Chi',
                   color: Colors.blue,
-                  onTap: () => Navigator.push(
+                  onTap: () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const ExpenseView()),
                   ),
@@ -8265,7 +8333,7 @@ class _HomeViewState extends State<HomeView>
     // Only show warranty alerts for shops with warranty enabled (electronics)
     if (!_enableWarranty || expiringWarranties == 0) return const SizedBox();
     return InkWell(
-      onTap: () => Navigator.push(
+      onTap: () => _pushRoute(
         context,
         MaterialPageRoute(builder: (_) => const WarrantyView()),
       ),
@@ -8335,3 +8403,4 @@ class _HomeDashItem {
   final Color color;
   const _HomeDashItem(this.label, this.value, this.color);
 }
+

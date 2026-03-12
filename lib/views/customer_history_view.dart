@@ -9,6 +9,7 @@ import '../core/utils/money_utils.dart';
 import '../theme/app_text_styles.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
+import '../services/storage_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/app_cached_image.dart';
 
@@ -38,6 +39,74 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
   
   // Shop settings for multi-industry
   ShopSettings? _shopSettings;
+
+  bool _isDirectDisplayUrl(String path) {
+    final normalized = path.trim().toLowerCase();
+    return normalized.startsWith('http://') ||
+        normalized.startsWith('https://') ||
+        normalized.startsWith('blob:') ||
+        normalized.startsWith('data:');
+  }
+
+  Future<List<String>> _resolveGalleryImages(List<String> images) async {
+    final resolvedImages = <String>[];
+    for (final image in images) {
+      final normalized = image.trim();
+      if (normalized.isEmpty) continue;
+
+      if (_isDirectDisplayUrl(normalized)) {
+        resolvedImages.add(normalized);
+        continue;
+      }
+
+      final resolved = await StorageService.resolveDisplayUrl(normalized);
+      if (resolved != null && resolved.isNotEmpty) {
+        resolvedImages.add(resolved);
+      }
+    }
+    return resolvedImages;
+  }
+
+  m.Widget _buildThumbImage(String thumb) {
+    if (_isDirectDisplayUrl(thumb)) {
+      return AppCachedImage(
+        imageUrl: thumb,
+        fit: m.BoxFit.cover,
+        memCacheWidth: 110,
+        memCacheHeight: 110,
+      );
+    }
+
+    if (StorageService.isGsStoragePath(thumb) ||
+        StorageService.isStorageRelativePath(thumb)) {
+      return m.FutureBuilder<String?>(
+        future: StorageService.resolveDisplayUrl(thumb),
+        builder: (context, snapshot) {
+          final url = snapshot.data;
+          if (url == null || url.isEmpty) {
+            return m.Container(
+              color: m.Colors.grey.shade200,
+              child: m.Icon(
+                m.Icons.broken_image,
+                color: m.Colors.grey.shade400,
+                size: 20,
+              ),
+            );
+          }
+
+          return AppCachedImage(
+            imageUrl: url,
+            fit: m.BoxFit.cover,
+            memCacheWidth: 110,
+            memCacheHeight: 110,
+          );
+        },
+      );
+    }
+
+    return m.Image.file(File(thumb), fit: m.BoxFit.cover);
+  }
+
   bool get _enableRepair => _shopSettings?.enableRepair ?? true;
 
   @override
@@ -104,17 +173,8 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
     });
   }
 
-  void _openGallery(List<String> images, int index) {
-    final validImages = images
-        .map((p) => p.trim())
-        .where(
-          (p) =>
-              p.startsWith('http') ||
-              p.startsWith('blob:') ||
-              p.startsWith('data:') ||
-              (!kIsWeb && File(p).existsSync()),
-        )
-        .toList();
+  Future<void> _openGallery(List<String> images, int index) async {
+    final validImages = await _resolveGalleryImages(images);
     if (validImages.isEmpty) return;
 
     m.Navigator.push(context, m.MaterialPageRoute(builder: (_) => m.Scaffold(
@@ -123,10 +183,7 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
       body: PhotoViewGallery.builder(
         itemCount: validImages.length,
         builder: (context, i) => PhotoViewGalleryPageOptions(
-            imageProvider: (validImages[i].startsWith('http') ||
-                validImages[i].startsWith('blob:') ||
-                validImages[i].startsWith('data:') ||
-                kIsWeb)
+          imageProvider: (_isDirectDisplayUrl(validImages[i]))
               ? CachedNetworkImageProvider(validImages[i])
               : m.FileImage(File(validImages[i])) as m.ImageProvider,
           initialScale: PhotoViewComputedScale.contained,
@@ -165,9 +222,9 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                     final List<String> imgs = List<String>.from(item['images']);
                     final String thumb = imgs.firstWhere(
                       (p) =>
-                          p.startsWith('http') ||
-                          p.startsWith('blob:') ||
-                          p.startsWith('data:') ||
+                          _isDirectDisplayUrl(p) ||
+                          StorageService.isGsStoragePath(p) ||
+                          StorageService.isStorageRelativePath(p) ||
                           (!kIsWeb && File(p).existsSync()),
                       orElse: () => '',
                     );
@@ -193,17 +250,7 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                             child: hasThumb
                               ? m.ClipRRect(
                                   borderRadius: m.BorderRadius.circular(10),
-                                    child: (thumb.startsWith('http') ||
-                                        thumb.startsWith('blob:') ||
-                                        thumb.startsWith('data:') ||
-                                        kIsWeb)
-                                      ? AppCachedImage(
-                                          imageUrl: thumb,
-                                          fit: m.BoxFit.cover,
-                                          memCacheWidth: 110,
-                                          memCacheHeight: 110,
-                                        )
-                                      : m.Image.file(File(thumb), fit: m.BoxFit.cover),
+                                    child: _buildThumbImage(thumb),
                                 )
                               : m.Icon(isRepair ? m.Icons.build : m.Icons.shopping_bag, color: isRepair ? m.Colors.orange : m.Colors.pink, size: 24),
                           ),

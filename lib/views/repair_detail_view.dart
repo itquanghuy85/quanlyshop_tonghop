@@ -174,11 +174,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
     }
     if (kIsWeb) {
-      return AppCachedImage(
-        imageUrl: normalized,
-        fit: BoxFit.cover,
-        memCacheWidth: 400,
-      );
+      return const Icon(Icons.broken_image, color: AppColors.error);
     }
     File file = File(normalized);
     if (file.existsSync()) return Image.file(file, fit: BoxFit.cover);
@@ -4077,9 +4073,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 final path = resolvedImages[index].trim();
                 return PhotoViewGalleryPageOptions(
                   imageProvider: (path.startsWith('http') ||
-                          path.startsWith('blob:') ||
-                          path.startsWith('data:') ||
-                          kIsWeb)
+                    path.startsWith('blob:') ||
+                    path.startsWith('data:'))
                       ? CachedNetworkImageProvider(path) as ImageProvider
                       : FileImage(File(path)),
                   initialScale: PhotoViewComputedScale.contained,

@@ -1259,18 +1259,20 @@ class OrderListViewState extends State<OrderListView> {
                             decoration: BoxDecoration(
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(8),
-                                    image: firstImage.isNotEmpty &&
+                              image: firstImage.isNotEmpty &&
                                       !_isGsStoragePath(firstImage) &&
-                                      !_isStorageRelativePath(firstImage)
+                                      !_isStorageRelativePath(firstImage) &&
+                                      ((firstImage.startsWith('http') ||
+                                              firstImage.startsWith('blob:') ||
+                                              firstImage.startsWith('data:')) ||
+                                          !kIsWeb)
                                   ? DecorationImage(
                                       image: (firstImage.startsWith('http') ||
                                               firstImage.startsWith('blob:') ||
                                               firstImage.startsWith('data:'))
                                           ? CachedNetworkImageProvider(firstImage)
-                                          : (kIsWeb
-                                                ? CachedNetworkImageProvider(firstImage)
-                                                : FileImage(File(firstImage))
-                                                      as ImageProvider),
+                                          : FileImage(File(firstImage))
+                                                as ImageProvider,
                                       fit: BoxFit.cover,
                                     )
                                   : null,

@@ -94,6 +94,9 @@ class _SimpleSyncIndicatorState extends State<SimpleSyncIndicator>
     setState(() => _isSyncing = true);
 
     try {
+      if (_status == SyncStatus.error) {
+        await _orchestrator.retryFailedItems();
+      }
       // Upload local changes
       await SyncService.syncAllToCloud();
       // Download from cloud (user-triggered)

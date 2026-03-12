@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -32,7 +33,16 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
-  if (path.startsWith('http')) return CachedNetworkImageProvider(path);
+  if (path.startsWith('http') ||
+      path.startsWith('blob:') ||
+      path.startsWith('data:')) {
+    return CachedNetworkImageProvider(path);
+  }
+  if (StorageService.isGsStoragePath(path) ||
+      StorageService.isStorageRelativePath(path) ||
+      kIsWeb) {
+    return null;
+  }
   final file = File(path);
   return file.existsSync() ? FileImage(file) : null;
 }
