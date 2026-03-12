@@ -145,6 +145,7 @@ class _HomeViewState extends State<HomeView>
       _initialSetup();
       SyncService.initRealTimeSync(() {
         _debouncedLoadStats();
+        _debouncedLoadDebtOverview();
       });
       _autoSyncTimer = Timer.periodic(
         const Duration(
@@ -156,6 +157,9 @@ class _HomeViewState extends State<HomeView>
       _eventBusSub = EventBus().stream.listen((event) {
         debugPrint('HomeView: Received event: $event');
         if ((event == 'debts_changed' ||
+                event == 'debt_payments_changed' ||
+                event == 'repair_partners_changed' ||
+                event == 'repair_partner_payments_changed' ||
                 event == 'sales_changed' ||
                 event == 'repairs_changed' ||
                 event == 'expenses_changed' ||
@@ -165,12 +169,14 @@ class _HomeViewState extends State<HomeView>
             mounted) {
           debugPrint('HomeView: Loading stats for event: $event');
           _debouncedLoadStats();
+          _debouncedLoadDebtOverview();
         }
         // Handle shop change event - reload everything
         if (event == EventBus.shopChanged && mounted) {
           debugPrint('HomeView: Shop changed, reloading all data');
           _initialSetup();
           _debouncedLoadStats();
+          _debouncedLoadDebtOverview();
           setState(() {
             _rebuildCounter++; // Force rebuild tabs
           });
@@ -309,6 +315,7 @@ class _HomeViewState extends State<HomeView>
 
   Timer? _autoSyncTimer;
   Timer? _statsDebounceTimer; // Add debounce timer
+  Timer? _debtOverviewDebounceTimer;
   StreamSubscription? _eventBusSub; // EventBus subscription
   Map<String, bool> _permissions = {};
   List<dynamic> _lockedByAdmin = []; // Danh sách quyền bị Admin khóa
@@ -1161,6 +1168,7 @@ class _HomeViewState extends State<HomeView>
         // Quick sync after resume
         _syncNow(silent: true);
         _debouncedLoadStats();
+        _debouncedLoadDebtOverview();
       }
     }
   }
@@ -1172,6 +1180,7 @@ class _HomeViewState extends State<HomeView>
     _autoSyncTimer?.cancel();
     _statsDebounceTimer?.cancel();
     _phoneSearchCtrl.dispose();
+    _debtOverviewDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -1249,6 +1258,7 @@ class _HomeViewState extends State<HomeView>
 
       // 4. Load stats (giờ đã có data)
       _loadStats();
+      _loadDebtOverview();
 
       // Clean duplicate ở background, không block UI
       Future.delayed(const Duration(seconds: 2), () {
@@ -1508,6 +1518,36 @@ class _HomeViewState extends State<HomeView>
     _statsDebounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) _loadStats();
     });
+  }
+
+  void _debouncedLoadDebtOverview() {
+    _debtOverviewDebounceTimer?.cancel();
+    _debtOverviewDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        _loadDebtOverview();
+      }
+    });
+  }
+
+  Future<void> _loadDebtOverview() async {
+    try {
+      final debtOverview = await _debtSummaryService.getDebtOverview();
+      if (!mounted) return;
+
+      final customerRemain = debtOverview['customerRemain'] ?? 0;
+      final supplierRemain = debtOverview['supplierRemain'] ?? 0;
+      final partnerRemain = debtOverview['partnerRemain'] ?? 0;
+      final totalRemain = debtOverview['totalRemain'] ?? 0;
+
+      setState(() {
+        _customerDebtRemain = customerRemain;
+        _supplierDebtRemain = supplierRemain;
+        _partnerDebtRemain = partnerRemain;
+        totalDebtRemain = totalRemain;
+      });
+    } catch (e) {
+      debugPrint('HomeView._loadDebtOverview error: $e');
+    }
   }
 
   /// Phase 2: Load shop settings cho multi-industry features
