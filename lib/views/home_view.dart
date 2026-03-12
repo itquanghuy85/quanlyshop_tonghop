@@ -114,6 +114,7 @@ class _HomeViewState extends State<HomeView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _lastTabIndexPrefKey = 'home_last_tab_index_v1';
   static const String _homeTabId = 'home';
+  static const String _financeTabId = 'finance';
 
   final db = DBHelper();
   final _debtSummaryService = DebtSummaryService();
@@ -237,7 +238,8 @@ class _HomeViewState extends State<HomeView>
   }
 
   bool _usesNestedNavigator(int index) {
-    return _tabIdAt(index) != _homeTabId;
+    final tabId = _tabIdAt(index);
+    return tabId != _homeTabId && tabId != _financeTabId;
   }
 
   GlobalKey<NavigatorState> _navigatorKeyForTab(int index) {
@@ -6472,7 +6474,21 @@ class _HomeViewState extends State<HomeView>
 
               // Financial Overview Cards
               _buildSectionHeader(loc.todayOverview),
-              _financeOverviewSection(),
+              FinanceSummaryCard(
+                key: const ValueKey('finance_tab_summary'),
+                revenue:
+                    _todaySaleIncome +
+                    _todaySettlementIncome +
+                    _todayRepairIncome,
+                netProfit: _todayNetProfit,
+                currentFund:
+                    _previousClosingTotal + _todayTotalIn - _todayTotalOut,
+                onTap: () => _pushRoute(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CashClosingView()),
+                ),
+              ),
+              _buildDashboardOverview(),
 
               const SizedBox(height: 16),
 
