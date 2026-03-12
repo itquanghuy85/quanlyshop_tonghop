@@ -64,8 +64,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopAddr = "";
   String _shopPhone = "";
   bool _hasPermission = false;
-  bool _canViewRevenue = false;
-  bool _canViewCostPrice = false;
   List<RepairPartner> _partners = [];
 
   // Shop settings for dynamic terminology (reserved for future multi-industry use)
@@ -116,13 +114,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Future<void> _checkPermission() async {
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
-    final isSuperAdmin = UserService.isCurrentUserSuperAdmin();
-    setState(() {
-      _hasPermission = isSuperAdmin || (perms['allowViewRepairs'] ?? false);
-      _canViewRevenue = isSuperAdmin || (perms['allowViewRevenue'] ?? false);
-      _canViewCostPrice =
-          isSuperAdmin || (perms['allowViewCostPrice'] ?? false);
-    });
+    setState(() => _hasPermission = perms['allowViewRepairs'] ?? false);
   }
 
   Future<void> _loadShopInfo() async {
@@ -1840,14 +1832,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _editFinancials() async {
-    if (!_canViewRevenue && !_canViewCostPrice) {
-      NotificationService.showSnackBar(
-        'Bạn không có quyền xem hoặc sửa tài chính',
-        color: Colors.orange,
-      );
-      return;
-    }
-
     // Lock editing when repair is delivered (status 4)
     if (r.status == 4) {
       NotificationService.showSnackBar(
@@ -1876,28 +1860,25 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (_canViewRevenue)
-                  CurrencyTextField(
-                    controller: priceC,
-                    label: dialogLoc.chargeCustomerVnd,
-                    validator: (v) => MoneyUtils.validateAmount(
-                      v ?? '',
-                      min: 0,
-                      fieldName: dialogLoc.chargeCustomerLabel,
-                    ),
+                CurrencyTextField(
+                  controller: priceC,
+                  label: dialogLoc.chargeCustomerVnd,
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 0,
+                    fieldName: dialogLoc.chargeCustomerLabel,
                   ),
-                if (_canViewRevenue && _canViewCostPrice)
-                  const SizedBox(height: 12),
-                if (_canViewCostPrice)
-                  CurrencyTextField(
-                    controller: costC,
-                    label: dialogLoc.partsCostVnd,
-                    validator: (v) => MoneyUtils.validateAmount(
-                      v ?? '',
-                      min: 0,
-                      fieldName: dialogLoc.partsCost,
-                    ),
+                ),
+                const SizedBox(height: 12),
+                CurrencyTextField(
+                  controller: costC,
+                  label: dialogLoc.partsCostVnd,
+                  validator: (v) => MoneyUtils.validateAmount(
+                    v ?? '',
+                    min: 0,
+                    fieldName: dialogLoc.partsCost,
                   ),
+                ),
               ],
             ),
           ),
@@ -1919,11 +1900,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       },
     );
     if (result == true) {
-      final parsedPrice =
-        _canViewRevenue ? MoneyUtils.parseCurrency(priceC.text) : r.price;
-      final parsedCost = _canViewCostPrice
-        ? MoneyUtils.parseCurrency(costC.text)
-        : r.cost;
+      final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
+      final parsedCost = MoneyUtils.parseCurrency(costC.text);
       final oldCost = r.cost;
       final wasFundRecorded = r.costRecordedInFund;
 
@@ -2326,131 +2304,71 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     Row(
                       children: [
                         Icon(
-                          _canViewRevenue || _canViewCostPrice
-                              ? Icons.account_balance_wallet
-                              : Icons.build_circle_outlined,
+                          Icons.account_balance_wallet,
                           size: 18,
-                          color: (_canViewRevenue || _canViewCostPrice)
-                              ? Colors.green.shade700
-                              : Colors.blueGrey.shade700,
+                          color: Colors.green.shade700,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          _canViewRevenue || _canViewCostPrice
-                              ? loc.financeTitleUpper
-                              : 'PHỤ TÙNG & THAO TÁC',
+                          loc.financeTitleUpper,
                           style: AppTextStyles.caption.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: (_canViewRevenue || _canViewCostPrice)
-                                ? Colors.green.shade700
-                                : Colors.blueGrey.shade700,
+                            color: Colors.green.shade700,
                           ),
                         ),
                         const Spacer(),
-                        if (_canViewRevenue || _canViewCostPrice)
-                          TextButton.icon(
-                            onPressed: _editFinancials,
-                            icon: const Icon(Icons.edit, size: 14),
-                            label: Text(loc.editButton),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              visualDensity: VisualDensity.compact,
-                            ),
+                        TextButton.icon(
+                          onPressed: _editFinancials,
+                          icon: const Icon(Icons.edit, size: 14),
+                          label: Text(loc.editButton),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            visualDensity: VisualDensity.compact,
                           ),
+                        ),
                       ],
                     ),
-                    if (_canViewRevenue || _canViewCostPrice) ...[
-                      const SizedBox(height: 6),
-                      if (_canViewRevenue && _canViewCostPrice)
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 6,
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: ((r.price - r.cost) >= 0 ? AppColors.success : AppColors.error).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  loc.profitLabel,
+                                  style: AppTextStyles.overline.copyWith(
+                                    color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
+                                  ),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: ((r.price - r.cost) >= 0
-                                          ? AppColors.success
-                                          : AppColors.error)
-                                      .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
+                                Text(
+                                  "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                                  style: AppTextStyles.body2.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
+                                  ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      loc.profitLabel,
-                                      style: AppTextStyles.overline.copyWith(
-                                        color: (r.price - r.cost) >= 0
-                                            ? AppColors.success
-                                            : AppColors.error,
-                                      ),
-                                    ),
-                                    Text(
-                                      "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-                                      style: AppTextStyles.body2.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: (r.price - r.cost) >= 0
-                                            ? AppColors.success
-                                            : AppColors.error,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            _miniFinCompact(
-                              "THU",
-                              r.price,
-                              AppColors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            _miniFinCompact(
-                              "VỐN",
-                              r.cost,
-                              AppColors.warning,
-                            ),
-                          ],
-                        )
-                      else if (_canViewRevenue)
-                        Row(
-                          children: [
-                            _miniFinCompact(
-                              "THU",
-                              r.price,
-                              AppColors.primary,
-                            ),
-                          ],
-                        )
-                      else
-                        Row(
-                          children: [
-                            _miniFinCompact(
-                              "VỐN",
-                              r.cost,
-                              AppColors.warning,
-                            ),
-                          ],
+                          ),
                         ),
-                    ] else ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Tài chính bị ẩn theo phân quyền',
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.blueGrey.shade600,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        _miniFinCompact("THU", r.price, AppColors.primary),
+                        const SizedBox(width: 8),
+                        _miniFinCompact("VỐN", r.cost, AppColors.warning),
+                      ],
+                    ),
                     // Indicator: cost recorded in fund
-                    if (_canViewCostPrice && r.costRecordedInFund && r.cost > 0)
-                      ...[
+                    if (r.costRecordedInFund && r.cost > 0) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [
@@ -2885,18 +2803,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             ),
           ),
           Text(
-            _canViewCostPrice
-                ? "${MoneyUtils.formatCurrency(s.cost)} đ"
-                : 'Ẩn giá vốn',
-            style: _canViewCostPrice
-                ? AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.warning,
-                  )
-                : AppTextStyles.caption.copyWith(
-                    color: Colors.grey.shade600,
-                    fontStyle: FontStyle.italic,
-                  ),
+            "${MoneyUtils.formatCurrency(s.cost)} đ",
+            style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.warning,
+            ),
           ),
           if (r.status != 4)
             IconButton(
@@ -3175,48 +3086,29 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Widget _buildFinancialContent() {
     return Column(
       children: [
-        if (_canViewRevenue || _canViewCostPrice) ...[
-          if (_canViewRevenue && _canViewCostPrice) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  loc.expectedProfit,
-                  style: AppTextStyles.body1.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-                  style: AppTextStyles.headline5.copyWith(
-                    color: (r.price - r.cost) >= 0
-                        ? AppColors.success
-                        : AppColors.error,
-                  ),
-                ),
-              ],
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              loc.expectedProfit,
+              style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
             ),
-            const Divider(height: 25),
+            Text(
+              "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+              style: AppTextStyles.headline5.copyWith(
+                color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
+              ),
+            ),
           ],
-          Row(
-            children: [
-              if (_canViewRevenue)
-                _miniFin(loc.priceLabel, r.price, AppColors.primary),
-              if (_canViewRevenue && _canViewCostPrice)
-                const SizedBox(width: 10),
-              if (_canViewCostPrice)
-                _miniFin(loc.costLabel, r.cost, AppColors.warning),
-            ],
-          ),
-          const SizedBox(height: 10),
-        ] else
-          Text(
-            'Tài chính bị ẩn theo phân quyền',
-            style: AppTextStyles.caption.copyWith(
-              color: Colors.grey.shade600,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
+        ),
+        const Divider(height: 25),
+        Row(
+          children: [
+            _miniFin(loc.priceLabel, r.price, AppColors.primary),
+            _miniFin(loc.costLabel, r.cost, AppColors.warning),
+          ],
+        ),
+        const SizedBox(height: 10),
         // Hiển thị phụ tùng đã dùng
         if (r.partsUsed.isNotEmpty) ...[
           const Divider(height: 20),
@@ -3378,18 +3270,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     ),
                   ),
                   Text(
-                    _canViewCostPrice
-                        ? "${MoneyUtils.formatCurrency(s.cost)} đ"
-                        : 'Ẩn giá vốn',
-                    style: _canViewCostPrice
-                        ? AppTextStyles.body2.copyWith(
-                            color: AppColors.warning,
-                            fontWeight: FontWeight.bold,
-                          )
-                        : AppTextStyles.caption.copyWith(
-                            color: Colors.grey.shade600,
-                            fontStyle: FontStyle.italic,
-                          ),
+                    "${MoneyUtils.formatCurrency(s.cost)} đ",
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   if (r.status != 4)
                     IconButton(
@@ -3418,18 +3303,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 ),
               ),
               Text(
-                _canViewCostPrice
-                    ? "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ"
-                    : 'Ẩn giá vốn',
-                style: _canViewCostPrice
-                    ? AppTextStyles.body1.copyWith(
-                        color: AppColors.warning,
-                        fontWeight: FontWeight.bold,
-                      )
-                    : AppTextStyles.caption.copyWith(
-                        color: Colors.grey.shade600,
-                        fontStyle: FontStyle.italic,
-                      ),
+                "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ",
+                style: AppTextStyles.body1.copyWith(
+                  color: AppColors.warning,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -3506,48 +3384,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       ),
       child: Column(
         children: [
-          if (_canViewRevenue || _canViewCostPrice) ...[
-            if (_canViewRevenue && _canViewCostPrice) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    loc.expectedProfit,
-                    style: AppTextStyles.body1.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-                    style: AppTextStyles.headline5.copyWith(
-                      color: (r.price - r.cost) >= 0
-                          ? AppColors.success
-                          : AppColors.error,
-                    ),
-                  ),
-                ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                loc.expectedProfit,
+                style: AppTextStyles.body1.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              const Divider(height: 25),
+              Text(
+                "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                style: AppTextStyles.headline5.copyWith(
+                  color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
+                ),
+              ),
             ],
-            Row(
-              children: [
-                if (_canViewRevenue)
-                  _miniFin(loc.priceLabel, r.price, AppColors.primary),
-                if (_canViewRevenue && _canViewCostPrice)
-                  const SizedBox(width: 10),
-                if (_canViewCostPrice)
-                  _miniFin(loc.costLabel, r.cost, AppColors.warning),
-              ],
-            ),
-            const SizedBox(height: 10),
-          ] else
-            Text(
-              'Tài chính bị ẩn theo phân quyền',
-              style: AppTextStyles.caption.copyWith(
-                color: Colors.grey.shade600,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
+          ),
+          const Divider(height: 25),
+          Row(
+            children: [
+              _miniFin(loc.priceLabel, r.price, AppColors.primary),
+              _miniFin(loc.costLabel, r.cost, AppColors.warning),
+            ],
+          ),
+          const SizedBox(height: 10),
           // Hiển thị phụ tùng đã dùng
           if (r.partsUsed.isNotEmpty) ...[
             const Divider(height: 20),
