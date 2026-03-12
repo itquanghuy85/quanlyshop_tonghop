@@ -162,14 +162,17 @@ class Repair {
     this.costRecordedAmount,
   });
 
-  /// Tổng chi phí ưu tiên tổng dịch vụ khi danh sách dịch vụ có dữ liệu.
-  /// Nếu chưa có dịch vụ, fallback về trường cost legacy.
+  int get servicesCost => services.fold(0, (sum, s) => sum + s.cost);
+
+  /// Tổng chi phí canonical của đơn sửa.
+  /// Ưu tiên trường cost vì đây là nơi đang lưu tổng chi phí thực tế
+  /// gồm cả dịch vụ và linh kiện. Với dữ liệu cũ chưa đồng bộ đúng,
+  /// fallback sang tổng dịch vụ nếu cost đang bằng 0.
   int get totalCost {
-    if (services.isNotEmpty) {
-      final calc = services.fold(0, (sum, s) => sum + s.cost);
-      if (calc > 0) return calc;
-    }
-    return cost;
+    if (cost > 0) return cost;
+    final calc = servicesCost;
+    if (calc > 0) return calc;
+    return 0;
   }
 
   Map<String, dynamic> toMap() {

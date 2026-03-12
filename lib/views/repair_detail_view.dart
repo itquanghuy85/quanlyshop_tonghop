@@ -4311,8 +4311,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       } else {
         newServices.add(trackedService);
       }
+      final updatedCost = (r.cost - (oldService?.cost ?? 0) + trackedService.cost)
+          .clamp(0, 999999999);
       r.services = newServices;
-      r.cost = newServices.fold(0, (sum, s) => sum + s.cost);
+      r.cost = updatedCost;
       r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
       r.isSynced = false;
       await db.upsertRepair(r);
@@ -4358,7 +4360,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await _cleanupPartnerServiceRecords(removedService, index);
       newServices.removeAt(index);
       r.services = newServices;
-      r.cost = newServices.fold(0, (sum, s) => sum + s.cost);
+      r.cost = (r.cost - removedService.cost).clamp(0, 999999999);
       r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
       r.isSynced = false;
       await db.upsertRepair(r);

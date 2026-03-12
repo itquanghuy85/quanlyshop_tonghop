@@ -5,15 +5,18 @@ import '../widgets/custom_app_bar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
+import '../models/attendance_monthly_summary_model.dart';
 import '../models/leave_request_model.dart';
 import '../services/storage_service.dart';
 import '../services/user_service.dart';
 import '../services/osm_map_service.dart';
 import '../services/attendance_approval_service.dart';
+import '../services/attendance_summary_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/excel_export_helper.dart';
 import '../widgets/app_cached_image.dart';
 
 /// Trang theo dõi chấm công nhân viên cho quản lý/chủ shop
@@ -35,7 +38,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   List<Map<String, dynamic>> _staffList = [];
   final Map<String, List<Attendance>> _staffAttendance = {};
-  final Map<String, Map<String, dynamic>> _monthlyStats = {};
+  List<AttendanceMonthlySummary> _monthlySummaries = [];
   List<Attendance> _pendingRequests = [];
   List<LeaveRequest> _leaveRequests = [];
 
@@ -93,7 +96,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   Future<void> _loadAttendanceData() async {
     _staffAttendance.clear();
-    _monthlyStats.clear();
+    _monthlySummaries = [];
     if (_viewMode == 'day') {
       await _loadDayAttendance();
     } else {
@@ -144,7 +147,6 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         final records = allLocal.where((r) => r.userId == userId).toList();
         if (records.isNotEmpty) {
           _staffAttendance[userId] = records;
-          _monthlyStats[userId] = _calcStats(records);
           continue;
         }
         if (_currentShopId != null) {
@@ -157,42 +159,18 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
               .get();
           final recs = snap.docs.map((d) => Attendance.fromMap(d.data())).toList();
           _staffAttendance[userId] = recs;
-          _monthlyStats[userId] = _calcStats(recs);
         } else {
           _staffAttendance[userId] = [];
-          _monthlyStats[userId] = _emptyStats();
         }
       } catch (e) {
         _staffAttendance[userId] = [];
-        _monthlyStats[userId] = _emptyStats();
       }
     }
+    _monthlySummaries = AttendanceSummaryService.buildMonthlySummaries(
+      staffList: _staffList,
+      staffAttendance: _staffAttendance,
+    );
   }
-
-  Map<String, dynamic> _calcStats(List<Attendance> records) {
-    int totalDays = records.where((r) => r.checkInAt != null).length;
-    int approved = records.where((r) => r.status == 'approved').length;
-    int lateDays = records.where((r) => r.isLate == 1).length;
-    int earlyLeaveDays = records.where((r) => r.isEarlyLeave == 1).length;
-    int totalHours = 0;
-    double overtimeHours = 0;
-    for (final r in records) {
-      if (r.checkInAt != null && r.checkOutAt != null) {
-        totalHours += ((r.checkOutAt! - r.checkInAt!) / 3600000).round();
-      }
-      if (r.overtimeOn > 0) overtimeHours += r.overtimeOn / 60.0;
-    }
-    return {
-      'totalDays': totalDays, 'approved': approved, 'lateDays': lateDays,
-      'earlyLeaveDays': earlyLeaveDays, 'totalHours': totalHours,
-      'overtimeHours': overtimeHours,
-    };
-  }
-
-  Map<String, dynamic> _emptyStats() => {
-    'totalDays': 0, 'approved': 0, 'lateDays': 0,
-    'earlyLeaveDays': 0, 'totalHours': 0, 'overtimeHours': 0.0,
-  };
 
   Future<void> _loadPendingRequests() async {
     try {
@@ -295,8 +273,139 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       slivers: [
         SliverToBoxAdapter(child: _buildSummaryHeader()),
         SliverToBoxAdapter(child: _buildDateSelector()),
+        if (_viewMode == 'month')
+          SliverToBoxAdapter(child: _buildMonthlySummaryTable()),
         _buildStaffSliver(),
       ],
+    );
+  }
+
+  Widget _buildMonthlySummaryTable() {
+    if (_monthlySummaries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final totalWorkMinutes = _monthlySummaries.fold<int>(
+      0,
+      (sum, item) => sum + item.totalWorkMinutes,
+    );
+    final totalOtMinutes = _monthlySummaries.fold<int>(
+      0,
+      (sum, item) => sum + item.overtimeMinutes,
+    );
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Bảng tổng hợp tháng ${DateFormat('MM/yyyy').format(_selectedMonth)}',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.headline5.fontSize,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Giờ công ${AttendanceMonthlySummary.formatMinutes(totalWorkMinutes)} • OT ${AttendanceMonthlySummary.formatMinutes(totalOtMinutes)}',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.caption.fontSize,
+                        color: AppColors.inactive,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _exportMonthlySummary,
+                icon: const Icon(Icons.file_download_outlined, size: 16),
+                label: const Text('Xuất Excel'),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowHeight: 40,
+              dataRowMinHeight: 44,
+              dataRowMaxHeight: 52,
+              columnSpacing: 18,
+              columns: const [
+                DataColumn(label: Text('Nhân viên')),
+                DataColumn(label: Text('Công')),
+                DataColumn(label: Text('Duyệt')),
+                DataColumn(label: Text('Chờ')),
+                DataColumn(label: Text('Muộn')),
+                DataColumn(label: Text('Sớm')),
+                DataColumn(label: Text('Thiếu ra')),
+                DataColumn(label: Text('Giờ công')),
+                DataColumn(label: Text('OT')),
+              ],
+              rows: _monthlySummaries.map((summary) {
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(minWidth: 150),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              summary.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              summary.email,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.inactive,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DataCell(Text('${summary.workDays}')),
+                    DataCell(Text('${summary.approvedDays}')),
+                    DataCell(Text('${summary.pendingDays}')),
+                    DataCell(Text('${summary.lateDays}')),
+                    DataCell(Text('${summary.earlyLeaveDays}')),
+                    DataCell(Text('${summary.incompleteDays}')),
+                    DataCell(Text(summary.totalWorkLabel)),
+                    DataCell(Text(summary.overtimeLabel)),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -454,8 +563,10 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
             final staff = _staffList[i];
             final userId = staff['id'] as String;
             final records = _staffAttendance[userId] ?? [];
-            final stats = _monthlyStats[userId];
-            return _viewMode == 'day' ? _buildDayCard(staff, records) : _buildMonthCard(staff, records, stats);
+            final summary = _summaryByUserId(userId);
+            return _viewMode == 'day'
+                ? _buildDayCard(staff, records)
+                : _buildMonthCard(staff, records, summary);
           },
           childCount: _staffList.length,
         ),
@@ -567,13 +678,20 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     );
   }
 
-  Widget _buildMonthCard(Map<String, dynamic> staff, List<Attendance> records, Map<String, dynamic>? stats) {
+  Widget _buildMonthCard(
+    Map<String, dynamic> staff,
+    List<Attendance> records,
+    AttendanceMonthlySummary? summary,
+  ) {
     final loc = AppLocalizations.of(context)!;
-    final totalDays = stats?['totalDays'] ?? 0;
-    final approved = stats?['approved'] ?? 0;
-    final lateDays = stats?['lateDays'] ?? 0;
-    final totalHours = stats?['totalHours'] ?? 0;
-    final ot = (stats?['overtimeHours'] ?? 0.0) as double;
+    final totalDays = summary?.workDays ?? 0;
+    final approved = summary?.approvedDays ?? 0;
+    final lateDays = summary?.lateDays ?? 0;
+    final earlyLeaveDays = summary?.earlyLeaveDays ?? 0;
+    final pendingDays = summary?.pendingDays ?? 0;
+    final incompleteDays = summary?.incompleteDays ?? 0;
+    final totalHours = summary?.totalWorkLabel ?? '0h';
+    final ot = summary?.overtimeLabel ?? '0h';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -612,12 +730,45 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                   _monthStatItem(loc.workDaysCount, '$totalDays', AppColors.primary),
                   _monthStatItem(loc.approvedStatus, '$approved', AppColors.success),
                   _monthStatItem(loc.lateArrival, '$lateDays', AppColors.warning),
-                  _monthStatItem(loc.workHoursCount, '${totalHours}h', AppColors.primary),
-                  if (ot > 0) _monthStatItem('OT', '${ot.toStringAsFixed(1)}h', Colors.deepOrange),
+                  _monthStatItem(loc.workHoursCount, totalHours, AppColors.primary),
+                  _monthStatItem('OT', ot, Colors.deepOrange),
                 ],
               ),
+              if (pendingDays > 0 || earlyLeaveDays > 0 || incompleteDays > 0) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    if (pendingDays > 0)
+                      _monthFlag('Chờ duyệt $pendingDays', AppColors.warning),
+                    if (earlyLeaveDays > 0)
+                      _monthFlag('Về sớm $earlyLeaveDays', Colors.orange),
+                    if (incompleteDays > 0)
+                      _monthFlag('Thiếu giờ ra $incompleteDays', AppColors.error),
+                  ],
+                ),
+              ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _monthFlag(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
       ),
     );
@@ -1490,6 +1641,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   void _showMonthDetail(Map<String, dynamic> staff, List<Attendance> records) {
     final loc = AppLocalizations.of(context)!;
+    final summary = _summaryByUserId(staff['id'] as String);
     showAppBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1511,6 +1663,21 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
               ])),
               IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, size: 20)),
             ]),
+            if (summary != null) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _monthFlag('Ngày công ${summary.workDays}', AppColors.primary),
+                  _monthFlag('Đã duyệt ${summary.approvedDays}', AppColors.success),
+                  _monthFlag('Chờ ${summary.pendingDays}', AppColors.warning),
+                  _monthFlag('Giờ công ${summary.totalWorkLabel}', AppColors.primaryDark),
+                  if (summary.overtimeMinutes > 0)
+                    _monthFlag('OT ${summary.overtimeLabel}', Colors.deepOrange),
+                ],
+              ),
+            ],
             const Divider(height: 16),
             Expanded(
               child: records.isEmpty
@@ -1569,6 +1736,32 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   String _staffNameById(String userId) {
     final s = _staffList.cast<Map<String, dynamic>?>().firstWhere((s) => s?['id'] == userId, orElse: () => null);
     return (s?['name'] as String?) ?? (userId.length > 8 ? userId.substring(0, 8) : userId.isNotEmpty ? userId : 'N/A');
+  }
+
+  AttendanceMonthlySummary? _summaryByUserId(String userId) {
+    for (final summary in _monthlySummaries) {
+      if (summary.userId == userId) {
+        return summary;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _exportMonthlySummary() async {
+    if (_monthlySummaries.isEmpty) {
+      NotificationService.showSnackBar(
+        'Không có dữ liệu chấm công tháng để xuất',
+        color: AppColors.warning,
+      );
+      return;
+    }
+
+    await ExcelExportHelper.exportAttendanceMonthlySummary(
+      context,
+      month: _selectedMonth,
+      summaries: _monthlySummaries,
+      staffAttendance: _staffAttendance,
+    );
   }
 
   String _statusDisplayVi(String status) {

@@ -16,6 +16,7 @@ import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
 import '../models/expense_model.dart';
 import '../models/attendance_model.dart';
+import '../models/attendance_monthly_summary_model.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
 import 'money_utils.dart';
@@ -94,6 +95,10 @@ class ExcelExportHelper {
     if (v == null) return '0';
     final n = v is int ? v : int.tryParse(v.toString()) ?? 0;
     return MoneyUtils.formatVND(n);
+  }
+
+  static String _fmtMinutes(int totalMinutes) {
+    return AttendanceMonthlySummary.formatMinutes(totalMinutes);
   }
 
   /// Repair status int → Vietnamese text
@@ -587,6 +592,106 @@ class ExcelExportHelper {
     }
 
     final fileName = _buildFileName('cham_cong', startMs, endMs);
+    await _saveAndShare(excel, fileName, context);
+  }
+
+  static Future<void> exportAttendanceMonthlySummary(
+    BuildContext context, {
+    required DateTime month,
+    required List<AttendanceMonthlySummary> summaries,
+    required Map<String, List<Attendance>> staffAttendance,
+  }) async {
+    final excel = Excel.createExcel();
+    final summarySheet = excel['Tong hop thang'];
+    final detailSheet = excel['Chi tiet'];
+
+    _writeHeaders(summarySheet, [
+      'STT',
+      'Nhân viên',
+      'Email',
+      'Vai trò',
+      'Ngày công',
+      'Đã duyệt',
+      'Chờ duyệt',
+      'Từ chối',
+      'Đi muộn',
+      'Về sớm',
+      'Thiếu giờ ra',
+      'Giờ công',
+      'Tăng ca',
+      'Tỷ lệ duyệt',
+    ]);
+
+    for (int i = 0; i < summaries.length; i++) {
+      final summary = summaries[i];
+      _writeRow(summarySheet, i + 1, [
+        i + 1,
+        summary.name,
+        summary.email,
+        summary.role,
+        summary.workDays,
+        summary.approvedDays,
+        summary.pendingDays,
+        summary.rejectedDays,
+        summary.lateDays,
+        summary.earlyLeaveDays,
+        summary.incompleteDays,
+        _fmtMinutes(summary.totalWorkMinutes),
+        _fmtMinutes(summary.overtimeMinutes),
+        '${(summary.approvalRate * 100).toStringAsFixed(0)}%',
+      ]);
+    }
+
+    _writeHeaders(detailSheet, [
+      'STT',
+      'Nhân viên',
+      'Ngày',
+      'Giờ vào',
+      'Giờ ra',
+      'Giờ công',
+      'OT',
+      'Trạng thái',
+      'Đi muộn',
+      'Về sớm',
+      'Ghi chú',
+    ]);
+
+    var rowIndex = 1;
+    for (final summary in summaries) {
+      final records = List<Attendance>.from(
+        staffAttendance[summary.userId] ?? const [],
+      )..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+
+      for (final record in records) {
+        var workMinutes = 0;
+        if (record.checkInAt != null && record.checkOutAt != null) {
+          workMinutes = ((record.checkOutAt! - record.checkInAt!) / 60000)
+              .round();
+        }
+
+        _writeRow(detailSheet, rowIndex, [
+          rowIndex,
+          summary.name,
+          record.dateKey,
+          _fmtDateTime(record.checkInAt),
+          _fmtDateTime(record.checkOutAt),
+          _fmtMinutes(workMinutes),
+          _fmtMinutes(record.overtimeOn),
+          record.status,
+          record.isLate == 1 ? 'Có' : 'Không',
+          record.isEarlyLeave == 1 ? 'Có' : 'Không',
+          record.note ?? '',
+        ]);
+        rowIndex++;
+      }
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final fileName =
+        'tong_hop_cham_cong_${DateFormat('MMyyyy').format(month)}.xlsx';
     await _saveAndShare(excel, fileName, context);
   }
 
