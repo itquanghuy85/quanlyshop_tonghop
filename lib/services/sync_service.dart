@@ -11,6 +11,7 @@ import '../models/sale_order_model.dart';
 import '../models/expense_model.dart';
 import '../models/debt_model.dart';
 import '../models/attendance_model.dart';
+import '../models/leave_request_model.dart';
 import '../models/customer_model.dart';
 import '../models/quick_input_code_model.dart';
 import 'storage_service.dart';
@@ -796,6 +797,37 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo attendance sync: $e");
+    }
+
+    // 8b. Đồng bộ LEAVE REQUESTS (Xin nghỉ)
+    try {
+      _subscribeToCollection(
+        collection: 'leave_requests',
+        shopId: shopId,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteLeaveRequestByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              // Convert Timestamp fields
+              for (final key in ['createdAt', 'updatedAt', 'approvedAt']) {
+                if (data[key] is Timestamp) {
+                  data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
+                }
+              }
+              await db.upsertLeaveRequest(LeaveRequest.fromMap(data));
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync leave_request $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo leave_requests sync: $e");
     }
 
     // 9. Đồng bộ QUICK INPUT CODES
@@ -1601,6 +1633,9 @@ class SyncService {
           break;
         case 'payment_requests':
           await db.deletePaymentRequestByFirestoreId(firestoreId);
+          break;
+        case 'leave_requests':
+          await db.deleteLeaveRequestByFirestoreId(firestoreId);
           break;
       }
       debugPrint(
@@ -3032,6 +3067,7 @@ class SyncService {
         'sales_return_items', // FIX: Đồng bộ chi tiết trả hàng
         'financial_activity_log', // FIX: Đồng bộ nhật ký tài chính
         'payment_requests', // FIX: Đồng bộ yêu cầu đóng tiền giữa các máy
+        'leave_requests', // FIX: Đồng bộ đơn xin nghỉ giữa các máy
       ];
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
 
@@ -3123,6 +3159,8 @@ class SyncService {
                 await db.upsertDebtPayment(data);
               } else if (col == 'attendance') {
                 await db.upsertAttendance(Attendance.fromMap(data));
+              } else if (col == 'leave_requests') {
+                await db.upsertLeaveRequest(LeaveRequest.fromMap(data));
               } else if (col == 'quick_input_codes') {
                 await db.upsertQuickInputCode(QuickInputCode.fromMap(data));
               } else if (col == 'supplier_payments') {

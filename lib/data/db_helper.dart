@@ -4465,49 +4465,85 @@ class DBHelper {
       );
 
   Future<List<LeaveRequest>> getAllLeaveRequests() async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'deleted = 0';
+    List<dynamic> args = [];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
     final maps = await (await database).query(
       'leave_requests',
-      where: 'deleted = 0',
+      where: where,
+      whereArgs: args,
       orderBy: 'createdAt DESC',
     );
     return maps.map((m) => LeaveRequest.fromMap(m)).toList();
   }
 
   Future<List<LeaveRequest>> getLeaveRequestsByUser(String userId) async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'userId = ? AND deleted = 0';
+    List<dynamic> args = [userId];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
     final maps = await (await database).query(
       'leave_requests',
-      where: 'userId = ? AND deleted = 0',
-      whereArgs: [userId],
+      where: where,
+      whereArgs: args,
       orderBy: 'createdAt DESC',
     );
     return maps.map((m) => LeaveRequest.fromMap(m)).toList();
   }
 
   Future<List<LeaveRequest>> getLeaveRequestsByStatus(String status) async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'status = ? AND deleted = 0';
+    List<dynamic> args = [status];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
     final maps = await (await database).query(
       'leave_requests',
-      where: 'status = ? AND deleted = 0',
-      whereArgs: [status],
+      where: where,
+      whereArgs: args,
       orderBy: 'createdAt DESC',
     );
     return maps.map((m) => LeaveRequest.fromMap(m)).toList();
   }
 
   Future<List<LeaveRequest>> getLeaveRequestsByDateRange(String start, String end) async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'deleted = 0 AND ((startDate BETWEEN ? AND ?) OR (endDate BETWEEN ? AND ?))';
+    List<dynamic> args = [start, end, start, end];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
     final maps = await (await database).query(
       'leave_requests',
-      where: 'deleted = 0 AND ((startDate BETWEEN ? AND ?) OR (endDate BETWEEN ? AND ?))',
-      whereArgs: [start, end, start, end],
+      where: where,
+      whereArgs: args,
       orderBy: 'startDate ASC',
     );
     return maps.map((m) => LeaveRequest.fromMap(m)).toList();
   }
 
   Future<List<Attendance>> getPendingAttendanceRequests() async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'status = ? AND deleted = 0';
+    List<dynamic> args = ['pending'];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
     final maps = await (await database).query(
       'attendance',
-      where: 'status = ? AND deleted = 0',
-      whereArgs: ['pending'],
+      where: where,
+      whereArgs: args,
       orderBy: 'createdAt DESC',
     );
     return maps.map((m) => Attendance.fromMap(m)).toList();
