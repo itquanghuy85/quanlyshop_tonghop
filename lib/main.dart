@@ -609,7 +609,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
             // Super admin: Chuyển đến màn hình chọn shop
             if (isSuperAdmin) {
-              return ShopSelectorView(setLocale: widget.setLocale);
+              return ShopSelectorView(key: const ValueKey('shop_selector'), setLocale: widget.setLocale);
             }
 
             // Seed test data cho tài khoản debug (1 lần duy nhất)
@@ -632,7 +632,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
             }
 
             // User thường: Vào HomeView
-            return HomeView(role: role, setLocale: widget.setLocale);
+            // Use ValueKey to prevent State recreation on StreamBuilder rebuilds (iOS auth re-emit)
+            return HomeView(key: const ValueKey('home_view'), role: role, setLocale: widget.setLocale);
           },
         );
       },

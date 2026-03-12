@@ -675,7 +675,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       debugPrint('🔧 _onlySave: Navigating to OrderListView...');
       if (mounted) {
-        Navigator.pushReplacement(
+        Navigator.pop(context);
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => OrderListView(role: widget.role),
@@ -705,7 +706,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         'shopPhone': '0964095979',
       });
       if (mounted) {
-        Navigator.pushReplacement(
+        Navigator.pop(context);
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => OrderListView(role: widget.role),
