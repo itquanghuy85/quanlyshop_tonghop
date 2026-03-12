@@ -5738,7 +5738,12 @@ class _HomeViewState extends State<HomeView>
                 Colors.deepOrange,
                 () => _pushRoute(
                   context,
-                  MaterialPageRoute(builder: (_) => const PartsInventoryView()),
+                  MaterialPageRoute(
+                    builder: (_) => InventoryView(
+                      role: widget.role,
+                      initialFilterType: 'LINH_KIEN',
+                    ),
+                  ),
                 ),
                 subtitle: 'Quản lý linh kiện, giá nhập, tồn kho',
               ),

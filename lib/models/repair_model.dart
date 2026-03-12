@@ -162,11 +162,9 @@ class Repair {
     this.costRecordedAmount,
   });
 
-  /// Tổng chi phí = cost (linh kiện + dịch vụ đã lưu)
-  /// Luôn dùng trường cost vì nó đã được cập nhật khi thêm linh kiện/dịch vụ
-  /// Fallback: nếu cost == 0 nhưng services có cost > 0 → tính lại từ services
+  /// Tổng chi phí ưu tiên tổng dịch vụ khi danh sách dịch vụ có dữ liệu.
+  /// Nếu chưa có dịch vụ, fallback về trường cost legacy.
   int get totalCost {
-    if (cost > 0) return cost;
     if (services.isNotEmpty) {
       final calc = services.fold(0, (sum, s) => sum + s.cost);
       if (calc > 0) return calc;

@@ -42,7 +42,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/app_cached_image.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'parts_inventory_view.dart';
+import 'inventory_view.dart';
 import 'repair_partner_view.dart';
 import 'repair_invoice_template_view.dart';
 import 'repair_invoice_preview_view.dart';
@@ -496,7 +496,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           final user = FirebaseAuth.instance.currentUser;
           final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
           final key = r.firestoreId ?? "repair_${r.createdAt}";
-          final summary = loc.repairOrderShare(r.customerName, r.phone, r.model, '');
+          final summary = loc.repairOrderShare(
+            r.customerName,
+            r.phone,
+            r.model,
+            '',
+          );
 
           String emoji = "";
           String statusMsg = "";
@@ -589,7 +594,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('⚠️ Thiếu thông tin khách hàng'),
-          content: const Text('Vui lòng cập nhật thông tin khách hàng (Tên, SĐT) trước khi giao máy.'),
+          content: const Text(
+            'Vui lòng cập nhật thông tin khách hàng (Tên, SĐT) trước khi giao máy.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -607,7 +614,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
       return;
     }
-    
+
     String payMethod = loc.cash;
     String selectedWarranty = r.warranty.isEmpty ? '1 tháng' : r.warranty;
     final List<String> warrantyOptions = [
@@ -732,7 +739,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         r.finishedAt = DateTime.now().millisecondsSinceEpoch;
         // Ghi nhận người sửa xong
         final currentUser = FirebaseAuth.instance.currentUser;
-        r.repairedBy = currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
+        r.repairedBy =
+            currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
       }
       r.pendingDeliveryApproval = true; // Đánh dấu chờ duyệt
       _isUpdating = true;
@@ -782,7 +790,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final key = r.firestoreId ?? "repair_${r.createdAt}";
       await FirestoreService.sendChat(
         message: loc.chatRequestDeliveryApproval(
-            r.model, r.customerName, MoneyUtils.formatCurrency(r.price)),
+          r.model,
+          r.customerName,
+          MoneyUtils.formatCurrency(r.price),
+        ),
         senderId: user?.uid ?? 'guest',
         senderName: userName,
         linkedType: 'repair',
@@ -814,7 +825,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('⚠️ Thiếu thông tin khách hàng'),
-          content: const Text('Vui lòng cập nhật thông tin khách hàng (Tên, SĐT) trước khi duyệt giao máy.'),
+          content: const Text(
+            'Vui lòng cập nhật thông tin khách hàng (Tên, SĐT) trước khi duyệt giao máy.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -832,7 +845,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
       return;
     }
-    
+
     String selectedWarranty = r.warranty.isEmpty ? 'KO BH' : r.warranty;
     final List<String> warrantyOptions = [
       'KO BH',
@@ -867,7 +880,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(dialogLoc.deviceInfo(r.model)),
-                      Text(dialogLoc.priceInfo(MoneyUtils.formatCurrency(r.price))),
+                      Text(
+                        dialogLoc.priceInfo(MoneyUtils.formatCurrency(r.price)),
+                      ),
                       Text(dialogLoc.paymentInfo(r.paymentMethod)),
                     ],
                   ),
@@ -918,7 +933,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                child: Text(dialogLoc.approve, style: const TextStyle(color: Colors.white)),
+                child: Text(
+                  dialogLoc.approve,
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -974,7 +992,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         );
 
         // Công nợ đã ghi nhận ở bảng debts - không cần tạo PaymentIntent
-        debugPrint('✅ Repair debt recorded: $debtFId (no PaymentIntent needed)');
+        debugPrint(
+          '✅ Repair debt recorded: $debtFId (no PaymentIntent needed)',
+        );
       } else if (r.price > 0) {
         // Ghi nhận thu tiền sửa chữa trực tiếp
         final payResult = await PaymentIntentService.executePaymentDirect(
@@ -995,7 +1015,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             'model': r.model,
           },
         );
-        debugPrint('💳 Repair payment ${payResult.success ? "OK" : "FAILED"}: ${r.price}đ');
+        debugPrint(
+          '💳 Repair payment ${payResult.success ? "OK" : "FAILED"}: ${r.price}đ',
+        );
       }
 
       await db.upsertRepair(r);
@@ -1042,7 +1064,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // Chat notification
       final key = r.firestoreId ?? "repair_${r.createdAt}";
-      final summary = loc.repairOrderShare(r.customerName, r.phone, r.model, "${MoneyUtils.formatCurrency(r.price)}đ");
+      final summary = loc.repairOrderShare(
+        r.customerName,
+        r.phone,
+        r.model,
+        "${MoneyUtils.formatCurrency(r.price)}đ",
+      );
       await FirestoreService.sendChat(
         message: loc.chatApprovedDelivery(summary),
         senderId: user?.uid ?? 'guest',
@@ -1206,10 +1233,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   /// Lối tắt vào Kho Phụ Tùng (PartsInventoryView)
-  void _navigateToPartsInventory() {
-    Navigator.push(
+  Future<void> _navigateToPartsInventory() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final role = currentUser != null
+        ? await UserService.getUserRole(currentUser.uid)
+        : 'user';
+    if (!mounted) return;
+    await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const PartsInventoryView()),
+      MaterialPageRoute(
+        builder: (_) =>
+            InventoryView(role: role, initialFilterType: 'LINH_KIEN'),
+      ),
     );
   }
 
@@ -1287,7 +1322,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (allProducts.isEmpty) {
         msg += loc.noProductsInInventory;
       } else {
-        msg += loc.totalProductsLinhKien(allProducts.length, linhKienProducts.length);
+        msg += loc.totalProductsLinhKien(
+          allProducts.length,
+          linhKienProducts.length,
+        );
         if (linhKienProducts.isEmpty) {
           msg += loc.goToInventoryAddParts;
         }
@@ -1476,7 +1514,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             referenceId: r.firestoreId,
             referenceType: 'parts_payment',
             personName: supplierName,
-            idempotencyKey: 'parts_${r.firestoreId}_${totalCost}_$paymentMethod',
+            idempotencyKey:
+                'parts_${r.firestoreId}_${totalCost}_$paymentMethod',
             metadata: {
               'repairId': r.id,
               'repairFirestoreId': r.firestoreId,
@@ -1484,7 +1523,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               'paymentMethod': paymentMethod,
             },
           );
-          debugPrint('💳 Parts payment ${payResult.success ? "OK" : "FAILED"}: ${totalCost}đ');
+          debugPrint(
+            '💳 Parts payment ${payResult.success ? "OK" : "FAILED"}: ${totalCost}đ',
+          );
         } catch (e) {
           debugPrint('❌ Error creating parts payment intent: $e');
         }
@@ -1564,10 +1605,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     trailing: IconButton(
-                      icon: const Icon(
-                        Icons.remove_circle,
-                        color: Colors.red,
-                      ),
+                      icon: const Icon(Icons.remove_circle, color: Colors.red),
                       onPressed: () => Navigator.pop(ctx, entry.key),
                     ),
                   ),
@@ -1671,7 +1709,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       action: 'PART_REMOVED',
       entityType: 'repair',
       entityId: r.id?.toString() ?? '',
-      summary: 'Xóa phụ tùng: $removedPart (trả kho: ${restored ? "OK" : "Không tìm thấy"})',
+      summary:
+          'Xóa phụ tùng: $removedPart (trả kho: ${restored ? "OK" : "Không tìm thấy"})',
       payload: {
         'partName': partName,
         'quantity': partQty,
@@ -1784,9 +1823,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       partName,
       partQty,
     );
-    debugPrint(restored
-        ? '✅ Đổi PT - Đã trả kho: $partName x$partQty'
-        : '⚠️ Đổi PT - Không tìm thấy "$partName" trong kho để trả');
+    debugPrint(
+      restored
+          ? '✅ Đổi PT - Đã trả kho: $partName x$partQty'
+          : '⚠️ Đổi PT - Không tìm thấy "$partName" trong kho để trả',
+    );
 
     // Tính giá vốn phụ tùng bị xóa
     int removedCost = 0;
@@ -1811,7 +1852,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       action: 'PART_SWAP_REMOVE',
       entityType: 'repair',
       entityId: r.id?.toString() ?? '',
-      summary: 'Đổi PT - xóa: $removedPart (trả kho: ${restored ? "OK" : "Không tìm thấy"})',
+      summary:
+          'Đổi PT - xóa: $removedPart (trả kho: ${restored ? "OK" : "Không tìm thấy"})',
       payload: {
         'partName': partName,
         'quantity': partQty,
@@ -1853,50 +1895,50 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       builder: (ctx) {
         final dialogLoc = AppLocalizations.of(ctx)!;
         return StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(dialogLoc.repairOrderFinance),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CurrencyTextField(
-                  controller: priceC,
-                  label: dialogLoc.chargeCustomerVnd,
-                  validator: (v) => MoneyUtils.validateAmount(
-                    v ?? '',
-                    min: 0,
-                    fieldName: dialogLoc.chargeCustomerLabel,
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: Text(dialogLoc.repairOrderFinance),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CurrencyTextField(
+                    controller: priceC,
+                    label: dialogLoc.chargeCustomerVnd,
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 0,
+                      fieldName: dialogLoc.chargeCustomerLabel,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                CurrencyTextField(
-                  controller: costC,
-                  label: dialogLoc.partsCostVnd,
-                  validator: (v) => MoneyUtils.validateAmount(
-                    v ?? '',
-                    min: 0,
-                    fieldName: dialogLoc.partsCost,
+                  const SizedBox(height: 12),
+                  CurrencyTextField(
+                    controller: costC,
+                    label: dialogLoc.partsCostVnd,
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 0,
+                      fieldName: dialogLoc.partsCost,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(dialogLoc.cancelButton),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  Navigator.pop(ctx, true);
+                },
+                child: Text(dialogLoc.saveButton),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text(dialogLoc.cancelButton),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (!(formKey.currentState?.validate() ?? false)) return;
-                Navigator.pop(ctx, true);
-              },
-              child: Text(dialogLoc.saveButton),
-            ),
-          ],
-        ),
-      );
+        );
       },
     );
     if (result == true) {
@@ -2033,18 +2075,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           ),
           actions: [
             TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(dialogLoc.cancel),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(dialogLoc.cancel),
             ),
-            child: Text(dialogLoc.save),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: Text(dialogLoc.save),
+            ),
+          ],
         );
       },
     );
@@ -2078,89 +2120,101 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       builder: (ctx) {
         final dialogLoc = AppLocalizations.of(ctx)!;
         return AlertDialog(
-        title: Text(dialogLoc.editOrderInfoTitle),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameC,
-                  decoration: InputDecoration(labelText: dialogLoc.customerNameLabel),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                TextFormField(
-                  controller: phoneC,
-                  decoration: InputDecoration(
-                    labelText: r.isWalkIn
-                        ? '${dialogLoc.phoneLabel} (không bắt buộc)'
-                        : dialogLoc.phoneLabel,
+          title: Text(dialogLoc.editOrderInfoTitle),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameC,
+                    decoration: InputDecoration(
+                      labelText: dialogLoc.customerNameLabel,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
                   ),
-                  keyboardType: TextInputType.phone,
-                  validator: (v) {
-                    final text = v?.trim() ?? '';
-                    // Khách vãng lai không bắt buộc nhập SĐT
-                    if (r.isWalkIn && text.isEmpty) return null;
-                    if (text.isEmpty) return dialogLoc.phoneRequired2;
-                    final err = UserService.validatePhone(text, dialogLoc);
-                    return err;
-                  },
-                ),
-                TextFormField(
-                  controller: modelC,
-                  decoration: InputDecoration(labelText: dialogLoc.deviceModelLabel),
-                  textCapitalization: TextCapitalization.characters,
-                  validator: (v) => (v?.trim().isEmpty ?? true)
-                      ? dialogLoc.enterModelRequired
-                      : null,
-                ),
-                TextFormField(
-                  controller: issueC,
-                  decoration: InputDecoration(labelText: dialogLoc.deviceIssueLabel),
-                  textCapitalization: TextCapitalization.characters,
-                  validator: (v) => (v?.trim().isEmpty ?? true)
-                      ? dialogLoc.enterIssueRequired
-                      : null,
-                ),
-                TextFormField(
-                  controller: accC,
-                  decoration: InputDecoration(labelText: dialogLoc.accessoriesIncludedLabel),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                TextFormField(
-                  controller: warrantyC,
-                  decoration: InputDecoration(labelText: dialogLoc.warrantyLabel2),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                TextFormField(
-                  controller: addressC,
-                  decoration: InputDecoration(labelText: dialogLoc.addressLabel2),
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                TextFormField(
-                  controller: notesC,
-                  decoration: InputDecoration(labelText: dialogLoc.note),
-                  maxLines: 2,
-                ),
-              ],
+                  TextFormField(
+                    controller: phoneC,
+                    decoration: InputDecoration(
+                      labelText: r.isWalkIn
+                          ? '${dialogLoc.phoneLabel} (không bắt buộc)'
+                          : dialogLoc.phoneLabel,
+                    ),
+                    keyboardType: TextInputType.phone,
+                    validator: (v) {
+                      final text = v?.trim() ?? '';
+                      // Khách vãng lai không bắt buộc nhập SĐT
+                      if (r.isWalkIn && text.isEmpty) return null;
+                      if (text.isEmpty) return dialogLoc.phoneRequired2;
+                      final err = UserService.validatePhone(text, dialogLoc);
+                      return err;
+                    },
+                  ),
+                  TextFormField(
+                    controller: modelC,
+                    decoration: InputDecoration(
+                      labelText: dialogLoc.deviceModelLabel,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    validator: (v) => (v?.trim().isEmpty ?? true)
+                        ? dialogLoc.enterModelRequired
+                        : null,
+                  ),
+                  TextFormField(
+                    controller: issueC,
+                    decoration: InputDecoration(
+                      labelText: dialogLoc.deviceIssueLabel,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                    validator: (v) => (v?.trim().isEmpty ?? true)
+                        ? dialogLoc.enterIssueRequired
+                        : null,
+                  ),
+                  TextFormField(
+                    controller: accC,
+                    decoration: InputDecoration(
+                      labelText: dialogLoc.accessoriesIncludedLabel,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                  TextFormField(
+                    controller: warrantyC,
+                    decoration: InputDecoration(
+                      labelText: dialogLoc.warrantyLabel2,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                  TextFormField(
+                    controller: addressC,
+                    decoration: InputDecoration(
+                      labelText: dialogLoc.addressLabel2,
+                    ),
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                  TextFormField(
+                    controller: notesC,
+                    decoration: InputDecoration(labelText: dialogLoc.note),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(dialogLoc.cancelButton),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (!(formKey.currentState?.validate() ?? false)) return;
-              Navigator.pop(ctx, true);
-            },
-            child: Text(dialogLoc.saveButton),
-          ),
-        ],
-      );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(dialogLoc.cancelButton),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!(formKey.currentState?.validate() ?? false)) return;
+                Navigator.pop(ctx, true);
+              },
+              child: Text(dialogLoc.saveButton),
+            ),
+          ],
+        );
       },
     );
 
@@ -2219,7 +2273,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             children: [
               Text(
                 loc.repairOrderDetail,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
               ),
               Text(
                 r.model,
@@ -2272,207 +2329,55 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       body: ResponsiveCenter(
         maxWidth: 900,
         child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Column(
-          children: [
-            // === COMPACT: Status + Actions gộp ===
-            Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    // Status row
-                    _buildCompactStatusRow(),
-                    const SizedBox(height: 10),
-                    // Action buttons
-                    _buildActionButtons(),
-                  ],
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            children: [
+              // === COMPACT: Status + Actions gộp ===
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      // Status row
+                      _buildCompactStatusRow(),
+                      const SizedBox(height: 10),
+                      // Action buttons
+                      _buildActionButtons(),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // === COMPACT: Tài chính + Dịch vụ gộp ===
-            Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header tài chính
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.account_balance_wallet,
-                          size: 18,
-                          color: Colors.green.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          loc.financeTitleUpper,
-                          style: AppTextStyles.caption.copyWith(
-                            fontWeight: FontWeight.bold,
+              // === COMPACT: Tài chính + Dịch vụ gộp ===
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header tài chính
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.account_balance_wallet,
+                            size: 18,
                             color: Colors.green.shade700,
                           ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: _editFinancials,
-                          icon: const Icon(Icons.edit, size: 14),
-                          label: Text(loc.editButton),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ((r.price - r.cost) >= 0 ? AppColors.success : AppColors.error).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  loc.profitLabel,
-                                  style: AppTextStyles.overline.copyWith(
-                                    color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
-                                  ),
-                                ),
-                                Text(
-                                  "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-                                  style: AppTextStyles.body2.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        _miniFinCompact("THU", r.price, AppColors.primary),
-                        const SizedBox(width: 8),
-                        _miniFinCompact("VỐN", r.cost, AppColors.warning),
-                      ],
-                    ),
-                    // Indicator: cost recorded in fund
-                    if (r.costRecordedInFund && r.cost > 0) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.check_circle, size: 12, color: Colors.green.shade600),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 8),
                           Text(
-                            'Đã ghi sổ quỹ (${r.costPaymentMethod ?? ""})',
-                            style: AppTextStyles.overline.copyWith(
-                              color: Colors.green.shade600,
-                              fontWeight: FontWeight.w500,
+                            loc.financeTitleUpper,
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade700,
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                    // Phụ tùng
-                    if (r.partsUsed.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.build,
-                            size: 14,
-                            color: Colors.blue,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              loc.partsShort(r.partsUsed),
-                              style: AppTextStyles.caption.copyWith(
-                                color: Colors.blue,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    // Quick actions
-                    if (r.status < 4) ...[
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 4,
-                        runSpacing: 4,
-                        children: [
-                          _quickAction(
-                            loc.partsLabel,
-                            Icons.inventory_2,
-                            Colors.blue,
-                            _selectPartsFromInventory,
-                          ),
-                          _quickAction(
-                            loc.partsInventoryShort,
-                            Icons.warehouse,
-                            Colors.teal,
-                            _navigateToPartsInventory,
-                          ),
-                          if (r.partsUsed.isNotEmpty)
-                            _quickAction(
-                              'Đổi PT',
-                              Icons.swap_horiz,
-                              Colors.deepPurple,
-                              _swapPartInRepair,
-                            ),
-                          if (r.partsUsed.isNotEmpty)
-                            _quickAction(
-                              'Xóa PT',
-                              Icons.delete_sweep,
-                              Colors.red,
-                              _removePartFromRepair,
-                            ),
-                          _quickAction(
-                            loc.techShort,
-                            Icons.note_add,
-                            Colors.orange,
-                            _editTechnicianNotes,
-                          ),
-                        ],
-                      ),
-                    ],
-
-                    // Divider và Dịch vụ
-                    const Divider(height: 16),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.handyman,
-                          size: 18,
-                          color: Colors.teal.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          loc.servicesCount(r.services.length),
-                          style: AppTextStyles.caption.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal.shade700,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (r.status != 4)
+                          const Spacer(),
                           TextButton.icon(
-                            onPressed: _showAddServiceDialog,
-                            icon: const Icon(Icons.add, size: 14),
-                            label: Text(loc.add),
+                            onPressed: _editFinancials,
+                            icon: const Icon(Icons.edit, size: 14),
+                            label: Text(loc.editButton),
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -2480,165 +2385,340 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               visualDensity: VisualDensity.compact,
                             ),
                           ),
-                      ],
-                    ),
-                    if (r.services.isEmpty)
-                      Text(
-                        loc.noServicesYet,
-                        style: AppTextStyles.caption.copyWith(
-                          color: AppColors.onSurface.withOpacity(0.5),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      )
-                    else
-                      ...r.services.asMap().entries.map(
-                        (e) => _buildCompactServiceItem(e.key, e.value),
+                        ],
                       ),
-                    if (r.services.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              loc.totalServices,
-                              style: AppTextStyles.caption.copyWith(
-                                fontWeight: FontWeight.bold,
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    ((r.price - r.cost) >= 0
+                                            ? AppColors.success
+                                            : AppColors.error)
+                                        .withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    loc.profitLabel,
+                                    style: AppTextStyles.overline.copyWith(
+                                      color: (r.price - r.cost) >= 0
+                                          ? AppColors.success
+                                          : AppColors.error,
+                                    ),
+                                  ),
+                                  Text(
+                                    "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                                    style: AppTextStyles.body2.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: (r.price - r.cost) >= 0
+                                          ? AppColors.success
+                                          : AppColors.error,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                          _miniFinCompact("THU", r.price, AppColors.primary),
+                          const SizedBox(width: 8),
+                          _miniFinCompact("VỐN", r.cost, AppColors.warning),
+                        ],
+                      ),
+                      // Indicator: cost recorded in fund
+                      if (r.costRecordedInFund && r.cost > 0) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 12,
+                              color: Colors.green.shade600,
+                            ),
+                            const SizedBox(width: 4),
                             Text(
-                              "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ",
-                              style: AppTextStyles.body2.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.warning,
+                              'Đã ghi sổ quỹ (${r.costPaymentMethod ?? ""})',
+                              style: AppTextStyles.overline.copyWith(
+                                color: Colors.green.shade600,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-
-            // === COMPACT: Khách hàng + Hình ảnh ===
-            Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header row: icon + tên + edit + call
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person,
-                          size: 18,
-                          color: Colors.blue.shade700,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            r.customerName.toUpperCase(),
-                            style: AppTextStyles.body2.copyWith(
-                              fontWeight: FontWeight.bold,
+                      ],
+                      // Phụ tùng
+                      if (r.partsUsed.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.build,
+                              size: 14,
+                              color: Colors.blue,
                             ),
-                          ),
-                        ),
-                        if (r.status < 4)
-                          IconButton(
-                            onPressed: _editBasicInfo,
-                            icon: const Icon(Icons.edit, size: 16),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            tooltip: 'Chỉnh sửa thông tin',
-                          ),
-                        TextButton.icon(
-                          onPressed: _callCustomer,
-                          icon: const Icon(Icons.call, size: 14),
-                          label: Text(r.phone, style: AppTextStyles.caption),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            visualDensity: VisualDensity.compact,
-                          ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                loc.partsShort(r.partsUsed),
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.blue,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Info rows - hiển thị trực tiếp, không ẩn trong dropdown
-                    _compactInfoRow(loc.deviceIssueLabel, r.issue),
-                    if (r.accessories.isNotEmpty)
-                      _compactInfoRow("PK", r.accessories),
-                    if (r.warranty.isNotEmpty)
-                      _compactInfoRow(loc.warranty, r.warranty),
-                    if (r.notes != null && r.notes!.isNotEmpty)
-                      _compactInfoRow(loc.note, r.notes!),
-                    if (r.deliveredAt != null)
-                      _compactInfoRow(
-                        loc.deliveryLabel,
-                        DateFormat('dd/MM/yyyy HH:mm').format(
-                          DateTime.fromMillisecondsSinceEpoch(
-                            r.deliveredAt!,
-                          ),
+                      // Quick actions
+                      if (r.status < 4) ...[
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: [
+                            _quickAction(
+                              loc.partsLabel,
+                              Icons.inventory_2,
+                              Colors.blue,
+                              _selectPartsFromInventory,
+                            ),
+                            _quickAction(
+                              loc.partsInventoryShort,
+                              Icons.warehouse,
+                              Colors.teal,
+                              _navigateToPartsInventory,
+                            ),
+                            if (r.partsUsed.isNotEmpty)
+                              _quickAction(
+                                'Đổi PT',
+                                Icons.swap_horiz,
+                                Colors.deepPurple,
+                                _swapPartInRepair,
+                              ),
+                            if (r.partsUsed.isNotEmpty)
+                              _quickAction(
+                                'Xóa PT',
+                                Icons.delete_sweep,
+                                Colors.red,
+                                _removePartFromRepair,
+                              ),
+                            _quickAction(
+                              loc.techShort,
+                              Icons.note_add,
+                              Colors.orange,
+                              _editTechnicianNotes,
+                            ),
+                          ],
                         ),
-                      ),
+                      ],
 
-                    // Hình ảnh
-                    if (_displayableImages(r.receiveImages).isNotEmpty) ...[
-                      const Divider(height: 12),
+                      // Divider và Dịch vụ
+                      const Divider(height: 16),
                       Row(
                         children: [
                           Icon(
-                            Icons.photo_library,
-                            size: 16,
-                            color: Colors.pink.shade700,
+                            Icons.handyman,
+                            size: 18,
+                            color: Colors.teal.shade700,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 8),
                           Text(
-                            loc.imagesCount(_displayableImages(r.receiveImages).length),
+                            loc.servicesCount(r.services.length),
                             style: AppTextStyles.caption.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: Colors.pink.shade700,
+                              color: Colors.teal.shade700,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (r.status != 4)
+                            TextButton.icon(
+                              onPressed: _showAddServiceDialog,
+                              icon: const Icon(Icons.add, size: 14),
+                              label: Text(loc.add),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (r.services.isEmpty)
+                        Text(
+                          loc.noServicesYet,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.onSurface.withOpacity(0.5),
+                            fontStyle: FontStyle.italic,
+                          ),
+                        )
+                      else
+                        ...r.services.asMap().entries.map(
+                          (e) => _buildCompactServiceItem(e.key, e.value),
+                        ),
+                      if (r.services.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                loc.totalServices,
+                                style: AppTextStyles.caption.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ",
+                                style: AppTextStyles.body2.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.warning,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // === COMPACT: Khách hàng + Hình ảnh ===
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header row: icon + tên + edit + call
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person,
+                            size: 18,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              r.customerName.toUpperCase(),
+                              style: AppTextStyles.body2.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          if (r.status < 4)
+                            IconButton(
+                              onPressed: _editBasicInfo,
+                              icon: const Icon(Icons.edit, size: 16),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              tooltip: 'Chỉnh sửa thông tin',
+                            ),
+                          TextButton.icon(
+                            onPressed: _callCustomer,
+                            icon: const Icon(Icons.call, size: 14),
+                            label: Text(r.phone, style: AppTextStyles.caption),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              visualDensity: VisualDensity.compact,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      SizedBox(
-                        height: 60,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _displayableImages(r.receiveImages).length,
-                          itemBuilder: (ctx, i) => GestureDetector(
-                            onTap: () => _showFullImage(_displayableImages(r.receiveImages), i),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              width: 60,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.grey.shade200,
-                                ),
+                      // Info rows - hiển thị trực tiếp, không ẩn trong dropdown
+                      _compactInfoRow(loc.deviceIssueLabel, r.issue),
+                      if (r.accessories.isNotEmpty)
+                        _compactInfoRow("PK", r.accessories),
+                      if (r.warranty.isNotEmpty)
+                        _compactInfoRow(loc.warranty, r.warranty),
+                      if (r.notes != null && r.notes!.isNotEmpty)
+                        _compactInfoRow(loc.note, r.notes!),
+                      if (r.deliveredAt != null)
+                        _compactInfoRow(
+                          loc.deliveryLabel,
+                          DateFormat('dd/MM/yyyy HH:mm').format(
+                            DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!),
+                          ),
+                        ),
+
+                      // Hình ảnh
+                      if (_displayableImages(r.receiveImages).isNotEmpty) ...[
+                        const Divider(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.photo_library,
+                              size: 16,
+                              color: Colors.pink.shade700,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              loc.imagesCount(
+                                _displayableImages(r.receiveImages).length,
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: _buildSmartImage(_displayableImages(r.receiveImages)[i]),
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.pink.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 60,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _displayableImages(
+                              r.receiveImages,
+                            ).length,
+                            itemBuilder: (ctx, i) => GestureDetector(
+                              onTap: () => _showFullImage(
+                                _displayableImages(r.receiveImages),
+                                i,
+                              ),
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                width: 60,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: _buildSmartImage(
+                                    _displayableImages(r.receiveImages)[i],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 10),
-          ],
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
-      ),
       ),
       bottomNavigationBar: _buildBottomActions(),
     );
@@ -2795,9 +2875,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 if (s.partnerName != null)
                   Text(
                     loc.partnerLabel(s.partnerName!),
-                    style: AppTextStyles.overline.copyWith(
-                      color: Colors.blue,
-                    ),
+                    style: AppTextStyles.overline.copyWith(color: Colors.blue),
                   ),
               ],
             ),
@@ -3061,7 +3139,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
                     ),
-                    label: Text(loc.repairingButton, style: AppTextStyles.button),
+                    label: Text(
+                      loc.repairingButton,
+                      style: AppTextStyles.button,
+                    ),
                   ),
                 ),
               if (r.status == 1) const SizedBox(width: 10),
@@ -3074,7 +3155,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     backgroundColor: AppColors.success,
                     foregroundColor: AppColors.onSuccess,
                   ),
-                  label: Text(loc.repairDoneButton, style: AppTextStyles.button),
+                  label: Text(
+                    loc.repairDoneButton,
+                    style: AppTextStyles.button,
+                  ),
                 ),
               ),
             ],
@@ -3096,7 +3180,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             Text(
               "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
               style: AppTextStyles.headline5.copyWith(
-                color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
+                color: (r.price - r.cost) >= 0
+                    ? AppColors.success
+                    : AppColors.error,
               ),
             ),
           ],
@@ -3165,7 +3251,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   ),
                   label: Text(
                     'Đổi PT',
-                    style: AppTextStyles.caption.copyWith(color: Colors.deepPurple),
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.deepPurple,
+                    ),
                   ),
                 ),
               // Xóa phụ tùng đã chọn nhầm
@@ -3396,7 +3484,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               Text(
                 "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
                 style: AppTextStyles.headline5.copyWith(
-                  color: (r.price - r.cost) >= 0 ? AppColors.success : AppColors.error,
+                  color: (r.price - r.cost) >= 0
+                      ? AppColors.success
+                      : AppColors.error,
                 ),
               ),
             ],
@@ -3469,7 +3559,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     ),
                     label: Text(
                       'Đổi PT',
-                      style: AppTextStyles.caption.copyWith(color: Colors.deepPurple),
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.deepPurple,
+                      ),
                     ),
                   ),
                 // Xóa phụ tùng đã chọn nhầm
@@ -3709,129 +3801,141 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       builder: (ctx) {
         final dialogLoc = AppLocalizations.of(ctx)!;
         return StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(editService != null ? dialogLoc.editService : dialogLoc.addServiceTitle),
-              // Lối tắt vào Đối Tác Sửa Chữa
-              IconButton(
-                onPressed: () {
+          builder: (ctx, setS) => AlertDialog(
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  editService != null
+                      ? dialogLoc.editService
+                      : dialogLoc.addServiceTitle,
+                ),
+                // Lối tắt vào Đối Tác Sửa Chữa
+                IconButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _navigateToRepairPartners();
+                  },
+                  icon: const Icon(Icons.group, color: Colors.teal, size: 20),
+                  tooltip: dialogLoc.viewRepairPartners,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: serviceCtrl,
+                      decoration: InputDecoration(
+                        labelText: dialogLoc.serviceNameRequired,
+                      ),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v ?? '').trim().isEmpty
+                          ? dialogLoc.pleaseEnterServiceName
+                          : null,
+                    ),
+                    const SizedBox(height: 10),
+                    CurrencyTextField(
+                      controller: costCtrl,
+                      label: dialogLoc.costVnd,
+                      validator: (v) => MoneyUtils.validateAmount(
+                        v ?? '',
+                        min: 1,
+                        fieldName: dialogLoc.costField,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_partners.isNotEmpty)
+                      DropdownButtonFormField<RepairPartner?>(
+                        decoration: InputDecoration(
+                          labelText: dialogLoc.partnerOptional2,
+                        ),
+                        initialValue: selectedPartner,
+                        items: [
+                          DropdownMenuItem(
+                            value: null,
+                            child: Text(dialogLoc.noPartnerOption),
+                          ),
+                          ..._partners.map(
+                            (p) =>
+                                DropdownMenuItem(value: p, child: Text(p.name)),
+                          ),
+                        ],
+                        onChanged: (p) => setS(() => selectedPartner = p),
+                      ),
+                    // Phương thức thanh toán (chỉ hiện khi có đối tác)
+                    if (selectedPartner != null) ...[
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: dialogLoc.partnerPaymentMethodRequired,
+                          prefixIcon: const Icon(Icons.payment, size: 20),
+                        ),
+                        initialValue: selectedPaymentMethod,
+                        items: paymentMethods
+                            .map(
+                              (m) => DropdownMenuItem(value: m, child: Text(m)),
+                            )
+                            .toList(),
+                        onChanged: (v) => setS(() => selectedPaymentMethod = v),
+                        validator: (v) =>
+                            selectedPartner != null && (v == null || v.isEmpty)
+                            ? dialogLoc.pleaseSelectPaymentMethod
+                            : null,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              if (editService != null)
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _deleteService(editIndex!);
+                  },
+                  child: Text(
+                    dialogLoc.delete,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(dialogLoc.cancel),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  // Không cần nhân 1000 - user đã nhập số đầy đủ với formatter
+                  // Ví dụ: nhập "50.000" → parse ra 50000 VNĐ (đúng)
+                  final cost = MoneyUtils.parseCurrency(costCtrl.text);
+                  final service = RepairService(
+                    firestoreId:
+                        editService?.firestoreId ??
+                        RepairPartnerService.generateServiceFirestoreId(),
+                    serviceName: serviceCtrl.text.trim().toUpperCase(),
+                    cost: cost,
+                    partnerId: selectedPartner?.id,
+                    partnerName: selectedPartner?.name,
+                    paymentMethod: selectedPaymentMethod,
+                  );
                   Navigator.pop(ctx);
-                  _navigateToRepairPartners();
+                  await _saveService(service, editIndex);
                 },
-                icon: const Icon(Icons.group, color: Colors.teal, size: 20),
-                tooltip: dialogLoc.viewRepairPartners,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                child: Text(
+                  editService != null ? dialogLoc.update : dialogLoc.add,
+                ),
               ),
             ],
           ),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: serviceCtrl,
-                    decoration: InputDecoration(
-                      labelText: dialogLoc.serviceNameRequired,
-                    ),
-                    textCapitalization: TextCapitalization.characters,
-                    validator: (v) => (v ?? '').trim().isEmpty
-                        ? dialogLoc.pleaseEnterServiceName
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-                  CurrencyTextField(
-                    controller: costCtrl,
-                    label: dialogLoc.costVnd,
-                    validator: (v) => MoneyUtils.validateAmount(
-                      v ?? '',
-                      min: 1,
-                      fieldName: dialogLoc.costField,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  if (_partners.isNotEmpty)
-                    DropdownButtonFormField<RepairPartner?>(
-                      decoration: InputDecoration(
-                        labelText: dialogLoc.partnerOptional2,
-                      ),
-                      initialValue: selectedPartner,
-                      items: [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text(dialogLoc.noPartnerOption),
-                        ),
-                        ..._partners.map(
-                          (p) =>
-                              DropdownMenuItem(value: p, child: Text(p.name)),
-                        ),
-                      ],
-                      onChanged: (p) => setS(() => selectedPartner = p),
-                    ),
-                  // Phương thức thanh toán (chỉ hiện khi có đối tác)
-                  if (selectedPartner != null) ...[
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      decoration: InputDecoration(
-                        labelText: dialogLoc.partnerPaymentMethodRequired,
-                        prefixIcon: const Icon(Icons.payment, size: 20),
-                      ),
-                      initialValue: selectedPaymentMethod,
-                      items: paymentMethods
-                          .map(
-                            (m) => DropdownMenuItem(value: m, child: Text(m)),
-                          )
-                          .toList(),
-                      onChanged: (v) => setS(() => selectedPaymentMethod = v),
-                      validator: (v) =>
-                          selectedPartner != null && (v == null || v.isEmpty)
-                          ? dialogLoc.pleaseSelectPaymentMethod
-                          : null,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            if (editService != null)
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _deleteService(editIndex!);
-                },
-                child: Text(dialogLoc.delete, style: const TextStyle(color: Colors.red)),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(dialogLoc.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (!(formKey.currentState?.validate() ?? false)) return;
-                // Không cần nhân 1000 - user đã nhập số đầy đủ với formatter
-                // Ví dụ: nhập "50.000" → parse ra 50000 VNĐ (đúng)
-                final cost = MoneyUtils.parseCurrency(costCtrl.text);
-                final service = RepairService(
-                  firestoreId: editService?.firestoreId ?? RepairPartnerService.generateServiceFirestoreId(),
-                  serviceName: serviceCtrl.text.trim().toUpperCase(),
-                  cost: cost,
-                  partnerId: selectedPartner?.id,
-                  partnerName: selectedPartner?.name,
-                  paymentMethod: selectedPaymentMethod,
-                );
-                Navigator.pop(ctx);
-                await _saveService(service, editIndex);
-              },
-              child: Text(editService != null ? dialogLoc.update : dialogLoc.add),
-            ),
-          ],
-        ),
-      );},
+        );
+      },
     );
   }
 
@@ -3843,7 +3947,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     return 'local_${r.id ?? 0}';
   }
 
-  bool _didPartnerHistoryChange(RepairService? oldService, RepairService newService) {
+  bool _didPartnerHistoryChange(
+    RepairService? oldService,
+    RepairService newService,
+  ) {
     if (oldService == null) {
       return newService.partnerId != null;
     }
@@ -3853,7 +3960,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         oldService.cost != newService.cost;
   }
 
-  bool _didPartnerFinancialStateChange(RepairService? oldService, RepairService newService) {
+  bool _didPartnerFinancialStateChange(
+    RepairService? oldService,
+    RepairService newService,
+  ) {
     if (oldService == null) {
       return newService.partnerId != null;
     }
@@ -3881,7 +3991,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final sameRepairContent =
           (history['repairContent'] ?? '').toString().trim().toUpperCase() ==
           normalizedServiceName;
-      final sameCost = (history['partnerCost'] as num?)?.toInt() == service.cost;
+      final sameCost =
+          (history['partnerCost'] as num?)?.toInt() == service.cost;
       if (!samePartner || !sameIssue || !sameRepairContent || !sameCost) {
         continue;
       }
@@ -3889,7 +4000,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final firestoreId = history['firestoreId']?.toString();
       if (firestoreId != null && firestoreId.isNotEmpty) {
         await db.deletePartnerRepairHistoryByFirestoreId(firestoreId);
-        await FirestoreService.deletePartnerRepairHistoryByFirestoreId(firestoreId);
+        await FirestoreService.deletePartnerRepairHistoryByFirestoreId(
+          firestoreId,
+        );
         continue;
       }
 
@@ -3964,7 +4077,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     }
   }
 
-  Future<void> _deletePartnerPaymentSnapshot(Map<String, dynamic> paymentRow) async {
+  Future<void> _deletePartnerPaymentSnapshot(
+    Map<String, dynamic> paymentRow,
+  ) async {
     final paymentFId = paymentRow['firestoreId']?.toString();
     final localId = paymentRow['id'] as int?;
     if (paymentFId == null || paymentFId.isEmpty || localId == null) {
@@ -4049,7 +4164,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     await _cleanupPartnerDirectPaymentForService(service, legacyIndex);
   }
 
-  Future<void> _createPartnerFinancialRecordsForService(RepairService service) async {
+  Future<void> _createPartnerFinancialRecordsForService(
+    RepairService service,
+  ) async {
     if (service.partnerId == null) {
       return;
     }
@@ -4174,7 +4291,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       final shouldRefreshHistory =
-          editIndex == null || _didPartnerHistoryChange(oldService, trackedService);
+          editIndex == null ||
+          _didPartnerHistoryChange(oldService, trackedService);
       final shouldRefreshFinancials =
           editIndex == null ||
           _didPartnerFinancialStateChange(oldService, trackedService);
@@ -4196,7 +4314,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       r.isSynced = false;
       await db.upsertRepair(r);
 
-      if (trackedService.partnerId != null && (shouldRefreshHistory || shouldRefreshFinancials)) {
+      if (trackedService.partnerId != null &&
+          (shouldRefreshHistory || shouldRefreshFinancials)) {
         await _createPartnerFinancialRecordsForService(trackedService);
       }
 
@@ -4220,7 +4339,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         SyncService.syncRepairData();
       }
     } catch (e) {
-      NotificationService.showSnackBar('${loc.error}: $e', color: AppColors.error);
+      NotificationService.showSnackBar(
+        '${loc.error}: $e',
+        color: AppColors.error,
+      );
     }
     if (mounted) setState(() => _isUpdating = false);
   }
@@ -4257,7 +4379,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
       EventBus().emit('repair_services_changed');
     } catch (e) {
-      NotificationService.showSnackBar('${loc.error}: $e', color: AppColors.error);
+      NotificationService.showSnackBar(
+        '${loc.error}: $e',
+        color: AppColors.error,
+      );
     }
     if (mounted) setState(() => _isUpdating = false);
   }
@@ -4311,8 +4436,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
     }
     if (resolvedImages.isEmpty) return;
-    final safeInitialIndex =
-      initialIndex.clamp(0, resolvedImages.length - 1).toInt();
+    final safeInitialIndex = initialIndex
+        .clamp(0, resolvedImages.length - 1)
+        .toInt();
 
     showDialog(
       context: context,
@@ -4326,9 +4452,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               builder: (context, index) {
                 final path = resolvedImages[index].trim();
                 return PhotoViewGalleryPageOptions(
-                  imageProvider: (path.startsWith('http') ||
-                    path.startsWith('blob:') ||
-                    path.startsWith('data:'))
+                  imageProvider:
+                      (path.startsWith('http') ||
+                          path.startsWith('blob:') ||
+                          path.startsWith('data:'))
                       ? CachedNetworkImageProvider(path) as ImageProvider
                       : FileImage(File(path)),
                   initialScale: PhotoViewComputedScale.contained,
@@ -4574,10 +4701,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (_isPrinting) return;
     setState(() => _isPrinting = true);
     HapticFeedback.mediumImpact();
-    NotificationService.showSnackBar(
-      loc.preparingPrint,
-      color: Colors.blue,
-    );
+    NotificationService.showSnackBar(loc.preparingPrint, color: Colors.blue);
 
     try {
       final success = await UnifiedPrinterService.printRepairReceiptFromRepair(
@@ -4589,18 +4713,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
 
       if (success) {
-        NotificationService.showSnackBar(
-          loc.printSuccess,
-          color: Colors.green,
-        );
+        NotificationService.showSnackBar(loc.printSuccess, color: Colors.green);
       } else {
-        NotificationService.showSnackBar(
-          loc.printFailed,
-          color: Colors.red,
-        );
+        NotificationService.showSnackBar(loc.printFailed, color: Colors.red);
       }
     } catch (e) {
-      NotificationService.showSnackBar(loc.printError(e.toString()), color: Colors.red);
+      NotificationService.showSnackBar(
+        loc.printError(e.toString()),
+        color: Colors.red,
+      );
     } finally {
       if (mounted) setState(() => _isPrinting = false);
     }
@@ -4648,10 +4769,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
           const Icon(Icons.inventory_2, color: Colors.blue),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              loc.selectPartsTitle,
-              style: AppTextStyles.headline3,
-            ),
+            child: Text(loc.selectPartsTitle, style: AppTextStyles.headline3),
           ),
           // Shortcut to add new part from PartsInventoryView
           Material(
@@ -4660,12 +4778,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
               onTap: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const PartsInventoryView(),
-                  ),
-                );
+                await _navigateToPartsInventory();
                 // Refresh parts list after returning from PartsInventoryView
                 if (mounted) {
                   final db = DBHelper();
@@ -4680,10 +4793,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                 }
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -4736,198 +4846,217 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
                       itemCount: filteredParts.length,
                       itemBuilder: (context, index) {
                         final part = filteredParts[index];
-            final partId = part['id'] as int;
-            final source = part['source'] as String;
-            final uniqueKey = "${source}_$partId";
-            final partName = part['partName'] ?? '';
-            final partQty = part['quantity'] as int? ?? 0;
-            final partCost = part['cost'] as int? ?? 0;
-            final partPrice = part['price'] as int? ?? 0;
+                        final partId = part['id'] as int;
+                        final source = part['source'] as String;
+                        final uniqueKey = "${source}_$partId";
+                        final partName = part['partName'] ?? '';
+                        final partQty = part['quantity'] as int? ?? 0;
+                        final partCost = part['cost'] as int? ?? 0;
+                        final partPrice = part['price'] as int? ?? 0;
                         final supplier =
                             (part['supplier'] ?? part['supplierName'] ?? '')
                                 .toString();
-            final isFromProducts = source == 'products';
-            final currentQty = selectedQuantities[uniqueKey] ?? 0;
+                        final isFromProducts = source == 'products';
+                        final currentQty = selectedQuantities[uniqueKey] ?? 0;
 
-            return Card(
-              color: currentQty > 0
-                  ? Colors.green.shade50
-                  : (isFromProducts ? Colors.blue.shade50 : null),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Dòng 1: Icon + Tên + Tag nguồn
-                    Row(
-                      children: [
-                        Icon(
-                          isFromProducts ? Icons.inventory : Icons.build,
-                          color: isFromProducts ? Colors.blue : Colors.blue,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            partName,
-                            style: AppTextStyles.subtitle1.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isFromProducts
-                                ? Colors.blue.withOpacity(0.2)
-                                : Colors.blue.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isFromProducts ? loc.mainWarehouse : loc.oldWarehouse,
-                            style: AppTextStyles.caption.copyWith(
-                              color: isFromProducts
-                                  ? Colors.blue
-                                  : Colors.blue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    // Dòng 2: Supplier + tồn + giá
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (supplier.isNotEmpty)
-                          Chip(
-                            label: Text(
-                              supplier,
-                              style: AppTextStyles.caption,
-                            ),
-                            padding: EdgeInsets.zero,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        Text(
-                          loc.stockQty(partQty),
-                          style: AppTextStyles.body2
-                              .copyWith(color: Colors.grey.shade700),
-                        ),
-                        Text(
-                          loc.costPrice(MoneyUtils.formatCurrency(partCost)),
-                          style: AppTextStyles.caption,
-                        ),
-                        Text(
-                          loc.sellPrice(MoneyUtils.formatCurrency(partPrice)),
-                          style: AppTextStyles.caption,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    // Dòng 3: Nút +/- (compact hơn)
-                    if (partQty > 0)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Nút trừ (nhỏ gọn hơn)
-                          Material(
-                            color: currentQty > 0
-                                ? Colors.red
-                                : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(5),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(5),
-                              onTap: currentQty > 0
-                                  ? () {
-                                      setState(() {
-                                        if (currentQty <= 1) {
-                                          selectedQuantities.remove(uniqueKey);
-                                        } else {
-                                          selectedQuantities[uniqueKey] =
-                                              currentQty - 1;
-                                        }
-                                      });
-                                    }
-                                  : null,
-                              child: Container(
-                                width: 26,
-                                height: 22,
-                                alignment: Alignment.center,
-                                child: const Icon(
-                                  Icons.remove,
-                                  color: Colors.white,
-                                  size: 14,
+                        return Card(
+                          color: currentQty > 0
+                              ? Colors.green.shade50
+                              : (isFromProducts ? Colors.blue.shade50 : null),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Dòng 1: Icon + Tên + Tag nguồn
+                                Row(
+                                  children: [
+                                    Icon(
+                                      isFromProducts
+                                          ? Icons.inventory
+                                          : Icons.build,
+                                      color: isFromProducts
+                                          ? Colors.blue
+                                          : Colors.blue,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        partName,
+                                        style: AppTextStyles.subtitle1.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isFromProducts
+                                            ? Colors.blue.withOpacity(0.2)
+                                            : Colors.blue.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        isFromProducts
+                                            ? loc.mainWarehouse
+                                            : loc.oldWarehouse,
+                                        style: AppTextStyles.caption.copyWith(
+                                          color: isFromProducts
+                                              ? Colors.blue
+                                              : Colors.blue,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ),
-                          ),
-                          // Số lượng
-                          Container(
-                            width: 38,
-                            alignment: Alignment.center,
-                            child: Text(
-                              '$currentQty',
-                              style: AppTextStyles.caption.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: currentQty > 0
-                                    ? Colors.green.shade700
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ),
-                          // Nút cộng (nhỏ gọn hơn)
-                          Material(
-                            color: currentQty < partQty
-                                ? Colors.green
-                                : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(5),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(5),
-                              onTap: currentQty < partQty
-                                  ? () {
-                                      setState(() {
-                                        selectedQuantities[uniqueKey] =
-                                            currentQty + 1;
-                                      });
-                                    }
-                                  : null,
-                              child: Container(
-                                width: 26,
-                                height: 22,
-                                alignment: Alignment.center,
-                                child: const Icon(
-                                  Icons.add,
-                                  color: Colors.white,
-                                  size: 14,
+                                const SizedBox(height: 4),
+                                // Dòng 2: Supplier + tồn + giá
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (supplier.isNotEmpty)
+                                      Chip(
+                                        label: Text(
+                                          supplier,
+                                          style: AppTextStyles.caption,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    Text(
+                                      loc.stockQty(partQty),
+                                      style: AppTextStyles.body2.copyWith(
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    Text(
+                                      loc.costPrice(
+                                        MoneyUtils.formatCurrency(partCost),
+                                      ),
+                                      style: AppTextStyles.caption,
+                                    ),
+                                    Text(
+                                      loc.sellPrice(
+                                        MoneyUtils.formatCurrency(partPrice),
+                                      ),
+                                      style: AppTextStyles.caption,
+                                    ),
+                                  ],
                                 ),
-                              ),
+                                const SizedBox(height: 6),
+                                // Dòng 3: Nút +/- (compact hơn)
+                                if (partQty > 0)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // Nút trừ (nhỏ gọn hơn)
+                                      Material(
+                                        color: currentQty > 0
+                                            ? Colors.red
+                                            : Colors.grey.shade300,
+                                        borderRadius: BorderRadius.circular(5),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            5,
+                                          ),
+                                          onTap: currentQty > 0
+                                              ? () {
+                                                  setState(() {
+                                                    if (currentQty <= 1) {
+                                                      selectedQuantities.remove(
+                                                        uniqueKey,
+                                                      );
+                                                    } else {
+                                                      selectedQuantities[uniqueKey] =
+                                                          currentQty - 1;
+                                                    }
+                                                  });
+                                                }
+                                              : null,
+                                          child: Container(
+                                            width: 26,
+                                            height: 22,
+                                            alignment: Alignment.center,
+                                            child: const Icon(
+                                              Icons.remove,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Số lượng
+                                      Container(
+                                        width: 38,
+                                        alignment: Alignment.center,
+                                        child: Text(
+                                          '$currentQty',
+                                          style: AppTextStyles.caption.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                            color: currentQty > 0
+                                                ? Colors.green.shade700
+                                                : Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                      // Nút cộng (nhỏ gọn hơn)
+                                      Material(
+                                        color: currentQty < partQty
+                                            ? Colors.green
+                                            : Colors.grey.shade300,
+                                        borderRadius: BorderRadius.circular(5),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            5,
+                                          ),
+                                          onTap: currentQty < partQty
+                                              ? () {
+                                                  setState(() {
+                                                    selectedQuantities[uniqueKey] =
+                                                        currentQty + 1;
+                                                  });
+                                                }
+                                              : null,
+                                          child: Container(
+                                            width: 26,
+                                            height: 22,
+                                            alignment: Alignment.center,
+                                            child: const Icon(
+                                              Icons.add,
+                                              color: Colors.white,
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                else
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      loc.outOfStock,
+                                      style: const TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        ],
-                      )
-                    else
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        alignment: Alignment.center,
-                        child: Text(
-                          loc.outOfStock,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            );
+                        );
                       },
                     ),
             ),

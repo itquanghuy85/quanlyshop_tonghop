@@ -262,12 +262,11 @@ class IMEIExtractor {
   }
 
   /// Kiểm tra xem có phải IMEI không (quick check without Luhn)
-  /// Hỗ trợ: 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
+  /// Chỉ nhận diện IMEI đầy đủ 15 số.
+  /// Mã ngắn 4-5 số được xử lý riêng qua isShortCode().
   static bool looksLikeIMEI(String text) {
     final digitsOnly = text.replaceAll(RegExp(r'[^0-9]'), '');
-    // Chấp nhận 4-5 số (mã ngắn) hoặc 15 số (IMEI chuẩn)
-    return (digitsOnly.length >= 4 && digitsOnly.length <= 5) || 
-           digitsOnly.length == 15;
+    return digitsOnly.length == 15;
   }
 
   /// Kiểm tra xem mã có phải là mã ngắn (4-5 số) không

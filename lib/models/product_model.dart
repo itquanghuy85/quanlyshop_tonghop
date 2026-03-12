@@ -175,7 +175,7 @@ class Product {
       description: map['description'] ?? map['detail'] ?? "",
       images: map['images'],
       warranty: map['warranty'],
-      createdAt: _parseTimestamp(map['createdAt'], DateTime.now().millisecondsSinceEpoch),
+      createdAt: _parseTimestamp(map['createdAt']),
       updatedAt: map['updatedAt'] != null ? _parseTimestamp(map['updatedAt']) : null,
       supplier: map['supplier'],
       type: _normalizeType(map['type'] ?? 'DIEN_THOAI'),
