@@ -3694,6 +3694,8 @@ class _HomeViewState extends State<HomeView>
                         final method = payMethod == 'CHUYỂN KHOẢN'
                             ? PaymentMethod.transfer
                             : PaymentMethod.cash;
+                        final txRef =
+                            'home_expense_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
                         Navigator.of(ctx).pop();
                         final result =
                             await PaymentIntentService.executePaymentDirect(
@@ -3708,6 +3710,12 @@ class _HomeViewState extends State<HomeView>
                                   '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
                               executedBy:
                                   user?.displayName ?? user?.email ?? 'unknown',
+                                referenceId: txRef,
+                                referenceType: 'home_quick_expense',
+                                notes: noteC.text.trim().isEmpty
+                                  ? null
+                                  : noteC.text.trim(),
+                                idempotencyKey: txRef,
                               metadata: {
                                 'category': category,
                                 'title': titleC.text.toUpperCase(),
@@ -3933,6 +3941,8 @@ class _HomeViewState extends State<HomeView>
                         final method = payMethod == 'CHUYỂN KHOẢN'
                             ? PaymentMethod.transfer
                             : PaymentMethod.cash;
+                        final txRef =
+                            'home_income_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
                         Navigator.of(ctx).pop();
                         final result =
                             await PaymentIntentService.executePaymentDirect(
@@ -3943,6 +3953,12 @@ class _HomeViewState extends State<HomeView>
                                   '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
                               executedBy:
                                   user?.displayName ?? user?.email ?? 'unknown',
+                              referenceId: txRef,
+                              referenceType: 'home_quick_income',
+                              notes: noteC.text.trim().isEmpty
+                                  ? null
+                                  : noteC.text.trim(),
+                              idempotencyKey: txRef,
                               metadata: {
                                 'category': category,
                                 'title': titleC.text.toUpperCase(),

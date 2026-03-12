@@ -249,16 +249,19 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
       } else {
         // Thanh toán tiền mặt/chuyển khoản → Ghi nhận trực tiếp
         final user = FirebaseAuth.instance.currentUser;
+        final paymentRef =
+            'purchase_order_${order.orderCode}_${_paymentMethod.trim().toUpperCase()}';
         final payResult = await PaymentIntentService.executePaymentDirect(
           type: PaymentIntentType.supplierDebt,
           amount: order.totalCost,
           paymentMethod: PaymentMethod.fromCode(_paymentMethod),
           description: 'Chi nhập hàng: ${supplierNameCtrl.text.trim()} - Đơn ${order.orderCode}',
           executedBy: user?.uid ?? 'unknown',
-          referenceId: order.orderCode,
+          referenceId: paymentRef,
           referenceType: 'purchase_order',
           personName: supplierNameCtrl.text.trim(),
           personPhone: supplierPhoneCtrl.text.trim(),
+          idempotencyKey: paymentRef,
           metadata: {
             'orderCode': order.orderCode,
             'orderFirestoreId': order.firestoreId,

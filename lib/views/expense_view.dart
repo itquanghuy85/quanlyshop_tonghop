@@ -536,6 +536,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                         final method = payMethod == 'CHUYỂN KHOẢN' 
                             ? PaymentMethod.transfer 
                             : PaymentMethod.cash;
+                        final txRef =
+                          'expense_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
                             
                         navigator.pop(); // Close dialog first
                         
@@ -548,6 +550,10 @@ class _ExpenseViewState extends State<ExpenseView> {
                           paymentMethod: method,
                           description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
                           executedBy: user?.displayName ?? user?.email ?? 'unknown',
+                          referenceId: txRef,
+                          referenceType: 'quick_expense',
+                          notes: noteC.text.trim().isEmpty ? null : noteC.text.trim(),
+                          idempotencyKey: txRef,
                           metadata: {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
@@ -1033,10 +1039,11 @@ class _ExpenseViewState extends State<ExpenseView> {
                         final amount = MoneyUtils.parseCurrency(amountC.text);
                         final user = FirebaseAuth.instance.currentUser;
                         final navigator = Navigator.of(ctx);
-
                         final method = payMethod == 'CHUYỂN KHOẢN'
                             ? PaymentMethod.transfer
                             : PaymentMethod.cash;
+                        final txRef =
+                            'income_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
 
                         navigator.pop(); // Close dialog first
 
@@ -1047,6 +1054,10 @@ class _ExpenseViewState extends State<ExpenseView> {
                           paymentMethod: method,
                           description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
                           executedBy: user?.displayName ?? user?.email ?? 'unknown',
+                          referenceId: txRef,
+                          referenceType: 'quick_income',
+                          notes: noteC.text.trim().isEmpty ? null : noteC.text.trim(),
+                          idempotencyKey: txRef,
                           metadata: {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
