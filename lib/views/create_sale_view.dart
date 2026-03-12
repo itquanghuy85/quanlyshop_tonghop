@@ -94,7 +94,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   bool get _enableVariants => _shopSettings?.enableVariants ?? false;
 
   /// Terminology động theo ngành
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   // Variant Service for fashion/multi-size products
   final VariantService _variantService = VariantService();
@@ -331,10 +332,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   Future<void> _loadData() async {
     final prods = await db.getInStockProducts();
     final suggests = await db.getCustomerSuggestions();
-    
+
     // Load shop settings for multi-industry terminology
     final shopSettings = await CategoryService().getShopSettings();
-    
+
     if (!mounted) return;
     setState(() {
       _shopSettings = shopSettings;
@@ -355,11 +356,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     final sale = widget.editSale!;
     _isWalkIn = sale.isWalkIn;
     nameCtrl.text = sale.isWalkIn
-      ? (sale.walkInName ?? sale.customerName)
-      : sale.customerName;
+        ? (sale.walkInName ?? sale.customerName)
+        : sale.customerName;
     phoneCtrl.text = sale.isWalkIn
-      ? (sale.walkInPhone ?? sale.phone)
-      : sale.phone;
+        ? (sale.walkInPhone ?? sale.phone)
+        : sale.phone;
     addressCtrl.text = sale.address;
     priceCtrl.text = _formatCurrency(sale.totalPrice);
     discountCtrl.text = _formatCurrency(sale.discount); // FIX: Load discount
@@ -371,7 +372,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     if (_isCombined) {
       cashAmountCtrl.text = _formatCurrency(sale.cashAmount);
       transferAmountCtrl.text = _formatCurrency(sale.transferAmount);
-      downPaymentCtrl.text = _formatCurrency(sale.cashAmount + sale.transferAmount);
+      downPaymentCtrl.text = _formatCurrency(
+        sale.cashAmount + sale.transferAmount,
+      );
     }
     if (_isInstallment) {
       downPaymentCtrl.text = _formatCurrency(sale.downPayment);
@@ -499,7 +502,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       if (isGift) {
         giftItems.add('${product.name} (Tặng)');
       } else if (isDiscounted) {
-        giftItems.add('${product.name} (Giảm ${MoneyUtils.formatCurrency(originalPrice - sellPrice)})');
+        giftItems.add(
+          '${product.name} (Giảm ${MoneyUtils.formatCurrency(originalPrice - sellPrice)})',
+        );
       }
     }
     return giftItems.isNotEmpty ? giftItems.join(', ').toUpperCase() : null;
@@ -574,15 +579,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     // Check if already added (for non-variant products, check by ID)
     // For variant products, same product can be added multiple times with different variants
     final hasVariantSupport = _enableVariants;
-    
+
     // Load variants if enabled
     List<ProductVariant> variants = [];
     if (hasVariantSupport && p.firestoreId != null) {
       variants = await _variantService.getVariantsByProduct(p.firestoreId!);
     }
-    
+
     ProductVariant? selectedVariant;
-    
+
     // If product has variants, show variant selector dialog
     if (variants.isNotEmpty && mounted) {
       selectedVariant = await showDialog<ProductVariant>(
@@ -593,16 +598,16 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           productPrice: p.price,
         ),
       );
-      
+
       // User cancelled variant selection
       if (selectedVariant == null) return;
-      
+
       // Check if this exact variant is already in cart
       final alreadyInCart = _selectedItems.any((item) {
         final itemVariant = item['variant'] as ProductVariant?;
         return itemVariant?.firestoreId == selectedVariant?.firestoreId;
       });
-      
+
       if (alreadyInCart) {
         NotificationService.showSnackBar(
           'Biến thể này đã có trong giỏ hàng!',
@@ -612,7 +617,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       }
     } else {
       // Non-variant product: check if already added
-      if (_selectedItems.any((item) => item['product'].id == p.id && item['variant'] == null)) {
+      if (_selectedItems.any(
+        (item) => item['product'].id == p.id && item['variant'] == null,
+      )) {
         return;
       }
     }
@@ -625,7 +632,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     setState(() {
       _selectedItems.add({
         'product': p,
-        'variant': selectedVariant,  // null for non-variant products
+        'variant': selectedVariant, // null for non-variant products
         'isGift': false,
         'sellPrice': itemPrice,
         'originalPrice': itemPrice,
@@ -670,18 +677,29 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       if (imei.toUpperCase().startsWith("PKX") || imei == "NO_IMEI") {
         // Phụ kiện (PKxN) hoặc sản phẩm không có IMEI → tìm theo tên
         if (imei.toUpperCase().startsWith("PKX")) {
-          qtyToRestore = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
+          qtyToRestore =
+              int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
         }
         if (i < names.length) {
           final nameEntry = names[i].trim();
           // Regex case-insensitive: match "Tên SP x2" hoặc "Tên SP X2"
           final nameMatch = RegExp(r'^(.+?)\s+[xX]\d+').firstMatch(nameEntry);
-          var productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+          var productName = nameMatch != null
+              ? nameMatch.group(1)!.trim()
+              : nameEntry;
           // Bỏ hậu tố (TẶNG) hoặc (GIẢM ...) nếu còn dính
-          productName = productName.replaceAll(RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false), '');
-          productName = productName.replaceAll(RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false), '');
+          productName = productName.replaceAll(
+            RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false),
+            '',
+          );
+          productName = productName.replaceAll(
+            RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false),
+            '',
+          );
           productName = productName.trim();
-          debugPrint('🔍 Tìm sản phẩm theo tên: "$productName" (từ: "$nameEntry")');
+          debugPrint(
+            '🔍 Tìm sản phẩm theo tên: "$productName" (từ: "$nameEntry")',
+          );
           product = await db.getProductByName(productName);
           if (product == null) {
             debugPrint('⚠️ Không tìm thấy sản phẩm theo tên: $productName');
@@ -706,10 +724,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 .collection('products')
                 .doc(product.firestoreId)
                 .update({
-              'quantity': product.quantity,
-              'status': product.status,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
+                  'quantity': product.quantity,
+                  'status': product.status,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
           } catch (e) {
             debugPrint('⚠️ Cloud sync failed, queueing: $e');
             await SyncOrchestrator().enqueue(
@@ -757,7 +775,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       final saleRef = oldSale.firestoreId ?? 'sale_${oldSale.soldAt}';
       final deleted = await db.deletePaymentIntentsByReferenceId(saleRef);
       if (deleted > 0) {
-        debugPrint('🗑️ Deleted $deleted old payment intents for sale $saleRef');
+        debugPrint(
+          '🗑️ Deleted $deleted old payment intents for sale $saleRef',
+        );
       }
     } catch (e) {
       debugPrint('⚠️ Failed to delete old payment intents: $e');
@@ -770,10 +790,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final customerService = CustomerService();
         final customer = await customerService.getCustomerByPhone(phone);
         if (customer != null && oldSale.finalPrice > 0) {
-          final newTotal = (customer.totalSpent - oldSale.finalPrice).clamp(0, double.maxFinite).toInt();
+          final newTotal = (customer.totalSpent - oldSale.finalPrice)
+              .clamp(0, double.maxFinite)
+              .toInt();
           final updated = customer.copyWith(totalSpent: newTotal);
           await customerService.updateCustomer(updated);
-          debugPrint('📊 Reverted old sale customer totalSpent: ${customer.totalSpent} → $newTotal');
+          debugPrint(
+            '📊 Reverted old sale customer totalSpent: ${customer.totalSpent} → $newTotal',
+          );
         }
       }
     } catch (e) {
@@ -857,10 +881,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       }
 
       final now = DateTime.now().millisecondsSinceEpoch;
-        final safeTail = phoneCtrl.text.isNotEmpty
+      final safeTail = phoneCtrl.text.isNotEmpty
           ? phoneCtrl.text
-          : (nameCtrl.text.isNotEmpty ? nameCtrl.text.trim().toUpperCase() : 'walkin');
-        final String uniqueId =
+          : (nameCtrl.text.isNotEmpty
+                ? nameCtrl.text.trim().toUpperCase()
+                : 'walkin');
+      final String uniqueId =
           widget.editSale?.firestoreId ?? "sale_${now}_$safeTail";
       String seller =
           FirebaseAuth.instance.currentUser?.email
@@ -879,7 +905,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       int paidAmount = _parseCurrency(downPaymentCtrl.text);
       if (_isCombined) {
         // Kết hợp: paidAmount = tiền mặt + chuyển khoản
-        paidAmount = _parseCurrency(cashAmountCtrl.text) + _parseCurrency(transferAmountCtrl.text);
+        paidAmount =
+            _parseCurrency(cashAmountCtrl.text) +
+            _parseCurrency(transferAmountCtrl.text);
       } else if (_paymentMethod != "CÔNG NỢ" &&
           _paymentMethod != "TRẢ GÓP (NH)" &&
           paidAmount == 0) {
@@ -930,7 +958,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             ? normalizedPhone
             : null,
         address: addressCtrl.text.trim().toUpperCase(),
-        productNames: _selectedItems.map((e) {
+        productNames: _selectedItems
+            .map((e) {
               final name = (e['product'] as Product).name;
               final qty = e['quantity'] as int;
               final isGift = e['isGift'] as bool? ?? false;
@@ -943,7 +972,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 return "$name x$qty (Giảm ${MoneyUtils.formatCurrency(origPrice - curPrice)})";
               }
               return "$name x$qty";
-            }).join(', '),
+            })
+            .join(', '),
         productImeis: _selectedItems
             .map((e) {
               final product = e['product'] as Product;
@@ -983,7 +1013,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         warranty: _saleWarranty,
         gifts: _buildGiftsString(),
         cashAmount: _isCombined ? _parseCurrency(cashAmountCtrl.text) : 0,
-        transferAmount: _isCombined ? _parseCurrency(transferAmountCtrl.text) : 0,
+        transferAmount: _isCombined
+            ? _parseCurrency(transferAmountCtrl.text)
+            : 0,
       );
 
       // Validate IMEI trước khi thực hiện transaction
@@ -1063,11 +1095,43 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           debtData: debtDataForTransaction,
         );
       } else {
-        // Fallback: Bán local trước, sync sau
         debugPrint(
-          '⚠️ Some products missing firestoreId, using local-first sale',
+          '⚠️ Some products missing firestoreId, sale cannot be confirmed on cloud yet',
         );
-        transactionResult = {'success': true, 'localOnly': true};
+        if (mounted) {
+          final shouldContinue = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Sản phẩm chưa đồng bộ'),
+              content: const Text(
+                'Có sản phẩm chưa có mã đồng bộ cloud nên nếu tiếp tục, đơn bán chỉ lưu trên máy này tạm thời.\n\n'
+                'Chủ shop và các tài khoản khác sẽ chưa thấy đơn cho tới khi đồng bộ xong. Bạn có muốn tiếp tục bán offline không?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Hủy'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: const Text('Bán offline'),
+                ),
+              ],
+            ),
+          );
+
+          if (shouldContinue == true) {
+            transactionResult = {'success': true, 'localOnly': true};
+          } else {
+            setState(() => _isSaving = false);
+            return;
+          }
+        } else {
+          transactionResult = {'success': false, 'error': 'Màn hình đã đóng'};
+        }
       }
 
       if (!transactionResult['success']) {
@@ -1189,7 +1253,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
 
       // Lưu sale vào local DB (cloud đã có từ transaction)
       await db.upsertSale(sale);
-      
+
       // Log sale vào nhật ký tài chính (nếu không phải công nợ)
       if (_paymentMethod != 'CÔNG NỢ') {
         try {
@@ -1316,7 +1380,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               },
             );
             await PaymentIntentService.createIntent(intentCash);
-            debugPrint('✅ Created PaymentIntent for combined CASH: ${intentCash.id}');
+            debugPrint(
+              '✅ Created PaymentIntent for combined CASH: ${intentCash.id}',
+            );
           }
 
           if (transferAmt > 0) {
@@ -1345,7 +1411,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               },
             );
             await PaymentIntentService.createIntent(intentTransfer);
-            debugPrint('✅ Created PaymentIntent for combined TRANSFER: ${intentTransfer.id}');
+            debugPrint(
+              '✅ Created PaymentIntent for combined TRANSFER: ${intentTransfer.id}',
+            );
           }
         } else {
           // Tiền mặt / Chuyển khoản - đã nhận đủ tiền
@@ -1353,8 +1421,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             id: 'pi_sale_${saleRef}_$now',
             type: PaymentIntentType.salePayment,
             amount: finalPrice,
-            description:
-                'Bán hàng: $payerName - ${_selectedItems.length} SP',
+            description: 'Bán hàng: $payerName - ${_selectedItems.length} SP',
             referenceId: saleRef,
             referenceType: 'sale',
             status: PaymentIntentStatus.completed,
@@ -1443,24 +1510,28 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         }
       }
 
-      // GHIM ĐƠN BÁN VÀO CHAT NỘI BỘ
-      try {
-        final chatUser = FirebaseAuth.instance.currentUser;
-        final key = sale.firestoreId ?? "sale_${sale.soldAt}";
-        final summary =
-            "ĐƠN BÁN - ${sale.customerName} - ${sale.phone} - ${MoneyUtils.formatCurrency(totalPrice)} đ";
-        final msg = "🛒 ĐÃ BÁN: $summary";
-        await FirestoreService.sendChat(
-          message: msg,
-          senderId: chatUser?.uid ?? 'guest',
-          senderName: chatUser?.email?.split('@').first.toUpperCase() ?? 'NV',
-          linkedType: 'sale',
-          linkedKey: key,
-          linkedSummary: summary,
-        );
-      } catch (e) {
-        debugPrint('Failed to send chat notification: $e');
-        // Don't fail the sale if chat fails
+      // Chỉ gửi chat "đã bán" khi đơn đã được xác nhận trên cloud.
+      if (!isLocalOnly) {
+        try {
+          final chatUser = FirebaseAuth.instance.currentUser;
+          final key = sale.firestoreId ?? "sale_${sale.soldAt}";
+          final summary =
+              "ĐƠN BÁN - ${sale.customerName} - ${sale.phone} - ${MoneyUtils.formatCurrency(totalPrice)} đ";
+          final msg = "🛒 ĐÃ BÁN: $summary";
+          await FirestoreService.sendChat(
+            message: msg,
+            senderId: chatUser?.uid ?? 'guest',
+            senderName: chatUser?.email?.split('@').first.toUpperCase() ?? 'NV',
+            linkedType: 'sale',
+            linkedKey: key,
+            linkedSummary: summary,
+          );
+        } catch (e) {
+          debugPrint('Failed to send chat notification: $e');
+          // Don't fail the sale if chat fails
+        }
+      } else {
+        debugPrint('ℹ️ Skipped cloud sale chat because sale is local-only');
       }
 
       // Notify other views about the new sale
@@ -1484,8 +1555,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       );
 
       NotificationService.showSnackBar(
-        "ĐÃ BÁN HÀNG THÀNH CÔNG!",
-        color: Colors.green,
+        isLocalOnly
+            ? "ĐÃ LƯU BÁN OFFLINE - CHƯA ĐỒNG BỘ CLOUD"
+            : "ĐÃ BÁN HÀNG THÀNH CÔNG!",
+        color: isLocalOnly ? Colors.orange : Colors.green,
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -1590,239 +1663,257 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           : ResponsiveCenter(
               maxWidth: 800,
               child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // === COMPACT: SẢN PHẨM + KHÁCH HÀNG gộp chung ===
-                  Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Search sản phẩm
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.inventory_2,
-                                size: 18,
-                                color: Colors.blue.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _terms.productLabel.toUpperCase(),
-                                style: AppTextStyles.caption.copyWith(
-                                  fontWeight: FontWeight.bold,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // === COMPACT: SẢN PHẨM + KHÁCH HÀNG gộp chung ===
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Search sản phẩm
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.inventory_2,
+                                  size: 18,
                                   color: Colors.blue.shade700,
                                 ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                "${_selectedItems.length} đã chọn",
-                                style: AppTextStyles.caption.copyWith(
-                                  color: Colors.blue,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          DebouncedSearchField(
-                            controller: searchProdCtrl,
-                            hint: "Tìm ${_terms.productLabel.toLowerCase()} hoặc ${_terms.specialField1Label}...",
-                            onSearch: (v) => setState(
-                              () => _filteredInStock = _allInStock
-                                  .where(
-                                    (p) =>
-                                        VietnameseUtils.containsVietnamese(p.name, v) ||
-                                        (p.imei ?? "").contains(v),
-                                  )
-                                  .toList(),
-                            ),
-                          ),
-                          if (_allInStock.isEmpty) _buildEmptyStockGuidance(),
-                          if (searchProdCtrl.text.isNotEmpty)
-                            _buildSearchResults(),
-                          _buildSelectedItemsList(),
-
-                          // Divider giữa sản phẩm và khách hàng
-                          const Divider(height: 16),
-
-                          // Thông tin khách hàng compact
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person,
-                                size: 18,
-                                color: Colors.blue.shade700,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                "KHÁCH HÀNG",
-                                style: AppTextStyles.caption.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                              const Spacer(),
-                              TextButton.icon(
-                                onPressed: _selectCustomer,
-                                icon: const Icon(Icons.search, size: 16),
-                                label: const Text("Chọn KH"),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
+                                const SizedBox(width: 8),
+                                Text(
+                                  _terms.productLabel.toUpperCase(),
+                                  style: AppTextStyles.caption.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade700,
                                   ),
-                                  visualDensity: VisualDensity.compact,
                                 ),
-                              ),
-                            ],
-                          ),
-                          SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                            dense: true,
-                            title: const Text('Khách vãng lai (không lưu danh bạ)'),
-                            subtitle: Text(
-                              _isWalkIn
-                                  ? 'Tên/SĐT chỉ lưu trên đơn, SĐT không bắt buộc'
-                                  : 'Nhập SĐT để lưu khách vào danh bạ',
-                              style: AppTextStyles.caption,
+                                const Spacer(),
+                                Text(
+                                  "${_selectedItems.length} đã chọn",
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
-                            value: _isWalkIn,
-                            onChanged: (v) {
-                              setState(() {
-                                _isWalkIn = v;
-                                if (_isWalkIn && nameCtrl.text.trim().isEmpty) {
-                                  nameCtrl.text = 'KHÁCH VÃNG LAI';
-                                }
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 6),
-                          // 2 fields trên 1 hàng
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: nameCtrl,
-                                  decoration: InputDecoration(
-                                    labelText:
-                                        _isWalkIn ? "TÊN (tùy chọn)" : "TÊN",
-                                    prefixIcon: const Icon(
-                                      Icons.person_outline,
+                            const SizedBox(height: 8),
+                            DebouncedSearchField(
+                              controller: searchProdCtrl,
+                              hint:
+                                  "Tìm ${_terms.productLabel.toLowerCase()} hoặc ${_terms.specialField1Label}...",
+                              onSearch: (v) => setState(
+                                () => _filteredInStock = _allInStock
+                                    .where(
+                                      (p) =>
+                                          VietnameseUtils.containsVietnamese(
+                                            p.name,
+                                            v,
+                                          ) ||
+                                          (p.imei ?? "").contains(v),
+                                    )
+                                    .toList(),
+                              ),
+                            ),
+                            if (_allInStock.isEmpty) _buildEmptyStockGuidance(),
+                            if (searchProdCtrl.text.isNotEmpty)
+                              _buildSearchResults(),
+                            _buildSelectedItemsList(),
+
+                            // Divider giữa sản phẩm và khách hàng
+                            const Divider(height: 16),
+
+                            // Thông tin khách hàng compact
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.person,
+                                  size: 18,
+                                  color: Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "KHÁCH HÀNG",
+                                  style: AppTextStyles.caption.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                                const Spacer(),
+                                TextButton.icon(
+                                  onPressed: _selectCustomer,
+                                  icon: const Icon(Icons.search, size: 16),
+                                  label: const Text("Chọn KH"),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              title: const Text(
+                                'Khách vãng lai (không lưu danh bạ)',
+                              ),
+                              subtitle: Text(
+                                _isWalkIn
+                                    ? 'Tên/SĐT chỉ lưu trên đơn, SĐT không bắt buộc'
+                                    : 'Nhập SĐT để lưu khách vào danh bạ',
+                                style: AppTextStyles.caption,
+                              ),
+                              value: _isWalkIn,
+                              onChanged: (v) {
+                                setState(() {
+                                  _isWalkIn = v;
+                                  if (_isWalkIn &&
+                                      nameCtrl.text.trim().isEmpty) {
+                                    nameCtrl.text = 'KHÁCH VÃNG LAI';
+                                  }
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 6),
+                            // 2 fields trên 1 hàng
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: nameCtrl,
+                                    decoration: InputDecoration(
+                                      labelText: _isWalkIn
+                                          ? "TÊN (tùy chọn)"
+                                          : "TÊN",
+                                      prefixIcon: const Icon(
+                                        Icons.person_outline,
+                                        size: 18,
+                                      ),
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                    ),
+                                    textCapitalization:
+                                        TextCapitalization.characters,
+                                    style: AppTextStyles.body2,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 130,
+                                  child: TextFormField(
+                                    controller: phoneCtrl,
+                                    decoration: InputDecoration(
+                                      labelText: _isWalkIn
+                                          ? "SĐT (không bắt buộc)"
+                                          : "SĐT",
+                                      prefixIcon: const Icon(
+                                        Icons.phone,
+                                        size: 18,
+                                      ),
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                    ),
+                                    keyboardType: TextInputType.phone,
+                                    style: AppTextStyles.body2,
+                                  ),
+                                ),
+                                if (!_isWalkIn &&
+                                    nameCtrl.text.trim().isNotEmpty &&
+                                    phoneCtrl.text.trim().isNotEmpty)
+                                  IconButton(
+                                    onPressed: _addCustomerQuick,
+                                    icon: const Icon(
+                                      Icons.person_add,
                                       size: 18,
                                     ),
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
+                                    color: AppColors.success,
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.only(left: 4),
+                                    tooltip: 'Thêm nhanh KH',
                                   ),
-                                  textCapitalization:
-                                      TextCapitalization.characters,
-                                  style: AppTextStyles.body2,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 130,
-                                child: TextFormField(
-                                  controller: phoneCtrl,
-                                  decoration: InputDecoration(
-                                    labelText: _isWalkIn
-                                        ? "SĐT (không bắt buộc)"
-                                        : "SĐT",
-                                    prefixIcon:
-                                        const Icon(Icons.phone, size: 18),
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                  ),
-                                  keyboardType: TextInputType.phone,
-                                  style: AppTextStyles.body2,
-                                ),
-                              ),
-                              if (!_isWalkIn &&
-                                  nameCtrl.text.trim().isNotEmpty &&
-                                  phoneCtrl.text.trim().isNotEmpty)
-                                IconButton(
-                                  onPressed: _addCustomerQuick,
-                                  icon: const Icon(Icons.person_add, size: 18),
-                                  color: AppColors.success,
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.only(left: 4),
-                                  tooltip: 'Thêm nhanh KH',
-                                ),
-                            ],
-                          ),
-                          // Địa chỉ khách hàng
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: addressCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Địa chỉ KH (tùy chọn)',
-                              prefixIcon: Icon(Icons.location_on, size: 18),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
+                              ],
                             ),
-                            textCapitalization: TextCapitalization.characters,
-                            style: AppTextStyles.body2,
-                          ),
-                          _buildCustomerSuggestions(),
-                        ],
+                            // Địa chỉ khách hàng
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: addressCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Địa chỉ KH (tùy chọn)',
+                                prefixIcon: Icon(Icons.location_on, size: 18),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                              ),
+                              textCapitalization: TextCapitalization.characters,
+                              style: AppTextStyles.body2,
+                            ),
+                            _buildCustomerSuggestions(),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  // === COMPACT: THANH TOÁN ===
-                  Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: _buildCompactPaymentSection(),
+                    // === COMPACT: THANH TOÁN ===
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: _buildCompactPaymentSection(),
+                      ),
                     ),
-                  ),
 
-                  // === NÚT HOÀN TẤT ===
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: (_isSaving || _selectedItems.isEmpty)
-                          ? null
-                          : _processSale,
-                      style: AppButtonStyles.successElevatedButtonStyle,
-                      child: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                    // === NÚT HOÀN TẤT ===
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: (_isSaving || _selectedItems.isEmpty)
+                            ? null
+                            : _processSale,
+                        style: AppButtonStyles.successElevatedButtonStyle,
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                _selectedItems.isEmpty
+                                    ? "CHƯA CHỌN ${_terms.productLabel.toUpperCase()}"
+                                    : "HOÀN TẤT ĐƠN HÀNG",
+                                style: AppTextStyles.button.copyWith(
+                                  color: AppColors.onSuccess,
+                                ),
                               ),
-                            )
-                          : Text(
-                              _selectedItems.isEmpty
-                                  ? "CHƯA CHỌN ${_terms.productLabel.toUpperCase()}"
-                                  : "HOÀN TẤT ĐƠN HÀNG",
-                              style: AppTextStyles.button.copyWith(
-                                color: AppColors.onSuccess,
-                              ),
-                            ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
-          ),
     );
   }
 
@@ -1864,8 +1955,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 size: 16,
                 color: AppColors.primary,
               ),
-              onPressed: () =>
-                  setState(() => _autoCalcTotal = !_autoCalcTotal),
+              onPressed: () => setState(() => _autoCalcTotal = !_autoCalcTotal),
             ),
             const SizedBox(width: 4),
             Expanded(
@@ -1883,11 +1973,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         // Giảm giá (1 dòng riêng)
         Row(
           children: [
-            const Icon(
-              Icons.discount,
-              size: 16,
-              color: Colors.orange,
-            ),
+            const Icon(Icons.discount, size: 16, color: Colors.orange),
             const SizedBox(width: 4),
             Text(
               "Giảm:",
@@ -1945,40 +2031,41 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         Wrap(
           spacing: 6,
           runSpacing: 4,
-          children: ["TIỀN MẶT", "CHUYỂN KHOẢN", "KẾT HỢP", "CÔNG NỢ", "TRẢ GÓP (NH)"]
-              .map(
-                (e) => ChoiceChip(
-                  label: Text(
-                    e,
-                    style: AppTextStyles.caption.copyWith(fontSize: 13),
-                  ),
-                  selected: _paymentMethod == e,
-                  onSelected: (v) => setState(() {
-                    _paymentMethod = e;
-                    _isInstallment = (e == "TRẢ GÓP (NH)");
-                    _isCombined = (e == "KẾT HỢP");
-                    if (!_isInstallment) _hasSecondBank = false;
-                    if (_isCombined) {
-                      // Auto-fill cash + transfer = total
-                      _recalcCombinedPayment();
-                    }
-                  }),
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                ),
-              )
-              .toList(),
+          children:
+              ["TIỀN MẶT", "CHUYỂN KHOẢN", "KẾT HỢP", "CÔNG NỢ", "TRẢ GÓP (NH)"]
+                  .map(
+                    (e) => ChoiceChip(
+                      label: Text(
+                        e,
+                        style: AppTextStyles.caption.copyWith(fontSize: 13),
+                      ),
+                      selected: _paymentMethod == e,
+                      onSelected: (v) => setState(() {
+                        _paymentMethod = e;
+                        _isInstallment = (e == "TRẢ GÓP (NH)");
+                        _isCombined = (e == "KẾT HỢP");
+                        if (!_isInstallment) _hasSecondBank = false;
+                        if (_isCombined) {
+                          // Auto-fill cash + transfer = total
+                          _recalcCombinedPayment();
+                        }
+                      }),
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                    ),
+                  )
+                  .toList(),
         ),
 
         const Divider(height: 12),
 
         // Số tiền thu thực tế (ẩn khi KẾT HỢP vì có UI riêng)
         if (!_isCombined)
-        _moneyInput(
-          downPaymentCtrl,
-          _isInstallment ? "KHÁCH TRẢ" : "SỐ TIỀN",
-          AppColors.secondary,
-        ),
+          _moneyInput(
+            downPaymentCtrl,
+            _isInstallment ? "KHÁCH TRẢ" : "SỐ TIỀN",
+            AppColors.secondary,
+          ),
 
         // === KẾT HỢP THANH TOÁN (TIỀN MẶT + CHUYỂN KHOẢN) ===
         if (_isCombined)
@@ -2022,46 +2109,64 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       ),
                       const SizedBox(height: 8),
                       // Hiển thị tổng và so sánh với giá trị đơn hàng
-                      Builder(builder: (context) {
-                        final cashAmt = _parseCurrency(cashAmountCtrl.text);
-                        final transferAmt = _parseCurrency(transferAmountCtrl.text);
-                        final total = cashAmt + transferAmt;
-                        final finalPrice = _parseCurrency(priceCtrl.text) - _parseCurrency(discountCtrl.text);
-                        final diff = total - finalPrice;
-                        return Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: diff == 0 ? Colors.green.shade50 : Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: diff == 0 ? Colors.green.shade300 : Colors.red.shade300,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "TỔNG: ${MoneyUtils.formatCurrency(total)}",
-                                style: AppTextStyles.caption.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: diff == 0 ? Colors.green.shade700 : Colors.red.shade700,
-                                  fontSize: 14,
-                                ),
+                      Builder(
+                        builder: (context) {
+                          final cashAmt = _parseCurrency(cashAmountCtrl.text);
+                          final transferAmt = _parseCurrency(
+                            transferAmountCtrl.text,
+                          );
+                          final total = cashAmt + transferAmt;
+                          final finalPrice =
+                              _parseCurrency(priceCtrl.text) -
+                              _parseCurrency(discountCtrl.text);
+                          final diff = total - finalPrice;
+                          return Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: diff == 0
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: diff == 0
+                                    ? Colors.green.shade300
+                                    : Colors.red.shade300,
                               ),
-                              if (diff != 0)
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
                                 Text(
-                                  diff > 0 ? "(Dư ${MoneyUtils.formatCurrency(diff)})" : "(Thiếu ${MoneyUtils.formatCurrency(-diff)})",
+                                  "TỔNG: ${MoneyUtils.formatCurrency(total)}",
                                   style: AppTextStyles.caption.copyWith(
-                                    color: Colors.red.shade700,
-                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: diff == 0
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                    fontSize: 14,
                                   ),
                                 ),
-                              if (diff == 0)
-                                Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
-                            ],
-                          ),
-                        );
-                      }),
+                                if (diff != 0)
+                                  Text(
+                                    diff > 0
+                                        ? "(Dư ${MoneyUtils.formatCurrency(diff)})"
+                                        : "(Thiếu ${MoneyUtils.formatCurrency(-diff)})",
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: Colors.red.shade700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                if (diff == 0)
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green.shade700,
+                                    size: 16,
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -2168,22 +2273,23 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       Wrap(
                         spacing: 4,
                         runSpacing: 4,
-                        children: ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
-                            .map(
-                              (b) => ActionChip(
-                                label: Text(
-                                  b,
-                                  style: AppTextStyles.caption.copyWith(
-                                    fontSize: 12,
+                        children:
+                            ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
+                                .map(
+                                  (b) => ActionChip(
+                                    label: Text(
+                                      b,
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    onPressed: () =>
+                                        setState(() => bankCtrl.text = b),
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
                                   ),
-                                ),
-                                onPressed: () =>
-                                    setState(() => bankCtrl.text = b),
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                              ),
-                            )
-                            .toList(),
+                                )
+                                .toList(),
                       ),
 
                       // Ngân hàng thứ 2
@@ -2249,22 +2355,23 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                         Wrap(
                           spacing: 4,
                           runSpacing: 4,
-                          children: ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
-                              .map(
-                                (b) => ActionChip(
-                                  label: Text(
-                                    b,
-                                    style: AppTextStyles.caption.copyWith(
-                                      fontSize: 12,
+                          children:
+                              ["FE", "HOME", "MIRAE", "HD", "MB", "F83", "T86"]
+                                  .map(
+                                    (b) => ActionChip(
+                                      label: Text(
+                                        b,
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          setState(() => bankCtrl2.text = b),
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
                                     ),
-                                  ),
-                                  onPressed: () =>
-                                      setState(() => bankCtrl2.text = b),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                ),
-                              )
-                              .toList(),
+                                  )
+                                  .toList(),
                         ),
                       ],
                     ],
@@ -2281,35 +2388,36 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           children: [
             // Multi-Industry: Only show warranty for electronics
             if (_enableWarranty)
-            SizedBox(
-              width: 130,
-              child: DropdownButtonFormField<String>(
-                value: _saleWarranty,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: _terms.specialField2Label,
-                  prefixIcon: const Icon(Icons.verified_user, size: 16),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 6,
+              SizedBox(
+                width: 130,
+                child: DropdownButtonFormField<String>(
+                  value: _saleWarranty,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: _terms.specialField2Label,
+                    prefixIcon: const Icon(Icons.verified_user, size: 16),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 6,
+                    ),
                   ),
-                ),
-                items: ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"]
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(
-                          e,
-                          style: AppTextStyles.caption,
-                          overflow: TextOverflow.ellipsis,
+                  items: ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"]
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e,
+                          child: Text(
+                            e,
+                            style: AppTextStyles.caption,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
+                      )
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => _saleWarranty = v ?? "KO BH"),
+                ),
               ),
-            ),
             if (_enableWarranty) const SizedBox(width: 12),
             Expanded(
               child: TextFormField(
@@ -2595,16 +2703,14 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             labelText: "CHỌN THỜI GIAN BẢO HÀNH",
             prefixIcon: Icon(Icons.verified_user),
           ),
-          items: [
-            "KO BH",
-            "1 THÁNG",
-            "3 THÁNG",
-            "6 THÁNG",
-            "12 THÁNG",
-          ].map((e) => DropdownMenuItem(
-            value: e,
-            child: Text(e, overflow: TextOverflow.ellipsis),
-          )).toList(),
+          items: ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"]
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(e, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
           onChanged: (v) => setState(() => _saleWarranty = v ?? "KO BH"),
         ),
         const SizedBox(height: 15),
@@ -2764,7 +2870,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final isDiscounted = !isGift && sellPrice < originalPrice;
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
-          color: isGift ? Colors.green.shade50 : (isDiscounted ? Colors.orange.shade50 : null),
+          color: isGift
+              ? Colors.green.shade50
+              : (isDiscounted ? Colors.orange.shade50 : null),
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
@@ -2781,33 +2889,49 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               Flexible(
                                 child: Text(
                                   product.name,
-                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               if (isGift) ...[
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.green,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: const Text(
                                     'TẶNG',
-                                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ] else if (isDiscounted) ...[
                                 const SizedBox(width: 6),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.orange,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     '-${MoneyUtils.formatCurrency(originalPrice - sellPrice)}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -2817,7 +2941,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                           if (variantName != null) ...[
                             const SizedBox(height: 2),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(4),
@@ -2839,7 +2966,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                     IconButton(
                       icon: Icon(
                         Icons.card_giftcard,
-                        color: isGift ? Colors.green : (isDiscounted ? Colors.orange : Colors.grey),
+                        color: isGift
+                            ? Colors.green
+                            : (isDiscounted ? Colors.orange : Colors.grey),
                       ),
                       tooltip: 'Tặng / Giảm giá',
                       onPressed: () => _showGiftDiscountSheet(item),
@@ -2964,33 +3093,33 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 // Multi-Industry: Only show serial field if enabled
                 // Hide IMEI for accessories (PHU_KIEN) - only show for phones
                 if (_enableSerial && product.type == 'DIEN_THOAI')
-                Row(
-                  children: [
-                    Text("${_terms.specialField1Label}: "),
-                    Expanded(
-                      child: TextField(
-                        controller:
-                            _imeiControllers[product.id.toString()] ??
-                            TextEditingController(text: item['imei'] ?? ''),
-                        focusNode: _imeiFocusNodes[product.id.toString()],
-                        onChanged: (value) {
-                          setState(() {
-                            item['imei'] = value.trim();
-                          });
-                        },
-                        decoration: InputDecoration(
-                          isDense: true,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                  Row(
+                    children: [
+                      Text("${_terms.specialField1Label}: "),
+                      Expanded(
+                        child: TextField(
+                          controller:
+                              _imeiControllers[product.id.toString()] ??
+                              TextEditingController(text: item['imei'] ?? ''),
+                          focusNode: _imeiFocusNodes[product.id.toString()],
+                          onChanged: (value) {
+                            setState(() {
+                              item['imei'] = value.trim();
+                            });
+                          },
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            hintText: _terms.specialField1Hint,
                           ),
-                          hintText: _terms.specialField1Hint,
+                          textInputAction: TextInputAction.next,
                         ),
-                        textInputAction: TextInputAction.next,
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -3274,7 +3403,8 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
   @override
   void initState() {
     super.initState();
-    final initialPrice = widget.currentSellPrice > 0 &&
+    final initialPrice =
+        widget.currentSellPrice > 0 &&
             widget.currentSellPrice < widget.originalPrice
         ? widget.currentSellPrice
         : widget.originalPrice;
@@ -3304,28 +3434,29 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
               child: Text(
                 'Ưu đãi: ${widget.productName}',
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 17),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
               ),
             ),
             const Divider(height: 1),
             if (!_showDiscountInput) ...[
               // --- Menu options ---
               ListTile(
-                leading:
-                    const Icon(Icons.card_giftcard, color: Colors.green),
+                leading: const Icon(Icons.card_giftcard, color: Colors.green),
                 title: const Text('Tặng miễn phí (0đ)'),
                 subtitle: const Text('Không tính tiền sản phẩm này'),
                 selected: widget.isGift,
-                onTap: () =>
-                    Navigator.pop(context, {'action': 'gift'}),
+                onTap: () => Navigator.pop(context, {'action': 'gift'}),
               ),
               ListTile(
-                leading:
-                    const Icon(Icons.discount, color: Colors.orange),
+                leading: const Icon(Icons.discount, color: Colors.orange),
                 title: const Text('Giảm giá sản phẩm'),
                 subtitle: Text(
-                    'Giá gốc: ${MoneyUtils.formatCurrency(widget.originalPrice)}'),
-                selected: !widget.isGift &&
+                  'Giá gốc: ${MoneyUtils.formatCurrency(widget.originalPrice)}',
+                ),
+                selected:
+                    !widget.isGift &&
                     widget.currentSellPrice < widget.originalPrice &&
                     widget.currentSellPrice > 0,
                 onTap: () => setState(() => _showDiscountInput = true),
@@ -3335,9 +3466,9 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
                   leading: const Icon(Icons.undo, color: Colors.grey),
                   title: const Text('Bỏ ưu đãi'),
                   subtitle: Text(
-                      'Khôi phục giá ${MoneyUtils.formatCurrency(widget.originalPrice)}'),
-                  onTap: () =>
-                      Navigator.pop(context, {'action': 'reset'}),
+                    'Khôi phục giá ${MoneyUtils.formatCurrency(widget.originalPrice)}',
+                  ),
+                  onTap: () => Navigator.pop(context, {'action': 'reset'}),
                 ),
               const SizedBox(height: 8),
             ] else ...[
@@ -3368,7 +3499,8 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
                           _priceController.value = TextEditingValue(
                             text: formatted,
                             selection: TextSelection.collapsed(
-                                offset: formatted.length),
+                              offset: formatted.length,
+                            ),
                           );
                         }
                       },
@@ -3402,8 +3534,7 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
   void _onConfirmDiscount() {
     final price = widget.parseCurrency(_priceController.text);
     if (price < 0) {
-      NotificationService.showSnackBar('Giá không hợp lệ',
-          color: Colors.red);
+      NotificationService.showSnackBar('Giá không hợp lệ', color: Colors.red);
       return;
     }
     if (price >= widget.originalPrice) {
