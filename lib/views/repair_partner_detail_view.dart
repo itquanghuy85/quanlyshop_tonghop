@@ -34,7 +34,8 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
 
   List<PartnerRepairHistory> _histories = [];
   List<Map<String, dynamic>> _debts = [];
-  List<Map<String, dynamic>> _payments = [];
+  List<Map<String, dynamic>> _debtPayments = [];
+  List<Map<String, dynamic>> _directPayments = [];
   Map<String, dynamic> _stats = {};
   bool _loading = true;
 
@@ -80,12 +81,29 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
           )
           .toList();
 
-      // Lấy payments từ debt_payments table (giống supplier)
-      final List<Map<String, dynamic>> payments = [];
+      // Lấy payments từ debt_payments table (trả công nợ)
+      final List<Map<String, dynamic>> debtPayments = [];
       for (final d in debts) {
         final p = await _db.getDebtPayments(d['id'] as int);
-        payments.addAll(p);
+        debtPayments.addAll(p);
       }
+
+      // Lấy thanh toán trực tiếp cho đối tác (TIỀN MẶT / CHUYỂN KHOẢN)
+      final allDirectPayments = await _db.getRepairPartnerPaymentsForSync();
+      final directPayments = allDirectPayments.where((payment) {
+        final paymentPartnerId = payment['partnerId'];
+        final paymentPartnerName =
+            (payment['partnerName'] ?? '').toString().toUpperCase();
+        final matchesPartnerId = paymentPartnerId == widget.partner.id;
+        final matchesPartnerName = paymentPartnerName ==
+            widget.partner.name.toUpperCase();
+        final notDeleted = (payment['deleted'] ?? 0) != 1;
+        return notDeleted && (matchesPartnerId || matchesPartnerName);
+      }).toList()
+        ..sort(
+          (a, b) =>
+              ((b['paidAt'] as int?) ?? 0).compareTo((a['paidAt'] as int?) ?? 0),
+        );
 
       final stats =
           await _partnerService.getPartnerRepairStats(
@@ -97,7 +115,8 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       setState(() {
         _histories = histories;
         _debts = debts;
-        _payments = payments;
+        _debtPayments = debtPayments;
+        _directPayments = directPayments;
         _stats = stats;
         _loading = false;
       });
@@ -113,15 +132,19 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
   // Tính toán từ debts (giống supplier)
   int get _totalDebt =>
       _debts.fold(0, (s, d) => s + (d['totalAmount'] as int? ?? 0));
-  int get _paidDebt =>
+    int get _paidDebt =>
       _debts.fold(0, (s, d) => s + (d['paidAmount'] as int? ?? 0));
-  int get _remainDebt => _totalDebt - _paidDebt;
+    int get _directPaid =>
+      _directPayments.fold(0, (s, p) => s + (p['amount'] as int? ?? 0));
+    int get _remainDebt {
+    final remain = _totalDebt - _paidDebt;
+    return remain > 0 ? remain : 0;
+    }
 
-  // Backup từ stats nếu chưa có debts
+    // Tổng chi phí gửi sửa lấy từ history/stats; thanh toán gồm cả trả trực tiếp và trả công nợ
   int get _totalCost =>
-      _debts.isNotEmpty ? _totalDebt : ((_stats['totalCost'] as int?) ?? 0);
-  int get _totalPaid =>
-      _debts.isNotEmpty ? _paidDebt : ((_stats['totalPaid'] as int?) ?? 0);
+      (_stats['totalCost'] as int?) ?? _totalDebt;
+    int get _totalPaid => _directPaid + _paidDebt;
 
   @override
   Widget build(BuildContext context) {
@@ -285,7 +308,7 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
             children: [
               _statChip('Tổng nợ', _totalDebt, AppColors.warning),
               const SizedBox(width: 8),
-              _statChip('Đã trả', _paidDebt, AppColors.success),
+              _statChip('Đã trả nợ', _paidDebt, AppColors.success),
               const SizedBox(width: 8),
               _statChip(
                 'Còn lại',
@@ -316,14 +339,14 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
               else
                 ..._debts.map((d) => _debtTile(d)),
               const SizedBox(height: 12),
-              Text('Thanh toán đã ghi nhận', style: AppTextStyles.headline6),
+              Text('Thanh toán trực tiếp', style: AppTextStyles.headline6),
               const SizedBox(height: 8),
-              if (_payments.isEmpty)
+              if (_directPayments.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Center(
                     child: Text(
-                      'Chưa có thanh toán',
+                      'Chưa có thanh toán trực tiếp',
                       style: AppTextStyles.caption.copyWith(
                         color: AppColors.onSurface.withOpacity(0.5),
                       ),
@@ -331,7 +354,28 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
                   ),
                 )
               else
-                ..._payments.map((p) => _paymentTile(p)),
+                ..._directPayments.map(
+                  (p) => _paymentTile(p, titlePrefix: 'Trả ngay'),
+                ),
+              const SizedBox(height: 12),
+              Text('Thanh toán đã ghi nhận', style: AppTextStyles.headline6),
+              const SizedBox(height: 8),
+              if (_debtPayments.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Center(
+                    child: Text(
+                      'Chưa có thanh toán công nợ',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.5),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ..._debtPayments.map(
+                  (p) => _paymentTile(p, titlePrefix: 'Trả nợ'),
+                ),
             ],
           ),
         ),
@@ -439,15 +483,20 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
     );
   }
 
-  Widget _paymentTile(Map<String, dynamic> p) {
+  Widget _paymentTile(Map<String, dynamic> p, {String? titlePrefix}) {
     final date = DateFormat(
       'dd/MM/yyyy HH:mm',
     ).format(DateTime.fromMillisecondsSinceEpoch(p['paidAt'] as int? ?? 0));
+    final prefix = titlePrefix == null || titlePrefix.isEmpty
+        ? ''
+        : '$titlePrefix: ';
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: const Icon(Icons.check_circle, color: Colors.green),
-        title: Text('+ ${MoneyUtils.formatCurrency(p['amount'] as int? ?? 0)}'),
+        title: Text(
+          '$prefix${MoneyUtils.formatCurrency(p['amount'] as int? ?? 0)}',
+        ),
         subtitle: Text('$date | ${p['paymentMethod'] ?? ''}'),
         trailing: p['note'] != null && (p['note'] as String).isNotEmpty
             ? Tooltip(
