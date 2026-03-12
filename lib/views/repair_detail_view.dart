@@ -1338,7 +1338,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     // Hiển thị dialog chọn linh kiện
     final result = await showDialog<Map<String, int>?>(
       context: context,
-      builder: (ctx) => _PartsSelectionDialog(parts: parts),
+      builder: (ctx) => _PartsSelectionDialog(
+        parts: parts,
+        onOpenPartsInventory: _navigateToPartsInventory,
+      ),
     );
 
     if (result != null && result.isNotEmpty) {
@@ -4731,8 +4734,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 /// Dialog widget riêng biệt để chọn linh kiện - tách ra để quản lý state đúng cách
 class _PartsSelectionDialog extends StatefulWidget {
   final List<Map<String, dynamic>> parts;
+  final Future<void> Function() onOpenPartsInventory;
 
-  const _PartsSelectionDialog({required this.parts});
+  const _PartsSelectionDialog({
+    required this.parts,
+    required this.onOpenPartsInventory,
+  });
 
   @override
   State<_PartsSelectionDialog> createState() => _PartsSelectionDialogState();
@@ -4778,7 +4785,7 @@ class _PartsSelectionDialogState extends State<_PartsSelectionDialog> {
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
               onTap: () async {
-                await _navigateToPartsInventory();
+                await widget.onOpenPartsInventory();
                 // Refresh parts list after returning from PartsInventoryView
                 if (mounted) {
                   final db = DBHelper();
