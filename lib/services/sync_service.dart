@@ -33,6 +33,99 @@ class SyncService {
   static String? _currentShopId;
   static bool _isInitialized = false;
 
+  static bool _hasPermission(
+    Map<String, dynamic> permissions,
+    String key,
+  ) {
+    return permissions[key] == true;
+  }
+
+  static bool _isManagerLike(String role, bool isSuperAdmin) {
+    return isSuperAdmin ||
+        role == 'admin' ||
+        role == 'owner' ||
+        role == 'manager';
+  }
+
+  static bool _isStaffLike(String role, bool isSuperAdmin) {
+    return _isManagerLike(role, isSuperAdmin) ||
+        role == 'employee' ||
+        role == 'technician';
+  }
+
+  static bool _canSubscribeCollection({
+    required String collection,
+    required Map<String, dynamic> permissions,
+    required String role,
+    required bool isSuperAdmin,
+  }) {
+    if (isSuperAdmin) return true;
+
+    switch (collection) {
+      case 'repairs':
+      case 'repair_parts':
+      case 'repair_partners':
+      case 'partner_repair_history':
+        return _hasPermission(permissions, 'allowViewRepairs');
+      case 'sales':
+      case 'customers':
+      case 'payment_requests':
+      case 'sales_returns':
+      case 'sales_return_items':
+        return _hasPermission(permissions, 'allowViewSales');
+      case 'products':
+      case 'product_variants':
+      case 'quick_input_codes':
+      case 'supplier_import_history':
+      case 'supplier_product_prices':
+        return _hasPermission(permissions, 'allowViewInventory');
+      case 'suppliers':
+        return _hasPermission(permissions, 'allowViewSuppliers');
+      case 'expenses':
+        return _hasPermission(permissions, 'allowViewExpenses') &&
+            _isManagerLike(role, isSuperAdmin);
+      case 'debts':
+        return _hasPermission(permissions, 'allowViewDebts') ||
+            _hasPermission(permissions, 'allowViewSales');
+      case 'debt_payments':
+      case 'payment_intents':
+        return _isStaffLike(role, isSuperAdmin);
+      case 'attendance':
+      case 'leave_requests':
+      case 'audit_logs':
+      case 'supplier_payments':
+      case 'repair_partner_payments':
+      case 'cash_closings':
+      case 'adjustment_entries':
+      case 'purchase_orders':
+      case 'employee_salary_settings':
+        return _isManagerLike(role, isSuperAdmin);
+      case 'work_schedules':
+        return _hasPermission(permissions, 'allowViewAttendance');
+      default:
+        return true;
+    }
+  }
+
+  static bool _canSubscribeShopSubcollection({
+    required String subcollection,
+    required Map<String, dynamic> permissions,
+    required String role,
+    required bool isSuperAdmin,
+  }) {
+    if (isSuperAdmin) return true;
+
+    switch (subcollection) {
+      case 'product_categories':
+        return _hasPermission(permissions, 'allowViewInventory');
+      case 'settings':
+        return _isManagerLike(role, isSuperAdmin) ||
+            _hasPermission(permissions, 'allowViewSettings');
+      default:
+        return true;
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // DOWNLOAD THROTTLING: Prevent cascade calls to downloadAllFromCloud
   // ═══════════════════════════════════════════════════════════════════════
@@ -346,6 +439,8 @@ class SyncService {
     }
 
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+    final permissions = await UserService.getCurrentUserPermissions();
+    final role = await UserService.getUserRole(user.uid);
     // Super admin cũng cần shopId nếu đã chọn shop
     final String? shopId = await UserService.getCurrentShopId();
 
@@ -430,6 +525,9 @@ class SyncService {
     _subscribeToCollection(
       collection: 'repairs',
       shopId: shopId,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
       onChanged: (data, docId) async {
         try {
           debugPrint(
@@ -474,6 +572,9 @@ class SyncService {
     _subscribeToCollection(
       collection: 'sales',
       shopId: shopId,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
       onChanged: (data, docId) async {
         try {
           debugPrint(
@@ -516,6 +617,9 @@ class SyncService {
     _subscribeToCollection(
       collection: 'products',
       shopId: shopId,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
       onChanged: (data, docId) async {
         try {
           final db = DBHelper();
@@ -574,6 +678,9 @@ class SyncService {
     _subscribeToCollection(
       collection: 'expenses',
       shopId: shopId,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
       onChanged: (data, docId) async {
         try {
           final db = DBHelper();
@@ -607,6 +714,9 @@ class SyncService {
     _subscribeToCollection(
       collection: 'debts',
       shopId: shopId,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
       onChanged: (data, docId) async {
         try {
           final db = DBHelper();
@@ -641,6 +751,9 @@ class SyncService {
     _subscribeToCollection(
       collection: 'debt_payments',
       shopId: shopId,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
       onChanged: (data, docId) async {
         try {
           final db = DBHelper();
@@ -666,6 +779,9 @@ class SyncService {
     _subscribeToCollection(
       collection: 'users',
       shopId: shopId,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
       onChanged: (data, docId) async {
         try {
           // Nếu là user hiện tại, cập nhật cache shopId
@@ -734,6 +850,8 @@ class SyncService {
       _initDeferredSubscriptions(
         shopId: shopId,
         isSuperAdmin: isSuperAdmin,
+        permissions: permissions,
+        role: role,
         onDataChanged: onDataChanged,
       );
     });
@@ -748,6 +866,8 @@ class SyncService {
   static void _initDeferredSubscriptions({
     required String? shopId,
     required bool isSuperAdmin,
+    required Map<String, dynamic> permissions,
+    required String role,
     required VoidCallback onDataChanged,
   }) {
     debugPrint("🕐 Starting deferred sync subscriptions...");
@@ -758,6 +878,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'attendance',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -804,6 +927,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'leave_requests',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -835,6 +961,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'quick_input_codes',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -863,6 +992,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'supplier_payments',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -888,6 +1020,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'repair_partner_payments',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -913,6 +1048,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'customers',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -938,6 +1076,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'suppliers',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -963,6 +1104,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'repair_partners',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -988,6 +1132,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'partner_repair_history',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1022,6 +1169,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'audit_logs',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1064,6 +1214,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'repair_parts',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1099,6 +1252,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'supplier_import_history',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1125,6 +1281,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'supplier_product_prices',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1152,6 +1311,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'cash_closings',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1178,6 +1340,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'adjustment_entries',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1204,6 +1369,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'purchase_orders',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1231,6 +1399,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'payment_intents',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1261,6 +1432,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'payment_requests',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1290,6 +1464,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'work_schedules',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1330,6 +1507,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'employee_salary_settings',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1360,12 +1540,20 @@ class SyncService {
     // 25. Đồng bộ PRODUCT CATEGORIES (Danh mục sản phẩm)
     try {
       // Categories được lưu trong subcollection của shops
-      final categoriesSub = _db
-          .collection('shops')
-          .doc(shopId)
-          .collection('product_categories')
-          .snapshots()
-          .listen((snapshot) async {
+      if (!_canSubscribeShopSubcollection(
+        subcollection: 'product_categories',
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+      )) {
+        debugPrint('⏭️ Skipping product_categories subscription due to permissions');
+      } else {
+        final categoriesSub = _db
+            .collection('shops')
+            .doc(shopId)
+            .collection('product_categories')
+            .snapshots()
+            .listen((snapshot) async {
         for (final change in snapshot.docChanges) {
           try {
             final docId = change.doc.id;
@@ -1392,7 +1580,8 @@ class SyncService {
         onDataChanged();
         EventBus().emit('product_categories_changed');
       }, onError: (e) => debugPrint("Sync error in product_categories: $e"));
-      _subscriptions.add(categoriesSub);
+        _subscriptions.add(categoriesSub);
+      }
     } catch (e) {
       debugPrint("Lỗi khởi tạo product_categories sync: $e");
     }
@@ -1402,6 +1591,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'product_variants',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1434,6 +1626,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'sales_returns',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1459,6 +1654,9 @@ class SyncService {
       _subscribeToCollection(
         collection: 'sales_return_items',
         shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
         onChanged: (data, docId) async {
           try {
             final db = DBHelper();
@@ -1489,10 +1687,24 @@ class SyncService {
   static void _subscribeToCollection({
     required String collection,
     String? shopId,
+    required Map<String, dynamic> permissions,
+    required String role,
+    required bool isSuperAdmin,
     required Future<void> Function(Map<String, dynamic> data, String docId)
     onChanged,
     required VoidCallback onBatchDone,
   }) {
+    if (!_canSubscribeCollection(
+      collection: collection,
+      permissions: permissions,
+      role: role,
+      isSuperAdmin: isSuperAdmin,
+    )) {
+      debugPrint('⏭️ Skipping subscribe to $collection - not allowed for role=$role');
+      _subscriptionStatus[collection] = false;
+      return;
+    }
+
     // Skip nếu shop đang bị xóa
     if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
       debugPrint("⏭️ Skipping subscribe to $collection - shop $shopId is being deleted");
@@ -1683,12 +1895,24 @@ class SyncService {
         debugPrint(
           '🔄 Attempting to re-subscribe to $collection after error...',
         );
-        _subscribeToCollection(
-          collection: collection,
-          shopId: shopId,
-          onChanged: onChanged,
-          onBatchDone: onBatchDone,
-        );
+        () async {
+          final user = FirebaseAuth.instance.currentUser;
+          final permissions = await UserService.getCurrentUserPermissions();
+          final role = user != null
+              ? await UserService.getUserRole(user.uid)
+              : 'user';
+          final isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+
+          _subscribeToCollection(
+            collection: collection,
+            shopId: shopId,
+            permissions: permissions,
+            role: role,
+            isSuperAdmin: isSuperAdmin,
+            onChanged: onChanged,
+            onBatchDone: onBatchDone,
+          );
+        }();
       }
     });
   }
@@ -2992,6 +3216,8 @@ class SyncService {
       }
 
       final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+      final permissions = await UserService.getCurrentUserPermissions();
+      final role = await UserService.getUserRole(user.uid);
       // Use sync cache first (set by syncUserInfo), fallback to async
       String? shopId = UserService.getShopIdSync();
       shopId ??= await UserService.getCurrentShopId();
@@ -3069,6 +3295,17 @@ class SyncService {
         'payment_requests', // FIX: Đồng bộ yêu cầu đóng tiền giữa các máy
         'leave_requests', // FIX: Đồng bộ đơn xin nghỉ giữa các máy
       ];
+      final allowedCollections = collections.where((col) {
+        return _canSubscribeCollection(
+          collection: col,
+          permissions: permissions,
+          role: role,
+          isSuperAdmin: isSuperAdmin,
+        );
+      }).toList();
+      debugPrint(
+        'downloadAllFromCloud: role=$role, allowedCollections=$allowedCollections',
+      );
       // Lưu ý: 'users' và 'shops' không có shopId field nên không tải ở đây
 
       // ═══════════════════════════════════════════════════════════════════════
@@ -3077,7 +3314,7 @@ class SyncService {
       // ═══════════════════════════════════════════════════════════════════════
       final prefs = await SharedPreferences.getInstance();
       
-      for (var col in collections) {
+      for (var col in allowedCollections) {
         // Yield to UI thread between collections to prevent ANR/frame drops
         await Future.delayed(Duration.zero);
 

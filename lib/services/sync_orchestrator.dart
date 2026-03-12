@@ -207,12 +207,20 @@ class SyncOrchestrator {
   // Max retry before marking as failed
   static const int maxRetries = 3;
 
+  static bool _isPermanentSyncError(String error) {
+    final normalized = error.toLowerCase();
+    return normalized.contains('permission-denied') ||
+        normalized.contains('permission_denied') ||
+        normalized.contains('missing or insufficient permissions');
+  }
+
   /// Khởi tạo orchestrator
   Future<void> init() async {
     debugPrint('🔄 SyncOrchestrator: Initializing...');
 
     // Load initial pending count
     await _refreshPendingCount();
+    await _emitCurrentStatus();
 
     // Listen to connectivity changes
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
@@ -245,17 +253,31 @@ class SyncOrchestrator {
     String? firestoreId,
     required SyncOperation operation,
     Map<String, dynamic>? data,
+    bool allowReviveFailed = false,
   }) async {
     final db = await _db.database;
 
     // Check if already exists in queue
     final existing = await db.query(
       'sync_queue',
-      where: 'entityType = ? AND entityId = ? AND status IN (?, ?)',
-      whereArgs: [entityType.name, entityId, 'pending', 'processing'],
+      where: 'entityType = ? AND entityId = ?',
+      whereArgs: [entityType.name, entityId],
+      orderBy: 'id DESC',
+      limit: 1,
     );
 
     if (existing.isNotEmpty) {
+      final existingStatus = existing.first['status'] as String? ?? 'pending';
+
+      if (existingStatus == 'failed' && !allowReviveFailed) {
+        debugPrint(
+          '🔄 SyncOrchestrator: Skip auto-enqueue for failed ${entityType.name}#$entityId',
+        );
+        await _refreshPendingCount();
+        await _emitCurrentStatus();
+        return;
+      }
+
       // Update existing entry
       await db.update(
         'sync_queue',
@@ -265,6 +287,8 @@ class SyncOrchestrator {
           'firestoreId': firestoreId,
           'createdAt': DateTime.now().millisecondsSinceEpoch,
           'status': 'pending',
+          'retryCount': 0,
+          'lastError': null,
         },
         where: 'id = ?',
         whereArgs: [existing.first['id']],
@@ -290,6 +314,7 @@ class SyncOrchestrator {
     }
 
     await _refreshPendingCount();
+    await _emitCurrentStatus();
   }
 
   /// Lấy số lượng pending
@@ -359,9 +384,7 @@ class SyncOrchestrator {
       );
 
       await _refreshPendingCount();
-      _syncStatusController.add(
-        _pendingCount > 0 ? SyncStatus.hasPending : SyncStatus.synced,
-      );
+      await _emitCurrentStatus();
 
       return SyncResult(
         success: successCount,
@@ -559,8 +582,10 @@ class SyncOrchestrator {
   Future<void> _markItemFailed(SyncQueueItem item, String error) async {
     final db = await _db.database;
     final newRetryCount = item.retryCount + 1;
+    final shouldPermanentlyFail =
+        _isPermanentSyncError(error) || newRetryCount >= maxRetries;
 
-    if (newRetryCount >= maxRetries) {
+    if (shouldPermanentlyFail) {
       // Mark as permanently failed
       await db.update(
         'sync_queue',
@@ -577,12 +602,36 @@ class SyncOrchestrator {
         whereArgs: [item.id],
       );
     }
+
+    await _refreshPendingCount();
+    await _emitCurrentStatus();
   }
 
   /// Refresh pending count
   Future<void> _refreshPendingCount() async {
     _pendingCount = await getPendingCount();
     _pendingCountController.add(_pendingCount);
+  }
+
+  Future<int> _getFailedCount() async {
+    final db = await _db.database;
+    final result = await db.rawQuery(
+      "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'failed'",
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<void> _emitCurrentStatus() async {
+    final failedCount = await _getFailedCount();
+    if (_pendingCount > 0) {
+      _syncStatusController.add(SyncStatus.hasPending);
+      return;
+    }
+    if (failedCount > 0) {
+      _syncStatusController.add(SyncStatus.error);
+      return;
+    }
+    _syncStatusController.add(SyncStatus.synced);
   }
 
   /// Get collection name for entity type
@@ -729,6 +778,7 @@ class SyncOrchestrator {
     final db = await _db.database;
     final count = await db.delete('sync_queue', where: "status = 'failed'");
     await _refreshPendingCount();
+    await _emitCurrentStatus();
     return count;
   }
 
@@ -738,8 +788,10 @@ class SyncOrchestrator {
     await db.update('sync_queue', {
       'status': 'pending',
       'retryCount': 0,
+      'lastError': null,
     }, where: "status = 'failed'");
     await _refreshPendingCount();
+    await _emitCurrentStatus();
   }
 
   /// Get failed items

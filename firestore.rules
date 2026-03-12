@@ -139,6 +139,16 @@ service cloud.firestore {
       return isEmployee() || isTechnician();
     }
 
+    function hasUserPermission(flag) {
+      return isAuth() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data[flag] == true;
+    }
+
+    function canCreateSales() {
+      return isEmployee() || hasUserPermission('allowViewSales');
+    }
+
     // ═══════════ 1.5 PROTECTED FIELDS ═══════════
     // Client CANNOT modify these - Cloud Functions only
     function changed(field) {
@@ -400,7 +410,7 @@ service cloud.firestore {
       allow read: if isAuth() && docInMyShop();
       
       allow create: if isAuth() && 
-                       isEmployee() &&
+                       canCreateSales() &&
                        newDocInMyShop() &&
                        has(['customerName', 'productNames', 'totalPrice', 'soldAt', 'shopId']) &&
                        str('customerName', 1, 100) &&

@@ -120,6 +120,67 @@ class DBHelper {
     return data;
   }
 
+  Future<void> _ensurePaymentIntentsSchema([DatabaseExecutor? executor]) async {
+    final dbExecutor = executor ?? await database;
+
+    try {
+      await dbExecutor.execute('''
+        CREATE TABLE IF NOT EXISTS payment_intents(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          intentId TEXT UNIQUE NOT NULL,
+          firestoreId TEXT,
+          type TEXT NOT NULL,
+          amount INTEGER NOT NULL,
+          description TEXT,
+          status TEXT DEFAULT 'PENDING',
+          personName TEXT,
+          personPhone TEXT,
+          referenceId TEXT,
+          referenceType TEXT,
+          paymentMethod TEXT,
+          createdBy TEXT,
+          createdAt INTEGER,
+          paidBy TEXT,
+          paidAt INTEGER,
+          notes TEXT,
+          metadata TEXT,
+          shopId TEXT,
+          isSynced INTEGER DEFAULT 0,
+          deleted INTEGER DEFAULT 0,
+          updatedAt INTEGER
+        )
+      ''');
+
+      final cols = await dbExecutor.rawQuery('PRAGMA table_info(payment_intents)');
+      final colNames = cols.map((c) => c['name'] as String).toSet();
+
+      if (!colNames.contains('firestoreId')) {
+        await dbExecutor.execute(
+          'ALTER TABLE payment_intents ADD COLUMN firestoreId TEXT',
+        );
+        _tableColumnsCache.remove('payment_intents');
+      }
+      if (!colNames.contains('deleted')) {
+        await dbExecutor.execute(
+          'ALTER TABLE payment_intents ADD COLUMN deleted INTEGER DEFAULT 0',
+        );
+        _tableColumnsCache.remove('payment_intents');
+      }
+      if (!colNames.contains('updatedAt')) {
+        await dbExecutor.execute(
+          'ALTER TABLE payment_intents ADD COLUMN updatedAt INTEGER',
+        );
+        _tableColumnsCache.remove('payment_intents');
+      }
+
+      await dbExecutor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_payment_intents_firestoreId ON payment_intents(firestoreId)',
+      );
+    } catch (e) {
+      debugPrint('DB: ensure payment_intents schema error: $e');
+    }
+  }
+
   Future<Database> _initDB() async {
     _ensureDatabaseFactoryInitialized();
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
@@ -8095,40 +8156,14 @@ class DBHelper {
   /// Insert a new payment intent
   Future<int> insertPaymentIntent(Map<String, dynamic> data) async {
     final db = await database;
-    // Ensure table exists
-    try {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS payment_intents(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          intentId TEXT UNIQUE NOT NULL,
-          type TEXT NOT NULL,
-          amount INTEGER NOT NULL,
-          description TEXT,
-          status TEXT DEFAULT 'PENDING',
-          personName TEXT,
-          personPhone TEXT,
-          referenceId TEXT,
-          referenceType TEXT,
-          paymentMethod TEXT,
-          createdBy TEXT,
-          createdAt INTEGER,
-          paidBy TEXT,
-          paidAt INTEGER,
-          notes TEXT,
-          metadata TEXT,
-          shopId TEXT,
-          isSynced INTEGER DEFAULT 0
-        )
-      ''');
-    } catch (e) {
-      debugPrint('DB: ensure payment_intents table error: $e');
-    }
+    await _ensurePaymentIntentsSchema(db);
     return await db.insert('payment_intents', data);
   }
 
   /// Get all payment intents (for loading on app start) - filtered by current shopId
   Future<List<Map<String, dynamic>>> getAllPaymentIntents() async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
       return []; // No shopId = return empty list
@@ -8144,6 +8179,7 @@ class DBHelper {
   /// Get pending payment intents (filtered by current shopId)
   Future<List<Map<String, dynamic>>> getPendingPaymentIntents() async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
       // No shopId = return empty list (new shop or not logged in)
@@ -8165,6 +8201,7 @@ class DBHelper {
     String status,
   ) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
       return []; // No shopId = return empty list
@@ -8182,6 +8219,7 @@ class DBHelper {
     String intentId,
   ) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final results = await db.query(
       'payment_intents',
       where: 'intentId = ?',
@@ -8197,6 +8235,7 @@ class DBHelper {
     Map<String, dynamic> data,
   ) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     return await db.update(
       'payment_intents',
       data,
@@ -8214,6 +8253,7 @@ class DBHelper {
     String? paymentMethod,
   }) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final data = <String, dynamic>{'status': status};
     if (paidBy != null) data['paidBy'] = paidBy;
     if (paidAt != null) data['paidAt'] = paidAt;
@@ -8229,6 +8269,7 @@ class DBHelper {
   /// Delete payment intent
   Future<int> deletePaymentIntent(String intentId) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     return await db.delete(
       'payment_intents',
       where: 'intentId = ?',
@@ -8239,6 +8280,7 @@ class DBHelper {
   /// Delete all payment intents linked to a reference (e.g. sale firestoreId)
   Future<int> deletePaymentIntentsByReferenceId(String referenceId) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     return await db.delete(
       'payment_intents',
       where: 'referenceId = ?',
@@ -8251,6 +8293,7 @@ class DBHelper {
     int limit = 100,
   }) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
       // No shopId = return empty list (new shop or not logged in)
@@ -8274,6 +8317,7 @@ class DBHelper {
     String? status,
   }) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
       return []; // No shopId = return empty list
@@ -8301,6 +8345,7 @@ class DBHelper {
   /// Get payment intents that need to be synced to cloud
   Future<List<Map<String, dynamic>>> getPaymentIntentsForSync() async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final shopId = await _getCurrentShopId();
     if (shopId == null) return [];
     return await db.query(
@@ -8315,37 +8360,7 @@ class DBHelper {
   /// Upsert payment intent from cloud sync
   Future<void> upsertPaymentIntent(Map<String, dynamic> data) async {
     final db = await database;
-    // Ensure table exists
-    try {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS payment_intents(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          intentId TEXT UNIQUE NOT NULL,
-          firestoreId TEXT,
-          type TEXT NOT NULL,
-          amount INTEGER NOT NULL,
-          description TEXT,
-          status TEXT DEFAULT 'PENDING',
-          personName TEXT,
-          personPhone TEXT,
-          referenceId TEXT,
-          referenceType TEXT,
-          paymentMethod TEXT,
-          createdBy TEXT,
-          createdAt INTEGER,
-          paidBy TEXT,
-          paidAt INTEGER,
-          notes TEXT,
-          metadata TEXT,
-          shopId TEXT,
-          isSynced INTEGER DEFAULT 0,
-          deleted INTEGER DEFAULT 0,
-          updatedAt INTEGER
-        )
-      ''');
-    } catch (e) {
-      debugPrint('DB: ensure payment_intents table error: $e');
-    }
+    await _ensurePaymentIntentsSchema(db);
 
     final sanitized = _sanitizeForSqlite(data);
     await _filterToTableColumns('payment_intents', sanitized);
@@ -8390,6 +8405,7 @@ class DBHelper {
     String firestoreId,
   ) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     await db.update(
       'payment_intents',
       {'firestoreId': firestoreId, 'isSynced': 1},
@@ -8401,6 +8417,7 @@ class DBHelper {
   /// Delete payment intent by firestoreId (for soft delete from cloud)
   Future<void> deletePaymentIntentByFirestoreId(String firestoreId) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     await db.delete(
       'payment_intents',
       where: 'firestoreId = ?',
@@ -8413,6 +8430,7 @@ class DBHelper {
     String firestoreId,
   ) async {
     final db = await database;
+    await _ensurePaymentIntentsSchema(db);
     final results = await db.query(
       'payment_intents',
       where: 'firestoreId = ?',
