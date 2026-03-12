@@ -33,6 +33,45 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 
+final Completer<void> _firebaseBootstrapCompleter = Completer<void>();
+
+Future<void> get firebaseBootstrapReady => _firebaseBootstrapCompleter.future;
+
+void _markFirebaseBootstrapReady() {
+  if (!_firebaseBootstrapCompleter.isCompleted) {
+    _firebaseBootstrapCompleter.complete();
+  }
+}
+
+Future<void> _initializeDeferredAppServices() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    _markFirebaseBootstrapReady();
+    debugPrint('✅ Firebase initialized');
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+    _markFirebaseBootstrapReady();
+    return;
+  }
+
+  await Future.delayed(const Duration(milliseconds: 150));
+
+  try {
+    await NotificationService.init();
+  } catch (e) {
+    debugPrint('NotificationService initialization failed: $e');
+  }
+  try {
+    await ConnectivityService.instance.initialize();
+  } catch (e) {
+    debugPrint('ConnectivityService initialization failed: $e');
+  }
+}
+
 // Background message handler (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -57,40 +96,9 @@ Future<void> main() async {
       final bool isIOS = !kIsWeb && Platform.isIOS;
 
       if (isIOS) {
-        // On iOS, start app immediately to show UI, then init Firebase in background
+        // On iOS, start app immediately to show UI, then init services in background
         runApp(const MyApp());
-
-        // Initialize Firebase and services after first frame renders
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          try {
-            await Firebase.initializeApp(
-              options: DefaultFirebaseOptions.currentPlatform,
-            );
-
-            // Set up Firebase Messaging background handler
-            FirebaseMessaging.onBackgroundMessage(
-              _firebaseMessagingBackgroundHandler,
-            );
-
-            debugPrint('✅ Firebase initialized (iOS deferred)');
-          } catch (e) {
-            debugPrint('Firebase initialization failed: $e');
-          }
-
-          // Delay notification init to avoid blocking UI
-          await Future.delayed(const Duration(milliseconds: 300));
-
-          try {
-            await NotificationService.init();
-          } catch (e) {
-            debugPrint('NotificationService initialization failed: $e');
-          }
-          try {
-            await ConnectivityService.instance.initialize();
-          } catch (e) {
-            debugPrint('ConnectivityService initialization failed: $e');
-          }
-        });
+        Future.microtask(_initializeDeferredAppServices);
       } else {
         // Android/Web: Initialize Firebase before running app (original behavior)
         try {
@@ -102,6 +110,7 @@ Future<void> main() async {
           FirebaseMessaging.onBackgroundMessage(
             _firebaseMessagingBackgroundHandler,
           );
+          _markFirebaseBootstrapReady();
         } catch (e) {
           debugPrint('Firebase initialization failed: $e');
           rethrow;
@@ -309,7 +318,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // ═════ STEP 0: Khôi phục cache từ SharedPreferences (lần đăng nhập trước) ═════
     final hasLocalCache = await UserService.restoreAuthCache(uid);
     if (hasLocalCache) {
-      debugPrint('♻️ _getRoleAfterSync: Restored shopId from prefs = ${UserService.getShopIdSync()}');
+      debugPrint(
+        '♻️ _getRoleAfterSync: Restored shopId from prefs = ${UserService.getShopIdSync()}',
+      );
     }
 
     // Kiểm tra super admin TRƯỚC - không cần sync data
@@ -317,9 +328,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (isSuperAdmin) {
       // Vẫn sync nhưng không chặn
       try {
-        await UserService.syncUserInfo(uid, email).timeout(
-          const Duration(seconds: 10),
-        );
+        await UserService.syncUserInfo(
+          uid,
+          email,
+        ).timeout(const Duration(seconds: 10));
         await CurrentShopService().init();
       } catch (e) {
         debugPrint('⚠️ Super admin sync error (non-fatal): $e');
@@ -347,7 +359,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         );
       }
       debugPrint('✅ _getRoleAfterSync: syncUserInfo completed');
-      
+
       try {
         await CurrentShopService().init();
       } catch (e) {
@@ -364,8 +376,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // Fallback 1: ensureShopId nếu cache trống
     if (currentShopId == null || currentShopId.isEmpty) {
       try {
-        currentShopId = await UserService.ensureShopId(maxRetries: 2)
-            .timeout(const Duration(seconds: 8));
+        currentShopId = await UserService.ensureShopId(
+          maxRetries: 2,
+        ).timeout(const Duration(seconds: 8));
         debugPrint('✅ shopId from ensureShopId: $currentShopId');
       } catch (e) {
         debugPrint('⚠️ ensureShopId failed: $e');
@@ -375,8 +388,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // Fallback 2: Claims
     if (currentShopId == null || currentShopId.isEmpty) {
       try {
-        currentShopId = await ClaimsService().getShopIdFromClaims()
-            .timeout(const Duration(seconds: 5));
+        currentShopId = await ClaimsService().getShopIdFromClaims().timeout(
+          const Duration(seconds: 5),
+        );
         debugPrint('📌 shopId from claims: $currentShopId');
       } catch (e) {
         debugPrint('⚠️ getShopIdFromClaims failed: $e');
@@ -385,7 +399,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     // Fallback 3: TRÊN WEB - thử dùng uid làm shopId (owner mặc định)
     // Chỉ dùng uid khi KHÔNG có cache từ lần đăng nhập trước
-    if (kIsWeb && (currentShopId == null || currentShopId.isEmpty) && !hasLocalCache) {
+    if (kIsWeb &&
+        (currentShopId == null || currentShopId.isEmpty) &&
+        !hasLocalCache) {
       debugPrint('⚠️ [WEB] Tất cả cách lấy shopId thất bại, thử uid=$uid');
       currentShopId = uid;
       UserService.updateCachedShopId(currentShopId);
@@ -405,7 +421,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     try {
       await _checkAndClearLocalDataIfShopChanged(currentShopId);
     } catch (e) {
-      debugPrint('⚠️ _checkAndClearLocalDataIfShopChanged error (non-fatal): $e');
+      debugPrint(
+        '⚠️ _checkAndClearLocalDataIfShopChanged error (non-fatal): $e',
+      );
     }
 
     // ═══════════ STEP 4: Download dữ liệu ═══════════
@@ -416,7 +434,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           await SyncService.downloadAllFromCloud(force: true).timeout(
             const Duration(seconds: 20),
             onTimeout: () {
-              debugPrint('⚠️ [WEB] Sync timeout sau 20s, tiếp tục với data hiện có...');
+              debugPrint(
+                '⚠️ [WEB] Sync timeout sau 20s, tiếp tục với data hiện có...',
+              );
             },
           );
           debugPrint('✅ [WEB] Sync hoàn thành');
@@ -441,7 +461,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
             await SyncService.downloadAllFromCloud(force: true).timeout(
               const Duration(seconds: 20),
               onTimeout: () {
-                debugPrint('⚠️ Sync timeout sau 20s, tiếp tục với data local...');
+                debugPrint(
+                  '⚠️ Sync timeout sau 20s, tiếp tục với data local...',
+                );
               },
             );
             debugPrint('✅ Sync hoàn thành');
@@ -467,8 +489,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // ═══════════ STEP 5: Lấy role ═══════════
     String role = 'user';
     try {
-      role = await UserService.getUserRole(uid)
-          .timeout(const Duration(seconds: 8));
+      role = await UserService.getUserRole(
+        uid,
+      ).timeout(const Duration(seconds: 8));
     } catch (e) {
       debugPrint('⚠️ getUserRole failed: $e');
       // Fallback: dùng role đã lưu từ lần đăng nhập trước
@@ -556,7 +579,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
               );
             }
             if (roleSnap.hasError || !roleSnap.hasData) {
-              final errorMsg = roleSnap.error?.toString() ?? 'Không thể tải dữ liệu';
+              final errorMsg =
+                  roleSnap.error?.toString() ?? 'Không thể tải dữ liệu';
               debugPrint('❌ AuthGate error: $errorMsg');
               return Scaffold(
                 body: Center(
@@ -565,11 +589,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.cloud_off, size: 64, color: Colors.orange),
+                        const Icon(
+                          Icons.cloud_off,
+                          size: 64,
+                          color: Colors.orange,
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Lỗi kết nối',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -611,7 +640,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
             // Super admin: Chuyển đến màn hình chọn shop
             if (isSuperAdmin) {
-              return ShopSelectorView(key: const ValueKey('shop_selector'), setLocale: widget.setLocale);
+              return ShopSelectorView(
+                key: const ValueKey('shop_selector'),
+                setLocale: widget.setLocale,
+              );
             }
 
             // Seed test data cho tài khoản debug (1 lần duy nhất)
@@ -625,17 +657,26 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                 }
                 // Force refresh claims to fix permission-denied
                 if (prefs.getBool('claims_refreshed') != true) {
-                  ClaimsService().refreshMyClaims().then((_) {
-                    prefs.setBool('claims_refreshed', true);
-                    debugPrint('🔑 Claims refreshed for test account');
-                  }).catchError((e) => debugPrint('⚠️ Claims refresh failed: $e'));
+                  ClaimsService()
+                      .refreshMyClaims()
+                      .then((_) {
+                        prefs.setBool('claims_refreshed', true);
+                        debugPrint('🔑 Claims refreshed for test account');
+                      })
+                      .catchError(
+                        (e) => debugPrint('⚠️ Claims refresh failed: $e'),
+                      );
                 }
               });
             }
 
             // User thường: Vào HomeView
             // Use ValueKey to prevent State recreation on StreamBuilder rebuilds (iOS auth re-emit)
-            return HomeView(key: const ValueKey('home_view'), role: role, setLocale: widget.setLocale);
+            return HomeView(
+              key: const ValueKey('home_view'),
+              role: role,
+              setLocale: widget.setLocale,
+            );
           },
         );
       },
@@ -650,7 +691,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         subMessage: 'Vui lòng đợi trong giây lát...',
       );
     }
-    
+
     // Fallback simple loading cho các trường hợp nhanh
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),

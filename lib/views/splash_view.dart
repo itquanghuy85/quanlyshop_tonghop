@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
 import '../main.dart';
 import 'intro_view.dart';
 
@@ -16,6 +15,7 @@ class SplashView extends StatefulWidget {
 
 class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   String _status = "";
+  bool _isNavigating = false;
 
   // Animation controllers
   late AnimationController _bgController;
@@ -53,9 +53,10 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
       duration: const Duration(seconds: 8),
       vsync: this,
     )..repeat(reverse: true);
-    _bgAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _bgController, curve: Curves.easeInOut),
-    );
+    _bgAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _bgController, curve: Curves.easeInOut));
 
     // Logo entrance: scale from 0.3 + rotate + fade in
     _logoController = AnimationController(
@@ -92,13 +93,13 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
       ),
     );
-    _titleSlide = Tween<Offset>(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _textController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
-    ));
+    _titleSlide = Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
+        .animate(
+          CurvedAnimation(
+            parent: _textController,
+            curve: const Interval(0.0, 0.6, curve: Curves.easeOutCubic),
+          ),
+        );
     _subtitleOpacity = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(
         parent: _textController,
@@ -164,58 +165,74 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   Future<void> _startInit() async {
     // Remove native splash as soon as Flutter splash is visible
     FlutterNativeSplash.remove();
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (mounted) setState(() => _status = "Đang khởi tạo hệ thống...");
-
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (mounted) setState(() => _status = "Đang nạp cấu hình cửa hàng...");
-
-    await Future.delayed(const Duration(milliseconds: 300));
-    if (mounted) setState(() => _status = "Đang kết nối đám mây...");
-
-    // Wait for Firebase
-    int waitCount = 0;
-    while (!Firebase.apps.isNotEmpty && waitCount < 50) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      waitCount++;
-      if (waitCount % 10 == 0) {
-        debugPrint('⏳ Waiting for Firebase init... ($waitCount)');
-      }
+    if (mounted) {
+      setState(() => _status = "Đang khởi tạo hệ thống...");
     }
-
-    if (Firebase.apps.isEmpty) {
-      debugPrint('⚠️ Firebase still not initialized after 5s, continuing anyway');
-    } else {
-      debugPrint('✅ Firebase ready, proceeding with navigation');
-    }
-
-    if (mounted) setState(() => _status = "Sẵn sàng!");
-    await Future.delayed(const Duration(milliseconds: 200));
 
     final prefs = await SharedPreferences.getInstance();
     final isFirstTime = prefs.getBool('is_first_time') ?? true;
 
+    _runStatusSequence(waitForCloud: !isFirstTime);
+
+    if (!isFirstTime) {
+      try {
+        await firebaseBootstrapReady.timeout(
+          const Duration(seconds: 3),
+          onTimeout: () {
+            debugPrint(
+              '⚠️ Firebase bootstrap timeout on splash, continue to AuthGate',
+            );
+          },
+        );
+      } catch (e) {
+        debugPrint('⚠️ Splash bootstrap wait error: $e');
+      }
+    }
+
+    if (mounted) {
+      setState(() => _status = "Sẵn sàng!");
+    }
+    await Future.delayed(const Duration(milliseconds: 120));
+
     if (!mounted) return;
 
     if (isFirstTime) {
+      _isNavigating = true;
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => IntroView(setLocale: widget.setLocale),
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 500),
         ),
       );
     } else {
+      _isNavigating = true;
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => AuthGate(setLocale: widget.setLocale),
-          transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 500),
         ),
       );
     }
+  }
+
+  Future<void> _runStatusSequence({required bool waitForCloud}) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    if (!mounted || _isNavigating) return;
+    setState(() => _status = "Đang nạp cấu hình cửa hàng...");
+
+    if (!waitForCloud) {
+      return;
+    }
+
+    await Future.delayed(const Duration(milliseconds: 120));
+    if (!mounted || _isNavigating) return;
+    setState(() => _status = "Đang kết nối đám mây...");
   }
 
   @override
@@ -300,7 +317,8 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         final t = _particleController.value;
         final dx = math.sin(t * math.pi * 2 + p.phase) * p.driftX;
         final dy = math.cos(t * math.pi * 2 + p.phaseY) * p.driftY;
-        final opacity = p.baseOpacity *
+        final opacity =
+            p.baseOpacity *
             (0.4 + 0.6 * (0.5 + 0.5 * math.sin(t * math.pi * 2 + p.phase)));
 
         return Positioned(
@@ -312,10 +330,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
-                colors: [
-                  p.color.withOpacity(opacity),
-                  p.color.withOpacity(0),
-                ],
+                colors: [p.color.withOpacity(opacity), p.color.withOpacity(0)],
               ),
             ),
           ),
@@ -447,9 +462,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.15),
-          ),
+          border: Border.all(color: Colors.white.withOpacity(0.15)),
           color: Colors.white.withOpacity(0.06),
         ),
         child: Text(
@@ -543,19 +556,19 @@ class _SplashParticle {
   final Color color;
 
   _SplashParticle(math.Random rng)
-      : x = rng.nextDouble(),
-        y = rng.nextDouble(),
-        size = 3 + rng.nextDouble() * 20,
-        baseOpacity = 0.04 + rng.nextDouble() * 0.1,
-        phase = rng.nextDouble() * math.pi * 2,
-        phaseY = rng.nextDouble() * math.pi * 2,
-        driftX = 3 + rng.nextDouble() * 12,
-        driftY = 3 + rng.nextDouble() * 12,
-        color = [
-          const Color(0xFF42A5F5),
-          const Color(0xFF64B5F6),
-          const Color(0xFF90CAF9),
-          const Color(0xFF7C4DFF),
-          const Color(0xFF448AFF),
-        ][rng.nextInt(5)];
+    : x = rng.nextDouble(),
+      y = rng.nextDouble(),
+      size = 3 + rng.nextDouble() * 20,
+      baseOpacity = 0.04 + rng.nextDouble() * 0.1,
+      phase = rng.nextDouble() * math.pi * 2,
+      phaseY = rng.nextDouble() * math.pi * 2,
+      driftX = 3 + rng.nextDouble() * 12,
+      driftY = 3 + rng.nextDouble() * 12,
+      color = [
+        const Color(0xFF42A5F5),
+        const Color(0xFF64B5F6),
+        const Color(0xFF90CAF9),
+        const Color(0xFF7C4DFF),
+        const Color(0xFF448AFF),
+      ][rng.nextInt(5)];
 }
