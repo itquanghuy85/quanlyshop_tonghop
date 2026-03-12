@@ -95,12 +95,15 @@ class DBHelper {
   static final Map<String, Set<String>> _tableColumnsCache = {};
 
   /// Get valid column names for a table, cached for performance
-  Future<Set<String>> _getTableColumns(String table) async {
+  Future<Set<String>> _getTableColumns(
+    String table, {
+    DatabaseExecutor? executor,
+  }) async {
     if (_tableColumnsCache.containsKey(table)) {
       return _tableColumnsCache[table]!;
     }
-    final db = await database;
-    final cols = await db.rawQuery('PRAGMA table_info($table)');
+    final dbExecutor = executor ?? await database;
+    final cols = await dbExecutor.rawQuery('PRAGMA table_info($table)');
     final names = cols.map((c) => c['name'] as String).toSet();
     _tableColumnsCache[table] = names;
     return names;
@@ -110,8 +113,10 @@ class DBHelper {
   Future<Map<String, dynamic>> _filterToTableColumns(
     String table,
     Map<String, dynamic> data,
-  ) async {
-    final validCols = await _getTableColumns(table);
+    {
+    DatabaseExecutor? executor,
+  }) async {
+    final validCols = await _getTableColumns(table, executor: executor);
     data.removeWhere((key, _) => !validCols.contains(key));
     return data;
   }
@@ -3008,7 +3013,7 @@ class DBHelper {
         '_encrypted',
       ); // Field metadata của Firestore, không lưu SQLite
       // Strip any Firestore fields not in SQLite schema
-      await _filterToTableColumns(table, data);
+      await _filterToTableColumns(table, data, executor: txn);
       if (existing.isNotEmpty) {
         await txn.update(
           table,
