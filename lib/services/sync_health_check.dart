@@ -449,18 +449,18 @@ class SyncHealthCheck {
         if (name.isNotEmpty) return 'name:$name';
         break;
       case 'suppliers':
+        final name = _normalizeText(row['name']);
+        final phone = _normalizePhone(row['phone']);
+        if (name.isNotEmpty || phone.isNotEmpty) {
+          return 'supplier:$name|phone:$phone';
+        }
+
         final supplierFirestoreId = _normalizeText(
           row['firestoreId'] ?? fallbackId,
         );
         if (supplierFirestoreId.isNotEmpty) {
           return 'id:$supplierFirestoreId';
         }
-
-        final name = _normalizeText(row['name']);
-        if (name.isNotEmpty) return 'name:$name';
-
-        final phone = _normalizePhone(row['phone']);
-        if (phone.isNotEmpty) return 'phone:$phone';
         break;
       case 'repair_parts':
         final repairPartFirestoreId = _normalizeText(
@@ -615,6 +615,18 @@ class SyncHealthCheck {
       } catch (e) {
         debugPrint('   ❌ Lỗi xử lý $collection: $e');
       }
+    }
+
+    // Chạy thêm luồng full download chuẩn để các collection đặc thù như
+    // repair_parts dùng đúng đường map/upsert đang chạy thực tế trong app.
+    debugPrint(
+      '📥 Bước 2b: Đồng bộ lại bằng downloadAllFromCloud(force: true)...',
+    );
+    try {
+      await SyncService.downloadAllFromCloud(force: true);
+      debugPrint('✅ downloadAllFromCloud hoàn thành');
+    } catch (e) {
+      debugPrint('❌ Lỗi downloadAllFromCloud trong autoFix: $e');
     }
 
     // BƯỚC 3: Đánh dấu tất cả records local đã có firestoreId là synced
