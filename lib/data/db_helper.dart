@@ -186,16 +186,16 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 90,
+      version: 91,
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, sellerUid TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
@@ -1300,6 +1300,20 @@ class DBHelper {
           } catch (e) {
             debugPrint('v90 error (leave_requests): $e');
           }
+        }
+        if (oldV < 91) {
+          for (final col in [
+            'createdByUid TEXT',
+            'repairedByUid TEXT',
+            'deliveredByUid TEXT',
+          ]) {
+            try {
+              await db.execute('ALTER TABLE repairs ADD COLUMN $col');
+            } catch (_) {}
+          }
+          try {
+            await db.execute('ALTER TABLE sales ADD COLUMN sellerUid TEXT');
+          } catch (_) {}
         }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
@@ -2807,6 +2821,18 @@ class DBHelper {
             );
             debugPrint('DB onOpen: added deleted to repairs');
           }
+          if (!colNames.contains('createdByUid')) {
+            await db.execute('ALTER TABLE repairs ADD COLUMN createdByUid TEXT');
+            debugPrint('DB onOpen: added createdByUid to repairs');
+          }
+          if (!colNames.contains('repairedByUid')) {
+            await db.execute('ALTER TABLE repairs ADD COLUMN repairedByUid TEXT');
+            debugPrint('DB onOpen: added repairedByUid to repairs');
+          }
+          if (!colNames.contains('deliveredByUid')) {
+            await db.execute('ALTER TABLE repairs ADD COLUMN deliveredByUid TEXT');
+            debugPrint('DB onOpen: added deliveredByUid to repairs');
+          }
         } catch (e) {
           debugPrint('DB onOpen check error (repairs columns): $e');
         }
@@ -2824,6 +2850,10 @@ class DBHelper {
               'ALTER TABLE sales ADD COLUMN deleted INTEGER DEFAULT 0',
             );
             debugPrint('DB onOpen: added deleted to sales');
+          }
+          if (!colNames.contains('sellerUid')) {
+            await db.execute('ALTER TABLE sales ADD COLUMN sellerUid TEXT');
+            debugPrint('DB onOpen: added sellerUid to sales');
           }
         } catch (e) {
           debugPrint('DB onOpen check error (sales columns): $e');

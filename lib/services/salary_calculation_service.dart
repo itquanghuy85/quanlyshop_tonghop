@@ -16,6 +16,11 @@ class SalaryCalculationService {
   static final DBHelper _db = DBHelper();
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  static bool _matchesStaffUid(String? value, String staffId) {
+    if (value == null || value.isEmpty) return false;
+    return value == staffId;
+  }
+
   /// So sánh linh hoạt giữa giá trị trên đơn (sellerName/repairedBy/createdBy)
   /// với thông tin nhân viên (email prefix + displayName).
   /// sellerName/repairedBy thường lưu dạng email prefix uppercase (VD: "HUY")
@@ -294,9 +299,13 @@ class SalaryCalculationService {
           data = EncryptionService.decryptMap(data);
           
           final sellerName = (data['sellerName'] ?? '').toString();
+          final sellerUid = (data['sellerUid'] ?? '').toString();
           final deleted = data['deleted'] == true;
           
-          if (!deleted && _matchesStaff(sellerName, emailPrefix, displayName)) {
+          final matchesSeller = _matchesStaffUid(sellerUid, staffId) ||
+              _matchesStaff(sellerName, emailPrefix, displayName);
+
+          if (!deleted && matchesSeller) {
             saleOrderCount++;
             final totalPrice = (data['totalPrice'] ?? 0).toDouble();
             final discountVal = (data['discount'] ?? 0).toDouble();
@@ -314,7 +323,8 @@ class SalaryCalculationService {
       final allSales = await _db.getAllSales();
       final staffSales = allSales
           .where((s) =>
-              _matchesStaff(s.sellerName, emailPrefix, displayName) &&
+            (_matchesStaffUid(s.sellerUid, staffId) ||
+              _matchesStaff(s.sellerName, emailPrefix, displayName)) &&
               s.soldAt >= startMs &&
               s.soldAt <= endMs)
           .toList();
@@ -352,13 +362,21 @@ class SalaryCalculationService {
           
           // Doanh số sửa chữa chỉ tính cho người sửa xong (repairedBy), không tính cho người nhận/giao
           final repairedBy = (data['repairedBy'] ?? '').toString();
+            final repairedByUid = (data['repairedByUid'] ?? '').toString();
           final createdBy = (data['createdBy'] ?? '').toString();
+            final createdByUid = (data['createdByUid'] ?? '').toString();
           final deleted = data['deleted'] == true;
           final deliveredAt = data['deliveredAt'] as int?;
           
           // Match by repairedBy, or fallback to createdBy for old repairs
-          final matchesByRepaired = _matchesStaff(repairedBy, emailPrefix, displayName);
-          final matchesByCreated = repairedBy.isEmpty && _matchesStaff(createdBy, emailPrefix, displayName);
+            final matchesByRepaired =
+              _matchesStaffUid(repairedByUid, staffId) ||
+              _matchesStaff(repairedBy, emailPrefix, displayName);
+            final matchesByCreated =
+              repairedByUid.isEmpty &&
+              repairedBy.isEmpty &&
+              (_matchesStaffUid(createdByUid, staffId) ||
+                _matchesStaff(createdBy, emailPrefix, displayName));
           
           if (!deleted && 
               (matchesByRepaired || matchesByCreated) &&
@@ -379,9 +397,14 @@ class SalaryCalculationService {
       final allRepairs = await _db.getAllRepairs();
       final staffRepairs = allRepairs
           .where((r) {
-              final matchRepaired = _matchesStaff(r.repairedBy, emailPrefix, displayName);
-              final matchCreated = (r.repairedBy == null || r.repairedBy!.isEmpty) &&
-                  _matchesStaff(r.createdBy, emailPrefix, displayName);
+            final matchRepaired =
+              _matchesStaffUid(r.repairedByUid, staffId) ||
+              _matchesStaff(r.repairedBy, emailPrefix, displayName);
+            final matchCreated =
+              (r.repairedByUid == null || r.repairedByUid!.isEmpty) &&
+              (r.repairedBy == null || r.repairedBy!.isEmpty) &&
+              (_matchesStaffUid(r.createdByUid, staffId) ||
+                _matchesStaff(r.createdBy, emailPrefix, displayName));
               return (matchRepaired || matchCreated) &&
                   r.status == 4 &&
                   r.deliveredAt != null &&

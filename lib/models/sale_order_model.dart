@@ -14,6 +14,7 @@ class SaleOrder {
   int discount; // Số tiền giảm trừ trực tiếp
   String paymentMethod;
   String sellerName;
+  String? sellerUid;
   int soldAt;
   String? notes;
   String? gifts;
@@ -56,6 +57,7 @@ class SaleOrder {
     this.discount = 0,
     this.paymentMethod = "TIỀN MẶT",
     required this.sellerName,
+    this.sellerUid,
     required this.soldAt,
     this.notes,
     this.gifts,
@@ -109,6 +111,7 @@ class SaleOrder {
       'discount': discount,
       'paymentMethod': paymentMethod.toUpperCase(),
       'sellerName': sellerName.toUpperCase(),
+      'sellerUid': sellerUid,
       'soldAt': soldAt,
       'notes': notes,
       'gifts': gifts?.toUpperCase(),
@@ -178,6 +181,7 @@ class SaleOrder {
       discount: discount,
       paymentMethod: map['paymentMethod'] ?? "TIỀN MẶT",
       sellerName: map['sellerName'] ?? "",
+      sellerUid: map['sellerUid'],
       soldAt: map['soldAt'] is int ? map['soldAt'] : 0,
       notes: map['notes'],
       gifts: map['gifts'],

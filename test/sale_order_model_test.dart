@@ -3,6 +3,12 @@ import 'package:quanlyshop/models/sale_order_model.dart';
 
 void main() {
   group('SaleOrder.fromMap', () {
+    test('fromMap keeps sellerUid when present', () {
+      final map = {'totalPrice': 100, 'totalCost': 50, 'customerName': 'Test', 'phone': '123', 'productNames': 'Phone', 'productImeis': 'IMEI', 'sellerName': 'Seller', 'sellerUid': 'uid-1', 'soldAt': 1234567890};
+      final sale = SaleOrder.fromMap(map);
+      expect(sale.sellerUid, 'uid-1');
+    });
+
     test('fromMap with invalid totalPrice string', () {
       final map = {'totalPrice': 'abc', 'totalCost': 100, 'customerName': 'Test', 'phone': '123', 'productNames': 'Phone', 'productImeis': 'IMEI', 'sellerName': 'Seller', 'soldAt': 1234567890};
       final sale = SaleOrder.fromMap(map);

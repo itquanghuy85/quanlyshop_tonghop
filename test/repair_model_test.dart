@@ -66,5 +66,25 @@ void main() {
       expect(map['services'], isNotNull);
       expect(map['services'], contains('Test Service'));
     });
+
+    test('toMap/fromMap should preserve attribution UIDs', () {
+      final repair = Repair(
+        customerName: 'Test Customer',
+        phone: '123456789',
+        model: 'Test Model',
+        issue: 'Test Issue',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+        createdByUid: 'creator-1',
+        repairedByUid: 'tech-1',
+        deliveredByUid: 'manager-1',
+      );
+
+      final mapped = repair.toMap();
+      final restored = Repair.fromMap(mapped);
+
+      expect(restored.createdByUid, 'creator-1');
+      expect(restored.repairedByUid, 'tech-1');
+      expect(restored.deliveredByUid, 'manager-1');
+    });
   });
 }

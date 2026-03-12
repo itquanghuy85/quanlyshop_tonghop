@@ -434,6 +434,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         cost: totalCost,
         createdAt: now,
         imagePath: cloudImagePaths,
+        createdByUid: FirebaseAuth.instance.currentUser?.uid,
         createdBy:
             FirebaseAuth.instance.currentUser?.email
                 ?.split('@')

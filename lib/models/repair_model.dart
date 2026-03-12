@@ -39,8 +39,11 @@ class Repair {
   int? finishedAt;
   int? deliveredAt;
   String? createdBy;
+  String? createdByUid;
   String? repairedBy;
+  String? repairedByUid;
   String? deliveredBy;
+  String? deliveredByUid;
   int? lastCaredAt;
   bool isSynced;
   bool deleted;
@@ -145,8 +148,11 @@ class Repair {
     this.finishedAt,
     this.deliveredAt,
     this.createdBy,
+    this.createdByUid,
     this.repairedBy,
+    this.repairedByUid,
     this.deliveredBy,
+    this.deliveredByUid,
     this.lastCaredAt,
     this.isSynced = false,
     this.deleted = false,
@@ -201,8 +207,11 @@ class Repair {
       'finishedAt': finishedAt,
       'deliveredAt': deliveredAt,
       'createdBy': createdBy,
+      'createdByUid': createdByUid,
       'repairedBy': repairedBy,
+      'repairedByUid': repairedByUid,
       'deliveredBy': deliveredBy,
+      'deliveredByUid': deliveredByUid,
       'lastCaredAt': lastCaredAt,
       'isSynced': isSynced ? 1 : 0,
       'deleted': deleted ? 1 : 0,
@@ -245,8 +254,11 @@ class Repair {
       finishedAt: map['finishedAt'],
       deliveredAt: map['deliveredAt'],
       createdBy: map['createdBy'],
+      createdByUid: map['createdByUid'],
       repairedBy: map['repairedBy'],
+      repairedByUid: map['repairedByUid'],
       deliveredBy: map['deliveredBy'],
+      deliveredByUid: map['deliveredByUid'],
       lastCaredAt: map['lastCaredAt'],
       isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
       deleted: map['deleted'] == 1 || map['deleted'] == true,
@@ -296,8 +308,11 @@ class Repair {
     int? finishedAt,
     int? deliveredAt,
     String? createdBy,
+    String? createdByUid,
     String? repairedBy,
+    String? repairedByUid,
     String? deliveredBy,
+    String? deliveredByUid,
     int? lastCaredAt,
     bool? isSynced,
     bool? deleted,
@@ -337,8 +352,11 @@ class Repair {
       finishedAt: finishedAt ?? this.finishedAt,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       createdBy: createdBy ?? this.createdBy,
+      createdByUid: createdByUid ?? this.createdByUid,
       repairedBy: repairedBy ?? this.repairedBy,
+      repairedByUid: repairedByUid ?? this.repairedByUid,
       deliveredBy: deliveredBy ?? this.deliveredBy,
+      deliveredByUid: deliveredByUid ?? this.deliveredByUid,
       lastCaredAt: lastCaredAt ?? this.lastCaredAt,
       isSynced: isSynced ?? this.isSynced,
       deleted: deleted ?? this.deleted,

@@ -334,6 +334,12 @@ class NotificationService {
     // Handle when app is opened from notification
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
+    // Handle cold start from terminated state via notification tap.
+    final initialMessage = await _firebaseMessaging.getInitialMessage();
+    if (initialMessage != null) {
+      _handleMessageOpenedApp(initialMessage);
+    }
+
     // Subscribe to staff topic for business notifications
     await _firebaseMessaging.subscribeToTopic('staff');
 
@@ -350,6 +356,8 @@ class NotificationService {
       }
       if (apnsToken == null) {
         debugPrint('APNs token not available - FCM may not work on iOS');
+      } else {
+        debugPrint('APNs token available on iOS');
       }
     }
 

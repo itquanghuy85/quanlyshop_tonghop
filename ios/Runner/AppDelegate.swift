@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import FirebaseCore
 import FirebaseMessaging
+import UserNotifications
 
 // Mark AppDelegate as @MainActor to fix Sendable warnings in Xcode 16.2
 @main
@@ -43,6 +44,12 @@ import FirebaseMessaging
     Messaging.messaging().apnsToken = deviceToken
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
+
+  override func application(_ application: UIApplication,
+                           didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    print("APNs registration failed: \(error.localizedDescription)")
+    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
 }
 
 // MARK: - MessagingDelegate
@@ -57,5 +64,20 @@ extension AppDelegate: MessagingDelegate {
         userInfo: dataDict
       )
     }
+  }
+}
+
+// MARK: - UNUserNotificationCenterDelegate
+extension AppDelegate: UNUserNotificationCenterDelegate {
+  nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                          willPresent notification: UNNotification,
+                                          withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+    completionHandler([.banner, .badge, .sound, .list])
+  }
+
+  nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                          didReceive response: UNNotificationResponse,
+                                          withCompletionHandler completionHandler: @escaping () -> Void) {
+    completionHandler()
   }
 }

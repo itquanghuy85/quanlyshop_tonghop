@@ -888,12 +888,12 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 : 'walkin');
       final String uniqueId =
           widget.editSale?.firestoreId ?? "sale_${now}_$safeTail";
+        final currentUser = FirebaseAuth.instance.currentUser;
       String seller =
-          FirebaseAuth.instance.currentUser?.email
-              ?.split('@')
-              .first
-              .toUpperCase() ??
-          "NV";
+          widget.editSale?.sellerName.isNotEmpty == true
+          ? widget.editSale!.sellerName
+          : currentUser?.email?.split('@').first.toUpperCase() ?? "NV";
+        final sellerUid = widget.editSale?.sellerUid ?? currentUser?.uid;
       int totalPrice = _parseCurrency(priceCtrl.text);
 
       // Parse discount và tính finalPrice (thành tiền sau giảm giá)
@@ -1000,6 +1000,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         discount: discount,
         paymentMethod: _paymentMethod,
         sellerName: seller,
+        sellerUid: sellerUid,
         // FIX: Giữ nguyên soldAt gốc khi edit, không thay đổi ngày bán
         soldAt: widget.editSale?.soldAt ?? now,
         isInstallment: _isInstallment,
