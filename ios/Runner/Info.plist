@@ -32,6 +32,10 @@
 	<string>Ứng dụng cần Bluetooth để kết nối máy in nhiệt.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Ứng dụng cần sử dụng Camera để chụp ảnh máy khách hàng và quét mã vạch/IMEI.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
