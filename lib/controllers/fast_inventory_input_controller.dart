@@ -75,6 +75,9 @@ class FastInventoryInputController {
   // Batch save with transaction
   Future<void> saveProductBatch(Map<String, dynamic> productData) async {
     final database = await db.database;
+    final suppliers = await getSuppliers();
+    final shopId = UserService.getShopIdSync() ??
+        await UserService.getCurrentShopId();
 
     await database.transaction((txn) async {
       // 1. Create and upsert product
@@ -85,7 +88,13 @@ class FastInventoryInputController {
       await _handleFinanceInTxn(txn, productData, product);
 
       // 3. Handle supplier operations
-      await _handleSupplierOperationsInTxn(txn, productData, product);
+      await _handleSupplierOperationsInTxn(
+        txn,
+        productData,
+        product,
+        suppliers,
+        shopId,
+      );
     });
 
     // 4. Log action (outside transaction)
@@ -98,8 +107,9 @@ class FastInventoryInputController {
 
   // Save multiple products in parallel
   Future<void> saveBatchProducts(List<Map<String, dynamic>> batchItems) async {
-    final futures = batchItems.map((item) => saveProductBatch(item));
-    await Future.wait(futures);
+    for (final item in batchItems) {
+      await saveProductBatch(item);
+    }
   }
 
   Product _createProductFromData(Map<String, dynamic> data) {
@@ -186,16 +196,25 @@ class FastInventoryInputController {
       desc: "Đã nhập máy ${product.name}",
     );
   }
-
-
-
-  Future<void> _handleSupplierOperationsInTxn(dynamic txn, Map<String, dynamic> data, Product product) async {
-    final suppliers = await getSuppliers();
+  Future<void> _handleSupplierOperationsInTxn(
+    dynamic txn,
+    Map<String, dynamic> data,
+    Product product,
+    List<Map<String, dynamic>> suppliers,
+    String? shopId,
+  ) async {
     final supplierData = suppliers.firstWhere(
-      (s) => s['name'] == data['supplier'],
+      (s) {
+        if (s['name'] != data['supplier']) return false;
+        if (s['deleted'] == 1 || s['deleted'] == true) return false;
+        if (shopId == null || shopId.isEmpty) return true;
+        final supplierShopId = s['shopId'] as String?;
+        return supplierShopId == null ||
+            supplierShopId.isEmpty ||
+            supplierShopId == shopId;
+      },
       orElse: () => {},
     );
-    final shopId = await UserService.getCurrentShopId();
 
     if (supplierData.isNotEmpty) {
       final supplierId = supplierData['id'];
