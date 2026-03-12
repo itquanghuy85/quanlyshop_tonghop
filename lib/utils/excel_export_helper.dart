@@ -29,6 +29,19 @@ class ExcelExportHelper {
   static final _dateTimeFormat = DateFormat('dd/MM/yyyy HH:mm');
   static final _monthFormat = DateFormat('MM/yyyy');
 
+  static String _attendanceStatusLabel(String status) {
+    switch (status) {
+      case 'approved':
+        return 'Đã duyệt';
+      case 'rejected':
+        return 'Từ chối';
+      case 'completed':
+      case 'pending':
+      default:
+        return 'Chờ duyệt';
+    }
+  }
+
   // ──────────────────────────────────────────────
   //  PRIVATE HELPERS
   // ──────────────────────────────────────────────
@@ -127,9 +140,9 @@ class ExcelExportHelper {
       final bytes = excel.save();
       if (bytes == null) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lỗi tạo file Excel')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Lỗi tạo file Excel')));
         }
         return;
       }
@@ -251,18 +264,15 @@ class ExcelExportHelper {
         await OpenFilex.open(savedPath);
       } else if (action == 'share' && context.mounted) {
         await SharePlus.instance.share(
-          ShareParams(
-            files: [XFile(tempPath)],
-            title: fileName,
-          ),
+          ShareParams(files: [XFile(tempPath)], title: fileName),
         );
       }
     } catch (e) {
       debugPrint('Excel export error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xuất file: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi xuất file: $e')));
       }
     }
   }
@@ -270,12 +280,12 @@ class ExcelExportHelper {
   /// Build filename with date range
   static String _buildFileName(String prefix, int? startMs, int? endMs) {
     if (startMs != null && endMs != null) {
-      final s = DateFormat('ddMMyyyy').format(
-        DateTime.fromMillisecondsSinceEpoch(startMs),
-      );
-      final e = DateFormat('ddMMyyyy').format(
-        DateTime.fromMillisecondsSinceEpoch(endMs),
-      );
+      final s = DateFormat(
+        'ddMMyyyy',
+      ).format(DateTime.fromMillisecondsSinceEpoch(startMs));
+      final e = DateFormat(
+        'ddMMyyyy',
+      ).format(DateTime.fromMillisecondsSinceEpoch(endMs));
       return '${prefix}_${s}_$e.xlsx';
     }
     final now = DateFormat('ddMMyyyy_HHmm').format(DateTime.now());
@@ -528,12 +538,12 @@ class ExcelExportHelper {
     List<Attendance> list;
     if (startMs != null && endMs != null) {
       // Convert ms → dateKey format yyyy-MM-dd
-      final startKey = DateFormat('yyyy-MM-dd').format(
-        DateTime.fromMillisecondsSinceEpoch(startMs),
-      );
-      final endKey = DateFormat('yyyy-MM-dd').format(
-        DateTime.fromMillisecondsSinceEpoch(endMs),
-      );
+      final startKey = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime.fromMillisecondsSinceEpoch(startMs));
+      final endKey = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime.fromMillisecondsSinceEpoch(endMs));
       list = await _db.getAttendanceByDateRange(startKey, endKey);
     } else {
       list = await _db.getAllAttendance();
@@ -578,7 +588,7 @@ class ExcelExportHelper {
         _fmtDateTime(a.checkOutAt),
         workHours,
         a.overtimeOn,
-        a.status == 'completed' ? 'Hoàn thành' : a.status,
+        _attendanceStatusLabel(a.status),
         a.isLate == 1 ? 'Có' : 'Không',
         a.isEarlyLeave == 1 ? 'Có' : 'Không',
         a.approvedBy ?? '',
@@ -677,7 +687,7 @@ class ExcelExportHelper {
           _fmtDateTime(record.checkOutAt),
           _fmtMinutes(workMinutes),
           _fmtMinutes(record.overtimeOn),
-          record.status,
+          _attendanceStatusLabel(record.status),
           record.isLate == 1 ? 'Có' : 'Không',
           record.isEarlyLeave == 1 ? 'Có' : 'Không',
           record.note ?? '',
@@ -707,12 +717,7 @@ class ExcelExportHelper {
     List<Product> products = await _db.getAllProducts();
 
     // Filter by createdAt if date range specified
-    products = _filterByDate(
-      products,
-      startMs,
-      endMs,
-      (p) => p.createdAt,
-    );
+    products = _filterByDate(products, startMs, endMs, (p) => p.createdAt);
 
     final excel = Excel.createExcel();
     final sheet = excel['Kho hàng'];
@@ -1006,25 +1011,38 @@ class ExcelExportHelper {
     }
 
     final now = DateTime.now();
-    final fileName = 'nhat_ky_he_thong_${DateFormat('ddMMyyyy').format(now)}.xlsx';
+    final fileName =
+        'nhat_ky_he_thong_${DateFormat('ddMMyyyy').format(now)}.xlsx';
     await _saveAndShare(excel, fileName, context);
   }
 
   /// Vietnamese label for activity type
   static String _activityTypeVi(String type) {
     switch (type) {
-      case 'SALE': return 'Bán hàng';
-      case 'REPAIR': return 'Sửa chữa';
-      case 'EXPENSE': return 'Chi phí';
-      case 'PURCHASE': return 'Nhập hàng';
-      case 'DEBT_COLLECT': return 'Thu nợ';
-      case 'DEBT_PAY': return 'Trả nợ';
-      case 'SUPPLIER_PAYMENT': return 'Trả NCC';
-      case 'SETTLEMENT': return 'Tất toán';
-      case 'REFUND': return 'Hoàn tiền';
-      case 'ADJUSTMENT': return 'Điều chỉnh';
-      case 'REPAIR_PARTNER_PAYMENT': return 'Trả đối tác SC';
-      default: return type;
+      case 'SALE':
+        return 'Bán hàng';
+      case 'REPAIR':
+        return 'Sửa chữa';
+      case 'EXPENSE':
+        return 'Chi phí';
+      case 'PURCHASE':
+        return 'Nhập hàng';
+      case 'DEBT_COLLECT':
+        return 'Thu nợ';
+      case 'DEBT_PAY':
+        return 'Trả nợ';
+      case 'SUPPLIER_PAYMENT':
+        return 'Trả NCC';
+      case 'SETTLEMENT':
+        return 'Tất toán';
+      case 'REFUND':
+        return 'Hoàn tiền';
+      case 'ADJUSTMENT':
+        return 'Điều chỉnh';
+      case 'REPAIR_PARTNER_PAYMENT':
+        return 'Trả đối tác SC';
+      default:
+        return type;
     }
   }
 
@@ -1136,8 +1154,7 @@ class ExcelExportHelper {
     InventoryCheck check,
   ) async {
     final excel = Excel.createExcel();
-    final typeVi =
-        check.checkType == 'DIEN_THOAI' ? 'Điện thoại' : 'Phụ kiện';
+    final typeVi = check.checkType == 'DIEN_THOAI' ? 'Điện thoại' : 'Phụ kiện';
     final sheet = excel['Kiểm kho $typeVi'];
 
     _writeHeaders(sheet, [
@@ -1169,9 +1186,9 @@ class ExcelExportHelper {
       excel.delete('Sheet1');
     }
 
-    final dateStr = DateFormat('ddMMyyyy_HHmm').format(
-      DateTime.fromMillisecondsSinceEpoch(check.checkDate),
-    );
+    final dateStr = DateFormat(
+      'ddMMyyyy_HHmm',
+    ).format(DateTime.fromMillisecondsSinceEpoch(check.checkDate));
     final fileName = 'kiem_kho_${check.checkType}_$dateStr.xlsx';
     await _saveAndShare(excel, fileName, context);
   }
@@ -1351,24 +1368,28 @@ class ExcelExportHelper {
     List<Repair>? repairList,
     List<SaleOrder>? saleList,
   }) async {
-    // Get repairs with warranty  
+    // Get repairs with warranty
     List<Repair> repairs = repairList ?? await _db.getAllRepairs();
     repairs = repairs
-        .where((r) =>
-            !r.deleted &&
-            r.warranty.isNotEmpty &&
-            r.warranty != '0' &&
-            r.warranty != 'Không')
+        .where(
+          (r) =>
+              !r.deleted &&
+              r.warranty.isNotEmpty &&
+              r.warranty != '0' &&
+              r.warranty != 'Không',
+        )
         .toList();
     repairs = _filterByDate(repairs, startMs, endMs, (r) => r.createdAt);
 
     // Get sales with warranty
     List<SaleOrder> sales = saleList ?? await _db.getAllSales();
     sales = sales
-        .where((s) =>
-            s.warranty.isNotEmpty &&
-            s.warranty != '0' &&
-            s.warranty != 'Không')
+        .where(
+          (s) =>
+              s.warranty.isNotEmpty &&
+              s.warranty != '0' &&
+              s.warranty != 'Không',
+        )
         .toList();
     sales = _filterByDate(sales, startMs, endMs, (s) => s.soldAt);
 
@@ -1594,7 +1615,9 @@ class ExcelExportHelper {
       excel.delete('Sheet1');
     }
 
-    final safeName = supplierName.replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(' ', '_');
+    final safeName = supplierName
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(' ', '_');
     final now = DateFormat('ddMMyyyy_HHmm').format(DateTime.now());
     final fileName = 'nhap_hang_${safeName}_$now.xlsx';
     await _saveAndShare(excel, fileName, context);
@@ -1654,7 +1677,9 @@ class ExcelExportHelper {
       excel.delete('Sheet1');
     }
 
-    final safeName = partnerName.replaceAll(RegExp(r'[^\w\s]'), '').replaceAll(' ', '_');
+    final safeName = partnerName
+        .replaceAll(RegExp(r'[^\w\s]'), '')
+        .replaceAll(' ', '_');
     final now = DateFormat('ddMMyyyy_HHmm').format(DateTime.now());
     final fileName = 'don_gui_sua_${safeName}_$now.xlsx';
     await _saveAndShare(excel, fileName, context);

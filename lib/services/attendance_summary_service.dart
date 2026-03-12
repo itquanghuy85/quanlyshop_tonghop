@@ -2,13 +2,21 @@ import '../models/attendance_model.dart';
 import '../models/attendance_monthly_summary_model.dart';
 
 class AttendanceSummaryService {
+  static bool isPendingLike(Attendance record) {
+    return record.checkInAt != null &&
+        record.status != 'approved' &&
+        record.status != 'rejected';
+  }
+
   static List<AttendanceMonthlySummary> buildMonthlySummaries({
     required List<Map<String, dynamic>> staffList,
     required Map<String, List<Attendance>> staffAttendance,
   }) {
     final summaries = staffList.map((staff) {
       final userId = staff['id'] as String? ?? '';
-      final records = List<Attendance>.from(staffAttendance[userId] ?? const []);
+      final records = List<Attendance>.from(
+        staffAttendance[userId] ?? const [],
+      );
       records.sort((a, b) => a.dateKey.compareTo(b.dateKey));
       return _buildSummary(
         userId: userId,
@@ -20,14 +28,8 @@ class AttendanceSummaryService {
     }).toList();
 
     summaries.sort((a, b) {
-      const order = {
-        'owner': 0,
-        'manager': 1,
-        'technician': 2,
-        'employee': 3,
-      };
-      final roleCompare =
-          (order[a.role] ?? 99).compareTo(order[b.role] ?? 99);
+      const order = {'owner': 0, 'manager': 1, 'technician': 2, 'employee': 3};
+      final roleCompare = (order[a.role] ?? 99).compareTo(order[b.role] ?? 99);
       if (roleCompare != 0) return roleCompare;
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
@@ -64,7 +66,7 @@ class AttendanceSummaryService {
         approvedDays++;
       } else if (record.status == 'rejected' && hasCheckIn) {
         rejectedDays++;
-      } else if (record.status == 'pending' && hasCheckIn) {
+      } else if (isPendingLike(record)) {
         pendingDays++;
       }
 

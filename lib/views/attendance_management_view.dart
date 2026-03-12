@@ -25,7 +25,8 @@ class AttendanceManagementView extends StatefulWidget {
   const AttendanceManagementView({super.key});
 
   @override
-  State<AttendanceManagementView> createState() => _AttendanceManagementViewState();
+  State<AttendanceManagementView> createState() =>
+      _AttendanceManagementViewState();
 }
 
 class _AttendanceManagementViewState extends State<AttendanceManagementView>
@@ -65,7 +66,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     setState(() => _loading = true);
     _currentShopId = await UserService.getCurrentShopId();
     await _loadStaffList();
-    await Future.wait([_loadAttendanceData(), _loadPendingRequests(), _loadLeaveRequests()]);
+    await Future.wait([
+      _loadAttendanceData(),
+      _loadPendingRequests(),
+      _loadLeaveRequests(),
+    ]);
     if (mounted) setState(() => _loading = false);
   }
 
@@ -80,13 +85,21 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         final data = doc.data();
         return {
           'id': doc.id,
-          'name': data['name'] ?? data['email']?.toString().split('@').first.toUpperCase() ?? 'NV',
+          'name':
+              data['name'] ??
+              data['email']?.toString().split('@').first.toUpperCase() ??
+              'NV',
           'email': data['email'] ?? '',
           'role': data['role'] ?? 'employee',
         };
       }).toList();
       _staffList.sort((a, b) {
-        const order = {'owner': 0, 'manager': 1, 'technician': 2, 'employee': 3};
+        const order = {
+          'owner': 0,
+          'manager': 1,
+          'technician': 2,
+          'employee': 3,
+        };
         return (order[a['role']] ?? 4).compareTo(order[b['role']] ?? 4);
       });
     } catch (e) {
@@ -157,7 +170,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
               .where('dateKey', isGreaterThanOrEqualTo: startKey)
               .where('dateKey', isLessThanOrEqualTo: endKey)
               .get();
-          final recs = snap.docs.map((d) => Attendance.fromMap(d.data())).toList();
+          final recs = snap.docs
+              .map((d) => Attendance.fromMap(d.data()))
+              .toList();
           _staffAttendance[userId] = recs;
         } else {
           _staffAttendance[userId] = [];
@@ -182,10 +197,20 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   Future<void> _loadLeaveRequests() async {
     try {
-      final start = DateFormat('yyyy-MM-dd').format(DateTime(_selectedMonth.year, _selectedMonth.month, 1));
-      final end = DateFormat('yyyy-MM-dd').format(DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0));
-      _leaveRequests = await AttendanceApprovalService.getLeaveRequestsByDateRange(start, end);
-      debugPrint('📋 Loaded ${_leaveRequests.length} leave requests for $start → $end');
+      final start = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime(_selectedMonth.year, _selectedMonth.month, 1));
+      final end = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0));
+      _leaveRequests =
+          await AttendanceApprovalService.getLeaveRequestsByDateRange(
+            start,
+            end,
+          );
+      debugPrint(
+        '📋 Loaded ${_leaveRequests.length} leave requests for $start → $end',
+      );
     } catch (e) {
       debugPrint('❌ _loadLeaveRequests error: $e');
       _leaveRequests = [];
@@ -197,8 +222,10 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final pendingCount = _pendingRequests.length;
-    final leaveCount = _leaveRequests.where((l) => l.status == 'pending').length;
+    final pendingCount = _collectApprovalRecords().length;
+    final leaveCount = _leaveRequests
+        .where((l) => l.status == 'pending')
+        .length;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -207,7 +234,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         accentColor: AppBarAccents.staff,
         actions: [
           IconButton(
-            icon: Icon(_viewMode == 'day' ? Icons.calendar_month : Icons.calendar_today, color: Colors.white, size: 20),
+            icon: Icon(
+              _viewMode == 'day' ? Icons.calendar_month : Icons.calendar_today,
+              color: Colors.white,
+              size: 20,
+            ),
             tooltip: _viewMode == 'day' ? loc.viewByMonth : loc.viewByDay,
             onPressed: () {
               setState(() => _viewMode = _viewMode == 'day' ? 'month' : 'day');
@@ -224,7 +255,10 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           tabs: [
             const Tab(text: 'TỔNG QUAN'),
@@ -257,8 +291,18 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
           const SizedBox(width: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
-            child: Text('$count', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+            decoration: BoxDecoration(
+              color: Colors.redAccent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$count',
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ],
@@ -275,6 +319,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         SliverToBoxAdapter(child: _buildDateSelector()),
         if (_viewMode == 'month')
           SliverToBoxAdapter(child: _buildMonthlySummaryTable()),
+        if (_viewMode == 'month' &&
+            _staffAttendance.values.any((records) => records.isNotEmpty))
+          SliverToBoxAdapter(child: _buildDetailShortcutCard()),
         _buildStaffSliver(),
       ],
     );
@@ -335,13 +382,27 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                   ],
                 ),
               ),
-              OutlinedButton.icon(
-                onPressed: _exportMonthlySummary,
-                icon: const Icon(Icons.file_download_outlined, size: 16),
-                label: const Text('Xuất Excel'),
-                style: OutlinedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _showAttendanceDetailList,
+                    icon: const Icon(Icons.list_alt, size: 16),
+                    label: const Text('DS chi tiết'),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _exportMonthlySummary,
+                    icon: const Icon(Icons.file_download_outlined, size: 16),
+                    label: const Text('Xuất Excel'),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -377,7 +438,9 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                             Text(
                               summary.name,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             Text(
                               summary.email,
@@ -409,6 +472,63 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     );
   }
 
+  Widget _buildDetailShortcutCard() {
+    final totalRecords = _staffAttendance.values.fold<int>(
+      0,
+      (sum, records) => sum + records.length,
+    );
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Danh sách chi tiết nhân viên',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.headline6.fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$totalRecords bản ghi trong kỳ, mở để xem theo từng nhân viên',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.caption.fontSize,
+                    color: AppColors.inactive,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: _showAttendanceDetailList,
+            icon: const Icon(Icons.visibility_outlined, size: 16),
+            label: const Text('Mở danh sách'),
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSummaryHeader() {
     final loc = AppLocalizations.of(context)!;
     int present = 0, late = 0, absent = 0;
@@ -426,15 +546,22 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.primaryDark, AppColors.primary]),
+        gradient: LinearGradient(
+          colors: [AppColors.primaryDark, AppColors.primary],
+        ),
       ),
       child: Column(
         children: [
           Text(
             _viewMode == 'day'
-                ? loc.attendanceForDate(DateFormat('dd/MM/yyyy').format(_selectedDate))
+                ? loc.attendanceForDate(
+                    DateFormat('dd/MM/yyyy').format(_selectedDate),
+                  )
                 : loc.monthLabel(DateFormat('MM/yyyy').format(_selectedMonth)),
-            style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.caption.fontSize),
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: AppTextStyles.caption.fontSize,
+            ),
           ),
           const SizedBox(height: 6),
           if (_viewMode == 'day')
@@ -452,7 +579,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _summaryItem(loc.totalStaff, _staffList.length, Colors.white),
-                _summaryItem(loc.checkedInStatus, _staffAttendance.values.where((v) => v.isNotEmpty).length, Colors.greenAccent),
+                _summaryItem(
+                  loc.checkedInStatus,
+                  _staffAttendance.values.where((v) => v.isNotEmpty).length,
+                  Colors.greenAccent,
+                ),
               ],
             ),
         ],
@@ -463,8 +594,21 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   Widget _summaryItem(String label, int value, Color color) {
     return Column(
       children: [
-        Text('$value', style: TextStyle(color: color, fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold)),
-        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: AppTextStyles.caption.fontSize)),
+        Text(
+          '$value',
+          style: TextStyle(
+            color: color,
+            fontSize: AppTextStyles.headline3.fontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8),
+            fontSize: AppTextStyles.caption.fontSize,
+          ),
+        ),
       ],
     );
   }
@@ -473,56 +617,123 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: Colors.white,
-      child: Row(
+      child: Column(
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left, size: 20), visualDensity: VisualDensity.compact,
-            onPressed: () {
-              setState(() {
-                if (_viewMode == 'day') {
-                  _selectedDate = _selectedDate.subtract(const Duration(days: 1));
-                } else {
-                  _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1);
-                }
-              });
-              _loadAttendanceData().then((_) => setState(() {}));
-            },
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: _pickDate,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                alignment: Alignment.center,
-                child: Text(
-                  _viewMode == 'day'
-                      ? DateFormat('EEEE, dd/MM/yyyy', 'vi').format(_selectedDate)
-                      : DateFormat('MMMM yyyy', 'vi').format(_selectedMonth),
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: AppTextStyles.headline5.fontSize),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left, size: 20),
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  setState(() {
+                    if (_viewMode == 'day') {
+                      _selectedDate = _selectedDate.subtract(
+                        const Duration(days: 1),
+                      );
+                    } else {
+                      _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month - 1,
+                      );
+                    }
+                  });
+                  _loadAttendanceData().then((_) => setState(() {}));
+                },
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: _pickDate,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _viewMode == 'day'
+                          ? DateFormat(
+                              'EEEE, dd/MM/yyyy',
+                              'vi',
+                            ).format(_selectedDate)
+                          : DateFormat(
+                              'MMMM yyyy',
+                              'vi',
+                            ).format(_selectedMonth),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: AppTextStyles.headline5.fontSize,
+                      ),
+                    ),
+                  ),
                 ),
               ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right, size: 20),
+                visualDensity: VisualDensity.compact,
+                onPressed: () {
+                  setState(() {
+                    if (_viewMode == 'day') {
+                      _selectedDate = _selectedDate.add(
+                        const Duration(days: 1),
+                      );
+                    } else {
+                      _selectedMonth = DateTime(
+                        _selectedMonth.year,
+                        _selectedMonth.month + 1,
+                      );
+                    }
+                  });
+                  _loadAttendanceData().then((_) => setState(() {}));
+                },
+              ),
+              TextButton(
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _selectedDate = DateTime.now();
+                    _selectedMonth = DateTime.now();
+                  });
+                  _loadAttendanceData().then((_) => setState(() {}));
+                },
+                child: Text(
+                  AppLocalizations.of(context)!.todayLabel,
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _showAttendanceDetailList,
+                    icon: const Icon(Icons.badge_outlined, size: 16),
+                    label: const Text(
+                      'Xem chi tiết',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _exportCurrentAttendance,
+                    icon: const Icon(Icons.file_download_outlined, size: 16),
+                    label: const Text(
+                      'Xuất Excel',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right, size: 20), visualDensity: VisualDensity.compact,
-            onPressed: () {
-              setState(() {
-                if (_viewMode == 'day') {
-                  _selectedDate = _selectedDate.add(const Duration(days: 1));
-                } else {
-                  _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1);
-                }
-              });
-              _loadAttendanceData().then((_) => setState(() {}));
-            },
-          ),
-          TextButton(
-            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-            onPressed: () {
-              setState(() { _selectedDate = DateTime.now(); _selectedMonth = DateTime.now(); });
-              _loadAttendanceData().then((_) => setState(() {}));
-            },
-            child: Text(AppLocalizations.of(context)!.todayLabel, style: const TextStyle(fontSize: 12)),
           ),
         ],
       ),
@@ -531,11 +742,28 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   Future<void> _pickDate() async {
     if (_viewMode == 'day') {
-      final picked = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime(2020), lastDate: DateTime.now().add(const Duration(days: 365)));
-      if (picked != null) { setState(() => _selectedDate = picked); _loadAttendanceData().then((_) => setState(() {})); }
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+      );
+      if (picked != null) {
+        setState(() => _selectedDate = picked);
+        _loadAttendanceData().then((_) => setState(() {}));
+      }
     } else {
-      final picked = await showDatePicker(context: context, initialDate: _selectedMonth, firstDate: DateTime(2020), lastDate: DateTime.now().add(const Duration(days: 365)), initialDatePickerMode: DatePickerMode.year);
-      if (picked != null) { setState(() => _selectedMonth = DateTime(picked.year, picked.month)); _loadAttendanceData().then((_) => setState(() {})); }
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedMonth,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        initialDatePickerMode: DatePickerMode.year,
+      );
+      if (picked != null) {
+        setState(() => _selectedMonth = DateTime(picked.year, picked.month));
+        _loadAttendanceData().then((_) => setState(() {}));
+      }
     }
   }
 
@@ -549,7 +777,10 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
             children: [
               Icon(Icons.people_outline, size: 48, color: AppColors.inactive),
               const SizedBox(height: 8),
-              Text(AppLocalizations.of(context)!.noStaffYet, style: TextStyle(color: AppColors.inactive)),
+              Text(
+                AppLocalizations.of(context)!.noStaffYet,
+                style: TextStyle(color: AppColors.inactive),
+              ),
             ],
           ),
         ),
@@ -558,18 +789,15 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (_, i) {
-            final staff = _staffList[i];
-            final userId = staff['id'] as String;
-            final records = _staffAttendance[userId] ?? [];
-            final summary = _summaryByUserId(userId);
-            return _viewMode == 'day'
-                ? _buildDayCard(staff, records)
-                : _buildMonthCard(staff, records, summary);
-          },
-          childCount: _staffList.length,
-        ),
+        delegate: SliverChildBuilderDelegate((_, i) {
+          final staff = _staffList[i];
+          final userId = staff['id'] as String;
+          final records = _staffAttendance[userId] ?? [];
+          final summary = _summaryByUserId(userId);
+          return _viewMode == 'day'
+              ? _buildDayCard(staff, records)
+              : _buildMonthCard(staff, records, summary);
+        }, childCount: _staffList.length),
       ),
     );
   }
@@ -597,9 +825,18 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     // Approval badge color
     Color? approvalColor;
     String? approvalText;
-    if (status == 'approved') { approvalColor = AppColors.success; approvalText = loc.approvedStatus; }
-    else if (status == 'rejected') { approvalColor = AppColors.error; approvalText = loc.rejectedStatus; }
-    else if (status == 'pending' && hasIn) { approvalColor = AppColors.warning; approvalText = loc.pendingStatus; }
+    if (status == 'approved') {
+      approvalColor = AppColors.success;
+      approvalText = loc.approvedStatus;
+    } else if (status == 'rejected') {
+      approvalColor = AppColors.error;
+      approvalText = loc.rejectedStatus;
+    } else if (_needsAttendanceApproval(
+      records.isNotEmpty ? records.first : null,
+    )) {
+      approvalColor = AppColors.warning;
+      approvalText = loc.pendingStatus;
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -617,13 +854,28 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                   CircleAvatar(
                     radius: 20,
                     backgroundColor: _roleColor(staff['role']).withOpacity(0.2),
-                    child: Text((staff['name'] as String).substring(0, 1).toUpperCase(),
-                      style: TextStyle(color: _roleColor(staff['role']), fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline4.fontSize)),
+                    child: Text(
+                      (staff['name'] as String).substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        color: _roleColor(staff['role']),
+                        fontWeight: FontWeight.bold,
+                        fontSize: AppTextStyles.headline4.fontSize,
+                      ),
+                    ),
                   ),
-                  Positioned(right: 0, bottom: 0, child: Container(
-                    width: 12, height: 12,
-                    decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                  )),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(width: 10),
@@ -631,44 +883,107 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
-                      Flexible(child: Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize), overflow: TextOverflow.ellipsis)),
-                      const SizedBox(width: 6),
-                      _roleBadge(staff['role']),
-                      if (approvalColor != null) ...[
-                        const SizedBox(width: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(color: approvalColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                          child: Text(approvalText!, style: TextStyle(fontSize: 9, color: approvalColor, fontWeight: FontWeight.bold)),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            staff['name'],
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: AppTextStyles.headline5.fontSize,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ],
-                    ]),
-                    const SizedBox(height: 2),
-                    Row(children: [
-                      Icon(statusIcon, size: 13, color: statusColor),
-                      const SizedBox(width: 3),
-                      Text(statusText, style: TextStyle(color: statusColor, fontSize: AppTextStyles.caption.fontSize)),
-                      if (isLate) ...[
                         const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          decoration: BoxDecoration(color: AppColors.warning.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                          child: Text(loc.lateArrival, style: TextStyle(color: AppColors.warning, fontSize: 10)),
-                        ),
+                        _roleBadge(staff['role']),
+                        if (approvalColor != null) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: approvalColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              approvalText!,
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: approvalColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ]),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(statusIcon, size: 13, color: statusColor),
+                        const SizedBox(width: 3),
+                        Text(
+                          statusText,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: AppTextStyles.caption.fontSize,
+                          ),
+                        ),
+                        if (isLate) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              loc.lateArrival,
+                              style: TextStyle(
+                                color: AppColors.warning,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (hasIn) Text('Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkInAt!))}',
-                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.success)),
-                  if (hasOut) Text('Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkOutAt!))}',
-                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.error)),
-                  if (!hasIn) Text('--:--', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
+                  if (hasIn)
+                    Text(
+                      'Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkInAt!))}',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.caption.fontSize,
+                        color: AppColors.success,
+                      ),
+                    ),
+                  if (hasOut)
+                    Text(
+                      'Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(records.first.checkOutAt!))}',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.caption.fontSize,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  if (!hasIn)
+                    Text(
+                      '--:--',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.caption.fontSize,
+                        color: AppColors.inactive,
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -704,37 +1019,83 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(
             children: [
-              Row(children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: _roleColor(staff['role']).withOpacity(0.2),
-                  child: Text((staff['name'] as String).substring(0, 1).toUpperCase(),
-                    style: TextStyle(color: _roleColor(staff['role']), fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize)),
-                ),
-                const SizedBox(width: 10),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      Flexible(child: Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize), overflow: TextOverflow.ellipsis)),
-                      const SizedBox(width: 6), _roleBadge(staff['role']),
-                    ]),
-                    Text(staff['email'], style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
-                  ],
-                )),
-              ]),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: _roleColor(staff['role']).withOpacity(0.2),
+                    child: Text(
+                      (staff['name'] as String).substring(0, 1).toUpperCase(),
+                      style: TextStyle(
+                        color: _roleColor(staff['role']),
+                        fontWeight: FontWeight.bold,
+                        fontSize: AppTextStyles.headline6.fontSize,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                staff['name'],
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: AppTextStyles.headline5.fontSize,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            _roleBadge(staff['role']),
+                          ],
+                        ),
+                        Text(
+                          staff['email'],
+                          style: TextStyle(
+                            fontSize: AppTextStyles.caption.fontSize,
+                            color: AppColors.inactive,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               const Divider(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _monthStatItem(loc.workDaysCount, '$totalDays', AppColors.primary),
-                  _monthStatItem(loc.approvedStatus, '$approved', AppColors.success),
-                  _monthStatItem(loc.lateArrival, '$lateDays', AppColors.warning),
-                  _monthStatItem(loc.workHoursCount, totalHours, AppColors.primary),
+                  _monthStatItem(
+                    loc.workDaysCount,
+                    '$totalDays',
+                    AppColors.primary,
+                  ),
+                  _monthStatItem(
+                    loc.approvedStatus,
+                    '$approved',
+                    AppColors.success,
+                  ),
+                  _monthStatItem(
+                    loc.lateArrival,
+                    '$lateDays',
+                    AppColors.warning,
+                  ),
+                  _monthStatItem(
+                    loc.workHoursCount,
+                    totalHours,
+                    AppColors.primary,
+                  ),
                   _monthStatItem('OT', ot, Colors.deepOrange),
                 ],
               ),
-              if (pendingDays > 0 || earlyLeaveDays > 0 || incompleteDays > 0) ...[
+              if (pendingDays > 0 ||
+                  earlyLeaveDays > 0 ||
+                  incompleteDays > 0) ...[
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 6,
@@ -745,7 +1106,10 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                     if (earlyLeaveDays > 0)
                       _monthFlag('Về sớm $earlyLeaveDays', Colors.orange),
                     if (incompleteDays > 0)
-                      _monthFlag('Thiếu giờ ra $incompleteDays', AppColors.error),
+                      _monthFlag(
+                        'Thiếu giờ ra $incompleteDays',
+                        AppColors.error,
+                      ),
                   ],
                 ),
               ],
@@ -775,10 +1139,19 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   }
 
   Widget _monthStatItem(String label, String value, Color color) {
-    return Column(children: [
-      Text(value, style: TextStyle(color: color, fontSize: AppTextStyles.headline4.fontSize, fontWeight: FontWeight.bold)),
-      Text(label, style: TextStyle(fontSize: 10, color: AppColors.inactive)),
-    ]);
+    return Column(
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: AppTextStyles.headline4.fontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(label, style: TextStyle(fontSize: 10, color: AppColors.inactive)),
+      ],
+    );
   }
 
   // ==================== TAB 2: APPROVAL ====================
@@ -786,18 +1159,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   Widget _buildApprovalTab() {
     try {
       final loc = AppLocalizations.of(context)!;
-      // Collect ALL attendance that needs approval (pending with checkIn)
-      List<Attendance> pending = [];
-      for (final staff in _staffList) {
-        final records = _staffAttendance[staff['id']] ?? [];
-        for (final r in records) {
-          if (r.status == 'pending' && r.checkInAt != null) pending.add(r);
-        }
-      }
-      // Also include forgot check-in requests from _pendingRequests
-      for (final r in _pendingRequests) {
-        if (!pending.any((p) => p.firestoreId == r.firestoreId)) pending.add(r);
-      }
+      final pending = _collectApprovalRecords();
 
       // Build children list imperatively (no collection-if/for/spread in list literal)
       final children = <Widget>[];
@@ -812,13 +1174,25 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
               children: [
                 Icon(Icons.pending_actions, size: 18, color: AppColors.warning),
                 const SizedBox(width: 8),
-                Expanded(child: Text('${pending.length} yêu cầu chờ duyệt',
-                  style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.w500))),
+                Expanded(
+                  child: Text(
+                    '${pending.length} yêu cầu chờ duyệt',
+                    style: TextStyle(
+                      fontSize: AppTextStyles.caption.fontSize,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
                 TextButton.icon(
                   onPressed: () => _bulkApprove(pending),
                   icon: const Icon(Icons.check_circle, size: 16),
-                  label: Text(loc.bulkApprove, style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.success),
+                  label: Text(
+                    loc.bulkApprove,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.success,
+                  ),
                 ),
               ],
             ),
@@ -836,8 +1210,13 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                 child: OutlinedButton.icon(
                   onPressed: _showForgotCheckinDialog,
                   icon: const Icon(Icons.add_alarm, size: 16),
-                  label: Text(loc.forgotCheckin, style: const TextStyle(fontSize: 12)),
-                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  label: Text(
+                    loc.forgotCheckin,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -845,8 +1224,13 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                 child: OutlinedButton.icon(
                   onPressed: _showEditOvertimeDialog,
                   icon: const Icon(Icons.more_time, size: 16),
-                  label: Text(loc.editOvertime, style: const TextStyle(fontSize: 12)),
-                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  label: Text(
+                    loc.editOvertime,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ),
             ],
@@ -859,11 +1243,23 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         children.add(
           Padding(
             padding: const EdgeInsets.only(top: 80),
-            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.check_circle_outline, size: 48, color: AppColors.success.withOpacity(0.5)),
-              const SizedBox(height: 8),
-              Text(loc.noPendingRequests, style: TextStyle(color: AppColors.inactive)),
-            ])),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 48,
+                    color: AppColors.success.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    loc.noPendingRequests,
+                    style: TextStyle(color: AppColors.inactive),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       } else {
@@ -886,19 +1282,34 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       );
     } catch (e, s) {
       debugPrint('❌ _buildApprovalTab error: $e\n$s');
-      return Center(child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('Lỗi tab duyệt: $e', style: const TextStyle(color: Colors.red)),
-      ));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Lỗi tab duyệt: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
     }
   }
 
   Widget _buildApprovalCard(Attendance record) {
     final staffName = _staffNameById(record.userId);
-    final isForget = record.requestType == 'forgot_checkin' || record.requestType == 'forgot_checkout';
+    final isForget =
+        record.requestType == 'forgot_checkin' ||
+        record.requestType == 'forgot_checkout';
     final isOTEdit = record.requestType == 'overtime_edit';
-    final typeLabel = isForget ? 'Quên chấm công' : isOTEdit ? 'Sửa tăng ca' : 'Chấm công';
-    final typeColor = isForget ? AppColors.warning : isOTEdit ? Colors.deepOrange : AppColors.primary;
+    final typeLabel = isForget
+        ? 'Quên chấm công'
+        : isOTEdit
+        ? 'Sửa tăng ca'
+        : 'Ngày công';
+    final typeColor = isForget
+        ? AppColors.warning
+        : isOTEdit
+        ? Colors.deepOrange
+        : AppColors.primary;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -909,42 +1320,111 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: typeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text(typeLabel, style: TextStyle(fontSize: 10, color: typeColor, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 6),
-              Expanded(child: Text(staffName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize), overflow: TextOverflow.ellipsis)),
-              Text(record.dateKey, style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
-            ]),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: typeColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    typeLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: typeColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    staffName,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.headline6.fontSize,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  record.dateKey,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.caption.fontSize,
+                    color: AppColors.inactive,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
-            Row(children: [
-              if (record.checkInAt != null) Text('Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))} ', style: TextStyle(fontSize: 12, color: AppColors.success)),
-              if (record.checkOutAt != null) Text('Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))} ', style: TextStyle(fontSize: 12, color: AppColors.error)),
-              if (record.overtimeOn > 0) Text('OT: ${record.overtimeOn}p ', style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
-            ]),
+            Row(
+              children: [
+                if (record.checkInAt != null)
+                  Text(
+                    'Vào: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!))} ',
+                    style: TextStyle(fontSize: 12, color: AppColors.success),
+                  ),
+                if (record.checkOutAt != null)
+                  Text(
+                    'Ra: ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!))} ',
+                    style: TextStyle(fontSize: 12, color: AppColors.error),
+                  ),
+                if (record.overtimeOn > 0)
+                  Text(
+                    'OT: ${record.overtimeOn}p ',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.deepOrange,
+                    ),
+                  ),
+              ],
+            ),
             if (record.note != null && record.note!.isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 4), child: Text('Ghi chú: ${record.note}', style: TextStyle(fontSize: 11, color: AppColors.inactive))),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Ghi chú: ${record.note}',
+                  style: TextStyle(fontSize: 11, color: AppColors.inactive),
+                ),
+              ),
             const Divider(height: 12),
-            Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-              Flexible(
-                child: TextButton(
-                  onPressed: () => _rejectAttendance(record),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
-                  child: Text(AppLocalizations.of(context)!.rejectAttendance, style: const TextStyle(fontSize: 12)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Flexible(
+                  child: TextButton(
+                    onPressed: () => _rejectAttendance(record),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: Text(
+                      AppLocalizations.of(context)!.rejectAttendance,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: ElevatedButton(
-                  onPressed: () => _approveAttendance(record),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
-                  child: Text(AppLocalizations.of(context)!.approveAttendance, style: const TextStyle(fontSize: 12)),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: ElevatedButton(
+                    onPressed: () => _approveAttendance(record),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: Text(
+                      AppLocalizations.of(context)!.approveAttendance,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ],
         ),
       ),
@@ -954,10 +1434,16 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   Future<void> _approveAttendance(Attendance record) async {
     final ok = await AttendanceApprovalService.approveAttendance(record);
     if (ok) {
-      NotificationService.showSnackBar('Đã duyệt chấm công', color: AppColors.success);
+      NotificationService.showSnackBar(
+        'Đã duyệt chấm công',
+        color: AppColors.success,
+      );
       await _loadData();
     } else {
-      NotificationService.showSnackBar('Lỗi duyệt chấm công', color: Colors.red);
+      NotificationService.showSnackBar(
+        'Lỗi duyệt chấm công',
+        color: Colors.red,
+      );
     }
   }
 
@@ -966,27 +1452,43 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     if (reason == null) return;
     final ok = await AttendanceApprovalService.rejectAttendance(record, reason);
     if (ok) {
-      NotificationService.showSnackBar('Đã từ chối chấm công', color: AppColors.warning);
+      NotificationService.showSnackBar(
+        'Đã từ chối chấm công',
+        color: AppColors.warning,
+      );
       await _loadData();
     }
   }
 
   Future<void> _bulkApprove(List<Attendance> records) async {
-    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Duyệt tất cả'),
-      content: Text('Xác nhận duyệt ${records.length} bản ghi chấm công?'),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
-        ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppColors.success), child: const Text('Duyệt tất cả')),
-      ],
-    ));
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Duyệt tất cả'),
+        content: Text('Xác nhận duyệt ${records.length} bản ghi chấm công?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+            child: const Text('Duyệt tất cả'),
+          ),
+        ],
+      ),
+    );
     if (confirmed != true) return;
     int count = 0;
     for (final r in records) {
       final ok = await AttendanceApprovalService.approveAttendance(r);
       if (ok) count++;
     }
-    NotificationService.showSnackBar('Đã duyệt $count/${records.length} bản ghi', color: AppColors.success);
+    NotificationService.showSnackBar(
+      'Đã duyệt $count/${records.length} bản ghi',
+      color: AppColors.success,
+    );
     await _loadData();
   }
 
@@ -997,90 +1499,175 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     TimeOfDay? checkOutTime;
     String note = '';
 
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
-      return AlertDialog(
-        title: Row(children: [
-          const Icon(Icons.add_alarm, size: 20),
-          const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.forgotCheckinRequest, style: const TextStyle(fontSize: 16)),
-        ]),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Staff picker
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Nhân viên', border: OutlineInputBorder(), isDense: true),
-              items: _staffList.map((s) => DropdownMenuItem(value: s['id'] as String, child: Text(s['name'] as String, style: const TextStyle(fontSize: 13)))).toList(),
-              onChanged: (v) => setDlg(() => selectedUserId = v),
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.add_alarm, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(context)!.forgotCheckinRequest,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            // Date picker
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('Ngày: ${DateFormat('dd/MM/yyyy').format(selectedDate)}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.calendar_today, size: 18),
-              onTap: () async {
-                final d = await showDatePicker(context: ctx, initialDate: selectedDate, firstDate: DateTime(2020), lastDate: DateTime.now());
-                if (d != null) setDlg(() => selectedDate = d);
-              },
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Staff picker
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Nhân viên',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: _staffList
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s['id'] as String,
+                            child: Text(
+                              s['name'] as String,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setDlg(() => selectedUserId = v),
+                  ),
+                  const SizedBox(height: 10),
+                  // Date picker
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Ngày: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (d != null) setDlg(() => selectedDate = d);
+                    },
+                  ),
+                  // Check-in time
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Giờ vào: ${checkInTime?.format(ctx) ?? '--:--'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.access_time, size: 18),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                        context: ctx,
+                        initialTime: const TimeOfDay(hour: 8, minute: 0),
+                      );
+                      if (t != null) setDlg(() => checkInTime = t);
+                    },
+                  ),
+                  // Check-out time
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Giờ ra: ${checkOutTime?.format(ctx) ?? '--:--'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.access_time, size: 18),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                        context: ctx,
+                        initialTime: const TimeOfDay(hour: 17, minute: 0),
+                      );
+                      if (t != null) setDlg(() => checkOutTime = t);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Ghi chú',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => note = v,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
             ),
-            // Check-in time
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('Giờ vào: ${checkInTime?.format(ctx) ?? '--:--'}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.access_time, size: 18),
-              onTap: () async {
-                final t = await showTimePicker(context: ctx, initialTime: const TimeOfDay(hour: 8, minute: 0));
-                if (t != null) setDlg(() => checkInTime = t);
-              },
-            ),
-            // Check-out time
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('Giờ ra: ${checkOutTime?.format(ctx) ?? '--:--'}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.access_time, size: 18),
-              onTap: () async {
-                final t = await showTimePicker(context: ctx, initialTime: const TimeOfDay(hour: 17, minute: 0));
-                if (t != null) setDlg(() => checkOutTime = t);
-              },
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: const InputDecoration(labelText: 'Ghi chú', border: OutlineInputBorder(), isDense: true),
-              onChanged: (v) => note = v,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedUserId == null || checkInTime == null) {
-                NotificationService.showSnackBar('Chọn nhân viên và giờ vào', color: Colors.red);
-                return;
-              }
-              final staff = _staffList.firstWhere((s) => s['id'] == selectedUserId);
-              final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
-              final inMs = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, checkInTime!.hour, checkInTime!.minute).millisecondsSinceEpoch;
-              final outMs = checkOutTime != null
-                  ? DateTime(selectedDate.year, selectedDate.month, selectedDate.day, checkOutTime!.hour, checkOutTime!.minute).millisecondsSinceEpoch
-                  : null;
-              Navigator.pop(ctx);
-              final ok = await AttendanceApprovalService.createForgotCheckinRequest(
-                userId: selectedUserId!, email: staff['email'], name: staff['name'],
-                dateKey: dateKey, checkInAt: inMs, checkOutAt: outMs, note: note.isNotEmpty ? note : null,
-              );
-              if (ok) {
-                NotificationService.showSnackBar('Đã tạo yêu cầu bổ sung chấm công', color: AppColors.success);
-                await _loadData();
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Tạo yêu cầu'),
-          ),
-        ],
-      );
-    }));
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedUserId == null || checkInTime == null) {
+                    NotificationService.showSnackBar(
+                      'Chọn nhân viên và giờ vào',
+                      color: Colors.red,
+                    );
+                    return;
+                  }
+                  final staff = _staffList.firstWhere(
+                    (s) => s['id'] == selectedUserId,
+                  );
+                  final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
+                  final inMs = DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                    checkInTime!.hour,
+                    checkInTime!.minute,
+                  ).millisecondsSinceEpoch;
+                  final outMs = checkOutTime != null
+                      ? DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          checkOutTime!.hour,
+                          checkOutTime!.minute,
+                        ).millisecondsSinceEpoch
+                      : null;
+                  Navigator.pop(ctx);
+                  final ok =
+                      await AttendanceApprovalService.createForgotCheckinRequest(
+                        userId: selectedUserId!,
+                        email: staff['email'],
+                        name: staff['name'],
+                        dateKey: dateKey,
+                        checkInAt: inMs,
+                        checkOutAt: outMs,
+                        note: note.isNotEmpty ? note : null,
+                      );
+                  if (ok) {
+                    NotificationService.showSnackBar(
+                      'Đã tạo yêu cầu bổ sung chấm công',
+                      color: AppColors.success,
+                    );
+                    await _loadData();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text('Tạo yêu cầu'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _showEditOvertimeDialog() {
@@ -1090,99 +1677,197 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     TimeOfDay? otEnd;
     String note = '';
 
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
-      final otMinutes = (otStart != null && otEnd != null)
-          ? ((otEnd!.hour * 60 + otEnd!.minute) - (otStart!.hour * 60 + otStart!.minute)).clamp(0, 480)
-          : 0;
-      return AlertDialog(
-        title: Row(children: [
-          const Icon(Icons.more_time, size: 20),
-          const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.editOvertime, style: const TextStyle(fontSize: 16)),
-        ]),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Nhân viên', border: OutlineInputBorder(), isDense: true),
-              items: _staffList.map((s) => DropdownMenuItem(value: s['id'] as String, child: Text(s['name'] as String, style: const TextStyle(fontSize: 13)))).toList(),
-              onChanged: (v) => setDlg(() => selectedUserId = v),
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          final otMinutes = (otStart != null && otEnd != null)
+              ? ((otEnd!.hour * 60 + otEnd!.minute) -
+                        (otStart!.hour * 60 + otStart!.minute))
+                    .clamp(0, 480)
+              : 0;
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.more_time, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(context)!.editOvertime,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('Ngày: ${DateFormat('dd/MM/yyyy').format(selectedDate)}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.calendar_today, size: 18),
-              onTap: () async {
-                final d = await showDatePicker(context: ctx, initialDate: selectedDate, firstDate: DateTime(2020), lastDate: DateTime.now());
-                if (d != null) setDlg(() => selectedDate = d);
-              },
-            ),
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('${AppLocalizations.of(context)!.overtimeFrom}: ${otStart?.format(ctx) ?? '--:--'}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.access_time, size: 18),
-              onTap: () async {
-                final t = await showTimePicker(context: ctx, initialTime: const TimeOfDay(hour: 17, minute: 0));
-                if (t != null) setDlg(() => otStart = t);
-              },
-            ),
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('${AppLocalizations.of(context)!.overtimeTo}: ${otEnd?.format(ctx) ?? '--:--'}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.access_time, size: 18),
-              onTap: () async {
-                final t = await showTimePicker(context: ctx, initialTime: const TimeOfDay(hour: 20, minute: 0));
-                if (t != null) setDlg(() => otEnd = t);
-              },
-            ),
-            if (otMinutes > 0)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.deepOrange.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-                child: Text('${AppLocalizations.of(context)!.overtimeMinutes}: $otMinutes phút (${(otMinutes / 60).toStringAsFixed(1)} giờ)',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.deepOrange)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Nhân viên',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: _staffList
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s['id'] as String,
+                            child: Text(
+                              s['name'] as String,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setDlg(() => selectedUserId = v),
+                  ),
+                  const SizedBox(height: 10),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Ngày: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (d != null) setDlg(() => selectedDate = d);
+                    },
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${AppLocalizations.of(context)!.overtimeFrom}: ${otStart?.format(ctx) ?? '--:--'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.access_time, size: 18),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                        context: ctx,
+                        initialTime: const TimeOfDay(hour: 17, minute: 0),
+                      );
+                      if (t != null) setDlg(() => otStart = t);
+                    },
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${AppLocalizations.of(context)!.overtimeTo}: ${otEnd?.format(ctx) ?? '--:--'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.access_time, size: 18),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                        context: ctx,
+                        initialTime: const TimeOfDay(hour: 20, minute: 0),
+                      );
+                      if (t != null) setDlg(() => otEnd = t);
+                    },
+                  ),
+                  if (otMinutes > 0)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.deepOrange.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${AppLocalizations.of(context)!.overtimeMinutes}: $otMinutes phút (${(otMinutes / 60).toStringAsFixed(1)} giờ)',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.deepOrange,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Ghi chú',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => note = v,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
               ),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: const InputDecoration(labelText: 'Ghi chú', border: OutlineInputBorder(), isDense: true),
-              onChanged: (v) => note = v,
-              style: const TextStyle(fontSize: 13),
             ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedUserId == null || otStart == null || otEnd == null) {
-                NotificationService.showSnackBar('Chọn nhân viên và giờ tăng ca', color: Colors.red);
-                return;
-              }
-              final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
-              final existing = await _db.getAttendance(dateKey, selectedUserId!);
-              if (existing == null) {
-                NotificationService.showSnackBar('Không tìm thấy bản ghi chấm công ngày này', color: Colors.red);
-                return;
-              }
-              Navigator.pop(ctx);
-              final startMs = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, otStart!.hour, otStart!.minute).millisecondsSinceEpoch;
-              final endMs = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, otEnd!.hour, otEnd!.minute).millisecondsSinceEpoch;
-              final ok = await AttendanceApprovalService.editOvertime(
-                record: existing, overtimeMinutes: otMinutes,
-                overtimeStartAt: startMs, overtimeEndAt: endMs,
-                note: note.isNotEmpty ? 'Tăng ca: $note' : null,
-              );
-              if (ok) {
-                NotificationService.showSnackBar('Đã ghi nhận tăng ca $otMinutes phút', color: AppColors.success);
-                await _loadData();
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
-            child: const Text('Ghi nhận OT'),
-          ),
-        ],
-      );
-    }));
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedUserId == null ||
+                      otStart == null ||
+                      otEnd == null) {
+                    NotificationService.showSnackBar(
+                      'Chọn nhân viên và giờ tăng ca',
+                      color: Colors.red,
+                    );
+                    return;
+                  }
+                  final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
+                  final existing = await _db.getAttendance(
+                    dateKey,
+                    selectedUserId!,
+                  );
+                  if (existing == null) {
+                    NotificationService.showSnackBar(
+                      'Không tìm thấy bản ghi chấm công ngày này',
+                      color: Colors.red,
+                    );
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  final startMs = DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                    otStart!.hour,
+                    otStart!.minute,
+                  ).millisecondsSinceEpoch;
+                  final endMs = DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                    otEnd!.hour,
+                    otEnd!.minute,
+                  ).millisecondsSinceEpoch;
+                  final ok = await AttendanceApprovalService.editOvertime(
+                    record: existing,
+                    overtimeMinutes: otMinutes,
+                    overtimeStartAt: startMs,
+                    overtimeEndAt: endMs,
+                    note: note.isNotEmpty ? 'Tăng ca: $note' : null,
+                  );
+                  if (ok) {
+                    NotificationService.showSnackBar(
+                      'Đã ghi nhận tăng ca $otMinutes phút',
+                      color: AppColors.success,
+                    );
+                    await _loadData();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                ),
+                child: const Text('Ghi nhận OT'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   // ==================== TAB 3: LEAVE REQUESTS ====================
@@ -1190,8 +1875,12 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   Widget _buildLeaveTab() {
     try {
       final loc = AppLocalizations.of(context)!;
-      final pending = _leaveRequests.where((l) => l.status == 'pending').toList();
-      final processed = _leaveRequests.where((l) => l.status != 'pending').toList();
+      final pending = _leaveRequests
+          .where((l) => l.status == 'pending')
+          .toList();
+      final processed = _leaveRequests
+          .where((l) => l.status != 'pending')
+          .toList();
 
       // Build children list imperatively (no collection-if/for/spread in list literal)
       final children = <Widget>[];
@@ -1205,8 +1894,13 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
             child: OutlinedButton.icon(
               onPressed: _showCreateLeaveDialog,
               icon: const Icon(Icons.add, size: 16),
-              label: Text(loc.createLeaveRequest, style: const TextStyle(fontSize: 12)),
-              style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+              label: Text(
+                loc.createLeaveRequest,
+                style: const TextStyle(fontSize: 12),
+              ),
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+              ),
             ),
           ),
         ),
@@ -1217,11 +1911,23 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         children.add(
           Padding(
             padding: const EdgeInsets.only(top: 80),
-            child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.event_available, size: 48, color: AppColors.inactive.withOpacity(0.5)),
-              const SizedBox(height: 8),
-              Text(loc.noLeaveRequests, style: TextStyle(color: AppColors.inactive)),
-            ])),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.event_available,
+                    size: 48,
+                    color: AppColors.inactive.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    loc.noLeaveRequests,
+                    style: TextStyle(color: AppColors.inactive),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       }
@@ -1230,8 +1936,20 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       if (pending.isNotEmpty) {
         children.add(
           Padding(
-            padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 6),
-            child: Text('Chờ duyệt (${pending.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.warning)),
+            padding: const EdgeInsets.only(
+              left: 12,
+              right: 12,
+              top: 4,
+              bottom: 6,
+            ),
+            child: Text(
+              'Chờ duyệt (${pending.length})',
+              style: TextStyle(
+                fontSize: AppTextStyles.caption.fontSize,
+                fontWeight: FontWeight.bold,
+                color: AppColors.warning,
+              ),
+            ),
           ),
         );
         for (final lr in pending) {
@@ -1248,8 +1966,20 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       if (processed.isNotEmpty) {
         children.add(
           Padding(
-            padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
-            child: Text('Đã xử lý (${processed.length})', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold, color: AppColors.inactive)),
+            padding: const EdgeInsets.only(
+              left: 12,
+              right: 12,
+              top: 8,
+              bottom: 6,
+            ),
+            child: Text(
+              'Đã xử lý (${processed.length})',
+              style: TextStyle(
+                fontSize: AppTextStyles.caption.fontSize,
+                fontWeight: FontWeight.bold,
+                color: AppColors.inactive,
+              ),
+            ),
           ),
         );
         for (final lr in processed) {
@@ -1271,10 +2001,15 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       );
     } catch (e, s) {
       debugPrint('❌ _buildLeaveTab error: $e\n$s');
-      return Center(child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('Lỗi tab nghỉ: $e', style: const TextStyle(color: Colors.red)),
-      ));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Lỗi tab nghỉ: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
     }
   }
 
@@ -1283,9 +2018,17 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     Color statusColor;
     String statusLabel;
     switch (lr.status) {
-      case 'approved': statusColor = AppColors.success; statusLabel = loc.approvedStatus; break;
-      case 'rejected': statusColor = AppColors.error; statusLabel = loc.rejectedStatus; break;
-      default: statusColor = AppColors.warning; statusLabel = loc.pendingStatus;
+      case 'approved':
+        statusColor = AppColors.success;
+        statusLabel = loc.approvedStatus;
+        break;
+      case 'rejected':
+        statusColor = AppColors.error;
+        statusLabel = loc.rejectedStatus;
+        break;
+      default:
+        statusColor = AppColors.warning;
+        statusLabel = loc.pendingStatus;
     }
     final leaveLabel = LeaveRequest.leaveTypeDisplayVi(lr.leaveType);
 
@@ -1298,48 +2041,125 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text(statusLabel, style: TextStyle(fontSize: 10, color: statusColor, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text(leaveLabel, style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
-              ),
-              const Spacer(),
-              Text('${lr.totalDays} ngày', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, fontWeight: FontWeight.bold)),
-            ]),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    leaveLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${lr.totalDays} ngày',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.caption.fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 6),
-            Text(lr.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize)),
+            Text(
+              lr.name,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: AppTextStyles.headline6.fontSize,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text('${lr.startDate} → ${lr.endDate}', style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: AppColors.inactive)),
+            Text(
+              '${lr.startDate} → ${lr.endDate}',
+              style: TextStyle(
+                fontSize: AppTextStyles.caption.fontSize,
+                color: AppColors.inactive,
+              ),
+            ),
             if (lr.reason != null && lr.reason!.isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 2), child: Text('Lý do: ${lr.reason}', style: TextStyle(fontSize: 11, color: AppColors.onSurface.withOpacity(0.7)))),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Lý do: ${lr.reason}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.onSurface.withOpacity(0.7),
+                  ),
+                ),
+              ),
             if (lr.rejectReason != null && lr.rejectReason!.isNotEmpty)
-              Padding(padding: const EdgeInsets.only(top: 2), child: Text('Từ chối: ${lr.rejectReason}', style: TextStyle(fontSize: 11, color: AppColors.error))),
-            if (lr.status?.toLowerCase() == 'pending') ...[  
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Từ chối: ${lr.rejectReason}',
+                  style: TextStyle(fontSize: 11, color: AppColors.error),
+                ),
+              ),
+            if (lr.status?.toLowerCase() == 'pending') ...[
               const Divider(height: 12),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                Flexible(
-                  child: TextButton(
-                    onPressed: () => _rejectLeave(lr),
-                    style: TextButton.styleFrom(foregroundColor: AppColors.error, visualDensity: VisualDensity.compact),
-                    child: Text(loc.rejectLeave, style: const TextStyle(fontSize: 12)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: TextButton(
+                      onPressed: () => _rejectLeave(lr),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        loc.rejectLeave,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: ElevatedButton(
-                    onPressed: () => _approveLeave(lr),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
-                    child: Text(loc.approveLeave, style: const TextStyle(fontSize: 12)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: ElevatedButton(
+                      onPressed: () => _approveLeave(lr),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.success,
+                        foregroundColor: Colors.white,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(
+                        loc.approveLeave,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ],
         ),
@@ -1354,114 +2174,212 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     DateTime endDate = DateTime.now().add(const Duration(days: 1));
     String reason = '';
 
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
-      final days = endDate.difference(startDate).inDays + 1;
-      return AlertDialog(
-        title: Row(children: [
-          const Icon(Icons.event_busy, size: 20),
-          const SizedBox(width: 8),
-          Text(AppLocalizations.of(context)!.createLeaveRequest, style: const TextStyle(fontSize: 16)),
-        ]),
-        content: SingleChildScrollView(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Nhân viên', border: OutlineInputBorder(), isDense: true),
-              items: _staffList.map((s) => DropdownMenuItem(value: s['id'] as String, child: Text(s['name'] as String, style: const TextStyle(fontSize: 13)))).toList(),
-              onChanged: (v) => setDlg(() => selectedUserId = v),
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          final days = endDate.difference(startDate).inDays + 1;
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.event_busy, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(context)!.createLeaveRequest,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            DropdownButtonFormField<String>(
-              value: leaveType,
-              decoration: InputDecoration(labelText: AppLocalizations.of(context)!.leaveType, border: const OutlineInputBorder(), isDense: true),
-              items: ['annual', 'sick', 'unpaid', 'personal', 'maternity'].map((t) =>
-                DropdownMenuItem(value: t, child: Text(LeaveRequest.leaveTypeDisplayVi(t), style: const TextStyle(fontSize: 13)))).toList(),
-              onChanged: (v) => setDlg(() => leaveType = v ?? 'annual'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Nhân viên',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: _staffList
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s['id'] as String,
+                            child: Text(
+                              s['name'] as String,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setDlg(() => selectedUserId = v),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: leaveType,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.leaveType,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: ['annual', 'sick', 'unpaid', 'personal', 'maternity']
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(
+                              LeaveRequest.leaveTypeDisplayVi(t),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setDlg(() => leaveType = v ?? 'annual'),
+                  ),
+                  const SizedBox(height: 10),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${AppLocalizations.of(context)!.startDate}: ${DateFormat('dd/MM/yyyy').format(startDate)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: startDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (d != null)
+                        setDlg(() {
+                          startDate = d;
+                          if (endDate.isBefore(startDate)) endDate = startDate;
+                        });
+                    },
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${AppLocalizations.of(context)!.endDate}: ${DateFormat('dd/MM/yyyy').format(endDate)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: endDate,
+                        firstDate: startDate,
+                        lastDate: startDate.add(const Duration(days: 90)),
+                      );
+                      if (d != null) setDlg(() => endDate = d);
+                    },
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${AppLocalizations.of(context)!.totalDays}: $days ngày',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.leaveReason,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => reason = v,
+                    maxLines: 2,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 10),
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('${AppLocalizations.of(context)!.startDate}: ${DateFormat('dd/MM/yyyy').format(startDate)}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.calendar_today, size: 18),
-              onTap: () async {
-                final d = await showDatePicker(context: ctx, initialDate: startDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
-                if (d != null) setDlg(() { startDate = d; if (endDate.isBefore(startDate)) endDate = startDate; });
-              },
-            ),
-            ListTile(
-              dense: true, contentPadding: EdgeInsets.zero,
-              title: Text('${AppLocalizations.of(context)!.endDate}: ${DateFormat('dd/MM/yyyy').format(endDate)}', style: const TextStyle(fontSize: 13)),
-              trailing: const Icon(Icons.calendar_today, size: 18),
-              onTap: () async {
-                final d = await showDatePicker(context: ctx, initialDate: endDate, firstDate: startDate, lastDate: startDate.add(const Duration(days: 90)));
-                if (d != null) setDlg(() => endDate = d);
-              },
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-              child: Text('${AppLocalizations.of(context)!.totalDays}: $days ngày', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: InputDecoration(labelText: AppLocalizations.of(context)!.leaveReason, border: const OutlineInputBorder(), isDense: true),
-              onChanged: (v) => reason = v,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedUserId == null) {
-                NotificationService.showSnackBar('Chọn nhân viên', color: Colors.red);
-                return;
-              }
-              final staff = _staffList.firstWhere((s) => s['id'] == selectedUserId);
-              final lr = LeaveRequest(
-                userId: selectedUserId!,
-                email: staff['email'],
-                name: staff['name'],
-                leaveType: leaveType,
-                startDate: DateFormat('yyyy-MM-dd').format(startDate),
-                endDate: DateFormat('yyyy-MM-dd').format(endDate),
-                totalDays: days.toDouble(),
-                reason: reason.isNotEmpty ? reason : null,
-                status: 'pending',
-                createdAt: DateTime.now().millisecondsSinceEpoch,
-                updatedAt: DateTime.now().millisecondsSinceEpoch,
-                isSynced: false,
-              );
-              Navigator.pop(ctx);
-              final ok = await AttendanceApprovalService.createLeaveRequest(lr);
-              if (ok) {
-                NotificationService.showSnackBar('Đã tạo đơn xin nghỉ', color: AppColors.success);
-                await _loadData();
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: Text(AppLocalizations.of(context)!.createLeaveRequest),
-          ),
-        ],
-      );
-    }));
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (selectedUserId == null) {
+                    NotificationService.showSnackBar(
+                      'Chọn nhân viên',
+                      color: Colors.red,
+                    );
+                    return;
+                  }
+                  final staff = _staffList.firstWhere(
+                    (s) => s['id'] == selectedUserId,
+                  );
+                  final lr = LeaveRequest(
+                    userId: selectedUserId!,
+                    email: staff['email'],
+                    name: staff['name'],
+                    leaveType: leaveType,
+                    startDate: DateFormat('yyyy-MM-dd').format(startDate),
+                    endDate: DateFormat('yyyy-MM-dd').format(endDate),
+                    totalDays: days.toDouble(),
+                    reason: reason.isNotEmpty ? reason : null,
+                    status: 'pending',
+                    createdAt: DateTime.now().millisecondsSinceEpoch,
+                    updatedAt: DateTime.now().millisecondsSinceEpoch,
+                    isSynced: false,
+                  );
+                  Navigator.pop(ctx);
+                  final ok = await AttendanceApprovalService.createLeaveRequest(
+                    lr,
+                  );
+                  if (ok) {
+                    NotificationService.showSnackBar(
+                      'Đã tạo đơn xin nghỉ',
+                      color: AppColors.success,
+                    );
+                    await _loadData();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: Text(AppLocalizations.of(context)!.createLeaveRequest),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _approveLeave(LeaveRequest lr) async {
     final ok = await AttendanceApprovalService.approveLeaveRequest(lr);
     if (ok) {
-      NotificationService.showSnackBar('Đã duyệt đơn xin nghỉ', color: AppColors.success);
+      NotificationService.showSnackBar(
+        'Đã duyệt đơn xin nghỉ',
+        color: AppColors.success,
+      );
       await _loadData();
     }
   }
 
   Future<void> _rejectLeave(LeaveRequest lr) async {
-    final reason = await _showReasonDialog(AppLocalizations.of(context)!.rejectReasonHint);
+    final reason = await _showReasonDialog(
+      AppLocalizations.of(context)!.rejectReasonHint,
+    );
     if (reason == null) return;
     final ok = await AttendanceApprovalService.rejectLeaveRequest(lr, reason);
     if (ok) {
-      NotificationService.showSnackBar('Đã từ chối đơn xin nghỉ', color: AppColors.warning);
+      NotificationService.showSnackBar(
+        'Đã từ chối đơn xin nghỉ',
+        color: AppColors.warning,
+      );
       await _loadData();
     }
   }
@@ -1483,42 +2401,112 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.75,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              CircleAvatar(radius: 18, backgroundColor: AppColors.primary.withOpacity(0.1),
-                child: Text((staff['name'] as String).substring(0, 1), style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize))),
-              const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize)),
-                Text(staff['email'], style: TextStyle(color: AppColors.inactive, fontSize: AppTextStyles.caption.fontSize)),
-              ])),
-              // Edit times button
-              IconButton(
-                icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
-                tooltip: loc.editCheckTime,
-                onPressed: () { Navigator.pop(ctx); _showEditTimesDialog(record, staff); },
-              ),
-              IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, size: 20)),
-            ]),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  child: Text(
+                    (staff['name'] as String).substring(0, 1),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.headline5.fontSize,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        staff['name'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
+                      ),
+                      Text(
+                        staff['email'],
+                        style: TextStyle(
+                          color: AppColors.inactive,
+                          fontSize: AppTextStyles.caption.fontSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Edit times button
+                IconButton(
+                  icon: const Icon(
+                    Icons.edit,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                  tooltip: loc.editCheckTime,
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _showEditTimesDialog(record, staff);
+                  },
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close, size: 20),
+                ),
+              ],
+            ),
             const Divider(height: 16),
-            _detailRow(loc.dateLabel, DateFormat('dd/MM/yyyy').format(_selectedDate)),
-            _detailRow(loc.checkInTimeShort, record.checkInAt != null ? DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!)) : '--'),
-            _detailRow(loc.checkOutTimeShort, record.checkOutAt != null ? DateFormat('HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!)) : '--'),
+            _detailRow(
+              loc.dateLabel,
+              DateFormat('dd/MM/yyyy').format(_selectedDate),
+            ),
+            _detailRow(
+              loc.checkInTimeShort,
+              record.checkInAt != null
+                  ? DateFormat('HH:mm:ss').format(
+                      DateTime.fromMillisecondsSinceEpoch(record.checkInAt!),
+                    )
+                  : '--',
+            ),
+            _detailRow(
+              loc.checkOutTimeShort,
+              record.checkOutAt != null
+                  ? DateFormat('HH:mm:ss').format(
+                      DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!),
+                    )
+                  : '--',
+            ),
             _detailRow(loc.lateArrival, record.isLate == 1 ? loc.yes : loc.no),
-            _detailRow(loc.earlyLeave, record.isEarlyLeave == 1 ? loc.yes : loc.no),
+            _detailRow(
+              loc.earlyLeave,
+              record.isEarlyLeave == 1 ? loc.yes : loc.no,
+            ),
             _detailRow('Trạng thái', _statusDisplayVi(record.status)),
-            if (record.overtimeOn > 0) _detailRow('Tăng ca', '${record.overtimeOn} phút'),
+            if (record.overtimeOn > 0)
+              _detailRow('Tăng ca', '${record.overtimeOn} phút'),
             if (record.overtimeStartAt != null && record.overtimeEndAt != null)
-              _detailRow('Giờ TC', '${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.overtimeStartAt!))} - ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.overtimeEndAt!))}'),
-            if (record.note != null && record.note!.isNotEmpty) _detailRow('Ghi chú', record.note!),
-            if (record.location != null) _detailRow(loc.locationLabel, record.location!),
-            if (record.location != null && OsmMapService.parseLatLng(record.location) != null)
+              _detailRow(
+                'Giờ TC',
+                '${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.overtimeStartAt!))} - ${DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.overtimeEndAt!))}',
+              ),
+            if (record.note != null && record.note!.isNotEmpty)
+              _detailRow('Ghi chú', record.note!),
+            if (record.location != null)
+              _detailRow(loc.locationLabel, record.location!),
+            if (record.location != null &&
+                OsmMapService.parseLatLng(record.location) != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: OutlinedButton.icon(
@@ -1527,47 +2515,105 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                     if (p != null) await OsmMapService.openPoint(p[0], p[1]);
                   },
                   icon: const Icon(Icons.map, size: 16),
-                  label: const Text('Xem vị trí', style: TextStyle(fontSize: 12)),
-                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  label: const Text(
+                    'Xem vị trí',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ),
             // Approve/Reject from detail
-            if (record.status == 'pending' && record.checkInAt != null) ...[
+            if (_needsAttendanceApproval(record)) ...[
               const Divider(height: 12),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                TextButton(
-                  onPressed: () { Navigator.pop(ctx); _rejectAttendance(record); },
-                  style: TextButton.styleFrom(foregroundColor: AppColors.error),
-                  child: Text(loc.rejectAttendance, style: const TextStyle(fontSize: 12)),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () { Navigator.pop(ctx); _approveAttendance(record); },
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, foregroundColor: Colors.white),
-                  child: Text(loc.approveAttendance, style: const TextStyle(fontSize: 12)),
-                ),
-              ]),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _rejectAttendance(record);
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                    ),
+                    child: Text(
+                      loc.rejectAttendance,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _approveAttendance(record);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.success,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(
+                      loc.approveAttendance,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
             ],
             const SizedBox(height: 8),
             // Photos
             if (record.photoIn != null || record.photoOut != null) ...[
-              Text(loc.attendancePhotos, style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline6.fontSize)),
+              Text(
+                loc.attendancePhotos,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTextStyles.headline6.fontSize,
+                ),
+              ),
               const SizedBox(height: 6),
-              Row(children: [
-                if (record.photoIn != null)
-                  Expanded(child: Column(children: [
-                    ClipRRect(borderRadius: BorderRadius.circular(8), child: _buildAttendanceImage(record.photoIn!)),
-                    const SizedBox(height: 4),
-                    Text(loc.checkInPhoto, style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
-                  ])),
-                if (record.photoIn != null && record.photoOut != null) const SizedBox(width: 8),
-                if (record.photoOut != null)
-                  Expanded(child: Column(children: [
-                    ClipRRect(borderRadius: BorderRadius.circular(8), child: _buildAttendanceImage(record.photoOut!)),
-                    const SizedBox(height: 4),
-                    Text(loc.checkOutPhoto, style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
-                  ])),
-              ]),
+              Row(
+                children: [
+                  if (record.photoIn != null)
+                    Expanded(
+                      child: Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _buildAttendanceImage(record.photoIn!),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            loc.checkInPhoto,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (record.photoIn != null && record.photoOut != null)
+                    const SizedBox(width: 8),
+                  if (record.photoOut != null)
+                    Expanded(
+                      child: Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _buildAttendanceImage(record.photoOut!),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            loc.checkOutPhoto,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ],
           ],
         ),
@@ -1576,67 +2622,141 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   }
 
   void _showEditTimesDialog(Attendance record, Map<String, dynamic> staff) {
-    TimeOfDay? newIn = record.checkInAt != null ? TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!)) : null;
-    TimeOfDay? newOut = record.checkOutAt != null ? TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!)) : null;
+    TimeOfDay? newIn = record.checkInAt != null
+        ? TimeOfDay.fromDateTime(
+            DateTime.fromMillisecondsSinceEpoch(record.checkInAt!),
+          )
+        : null;
+    TimeOfDay? newOut = record.checkOutAt != null
+        ? TimeOfDay.fromDateTime(
+            DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!),
+          )
+        : null;
     String note = '';
 
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDlg) {
-      return AlertDialog(
-        title: Row(children: [
-          const Icon(Icons.edit_calendar, size: 20),
-          const SizedBox(width: 8),
-          Flexible(child: Text('${AppLocalizations.of(context)!.editCheckTime} - ${staff['name']}', style: const TextStyle(fontSize: 15), overflow: TextOverflow.ellipsis)),
-        ]),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Ngày: ${record.dateKey}', style: TextStyle(fontSize: 13, color: AppColors.inactive)),
-          const SizedBox(height: 10),
-          ListTile(
-            dense: true, contentPadding: EdgeInsets.zero,
-            title: Text('Giờ vào: ${newIn?.format(ctx) ?? '--:--'}', style: const TextStyle(fontSize: 13)),
-            trailing: const Icon(Icons.access_time, size: 18),
-            onTap: () async {
-              final t = await showTimePicker(context: ctx, initialTime: newIn ?? const TimeOfDay(hour: 8, minute: 0));
-              if (t != null) setDlg(() => newIn = t);
-            },
-          ),
-          ListTile(
-            dense: true, contentPadding: EdgeInsets.zero,
-            title: Text('Giờ ra: ${newOut?.format(ctx) ?? '--:--'}', style: const TextStyle(fontSize: 13)),
-            trailing: const Icon(Icons.access_time, size: 18),
-            onTap: () async {
-              final t = await showTimePicker(context: ctx, initialTime: newOut ?? const TimeOfDay(hour: 17, minute: 0));
-              if (t != null) setDlg(() => newOut = t);
-            },
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            decoration: const InputDecoration(labelText: 'Ghi chú', border: OutlineInputBorder(), isDense: true),
-            onChanged: (v) => note = v,
-            style: const TextStyle(fontSize: 13),
-          ),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
-          ElevatedButton(
-            onPressed: () async {
-              final date = DateTime.parse(record.dateKey);
-              final inMs = newIn != null ? DateTime(date.year, date.month, date.day, newIn!.hour, newIn!.minute).millisecondsSinceEpoch : null;
-              final outMs = newOut != null ? DateTime(date.year, date.month, date.day, newOut!.hour, newOut!.minute).millisecondsSinceEpoch : null;
-              Navigator.pop(ctx);
-              final ok = await AttendanceApprovalService.editAttendanceTimes(
-                record: record, checkInAt: inMs, checkOutAt: outMs, note: note.isNotEmpty ? note : null,
-              );
-              if (ok) {
-                NotificationService.showSnackBar('Đã sửa giờ chấm công', color: AppColors.success);
-                await _loadData();
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Lưu'),
-          ),
-        ],
-      );
-    }));
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.edit_calendar, size: 20),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    '${AppLocalizations.of(context)!.editCheckTime} - ${staff['name']}',
+                    style: const TextStyle(fontSize: 15),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Ngày: ${record.dateKey}',
+                  style: TextStyle(fontSize: 13, color: AppColors.inactive),
+                ),
+                const SizedBox(height: 10),
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Giờ vào: ${newIn?.format(ctx) ?? '--:--'}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  trailing: const Icon(Icons.access_time, size: 18),
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: ctx,
+                      initialTime: newIn ?? const TimeOfDay(hour: 8, minute: 0),
+                    );
+                    if (t != null) setDlg(() => newIn = t);
+                  },
+                ),
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Giờ ra: ${newOut?.format(ctx) ?? '--:--'}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  trailing: const Icon(Icons.access_time, size: 18),
+                  onTap: () async {
+                    final t = await showTimePicker(
+                      context: ctx,
+                      initialTime:
+                          newOut ?? const TimeOfDay(hour: 17, minute: 0),
+                    );
+                    if (t != null) setDlg(() => newOut = t);
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Ghi chú',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (v) => note = v,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final date = DateTime.parse(record.dateKey);
+                  final inMs = newIn != null
+                      ? DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          newIn!.hour,
+                          newIn!.minute,
+                        ).millisecondsSinceEpoch
+                      : null;
+                  final outMs = newOut != null
+                      ? DateTime(
+                          date.year,
+                          date.month,
+                          date.day,
+                          newOut!.hour,
+                          newOut!.minute,
+                        ).millisecondsSinceEpoch
+                      : null;
+                  Navigator.pop(ctx);
+                  final ok =
+                      await AttendanceApprovalService.editAttendanceTimes(
+                        record: record,
+                        checkInAt: inMs,
+                        checkOutAt: outMs,
+                        note: note.isNotEmpty ? note : null,
+                      );
+                  if (ok) {
+                    NotificationService.showSnackBar(
+                      'Đã sửa giờ chấm công',
+                      color: AppColors.success,
+                    );
+                    await _loadData();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text('Lưu'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _showMonthDetail(Map<String, dynamic> staff, List<Attendance> records) {
@@ -1647,63 +2767,162 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              CircleAvatar(radius: 18, backgroundColor: AppColors.primary.withOpacity(0.1),
-                child: Text((staff['name'] as String).substring(0, 1), style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize))),
-              const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(staff['name'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize)),
-                Text(loc.monthYearFormat(DateFormat('MM/yyyy').format(_selectedMonth)), style: TextStyle(color: AppColors.inactive, fontSize: AppTextStyles.caption.fontSize)),
-              ])),
-              IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close, size: 20)),
-            ]),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  child: Text(
+                    (staff['name'] as String).substring(0, 1),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.headline5.fontSize,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        staff['name'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
+                      ),
+                      Text(
+                        loc.monthYearFormat(
+                          DateFormat('MM/yyyy').format(_selectedMonth),
+                        ),
+                        style: TextStyle(
+                          color: AppColors.inactive,
+                          fontSize: AppTextStyles.caption.fontSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close, size: 20),
+                ),
+              ],
+            ),
             if (summary != null) ...[
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _monthFlag('Ngày công ${summary.workDays}', AppColors.primary),
-                  _monthFlag('Đã duyệt ${summary.approvedDays}', AppColors.success),
+                  _monthFlag(
+                    'Ngày công ${summary.workDays}',
+                    AppColors.primary,
+                  ),
+                  _monthFlag(
+                    'Đã duyệt ${summary.approvedDays}',
+                    AppColors.success,
+                  ),
                   _monthFlag('Chờ ${summary.pendingDays}', AppColors.warning),
-                  _monthFlag('Giờ công ${summary.totalWorkLabel}', AppColors.primaryDark),
+                  _monthFlag(
+                    'Giờ công ${summary.totalWorkLabel}',
+                    AppColors.primaryDark,
+                  ),
                   if (summary.overtimeMinutes > 0)
-                    _monthFlag('OT ${summary.overtimeLabel}', Colors.deepOrange),
+                    _monthFlag(
+                      'OT ${summary.overtimeLabel}',
+                      Colors.deepOrange,
+                    ),
                 ],
               ),
             ],
             const Divider(height: 16),
             Expanded(
               child: records.isEmpty
-                  ? Center(child: Text(loc.noAttendanceData, style: TextStyle(color: AppColors.inactive)))
+                  ? Center(
+                      child: Text(
+                        loc.noAttendanceData,
+                        style: TextStyle(color: AppColors.inactive),
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: records.length,
                       itemBuilder: (_, i) {
                         final r = records[i];
-                        final statusColor = r.status == 'approved' ? AppColors.success : r.status == 'rejected' ? AppColors.error : AppColors.warning;
+                        final statusColor = r.status == 'approved'
+                            ? AppColors.success
+                            : r.status == 'rejected'
+                            ? AppColors.error
+                            : AppColors.warning;
                         return ListTile(
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _showStaffDetail(staff, [r]);
+                          },
                           dense: true,
                           leading: Container(
-                            width: 30, height: 30,
+                            width: 30,
+                            height: 30,
                             decoration: BoxDecoration(
-                              color: r.isLate == 1 ? AppColors.warning.withOpacity(0.1) : AppColors.success.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(6)),
+                              color: r.isLate == 1
+                                  ? AppColors.warning.withOpacity(0.1)
+                                  : AppColors.success.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
                             alignment: Alignment.center,
-                            child: Text(r.dateKey.split('-').last, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: r.isLate == 1 ? AppColors.warning : AppColors.success)),
+                            child: Text(
+                              r.dateKey.split('-').last,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                color: r.isLate == 1
+                                    ? AppColors.warning
+                                    : AppColors.success,
+                              ),
+                            ),
                           ),
-                          title: Text(DateFormat('EEEE', 'vi').format(DateTime.parse(r.dateKey)), style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
+                          title: Text(
+                            DateFormat(
+                              'EEEE',
+                              'vi',
+                            ).format(DateTime.parse(r.dateKey)),
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                            ),
+                          ),
                           subtitle: Text(
                             'Vào: ${r.checkInAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.checkInAt!)) : '--'} | Ra: ${r.checkOutAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.checkOutAt!)) : '--'}${r.overtimeOn > 0 ? ' | OT: ${r.overtimeOn}p' : ''}',
-                            style: TextStyle(fontSize: 11)),
+                            style: TextStyle(fontSize: 11),
+                          ),
                           trailing: Container(
-                            width: 8, height: 8,
-                            decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              _statusDisplayVi(r.status),
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         );
                       },
@@ -1722,20 +2941,43 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       future: StorageService.resolveDisplayUrl(imagePath),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(height: 100, color: Colors.grey[100], child: const Center(child: CircularProgressIndicator(strokeWidth: 2)));
+          return Container(
+            height: 100,
+            color: Colors.grey[100],
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
         }
         final url = snapshot.data;
         if (url == null || url.isEmpty) {
-          return Container(height: 100, color: Colors.grey[200], child: const Icon(Icons.broken_image));
+          return Container(
+            height: 100,
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image),
+          );
         }
-        return AppCachedImage(imageUrl: url, height: 100, fit: BoxFit.cover, memCacheHeight: 200);
+        return AppCachedImage(
+          imageUrl: url,
+          height: 100,
+          fit: BoxFit.cover,
+          memCacheHeight: 200,
+        );
       },
     );
   }
 
   String _staffNameById(String userId) {
-    final s = _staffList.cast<Map<String, dynamic>?>().firstWhere((s) => s?['id'] == userId, orElse: () => null);
-    return (s?['name'] as String?) ?? (userId.length > 8 ? userId.substring(0, 8) : userId.isNotEmpty ? userId : 'N/A');
+    final s = _staffList.cast<Map<String, dynamic>?>().firstWhere(
+      (s) => s?['id'] == userId,
+      orElse: () => null,
+    );
+    return (s?['name'] as String?) ??
+        (userId.length > 8
+            ? userId.substring(0, 8)
+            : userId.isNotEmpty
+            ? userId
+            : 'N/A');
   }
 
   AttendanceMonthlySummary? _summaryByUserId(String userId) {
@@ -1745,6 +2987,261 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       }
     }
     return null;
+  }
+
+  List<Attendance> _collectApprovalRecords() {
+    final pending = <Attendance>[];
+    final seenKeys = <String>{};
+
+    void addRecord(Attendance record) {
+      if (!_needsAttendanceApproval(record)) {
+        return;
+      }
+      final key =
+          record.firestoreId ??
+          '${record.userId}_${record.dateKey}_${record.requestType ?? 'normal'}';
+      if (seenKeys.add(key)) {
+        pending.add(record);
+      }
+    }
+
+    for (final staff in _staffList) {
+      final records = _staffAttendance[staff['id']] ?? const <Attendance>[];
+      for (final record in records) {
+        addRecord(record);
+      }
+    }
+
+    for (final record in _pendingRequests) {
+      addRecord(record);
+    }
+
+    pending.sort((a, b) {
+      final dateCompare = b.dateKey.compareTo(a.dateKey);
+      if (dateCompare != 0) {
+        return dateCompare;
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+
+    return pending;
+  }
+
+  bool _needsAttendanceApproval(Attendance? record) {
+    if (record == null) {
+      return false;
+    }
+    return AttendanceSummaryService.isPendingLike(record);
+  }
+
+  Future<void> _exportCurrentAttendance() async {
+    if (_viewMode == 'month') {
+      await _exportMonthlySummary();
+      return;
+    }
+
+    final start = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final end = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+
+    await ExcelExportHelper.exportAttendance(
+      context,
+      startMs: start.millisecondsSinceEpoch,
+      endMs: end.millisecondsSinceEpoch,
+    );
+  }
+
+  void _showAttendanceDetailList() {
+    final grouped = <Map<String, dynamic>>[];
+    for (final staff in _staffList) {
+      final records = List<Attendance>.from(
+        _staffAttendance[staff['id']] ?? const <Attendance>[],
+      )..sort((a, b) => a.dateKey.compareTo(b.dateKey));
+
+      if (records.isEmpty) {
+        continue;
+      }
+
+      grouped.add({
+        'staff': staff,
+        'records': records,
+        'summary': _summaryByUserId(staff['id'] as String),
+      });
+    }
+
+    if (grouped.isEmpty) {
+      NotificationService.showSnackBar(
+        'Không có dữ liệu chi tiết để hiển thị',
+        color: AppColors.warning,
+      );
+      return;
+    }
+
+    showAppBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _viewMode == 'day'
+                            ? 'Chi tiết ngày ${DateFormat('dd/MM/yyyy').format(_selectedDate)}'
+                            : 'Chi tiết tháng ${DateFormat('MM/yyyy').format(_selectedMonth)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${grouped.length} nhân viên có dữ liệu chấm công',
+                        style: TextStyle(
+                          color: AppColors.inactive,
+                          fontSize: AppTextStyles.caption.fontSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close, size: 20),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            Expanded(
+              child: ListView.builder(
+                itemCount: grouped.length,
+                itemBuilder: (_, index) {
+                  final item = grouped[index];
+                  final staff = item['staff'] as Map<String, dynamic>;
+                  final records = item['records'] as List<Attendance>;
+                  final summary = item['summary'] as AttendanceMonthlySummary?;
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ExpansionTile(
+                      tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                      childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                      title: Text(
+                        staff['name'] as String,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        summary != null
+                            ? 'Công ${summary.workDays} • Duyệt ${summary.approvedDays} • Chờ ${summary.pendingDays}'
+                            : '${records.length} bản ghi',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.inactive,
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${records.length} ngày',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      children: records.map((record) {
+                        final statusColor = record.status == 'approved'
+                            ? AppColors.success
+                            : record.status == 'rejected'
+                            ? AppColors.error
+                            : AppColors.warning;
+
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            if (_viewMode == 'day') {
+                              _showStaffDetail(staff, [record]);
+                            } else {
+                              _showMonthDetail(staff, records);
+                            }
+                          },
+                          title: Text(
+                            _viewMode == 'day'
+                                ? '${staff['name']} • ${record.dateKey}'
+                                : record.dateKey,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          subtitle: Text(
+                            'Vào ${record.checkInAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkInAt!)) : '--'} • Ra ${record.checkOutAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(record.checkOutAt!)) : '--'}${record.overtimeOn > 0 ? ' • OT ${record.overtimeOn}p' : ''}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.inactive,
+                            ),
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              _statusDisplayVi(record.status),
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _exportMonthlySummary() async {
@@ -1766,9 +3263,12 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   String _statusDisplayVi(String status) {
     switch (status) {
-      case 'approved': return 'Đã duyệt ✓';
-      case 'rejected': return 'Từ chối ✗';
-      default: return 'Chờ duyệt';
+      case 'approved':
+        return 'Đã duyệt ✓';
+      case 'rejected':
+        return 'Từ chối ✗';
+      default:
+        return 'Chờ duyệt';
     }
   }
 
@@ -1777,23 +3277,48 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     String label;
     Color color;
     switch (role) {
-      case 'owner': label = loc.roleOwnerShort; color = AppColors.primary; break;
-      case 'manager': label = loc.roleManagerShort; color = AppColors.primary; break;
-      case 'technician': label = loc.roleTechnicianShort; color = AppColors.success; break;
-      default: label = loc.roleEmployeeShort; color = AppColors.inactive;
+      case 'owner':
+        label = loc.roleOwnerShort;
+        color = AppColors.primary;
+        break;
+      case 'manager':
+        label = loc.roleManagerShort;
+        color = AppColors.primary;
+        break;
+      case 'technician':
+        label = loc.roleTechnicianShort;
+        color = AppColors.success;
+        break;
+      default:
+        label = loc.roleEmployeeShort;
+        color = AppColors.inactive;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
   Color _roleColor(String? role) {
     switch (role) {
-      case 'owner': case 'manager': return AppColors.primary;
-      case 'technician': return AppColors.success;
-      default: return AppColors.inactive;
+      case 'owner':
+      case 'manager':
+        return AppColors.primary;
+      case 'technician':
+        return AppColors.success;
+      default:
+        return AppColors.inactive;
     }
   }
 
@@ -1803,8 +3328,24 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: AppColors.inactive, fontSize: AppTextStyles.caption.fontSize)),
-          Flexible(child: Text(value, style: TextStyle(fontWeight: FontWeight.w500, fontSize: AppTextStyles.caption.fontSize), overflow: TextOverflow.ellipsis, textAlign: TextAlign.end)),
+          Text(
+            label,
+            style: TextStyle(
+              color: AppColors.inactive,
+              fontSize: AppTextStyles.caption.fontSize,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: AppTextStyles.caption.fontSize,
+              ),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );
@@ -1817,16 +3358,29 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
       builder: (ctx) => AlertDialog(
         title: const Text('Lý do', style: TextStyle(fontSize: 16)),
         content: TextField(
-          decoration: InputDecoration(hintText: hint, border: const OutlineInputBorder(), isDense: true),
+          decoration: InputDecoration(
+            hintText: hint,
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
           onChanged: (v) => reason = v,
           maxLines: 2,
           style: const TextStyle(fontSize: 13),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () {
-              if (reason.trim().isEmpty) { NotificationService.showSnackBar('Nhập lý do', color: Colors.red); return; }
+              if (reason.trim().isEmpty) {
+                NotificationService.showSnackBar(
+                  'Nhập lý do',
+                  color: Colors.red,
+                );
+                return;
+              }
               Navigator.pop(ctx, reason.trim());
             },
             child: const Text('Xác nhận'),

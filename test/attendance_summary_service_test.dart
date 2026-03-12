@@ -34,7 +34,7 @@ void main() {
               name: 'Nguyen Van A',
               dateKey: '2025-03-02',
               checkInAt: DateTime(2025, 3, 2, 8, 15).millisecondsSinceEpoch,
-              status: 'pending',
+              status: 'completed',
               isEarlyLeave: 1,
               createdAt: DateTime(2025, 3, 2, 8, 15).millisecondsSinceEpoch,
             ),
@@ -54,5 +54,22 @@ void main() {
       expect(summary.totalWorkMinutes, 570);
       expect(summary.overtimeMinutes, 60);
     });
+
+    test(
+      'isPendingLike treats legacy completed records as waiting approval',
+      () {
+        final record = Attendance(
+          userId: 'staff-1',
+          email: 'a@example.com',
+          name: 'Nguyen Van A',
+          dateKey: '2025-03-03',
+          checkInAt: DateTime(2025, 3, 3, 8, 0).millisecondsSinceEpoch,
+          status: 'completed',
+          createdAt: DateTime(2025, 3, 3, 8, 0).millisecondsSinceEpoch,
+        );
+
+        expect(AttendanceSummaryService.isPendingLike(record), isTrue);
+      },
+    );
   });
 }

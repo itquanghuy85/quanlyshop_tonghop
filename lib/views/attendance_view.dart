@@ -84,7 +84,13 @@ class _AttendanceViewState extends State<AttendanceView>
     setState(() {
       _role = r;
       _hasPermission = perms['allowViewAttendance'] ?? false;
-      _userName = name.isNotEmpty ? name : (FirebaseAuth.instance.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV');
+      _userName = name.isNotEmpty
+          ? name
+          : (FirebaseAuth.instance.currentUser?.email
+                    ?.split('@')
+                    .first
+                    .toUpperCase() ??
+                'NV');
     });
     _refreshAttendanceData();
   }
@@ -226,7 +232,7 @@ class _AttendanceViewState extends State<AttendanceView>
         checkOutAt: isIn ? null : timestamp,
         photoIn: isIn ? cloudUrl : _today?.photoIn,
         photoOut: isIn ? null : cloudUrl,
-        status: 'completed',
+        status: 'pending',
         isLate: isLate ? 1 : 0,
         isEarlyLeave: isEarly ? 1 : 0,
         location: locationStr ?? _today?.location,
@@ -369,13 +375,18 @@ class _AttendanceViewState extends State<AttendanceView>
       backgroundColor: AppColors.background,
       appBar: CustomAppBar.build(
         title: AppLocalizations.of(context)?.attendance ?? "CHẤM CÔNG",
-        subtitle: AppLocalizations.of(context)?.attendanceManagement ?? "Quản lý giờ làm việc",
+        subtitle:
+            AppLocalizations.of(context)?.attendanceManagement ??
+            "Quản lý giờ làm việc",
         actions: [
           IconButton(
             icon: const Icon(Icons.file_download_outlined),
             tooltip: 'Xuất Excel chấm công',
             onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất chấm công');
+              final result = await ExportDateFilterDialog.show(
+                context,
+                title: 'Xuất chấm công',
+              );
               if (result == null) return;
               if (!mounted) return;
               await ExcelExportHelper.exportAttendance(
@@ -401,13 +412,13 @@ class _AttendanceViewState extends State<AttendanceView>
       ),
       body: ResponsiveCenter(
         child: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildTodayTab(),
-          _buildHistoryTab(),
-          if (_role == 'owner' || _role == 'manager') _buildStatsTab(),
-        ],
-      ),
+          controller: _tabController,
+          children: [
+            _buildTodayTab(),
+            _buildHistoryTab(),
+            if (_role == 'owner' || _role == 'manager') _buildStatsTab(),
+          ],
+        ),
       ),
     );
   }
@@ -502,13 +513,17 @@ class _AttendanceViewState extends State<AttendanceView>
           ),
           const SizedBox(height: 4),
           Text(
-            DateFormat('EEEE, dd MMMM yyyy', 'vi_VN').format(_clockNow).toUpperCase(),
+            DateFormat(
+              'EEEE, dd MMMM yyyy',
+              'vi_VN',
+            ).format(_clockNow).toUpperCase(),
             style: AppTextStyles.overline.copyWith(
               color: AppColors.onPrimary.withOpacity(0.7),
               letterSpacing: 1.2,
             ),
           ),
-          if (_userName.isNotEmpty) ...[            const SizedBox(height: 8),
+          if (_userName.isNotEmpty) ...[
+            const SizedBox(height: 8),
             Text(
               _userName,
               style: AppTextStyles.body1.copyWith(
@@ -543,7 +558,9 @@ class _AttendanceViewState extends State<AttendanceView>
           foregroundColor: AppColors.onPrimary,
           disabledBackgroundColor: AppColors.inactive.withOpacity(0.3),
           padding: const EdgeInsets.symmetric(vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           elevation: enabled ? 3 : 0,
         ),
       ),
@@ -782,7 +799,8 @@ class _AttendanceViewState extends State<AttendanceView>
             if (item.location != null)
               _detailRow('Vị trí', item.location!, Icons.location_on),
 
-            if (item.location != null && OsmMapService.parseLatLng(item.location) != null)
+            if (item.location != null &&
+                OsmMapService.parseLatLng(item.location) != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Wrap(
@@ -953,10 +971,7 @@ class _AttendanceViewState extends State<AttendanceView>
                 ),
               ],
             ),
-            AppCachedImage(
-              imageUrl: url,
-              fit: BoxFit.contain,
-            ),
+            AppCachedImage(imageUrl: url, fit: BoxFit.contain),
           ],
         ),
       ),
@@ -967,7 +982,9 @@ class _AttendanceViewState extends State<AttendanceView>
     int totalDays = _history.length;
     int lateDays = _history.where((h) => h.isLate == 1).length;
     int earlyDays = _history.where((h) => h.isEarlyLeave == 1).length;
-    int onTimeDays = _history.where((h) => h.isLate == 0 && h.isEarlyLeave == 0).length;
+    int onTimeDays = _history
+        .where((h) => h.isLate == 0 && h.isEarlyLeave == 0)
+        .length;
     double onTimeRate = totalDays > 0 ? (onTimeDays / totalDays * 100) : 0;
     int totalMinutes = 0;
     for (final h in _history) {
@@ -984,29 +1001,76 @@ class _AttendanceViewState extends State<AttendanceView>
           // Summary grid
           Row(
             children: [
-              Expanded(child: _statCard("Tổng ngày công", "$totalDays", AppColors.primary, Icons.calendar_today)),
+              Expanded(
+                child: _statCard(
+                  "Tổng ngày công",
+                  "$totalDays",
+                  AppColors.primary,
+                  Icons.calendar_today,
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: _statCard("Đúng giờ", "$onTimeDays", AppColors.success, Icons.check_circle)),
+              Expanded(
+                child: _statCard(
+                  "Đúng giờ",
+                  "$onTimeDays",
+                  AppColors.success,
+                  Icons.check_circle,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _statCard("Đi muộn", "$lateDays", AppColors.error, Icons.access_time_filled)),
+              Expanded(
+                child: _statCard(
+                  "Đi muộn",
+                  "$lateDays",
+                  AppColors.error,
+                  Icons.access_time_filled,
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: _statCard("Về sớm", "$earlyDays", AppColors.warning, Icons.directions_run)),
+              Expanded(
+                child: _statCard(
+                  "Về sớm",
+                  "$earlyDays",
+                  AppColors.warning,
+                  Icons.directions_run,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _statCard("Tỷ lệ đúng giờ", "${onTimeRate.toStringAsFixed(0)}%", Colors.teal, Icons.trending_up)),
+              Expanded(
+                child: _statCard(
+                  "Tỷ lệ đúng giờ",
+                  "${onTimeRate.toStringAsFixed(0)}%",
+                  Colors.teal,
+                  Icons.trending_up,
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: _statCard("TB giờ/ngày", _formatMinutes(avgMinutes), Colors.indigo, Icons.hourglass_bottom)),
+              Expanded(
+                child: _statCard(
+                  "TB giờ/ngày",
+                  _formatMinutes(avgMinutes),
+                  Colors.indigo,
+                  Icons.hourglass_bottom,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          _statCard("Tổng giờ làm việc", _formatMinutes(totalMinutes), Colors.deepPurple, Icons.work_history),
+          _statCard(
+            "Tổng giờ làm việc",
+            _formatMinutes(totalMinutes),
+            Colors.deepPurple,
+            Icons.work_history,
+          ),
         ],
       ),
     );

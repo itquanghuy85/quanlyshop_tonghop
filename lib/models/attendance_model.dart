@@ -13,7 +13,7 @@ class Attendance {
   String? photoIn;
   String? photoOut;
   String? note;
-  String status; // pending, approved, rejected
+  String status; // pending, approved, rejected, completed (legacy)
   String? approvedBy;
   int? approvedAt;
   String? rejectReason;
