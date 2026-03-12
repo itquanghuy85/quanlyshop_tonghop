@@ -29,6 +29,7 @@ class StockEntryItem {
   final String? color;
   final String? condition;
   final String? labelInfo; // Thông tin in trên tem
+  final String? labelNote; // Ghi chú sản phẩm
   
   // Chỉ phụ kiện/linh kiện
   final String? sku;
@@ -53,6 +54,7 @@ class StockEntryItem {
     this.color,
     this.condition,
     this.labelInfo,
+    this.labelNote,
     this.sku,
     this.unit,
     this.size,
@@ -73,6 +75,7 @@ class StockEntryItem {
       if (color != null && color!.isNotEmpty) 'color': color,
       if (condition != null && condition!.isNotEmpty) 'condition': condition,
       if (labelInfo != null && labelInfo!.isNotEmpty) 'labelInfo': labelInfo,
+      if (labelNote != null && labelNote!.isNotEmpty) 'labelNote': labelNote,
       if (sku != null && sku!.isNotEmpty) 'sku': sku,
       if (unit != null && unit!.isNotEmpty) 'unit': unit,
       if (size != null && size!.isNotEmpty) 'size': size,
@@ -94,6 +97,7 @@ class StockEntryItem {
       color: map['color'],
       condition: map['condition'],
       labelInfo: map['labelInfo'],
+      labelNote: map['labelNote'],
       sku: map['sku'],
       unit: map['unit'],
       size: map['size'],
@@ -114,6 +118,7 @@ class StockEntryItem {
     String? color,
     String? condition,
     String? labelInfo,
+    String? labelNote,
     String? sku,
     String? unit,
     String? size,
@@ -132,6 +137,7 @@ class StockEntryItem {
       color: color ?? this.color,
       condition: condition ?? this.condition,
       labelInfo: labelInfo ?? this.labelInfo,
+      labelNote: labelNote ?? this.labelNote,
       sku: sku ?? this.sku,
       unit: unit ?? this.unit,
       size: size ?? this.size,

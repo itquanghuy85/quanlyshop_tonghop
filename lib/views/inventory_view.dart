@@ -3945,6 +3945,7 @@ class _InventoryViewState extends State<InventoryView>
       }
     }
     final labelInfoC = TextEditingController(text: p.labelInfo ?? '');
+    final labelNoteC = TextEditingController(text: p.labelNote ?? '');
     final qtyC = TextEditingController(text: p.quantity.toString());
     // Brand chọn riêng - giữ từ sản phẩm gốc
     String? selectedBrand = ProductConstants.mapBrand(p.brand);
@@ -4008,6 +4009,7 @@ class _InventoryViewState extends State<InventoryView>
                 color: selectedColor ?? '',
                 condition: selectedCondition ?? p.condition,
                 labelInfo: labelInfoC.text.trim(),
+                labelNote: labelNoteC.text.trim().isNotEmpty ? labelNoteC.text.trim() : null,
                 quantity: int.tryParse(qtyC.text) ?? 1,
                 type: type,
                 supplier: supplier,
@@ -4082,15 +4084,17 @@ class _InventoryViewState extends State<InventoryView>
                       labelText: "Loại hàng (không đổi)",
                       prefixIcon: Icon(
                         Icons.lock,
-                        size: 18,
+                        size: 16,
                         color: Colors.grey,
                       ),
                       filled: true,
                       fillColor: Color(0xFFF5F5F5),
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     child: Text(
                       type,
-                      style: AppTextStyles.headline4.copyWith(
+                      style: AppTextStyles.subtitle1.copyWith(
                         color: Colors.black54,
                       ),
                     ),
@@ -4098,15 +4102,17 @@ class _InventoryViewState extends State<InventoryView>
 
                   // Hãng - chỉ hiện cho điện thoại
                   if (_businessType == 'electronics') ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       value: ProductConstants.brands.contains(selectedBrand) ? selectedBrand : null,
                       decoration: const InputDecoration(
                         labelText: "Hãng *",
-                        prefixIcon: Icon(Icons.business, size: 18),
+                        prefixIcon: Icon(Icons.business, size: 16),
                         border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                      items: ProductConstants.brands.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                      items: ProductConstants.brands.map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 13)))).toList(),
                       onChanged: (v) => setS(() => selectedBrand = v),
                     ),
                   ],
@@ -4127,12 +4133,12 @@ class _InventoryViewState extends State<InventoryView>
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: _isFashion ? 'Kích thước' : 'Dung lượng',
-                              prefixIcon: Icon(_isFashion ? Icons.straighten : Icons.storage, size: 18),
+                              prefixIcon: Icon(_isFashion ? Icons.straighten : Icons.storage, size: 16),
                               border: const OutlineInputBorder(),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             ),
                             items: (_isFashion ? ProductConstants.clothingSizes : ProductConstants.capacities)
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
                                 .toList(),
                             onChanged: (v) => setS(() => selectedCapacity = v),
                           ),
@@ -4144,12 +4150,12 @@ class _InventoryViewState extends State<InventoryView>
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Màu sắc',
-                              prefixIcon: Icon(Icons.color_lens, size: 18),
+                              prefixIcon: Icon(Icons.color_lens, size: 16),
                               border: OutlineInputBorder(),
                               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             ),
                             items: ProductConstants.colors
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
                                 .toList(),
                             onChanged: (v) => setS(() => selectedColor = v),
                           ),
@@ -4162,28 +4168,28 @@ class _InventoryViewState extends State<InventoryView>
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Màu sắc',
-                        prefixIcon: Icon(Icons.color_lens, size: 18),
+                        prefixIcon: Icon(Icons.color_lens, size: 16),
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
                       items: ProductConstants.colors
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
                           .toList(),
                       onChanged: (v) => setS(() => selectedColor = v),
                     ),
 
                   // Tình trạng (MỚI, 99, 98...)
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: selectedCondition,
                     decoration: const InputDecoration(
                       labelText: 'Tình trạng',
-                      prefixIcon: Icon(Icons.grade, size: 18),
+                      prefixIcon: Icon(Icons.grade, size: 16),
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
                     items: ProductConstants.conditionsShort
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize))))
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
                         .toList(),
                     onChanged: (v) => setS(() => selectedCondition = v),
                   ),
@@ -4193,6 +4199,24 @@ class _InventoryViewState extends State<InventoryView>
                     labelInfoC,
                     "Thông tin in trên tem",
                     Icons.local_offer_outlined,
+                  ),
+
+                  // Ghi chú sản phẩm
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: TextFormField(
+                      controller: labelNoteC,
+                      maxLines: 2,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: const InputDecoration(
+                        labelText: 'Ghi chú',
+                        hintText: 'Ghi chú thêm về sản phẩm...',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.note_alt_outlined, size: 18),
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                    ),
                   ),
 
                   // IMEI/Serial (read-only) - chỉ hiện nếu enableSerial
@@ -4212,15 +4236,17 @@ class _InventoryViewState extends State<InventoryView>
                           labelText: "Giá vốn (đã nhập kho - không đổi)",
                           prefixIcon: Icon(
                             Icons.lock,
-                            size: 18,
+                            size: 16,
                             color: Colors.grey,
                           ),
                           filled: true,
                           fillColor: Color(0xFFF5F5F5),
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                         child: Text(
                           CurrencyTextField.formatDisplay(p.cost),
-                          style: AppTextStyles.headline4.copyWith(
+                          style: AppTextStyles.subtitle1.copyWith(
                             color: Colors.black54,
                           ),
                         ),
@@ -4325,17 +4351,20 @@ class _InventoryViewState extends State<InventoryView>
                             labelText: "Nhà cung cấp (không đổi)",
                             prefixIcon: Icon(
                               Icons.lock,
-                              size: 18,
+                              size: 16,
                               color: Colors.grey,
                             ),
                             filled: true,
                             fillColor: Color(0xFFF5F5F5),
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           ),
                           child: Text(
                             supplier ?? 'Không có',
-                            style: AppTextStyles.headline4.copyWith(
+                            style: AppTextStyles.subtitle1.copyWith(
                               color: Colors.black54,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),

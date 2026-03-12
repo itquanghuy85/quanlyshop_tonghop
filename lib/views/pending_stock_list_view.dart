@@ -640,6 +640,11 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                       '💳 ${entry.paymentMethod}',
                       Colors.teal.shade100,
                     ),
+                  if (item.labelNote != null && item.labelNote!.isNotEmpty)
+                    _infoChip(
+                      '📝 ${item.labelNote}',
+                      Colors.grey.shade200,
+                    ),
                 ],
               ),
 

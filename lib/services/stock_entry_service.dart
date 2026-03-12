@@ -525,6 +525,8 @@ class StockEntryService {
               'model': item.model ?? '',
               if (item.labelInfo != null && item.labelInfo!.isNotEmpty)
                 'labelInfo': item.labelInfo,
+              if (item.labelNote != null && item.labelNote!.isNotEmpty)
+                'labelNote': item.labelNote,
               'cost': item.cost ?? 0,
               'price': item.price ?? 0,
               'quantity': quantityPerProduct,

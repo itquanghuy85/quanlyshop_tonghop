@@ -61,6 +61,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   final _priceCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final _labelInfoCtrl = TextEditingController();
+  final _labelNoteCtrl = TextEditingController();
 
   // Controllers - Điện thoại
   final _imeiCtrl = TextEditingController();
@@ -476,6 +477,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         }
       }
       _labelInfoCtrl.text = item.labelInfo ?? '';
+      _labelNoteCtrl.text = item.labelNote ?? '';
     }
 
     _selectedSupplierId = entry.supplierId;
@@ -505,6 +507,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     _priceCtrl.dispose();
     _notesCtrl.dispose();
     _labelInfoCtrl.dispose();
+    _labelNoteCtrl.dispose();
     _imeiCtrl.dispose();
     _modelCtrl.dispose();
     _skuCtrl.dispose();
@@ -630,6 +633,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       price: price,
       productType: _productType,
       labelInfo: _labelInfoCtrl.text.trim(),
+      labelNote: _labelNoteCtrl.text.trim().isNotEmpty ? _labelNoteCtrl.text.trim() : null,
       // Điện thoại
       imei: _isPhone ? _imeiCtrl.text.trim() : null,
       brand: _isPhone ? _selectedBrand : null,
@@ -986,6 +990,24 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 hintText: 'VD: BH 6T, Hàng mới',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.local_offer_outlined, size: 20),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+            ),
+            const SizedBox(height: 12),
+
+            // Ghi chú sản phẩm
+            TextFormField(
+              controller: _labelNoteCtrl,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Ghi chú sản phẩm',
+                hintText: 'Ghi chú thêm về sản phẩm...',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.note_alt_outlined, size: 20),
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 8,

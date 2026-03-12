@@ -90,6 +90,7 @@ class _FastStockInViewState extends State<FastStockInView> {
   final TextEditingController costCtrl = TextEditingController();
   final TextEditingController priceCtrl = TextEditingController();
   final TextEditingController labelInfoCtrl = TextEditingController();
+  final TextEditingController labelNoteCtrl = TextEditingController();
 
   List<Map<String, dynamic>> suppliers = [];
 
@@ -242,6 +243,7 @@ class _FastStockInViewState extends State<FastStockInView> {
     costCtrl.dispose();
     priceCtrl.dispose();
     labelInfoCtrl.dispose();
+    labelNoteCtrl.dispose();
     super.dispose();
   }
 
@@ -745,6 +747,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         color: selectedColor!,
         capacity: selectedCapacity!,
         labelInfo: labelInfoCtrl.text.trim(),
+        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim() : null,
         paymentMethod: isPending
             ? null
             : selectedPaymentMethod, // Chỉ gán khi không pending
@@ -1045,6 +1048,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         color: selectedColor,
         condition: selectedCondition,
         labelInfo: labelInfoCtrl.text.trim().isNotEmpty ? labelInfoCtrl.text.trim() : null,
+        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim() : null,
         productType: 'DIEN_THOAI',
       );
 
@@ -1665,6 +1669,30 @@ class _FastStockInViewState extends State<FastStockInView> {
                     style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     decoration: InputDecoration(
                       hintText: 'VD: ${_terms.specialField2Label}, ghi chú nhanh...',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Ghi chú sản phẩm',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.body1.fontSize,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  TextField(
+                    controller: labelNoteCtrl,
+                    maxLines: 2,
+                    style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                    decoration: InputDecoration(
+                      hintText: 'Ghi chú thêm về sản phẩm...',
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 8,
