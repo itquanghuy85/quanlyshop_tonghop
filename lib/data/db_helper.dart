@@ -2911,6 +2911,46 @@ class DBHelper {
           debugPrint('DB onOpen check error (cash_closings columns): $e');
         }
         
+        // Ensure deleted column exists in expenses table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(expenses)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('deleted')) {
+            await db.execute('ALTER TABLE expenses ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added deleted to expenses');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (expenses columns): $e');
+        }
+
+        // Ensure shopId, deleted columns exist in purchase_orders table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(purchase_orders)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE purchase_orders ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to purchase_orders');
+          }
+          if (!colNames.contains('deleted')) {
+            await db.execute('ALTER TABLE purchase_orders ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added deleted to purchase_orders');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (purchase_orders columns): $e');
+        }
+
+        // Ensure deleted column exists in sales_returns table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(sales_returns)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('deleted')) {
+            await db.execute('ALTER TABLE sales_returns ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added deleted to sales_returns');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (sales_returns columns): $e');
+        }
+
         // Tạo index cho bảng products để tăng tốc query
         try {
           await db.execute('CREATE INDEX IF NOT EXISTS idx_products_createdAt ON products(createdAt DESC)');

@@ -389,7 +389,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           orderBy: 'paidAt DESC', limit: 5),
         // Recent supplier payments (last 5)
         db.query('supplier_payments',
-          columns: ['amount', 'paidAt', 'paymentMethod', 'supplierName', 'note'],
+          columns: ['amount', 'paidAt', 'paymentMethod', 'supplierId', 'note'],
           where: 'paidAt >= ?', whereArgs: [startMs],
           orderBy: 'paidAt DESC', limit: 5),
         // Recent repair partner payments (last 5)
@@ -474,7 +474,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
       for (final sp in results[4]) {
         final amount = (sp['amount'] as num?)?.toInt() ?? 0;
         final at = (sp['paidAt'] as num?)?.toInt() ?? 0;
-        final supplier = (sp['supplierName'] ?? 'NCC').toString();
+        final supplier = (sp['supplierId'] ?? 'NCC').toString();
         activities.add(_ActivityItem(
           icon: Icons.local_shipping,
           color: Colors.brown,

@@ -1834,6 +1834,8 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
       // === DEFERRED: Load chat info and reminders (don't block dashboard) ===
       _loadChatInfo();
       _loadReminderCount();
+    } catch (e) {
+      debugPrint('HomeView._loadStats error: $e');
     } finally {
       _isLoadingStats = false;
     }
@@ -1985,8 +1987,9 @@ class _HomeViewState extends State<HomeView> with TickerProviderStateMixin, Widg
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
+    final canNavPop = Navigator.of(context).canPop();
     return PopScope(
-      canPop: false,
+      canPop: canNavPop,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final ok = await showDialog<bool>(
