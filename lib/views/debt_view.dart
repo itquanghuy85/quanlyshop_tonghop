@@ -12,6 +12,7 @@ import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../services/adjustment_service.dart';
 import '../services/first_time_guide_service.dart';
+import '../services/debt_summary_service.dart';
 import '../services/repair_partner_service.dart';
 import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
@@ -37,6 +38,7 @@ class _DebtViewState extends State<DebtView>
     with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final db = DBHelper();
   final _partnerService = RepairPartnerService();
+  final _debtSummaryService = DebtSummaryService();
   TabController? _tabController;
   List<Map<String, dynamic>> _debts = [];
   List<Map<String, dynamic>> _partnerDebts = []; // Công nợ đối tác sửa chữa
@@ -45,11 +47,12 @@ class _DebtViewState extends State<DebtView>
   String _syncStatus = 'Đã đồng bộ';
   StreamSubscription<String>? _eventSub;
   Timer? _reloadDebounce;
-  
+
   // Shop settings for multi-industry
   ShopSettings? _shopSettings;
   bool get _enableRepair => _shopSettings?.enableRepair ?? true;
-  int get _tabCount => _enableRepair ? 4 : 3; // 4 tabs for electronics, 3 for fashion
+  int get _tabCount =>
+      _enableRepair ? 4 : 3; // 4 tabs for electronics, 3 for fashion
   bool _hasPermission = false;
 
   @override
@@ -72,7 +75,7 @@ class _DebtViewState extends State<DebtView>
       _showFirstTimeGuide();
     });
   }
-  
+
   Future<void> _loadShopSettings() async {
     try {
       final settings = await CategoryService().getShopSettings();
@@ -102,10 +105,9 @@ class _DebtViewState extends State<DebtView>
       steps: [
         GuideStep(
           title: _enableRepair ? '📊 3 loại công nợ' : '📊 2 loại công nợ',
-          description:
-              _enableRepair 
-                ? 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp), NỢ ĐỐI TÁC (nợ thợ sửa ngoài).'
-                : 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp).',
+          description: _enableRepair
+              ? 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp), NỢ ĐỐI TÁC (nợ thợ sửa ngoài).'
+              : 'KHÁCH NỢ (khách chưa TT), NỢ NCC (nợ nhà cung cấp).',
           icon: Icons.category,
           iconColor: Colors.blue,
         ),
@@ -166,90 +168,29 @@ class _DebtViewState extends State<DebtView>
     final data = await db.getAllDebts();
     debugPrint('DebtView: getAllDebts returned ${data.length} debts');
     for (final d in data) {
-      debugPrint('  - type=${d['type']}, personName=${d['personName']}, totalAmount=${d['totalAmount']}, deleted=${d['deleted']}, firestoreId=${d['firestoreId']}');
+      debugPrint(
+        '  - type=${d['type']}, personName=${d['personName']}, totalAmount=${d['totalAmount']}, deleted=${d['deleted']}, firestoreId=${d['firestoreId']}',
+      );
     }
 
-    // Load partner debts from repair stats
-    final partners = await _partnerService.getRepairPartners();
-    final partnerDebts = <Map<String, dynamic>>[];
+    final partnerDebts = await _debtSummaryService.loadPartnerDebts(
+      allDebts: data,
+    );
 
-    for (final partner in partners) {
-      final stats = await _partnerService.getPartnerRepairStats(partner.id!, partnerFirestoreId: partner.firestoreId, partnerName: partner.name);
-      final totalCost = stats?['totalCost'] ?? 0;
-      final totalPaid = stats?['totalPaid'] ?? 0;
-      final totalRepairs = stats?['totalOrders'] ?? 0;
-      final remain = totalCost - totalPaid;
+    final manualPartnerDebts = partnerDebts
+        .where((d) => d['source'] == 'manual')
+        .toList();
 
-      if (remain > 0) {
-        partnerDebts.add({
-          'id': partner.id,
-          'partnerId': partner.id,
-          'name': partner.name, // Key used by _partnerDebtCard
-          'partnerName': partner.name,
-          'phone': partner.phone,
-          'totalCost': totalCost, // Key used by _partnerDebtCard
-          'totalAmount': totalCost,
-          'totalPaid': totalPaid, // Key used by _partnerDebtCard
-          'paidAmount': totalPaid,
-          'totalRepairs': totalRepairs, // Key used by _partnerDebtCard
-          'remainingDebt': remain, // Key used by _partnerDebtCard
-          'remain': remain,
-          'type': 'REPAIR_PARTNER',
-          'createdAt': partner.createdAt,
-          'source': 'repairs', // Mark source
-        });
-      }
-    }
-    
-    // Also include REPAIR_PARTNER debts from debts table (manual entries)
-    // Bao gồm cả debts có firestoreId chứa 'test_debt_partner' (fix cho data cũ bị sai type)
-    final manualPartnerDebts = data.where((d) => 
-      (d['deleted'] ?? 0) != 1 &&
-      ((d['totalAmount'] ?? 0) - (d['paidAmount'] ?? 0)) > 0 &&
-      (d['type'] == 'REPAIR_PARTNER' || 
-       (d['firestoreId']?.toString().contains('debt_partner') ?? false))
-    ).toList();
-    
-    debugPrint('DebtView: Found ${manualPartnerDebts.length} manual REPAIR_PARTNER debts');
+    debugPrint(
+      'DebtView: Found ${manualPartnerDebts.length} manual REPAIR_PARTNER debts',
+    );
     for (final d in manualPartnerDebts) {
-      debugPrint('  - ${d['personName']}: ${d['totalAmount']}');
-    }
-    
-    for (final d in manualPartnerDebts) {
-      final total = d['totalAmount'] as int? ?? 0;
-      final paid = d['paidAmount'] as int? ?? 0;
-      final remain = total - paid;
-      
-      partnerDebts.add({
-        'id': d['id'],
-        'partnerId': null,
-        'name': d['personName'] ?? 'Không rõ',
-        'partnerName': d['personName'] ?? 'Không rõ',
-        'phone': d['phone'] ?? '',
-        'totalCost': total,
-        'totalAmount': total,
-        'totalPaid': paid,
-        'paidAmount': paid,
-        'totalRepairs': 0,
-        'remainingDebt': remain,
-        'remain': remain,
-        'type': 'REPAIR_PARTNER',
-        'createdAt': d['createdAt'],
-        'source': 'manual', // Mark source
-        'firestoreId': d['firestoreId'],
-        'note': d['note'],
-      });
+      debugPrint('  - ${d['partnerName']}: ${d['totalAmount']}');
     }
 
     if (!mounted) return;
     setState(() {
-      // Filter out soft-deleted debts and REPAIR_PARTNER (handled separately)
-      // Also filter out debts with firestoreId containing 'debt_partner' (fix for old data with wrong type)
-      _debts = data.where((d) => 
-        (d['deleted'] ?? 0) != 1 && 
-        d['type'] != 'REPAIR_PARTNER' &&
-        !(d['firestoreId']?.toString().contains('debt_partner') ?? false)
-      ).toList();
+      _debts = _debtSummaryService.filterStandardDebts(data);
       _partnerDebts = partnerDebts;
       _isLoading = false;
     });
@@ -349,7 +290,7 @@ class _DebtViewState extends State<DebtView>
                     final date = DateFormat(
                       'HH:mm - dd/MM/yyyy',
                     ).format(DateTime.fromMillisecondsSinceEpoch(p['paidAt']));
-                    
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(12),
@@ -433,7 +374,7 @@ class _DebtViewState extends State<DebtView>
     final formKey = GlobalKey<FormState>();
     final payC = TextEditingController();
     String payMethod = 'TIỀN MẶT';
-    
+
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -497,27 +438,27 @@ class _DebtViewState extends State<DebtView>
                 if (payAmount <= 0) return;
 
                 final user = FirebaseAuth.instance.currentUser;
-                
+
                 // Đóng dialog trước
                 Navigator.of(ctx).pop();
 
                 // Xác định loại nợ để tạo PaymentIntent phù hợp
                 final debtType = debt['type'] ?? 'CUSTOMER_OWES';
                 final isCustomerDebt = debtType == 'CUSTOMER_OWES';
-                
+
                 // Convert payment method
-                final method = payMethod == 'CHUYỂN KHOẢN' 
-                    ? PaymentMethod.transfer 
+                final method = payMethod == 'CHUYỂN KHOẢN'
+                    ? PaymentMethod.transfer
                     : PaymentMethod.cash;
-                
+
                 // Execute payment directly without navigation
                 final result = await PaymentIntentService.executePaymentDirect(
-                  type: isCustomerDebt 
-                      ? PaymentIntentType.customerDebtCollection 
+                  type: isCustomerDebt
+                      ? PaymentIntentType.customerDebtCollection
                       : PaymentIntentType.supplierDebt,
                   amount: payAmount,
                   paymentMethod: method,
-                  description: isCustomerDebt 
+                  description: isCustomerDebt
                       ? 'Thu nợ khách: ${debt['personName'] ?? 'N/A'}'
                       : 'Trả nợ NCC: ${debt['personName'] ?? 'N/A'}',
                   executedBy: user?.displayName ?? user?.email ?? 'unknown',
@@ -540,7 +481,8 @@ class _DebtViewState extends State<DebtView>
                     action: isCustomerDebt ? 'DEBT_COLLECTED' : 'SUPPLIER_PAID',
                     entityType: 'DEBT',
                     entityId: debt['firestoreId'] ?? '',
-                    summary: '${isCustomerDebt ? "Thu nợ" : "Trả nợ"} ${debt['personName']}: ${MoneyUtils.formatCurrency(payAmount)}đ',
+                    summary:
+                        '${isCustomerDebt ? "Thu nợ" : "Trả nợ"} ${debt['personName']}: ${MoneyUtils.formatCurrency(payAmount)}đ',
                   );
                   EventBus().emit('debts_changed');
                   if (mounted) {
@@ -592,14 +534,13 @@ class _DebtViewState extends State<DebtView>
 
     // Chờ shop settings load xong
     if (_tabController == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Đếm số công nợ còn hiệu lực (bao gồm cả partner debts nếu có repair)
     final activeDebtsCount =
-        _debts.where(_isActiveDebt).length + (_enableRepair ? _partnerDebts.length : 0);
+        _debts.where(_isActiveDebt).length +
+        (_enableRepair ? _partnerDebts.length : 0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F4F8),
@@ -639,10 +580,16 @@ class _DebtViewState extends State<DebtView>
             ],
           ),
           IconButton(
-            icon: Icon(Icons.file_download_outlined, color: AppBarAccents.customer),
+            icon: Icon(
+              Icons.file_download_outlined,
+              color: AppBarAccents.customer,
+            ),
             tooltip: 'Xuất Excel công nợ',
             onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất công nợ');
+              final result = await ExportDateFilterDialog.show(
+                context,
+                title: 'Xuất công nợ',
+              );
               if (result == null) return;
               if (!mounted) return;
               await ExcelExportHelper.exportDebts(
@@ -656,16 +603,17 @@ class _DebtViewState extends State<DebtView>
       ),
       body: ResponsiveCenter(
         child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildDebtList('CUSTOMER_OWES'),
-                _buildDebtList('SHOP_OWES'),
-                if (_enableRepair) _buildPartnerDebtList(), // Tab cho công nợ đối tác sửa chữa - chỉ cho electronics
-                _buildDebtList('OTHER'),
-              ],
-            ),
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildDebtList('CUSTOMER_OWES'),
+                  _buildDebtList('SHOP_OWES'),
+                  if (_enableRepair)
+                    _buildPartnerDebtList(), // Tab cho công nợ đối tác sửa chữa - chỉ cho electronics
+                  _buildDebtList('OTHER'),
+                ],
+              ),
       ),
       floatingActionButton: (_enableRepair && _tabController?.index == 2)
           ? null // Không có FAB cho tab đối tác (quản lý qua trang đối tác)
@@ -675,7 +623,9 @@ class _DebtViewState extends State<DebtView>
                   _createCustomerDebt(); // Tạo nợ khách hàng (phải thu)
                 } else if (_tabController?.index == 1) {
                   _createSupplierDebt(); // Tạo nợ nhà cung cấp (phải trả)
-                } else if (_enableRepair ? _tabController?.index == 3 : _tabController?.index == 2) {
+                } else if (_enableRepair
+                    ? _tabController?.index == 3
+                    : _tabController?.index == 2) {
                   _createOtherDebt(); // Tạo công nợ khác
                 }
               },
@@ -696,21 +646,7 @@ class _DebtViewState extends State<DebtView>
 
   /// Kiểm tra công nợ còn hiệu lực (chưa thanh toán hết và chưa bị hủy)
   bool _isActiveDebt(Map<String, dynamic> d) {
-    final status = d['status']?.toString().toUpperCase() ?? 'ACTIVE';
-    // Bỏ qua nếu đã thanh toán hoặc đã hủy (cả lowercase và uppercase)
-    if (status == 'PAID' || status == 'CANCELLED' || status == 'UNPAID') {
-      // "UNPAID" là status cũ khi chưa trả hết, nhưng vẫn cần kiểm tra số tiền
-      // Không bỏ qua UNPAID vì đó là nợ chưa trả hết
-    }
-    if (status == 'PAID' || status == 'CANCELLED') return false;
-
-    // Kiểm tra số tiền còn nợ (clamp để không âm)
-    final totalAmount = d['totalAmount'] as int? ?? 0;
-    final paidAmount = d['paidAmount'] as int? ?? 0;
-    final remaining = (totalAmount - paidAmount).clamp(0, totalAmount);
-
-    // Công nợ hợp lệ: còn tiền nợ > 0 và tổng nợ > 0
-    return remaining > 0 && totalAmount > 0;
+    return DebtSummaryService.isActiveDebt(d);
   }
 
   Widget _buildDebtList(String type) {
@@ -1064,7 +1000,10 @@ class _DebtViewState extends State<DebtView>
                   ),
                   // Order count badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
@@ -1080,9 +1019,9 @@ class _DebtViewState extends State<DebtView>
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 10),
-              
+
               // Info chips row
               Wrap(
                 spacing: 6,
@@ -1106,9 +1045,9 @@ class _DebtViewState extends State<DebtView>
                     ),
                 ],
               ),
-              
+
               const Divider(height: 16),
-              
+
               // Amount row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1116,7 +1055,10 @@ class _DebtViewState extends State<DebtView>
                   _buildDebtAmount('Tổng phí', totalCost, Colors.grey.shade700),
                   _buildDebtAmount('Đã trả', totalPaid, Colors.green),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.orange,
                       borderRadius: BorderRadius.circular(8),
@@ -1144,7 +1086,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                 ],
               ),
-              
+
               // Action button
               if (remainingDebt > 0) ...[
                 const SizedBox(height: 10),
@@ -1156,12 +1098,17 @@ class _DebtViewState extends State<DebtView>
                       icon: const Icon(Icons.visibility, size: 16),
                       label: Text(
                         'Xem & Thanh toán',
-                        style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                        style: TextStyle(
+                          fontSize: AppTextStyles.subtitle1.fontSize,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -1273,31 +1220,46 @@ class _DebtViewState extends State<DebtView>
     final int paid = d['paidAmount'] ?? 0;
     final int remain = (total - paid).clamp(0, total);
     final createdAt = d['createdAt'] as int? ?? 0;
-    final date = DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(createdAt));
-    final time = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(createdAt));
+    final date = DateFormat(
+      'dd/MM/yyyy',
+    ).format(DateTime.fromMillisecondsSinceEpoch(createdAt));
+    final time = DateFormat(
+      'HH:mm',
+    ).format(DateTime.fromMillisecondsSinceEpoch(createdAt));
     final personName = (d['personName'] ?? 'N/A').toString();
     final phone = d['phone']?.toString() ?? '';
     final note = d['note']?.toString() ?? '';
     final debtType = d['type']?.toString() ?? 'CUSTOMER_OWES';
-    
+
     // Determine colors based on debt type
-    final isCustomerDebt = debtType == 'CUSTOMER_OWES' || debtType == 'OWE' || debtType == 'OTHER_CUSTOMER_OWES';
+    final isCustomerDebt =
+        debtType == 'CUSTOMER_OWES' ||
+        debtType == 'OWE' ||
+        debtType == 'OTHER_CUSTOMER_OWES';
     final mainColor = isCustomerDebt ? Colors.red : Colors.blue;
     final bgColor = isCustomerDebt ? Colors.red.shade50 : Colors.blue.shade50;
-    final borderColor = isCustomerDebt ? Colors.red.shade200 : Colors.blue.shade200;
-    
+    final borderColor = isCustomerDebt
+        ? Colors.red.shade200
+        : Colors.blue.shade200;
+
     // Calculate days since creation for urgency
-    final daysSince = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(createdAt)).inDays;
+    final daysSince = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(createdAt))
+        .inDays;
     final isUrgent = daysSince > 30;
     final isVeryUrgent = daysSince > 60;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: isVeryUrgent ? Colors.red.shade100 : (isUrgent ? Colors.orange.shade50 : bgColor),
+      color: isVeryUrgent
+          ? Colors.red.shade100
+          : (isUrgent ? Colors.orange.shade50 : bgColor),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isVeryUrgent ? Colors.red.shade400 : (isUrgent ? Colors.orange.shade300 : borderColor),
+          color: isVeryUrgent
+              ? Colors.red.shade400
+              : (isUrgent ? Colors.orange.shade300 : borderColor),
           width: isVeryUrgent ? 2 : 1,
         ),
       ),
@@ -1341,7 +1303,9 @@ class _DebtViewState extends State<DebtView>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
-                      isCustomerDebt ? Icons.arrow_downward : Icons.arrow_upward,
+                      isCustomerDebt
+                          ? Icons.arrow_downward
+                          : Icons.arrow_upward,
                       color: mainColor,
                       size: 18,
                     ),
@@ -1395,9 +1359,9 @@ class _DebtViewState extends State<DebtView>
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 10),
-              
+
               // Info chips row
               Wrap(
                 spacing: 6,
@@ -1428,9 +1392,9 @@ class _DebtViewState extends State<DebtView>
                     ),
                 ],
               ),
-              
+
               const Divider(height: 16),
-              
+
               // Amount row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1438,7 +1402,10 @@ class _DebtViewState extends State<DebtView>
                   _buildDebtAmount('Tổng nợ', total, Colors.grey.shade700),
                   _buildDebtAmount('Đã trả', paid, Colors.green),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: mainColor,
                       borderRadius: BorderRadius.circular(8),
@@ -1466,7 +1433,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                 ],
               ),
-              
+
               // Action button
               const SizedBox(height: 10),
               Row(
@@ -1475,7 +1442,12 @@ class _DebtViewState extends State<DebtView>
                   TextButton.icon(
                     onPressed: () => _showDebtHistory(d),
                     icon: const Icon(Icons.history, size: 16),
-                    label: Text('Lịch sử', style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize)),
+                    label: Text(
+                      'Lịch sử',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       minimumSize: Size.zero,
@@ -1485,15 +1457,23 @@ class _DebtViewState extends State<DebtView>
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () => _payDebt(d),
-                    icon: Icon(isCustomerDebt ? Icons.call_received : Icons.call_made, size: 16),
+                    icon: Icon(
+                      isCustomerDebt ? Icons.call_received : Icons.call_made,
+                      size: 16,
+                    ),
                     label: Text(
                       isCustomerDebt ? 'Thu nợ' : 'Trả nợ',
-                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mainColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
@@ -1562,7 +1542,11 @@ class _DebtViewState extends State<DebtView>
       ),
       Text(
         MoneyUtils.formatCurrency(v),
-        style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.bold, color: c),
+        style: TextStyle(
+          fontSize: AppTextStyles.subtitle1.fontSize,
+          fontWeight: FontWeight.bold,
+          color: c,
+        ),
       ),
     ],
   );
@@ -2154,7 +2138,10 @@ class _DebtViewState extends State<DebtView>
             ),
             Text(
               date,
-              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey),
+              style: TextStyle(
+                fontSize: AppTextStyles.caption.fontSize,
+                color: Colors.grey,
+              ),
             ),
           ],
         ),
@@ -2164,7 +2151,10 @@ class _DebtViewState extends State<DebtView>
             if (d['phone'] != null)
               Text(
                 "SĐT: ${d['phone']}",
-                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.blueGrey),
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: Colors.blueGrey,
+                ),
               ),
             Text(
               "Nội dung: ${d['note'] ?? ''}",

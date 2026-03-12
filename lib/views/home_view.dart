@@ -77,6 +77,7 @@ import '../services/category_service.dart';
 import '../services/expiry_alert_service.dart';
 import '../services/variant_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/debt_summary_service.dart';
 import '../services/payment_intent_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/daily_financial_analysis_service.dart';
@@ -117,6 +118,7 @@ class _HomeViewState extends State<HomeView>
   static const String _homeTabId = 'home';
 
   final db = DBHelper();
+  final _debtSummaryService = DebtSummaryService();
   int totalPendingRepair = 0;
   int todaySaleCount = 0;
   int _currentIndex = 0; // Bottom navigation index
@@ -1904,27 +1906,8 @@ class _HomeViewState extends State<HomeView>
           where:
               "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
         ),
-        // [2] debtRemain — split by type
-        dbConn.rawQuery(
-          "SELECT "
-          "SUM(CASE WHEN (type IN ('CUSTOMER_OWES','OTHER_CUSTOMER_OWES','OWE') OR type IS NULL) AND totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as customerRemain, "
-          "SUM(CASE WHEN type IN ('SHOP_OWES','OTHER_SHOP_OWES','OWED') AND totalAmount > paidAmount THEN (totalAmount - paidAmount) ELSE 0 END) as supplierRemain "
-          "FROM debts WHERE (deleted IS NULL OR deleted != 1) AND (status IS NULL OR UPPER(status) NOT IN ('PAID','CANCELLED'))",
-        ),
-        // [3] partner debt total (single aggregated query instead of N+1)
-        dbConn.rawQuery('''
-          SELECT
-            COALESCE(SUM(h.totalCost), 0) as totalCost,
-            COALESCE(SUM(h.totalPaid), 0) as totalPaid
-          FROM (
-            SELECT
-              p.id as partnerId,
-              COALESCE((SELECT SUM(partnerCost) FROM partner_repair_history WHERE partnerId = p.id${shopId != null && shopId.isNotEmpty ? " AND shopId = '$shopId'" : ''}), 0) as totalCost,
-              COALESCE((SELECT SUM(amount) FROM repair_partner_payments WHERE partnerId = p.id AND deleted = 0${shopId != null && shopId.isNotEmpty ? " AND shopId = '$shopId'" : ''}), 0) as totalPaid
-            FROM repair_partners p
-          ) h
-          WHERE h.totalCost > h.totalPaid
-        '''),
+        // [2] debt overview — same source of truth as DebtView
+        _debtSummaryService.getDebtOverview(),
         // [4] record counts (single combined query)
         dbConn.rawQuery(
           'SELECT '
@@ -1941,9 +1924,8 @@ class _HomeViewState extends State<HomeView>
 
       final repairsWarranty = batch2[0] as List<Map<String, dynamic>>;
       final salesWarranty = batch2[1] as List<Map<String, dynamic>>;
-      final debtRemainRow = batch2[2] as List<Map<String, dynamic>>;
-      final partnerDebtRow = batch2[3] as List<Map<String, dynamic>>;
-      final recordCounts = batch2[4] as List<Map<String, dynamic>>;
+      final debtOverview = batch2[2] as Map<String, int>;
+      final recordCounts = batch2[3] as List<Map<String, dynamic>>;
 
       // Warranty check (CPU-only, no I/O)
       for (final r in repairsWarranty) {
@@ -1966,24 +1948,12 @@ class _HomeViewState extends State<HomeView>
         if (e.isAfter(now) && e.difference(now).inDays <= 7) expW++;
       }
 
-      custDebt = (debtRemainRow.first['customerRemain'] as num?)?.toInt() ?? 0;
-      suppDebt = (debtRemainRow.first['supplierRemain'] as num?)?.toInt() ?? 0;
-      debtR = custDebt + suppDebt;
+      custDebt = debtOverview['customerRemain'] ?? 0;
+      suppDebt = debtOverview['supplierRemain'] ?? 0;
+      partDebt = debtOverview['partnerRemain'] ?? 0;
+      debtR = debtOverview['totalRemain'] ?? 0;
 
-      // Partner debt from aggregated query
-      if (partnerDebtRow.isNotEmpty) {
-        final ptCost =
-            (partnerDebtRow.first['totalCost'] as num?)?.toInt() ?? 0;
-        final ptPaid =
-            (partnerDebtRow.first['totalPaid'] as num?)?.toInt() ?? 0;
-        final ptRemain = ptCost - ptPaid;
-        if (ptRemain > 0) {
-          partDebt = ptRemain;
-          debtR += ptRemain;
-        }
-      }
-
-      final previousClosing = batch2[5] as Map<String, dynamic>?;
+      final previousClosing = batch2[4] as Map<String, dynamic>?;
       final prevCashEnd = (previousClosing?['cashEnd'] as num?)?.toInt() ?? 0;
       final prevBankEnd = (previousClosing?['bankEnd'] as num?)?.toInt() ?? 0;
       final prevClosingTotal = prevCashEnd + prevBankEnd;
@@ -3710,12 +3680,12 @@ class _HomeViewState extends State<HomeView>
                                   '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
                               executedBy:
                                   user?.displayName ?? user?.email ?? 'unknown',
-                                referenceId: txRef,
-                                referenceType: 'home_quick_expense',
-                                notes: noteC.text.trim().isEmpty
+                              referenceId: txRef,
+                              referenceType: 'home_quick_expense',
+                              notes: noteC.text.trim().isEmpty
                                   ? null
                                   : noteC.text.trim(),
-                                idempotencyKey: txRef,
+                              idempotencyKey: txRef,
                               metadata: {
                                 'category': category,
                                 'title': titleC.text.toUpperCase(),
@@ -8419,4 +8389,3 @@ class _HomeDashItem {
   final Color color;
   const _HomeDashItem(this.label, this.value, this.color);
 }
-
