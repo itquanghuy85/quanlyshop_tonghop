@@ -33,10 +33,7 @@ class SyncService {
   static String? _currentShopId;
   static bool _isInitialized = false;
 
-  static bool _hasPermission(
-    Map<String, dynamic> permissions,
-    String key,
-  ) {
+  static bool _hasPermission(Map<String, dynamic> permissions, String key) {
     return permissions[key] == true;
   }
 
@@ -105,6 +102,30 @@ class SyncService {
       default:
         return true;
     }
+  }
+
+  static Future<List<String>> filterCollectionsForCurrentUser(
+    Iterable<String> collections,
+  ) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return const [];
+
+    final isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+    if (isSuperAdmin) {
+      return collections.toList();
+    }
+
+    final permissions = await UserService.getCurrentUserPermissions();
+    final role = await UserService.getUserRole(currentUser.uid);
+
+    return collections.where((collection) {
+      return _canSubscribeCollection(
+        collection: collection,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+      );
+    }).toList();
   }
 
   static bool _canSubscribeShopSubcollection({
@@ -514,8 +535,13 @@ class SyncService {
       final orphansCleaned = await dbHelper.cleanupOrphanRepairParts();
       final forceMarked = await dbHelper.forceMarkRepairPartsSynced();
       final stuckFixed = await dbHelper.fixStuckDeletedRepairParts();
-      if (deduped > 0 || orphansCleaned > 0 || forceMarked > 0 || stuckFixed > 0) {
-        debugPrint("🧹 Auto-cleanup: deduped $deduped cloud-shadow rows, removed $orphansCleaned orphans, force-marked $forceMarked synced, fixed $stuckFixed stuck-deleted");
+      if (deduped > 0 ||
+          orphansCleaned > 0 ||
+          forceMarked > 0 ||
+          stuckFixed > 0) {
+        debugPrint(
+          "🧹 Auto-cleanup: deduped $deduped cloud-shadow rows, removed $orphansCleaned orphans, force-marked $forceMarked synced, fixed $stuckFixed stuck-deleted",
+        );
       }
     } catch (e) {
       debugPrint("⚠️ Auto-cleanup failed: $e");
@@ -856,9 +882,7 @@ class SyncService {
       );
     });
 
-    debugPrint(
-      "📊 Subscription status: $_subscriptionStatus",
-    );
+    debugPrint("📊 Subscription status: $_subscriptionStatus");
   }
 
   /// Khởi tạo các subscription KHÔNG CẤP BÁCH sau 3 giây delay
@@ -1520,7 +1544,9 @@ class SyncService {
               data['isSynced'] = 1;
               _convertTimestampFields(data);
               await db.upsertEmployeeSalarySettings(data);
-              debugPrint("✅ Synced employee_salary_setting for ${data['staffId']}");
+              debugPrint(
+                "✅ Synced employee_salary_setting for ${data['staffId']}",
+              );
             }
           } catch (e) {
             debugPrint("Lỗi sync employee_salary_setting $docId: $e");
@@ -1546,40 +1572,48 @@ class SyncService {
         role: role,
         isSuperAdmin: isSuperAdmin,
       )) {
-        debugPrint('⏭️ Skipping product_categories subscription due to permissions');
+        debugPrint(
+          '⏭️ Skipping product_categories subscription due to permissions',
+        );
       } else {
         final categoriesSub = _db
             .collection('shops')
             .doc(shopId)
             .collection('product_categories')
             .snapshots()
-            .listen((snapshot) async {
-        for (final change in snapshot.docChanges) {
-          try {
-            final docId = change.doc.id;
-            final data = change.doc.data() ?? {};
-            final db = DBHelper();
+            .listen(
+              (snapshot) async {
+                for (final change in snapshot.docChanges) {
+                  try {
+                    final docId = change.doc.id;
+                    final data = change.doc.data() ?? {};
+                    final db = DBHelper();
 
-            if (data['isActive'] == false) {
-              // Soft delete locally
-              await db.rawUpdate(
-                'UPDATE product_categories SET isActive = 0 WHERE firestoreId = ?',
-                [docId],
-              );
-            } else {
-              data['firestoreId'] = docId;
-              data['shopId'] = shopId;
-              data['isSynced'] = 1;
-              _convertTimestampFields(data);
-              await db.upsertProductCategory(data);
-            }
-          } catch (e) {
-            debugPrint("Lỗi sync product_category ${change.doc.id}: $e");
-          }
-        }
-        onDataChanged();
-        EventBus().emit('product_categories_changed');
-      }, onError: (e) => debugPrint("Sync error in product_categories: $e"));
+                    if (data['isActive'] == false) {
+                      // Soft delete locally
+                      await db.rawUpdate(
+                        'UPDATE product_categories SET isActive = 0 WHERE firestoreId = ?',
+                        [docId],
+                      );
+                    } else {
+                      data['firestoreId'] = docId;
+                      data['shopId'] = shopId;
+                      data['isSynced'] = 1;
+                      _convertTimestampFields(data);
+                      await db.upsertProductCategory(data);
+                    }
+                  } catch (e) {
+                    debugPrint(
+                      "Lỗi sync product_category ${change.doc.id}: $e",
+                    );
+                  }
+                }
+                onDataChanged();
+                EventBus().emit('product_categories_changed');
+              },
+              onError: (e) =>
+                  debugPrint("Sync error in product_categories: $e"),
+            );
         _subscriptions.add(categoriesSub);
       }
     } catch (e) {
@@ -1700,17 +1734,21 @@ class SyncService {
       role: role,
       isSuperAdmin: isSuperAdmin,
     )) {
-      debugPrint('⏭️ Skipping subscribe to $collection - not allowed for role=$role');
+      debugPrint(
+        '⏭️ Skipping subscribe to $collection - not allowed for role=$role',
+      );
       _subscriptionStatus[collection] = false;
       return;
     }
 
     // Skip nếu shop đang bị xóa
     if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
-      debugPrint("⏭️ Skipping subscribe to $collection - shop $shopId is being deleted");
+      debugPrint(
+        "⏭️ Skipping subscribe to $collection - shop $shopId is being deleted",
+      );
       return;
     }
-    
+
     Query<Map<String, dynamic>> query = _db.collection(collection);
     if (shopId != null) {
       query = query.where('shopId', isEqualTo: shopId);
@@ -1728,10 +1766,12 @@ class SyncService {
       (snapshot) async {
         // Double check shop không bị xóa trong lúc đang xử lý
         if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
-          debugPrint("⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted");
+          debugPrint(
+            "⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted",
+          );
           return;
         }
-        
+
         // Log initial sync or updates
         debugPrint(
           "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
@@ -1757,24 +1797,26 @@ class SyncService {
         _subscriptionStatus[collection] = false;
 
         // Check for permission-denied errors
-        final isPermissionError = errorStr.contains('permission-denied') ||
+        final isPermissionError =
+            errorStr.contains('permission-denied') ||
             errorStr.contains('PERMISSION_DENIED') ||
             errorStr.contains('Missing or insufficient permissions');
-        
+
         if (isPermissionError) {
           debugPrint(
             "🔒 Permission denied for $collection - shop may be deleted or user lost access",
           );
-          
+
           // Emit event để UI biết
           EventBus().emit('permission_denied:$collection');
-          
+
           // Nếu đây là collection repairs và shopId đang bị xóa, không retry
-          if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
+          if (shopId != null &&
+              ShopDeletionService.isShopBeingDeleted(shopId)) {
             debugPrint("⏭️ Shop is being deleted, not retrying");
             return;
           }
-          
+
           // Không retry cho permission errors - đây là lỗi cấu hình hoặc shop bị xóa
           debugPrint(
             "⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules or shop status)",
@@ -1954,8 +1996,12 @@ class SyncService {
           final WriteBatch batch = _db.batch();
           for (var intentMap in paymentIntents) {
             final firestoreId = intentMap['firestoreId'];
-            final isSynced = intentMap['isSynced'] == 1 || intentMap['isSynced'] == true;
-            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+            final isSynced =
+                intentMap['isSynced'] == 1 || intentMap['isSynced'] == true;
+            if (firestoreId != null &&
+                firestoreId.toString().isNotEmpty &&
+                isSynced)
+              continue;
 
             final data = Map<String, dynamic>.from(intentMap);
             data['shopId'] = shopId;
@@ -1963,8 +2009,14 @@ class SyncService {
             final localId = data['id'];
             data.remove('id');
 
-            final docId = firestoreId ?? "pi_${data['intentId'] ?? data['createdAt']}_${data['type'] ?? 'unknown'}";
-            batch.set(_db.collection('payment_intents').doc(docId), data, SetOptions(merge: true));
+            final docId =
+                firestoreId ??
+                "pi_${data['intentId'] ?? data['createdAt']}_${data['type'] ?? 'unknown'}";
+            batch.set(
+              _db.collection('payment_intents').doc(docId),
+              data,
+              SetOptions(merge: true),
+            );
             await dbHelper.updatePaymentIntentSynced(localId, docId);
           }
           await batch.commit();
@@ -1983,15 +2035,24 @@ class SyncService {
           for (var dp in debtPayments) {
             final firestoreId = dp['firestoreId'];
             final isSynced = dp['isSynced'] == 1 || dp['isSynced'] == true;
-            if (firestoreId != null && firestoreId.toString().isNotEmpty && isSynced) continue;
+            if (firestoreId != null &&
+                firestoreId.toString().isNotEmpty &&
+                isSynced)
+              continue;
 
             final data = Map<String, dynamic>.from(dp);
             data['shopId'] = shopId;
             final localId = data['id'];
             data.remove('id');
 
-            final docId = firestoreId ?? "dp_${data['debtId']}_${data['paidAt'] ?? data['createdAt']}";
-            batch.set(_db.collection('debt_payments').doc(docId), data, SetOptions(merge: true));
+            final docId =
+                firestoreId ??
+                "dp_${data['debtId']}_${data['paidAt'] ?? data['createdAt']}";
+            batch.set(
+              _db.collection('debt_payments').doc(docId),
+              data,
+              SetOptions(merge: true),
+            );
             await dbHelper.updateDebtPaymentSynced(localId as int, docId);
             count++;
           }
@@ -2007,7 +2068,9 @@ class SyncService {
       // 3. Sync debts (status may have changed after payment)
       try {
         final debts = await dbHelper.getAllDebts();
-        final unsyncedDebts = debts.where((d) => d['isSynced'] != 1 && d['isSynced'] != true).toList();
+        final unsyncedDebts = debts
+            .where((d) => d['isSynced'] != 1 && d['isSynced'] != true)
+            .toList();
         if (unsyncedDebts.isNotEmpty) {
           final WriteBatch batch = _db.batch();
           int count = 0;
@@ -2020,7 +2083,11 @@ class SyncService {
             data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
             data.remove('id');
 
-            batch.set(_db.collection('debts').doc(firestoreId), data, SetOptions(merge: true));
+            batch.set(
+              _db.collection('debts').doc(firestoreId),
+              data,
+              SetOptions(merge: true),
+            );
             count++;
           }
           if (count > 0) {
@@ -2035,7 +2102,9 @@ class SyncService {
       // 4. Sync expenses (in case payment created an expense)
       try {
         final expenses = await dbHelper.getAllExpensesForSync();
-        final unsyncedExpenses = expenses.where((e) => e.isSynced != 1).toList();
+        final unsyncedExpenses = expenses
+            .where((e) => e.isSynced != 1)
+            .toList();
         if (unsyncedExpenses.isNotEmpty) {
           final WriteBatch batch = _db.batch();
           int count = 0;
@@ -2046,11 +2115,20 @@ class SyncService {
             final localId = data['id'];
             data.remove('id');
 
-            final docId = expense.firestoreId ?? "exp_${expense.date}_${expense.amount}";
-            batch.set(_db.collection('expenses').doc(docId), data, SetOptions(merge: true));
+            final docId =
+                expense.firestoreId ?? "exp_${expense.date}_${expense.amount}";
+            batch.set(
+              _db.collection('expenses').doc(docId),
+              data,
+              SetOptions(merge: true),
+            );
 
             // Mark as synced
-            final updatedExpense = Expense.fromMap({...expense.toMap(), 'firestoreId': docId, 'isSynced': 1});
+            final updatedExpense = Expense.fromMap({
+              ...expense.toMap(),
+              'firestoreId': docId,
+              'isSynced': 1,
+            });
             await dbHelper.updateExpense(updatedExpense);
             count++;
           }
@@ -2075,8 +2153,14 @@ class SyncService {
             final localId = data['id'];
             data.remove('id');
 
-            final docId = data['firestoreId'] ?? "fal_${data['createdAt']}_${data['activityType'] ?? 'unknown'}";
-            batch.set(_db.collection('financial_activity_log').doc(docId), data, SetOptions(merge: true));
+            final docId =
+                data['firestoreId'] ??
+                "fal_${data['createdAt']}_${data['activityType'] ?? 'unknown'}";
+            batch.set(
+              _db.collection('financial_activity_log').doc(docId),
+              data,
+              SetOptions(merge: true),
+            );
 
             // Mark as synced
             await dbHelper.updateFinancialActivitySynced(localId as int, docId);
@@ -2094,7 +2178,9 @@ class SyncService {
       // 6. Sync supplier_payments and repair_partner_payments
       try {
         final supplierPayments = await dbHelper.getSupplierPaymentsForSync();
-        final unsyncedSP = supplierPayments.where((sp) => sp['isSynced'] != 1 && sp['isSynced'] != true).toList();
+        final unsyncedSP = supplierPayments
+            .where((sp) => sp['isSynced'] != 1 && sp['isSynced'] != true)
+            .toList();
         if (unsyncedSP.isNotEmpty) {
           final WriteBatch batch = _db.batch();
           int count = 0;
@@ -2108,8 +2194,13 @@ class SyncService {
             data.remove('id');
             data.remove('isSynced');
 
-            final docId = firestoreId ?? "sp_${data['supplierId']}_${data['paidAt']}";
-            batch.set(_db.collection('supplier_payments').doc(docId), data, SetOptions(merge: true));
+            final docId =
+                firestoreId ?? "sp_${data['supplierId']}_${data['paidAt']}";
+            batch.set(
+              _db.collection('supplier_payments').doc(docId),
+              data,
+              SetOptions(merge: true),
+            );
             toMarkSynced.add({'localId': localId, 'firestoreId': docId});
             count++;
           }
@@ -2117,10 +2208,10 @@ class SyncService {
             await batch.commit();
             // Mark as synced in local DB after successful Firestore commit
             for (var item in toMarkSynced) {
-              await dbHelper.updateSupplierPayment(
-                item['localId'] as int,
-                {'isSynced': 1, 'firestoreId': item['firestoreId']},
-              );
+              await dbHelper.updateSupplierPayment(item['localId'] as int, {
+                'isSynced': 1,
+                'firestoreId': item['firestoreId'],
+              });
             }
             debugPrint('  -> Synced $count supplier payments');
           }
@@ -2130,8 +2221,11 @@ class SyncService {
       }
 
       try {
-        final partnerPayments = await dbHelper.getRepairPartnerPaymentsForSync();
-        final unsyncedPP = partnerPayments.where((pp) => pp['isSynced'] != 1 && pp['isSynced'] != true).toList();
+        final partnerPayments = await dbHelper
+            .getRepairPartnerPaymentsForSync();
+        final unsyncedPP = partnerPayments
+            .where((pp) => pp['isSynced'] != 1 && pp['isSynced'] != true)
+            .toList();
         if (unsyncedPP.isNotEmpty) {
           final WriteBatch batch = _db.batch();
           int count = 0;
@@ -2145,8 +2239,13 @@ class SyncService {
             data.remove('id');
             data.remove('isSynced');
 
-            final docId = firestoreId ?? "rpp_${data['partnerId']}_${data['paidAt']}";
-            batch.set(_db.collection('repair_partner_payments').doc(docId), data, SetOptions(merge: true));
+            final docId =
+                firestoreId ?? "rpp_${data['partnerId']}_${data['paidAt']}";
+            batch.set(
+              _db.collection('repair_partner_payments').doc(docId),
+              data,
+              SetOptions(merge: true),
+            );
             toMarkSynced.add({'localId': localId, 'firestoreId': docId});
             count++;
           }
@@ -2190,7 +2289,7 @@ class SyncService {
 
       // Sync unsynced repairs
       final repairs = await dbHelper.getAllRepairs();
-        final unsyncedRepairs = repairs
+      final unsyncedRepairs = repairs
           .where((r) => !r.isSynced || _hasLocalImagePath(r.imagePath))
           .toList();
 
@@ -2199,7 +2298,9 @@ class SyncService {
         return;
       }
 
-      debugPrint('⚡ syncRepairData: found ${unsyncedRepairs.length} unsynced repairs');
+      debugPrint(
+        '⚡ syncRepairData: found ${unsyncedRepairs.length} unsynced repairs',
+      );
       final WriteBatch batch = _db.batch();
       final List<Repair> toMarkSynced = [];
 
@@ -2216,23 +2317,28 @@ class SyncService {
           if (_hasLocalImagePath(r.imagePath)) {
             try {
               final allPaths = _splitImagePaths(r.imagePath);
-              List<String> urls = await StorageService.uploadMultipleImages(
-                allPaths.where((path) => !_isCloudImagePath(path)).toList(),
-                'repairs/${r.createdAt}',
-              ).timeout(
-                const Duration(seconds: 15),
-                onTimeout: () => <String>[],
-              );
-              List<String> allUrls =
-                  allPaths.where((path) => _isCloudImagePath(path)).toList();
+              List<String> urls =
+                  await StorageService.uploadMultipleImages(
+                    allPaths.where((path) => !_isCloudImagePath(path)).toList(),
+                    'repairs/${r.createdAt}',
+                  ).timeout(
+                    const Duration(seconds: 15),
+                    onTimeout: () => <String>[],
+                  );
+              List<String> allUrls = allPaths
+                  .where((path) => _isCloudImagePath(path))
+                  .toList();
               allUrls.addAll(urls);
               data['imagePath'] = allUrls.join(',');
             } catch (e) {
-              debugPrint('⚡ syncRepairData: image upload failed for ${r.id}: $e');
+              debugPrint(
+                '⚡ syncRepairData: image upload failed for ${r.id}: $e',
+              );
             }
           }
 
-          final docId = r.firestoreId ?? "repair_${r.createdAt}_${r.phone}_${r.id ?? 0}";
+          final docId =
+              r.firestoreId ?? "repair_${r.createdAt}_${r.phone}_${r.id ?? 0}";
           batch.set(
             _db.collection('repairs').doc(docId),
             data,
@@ -2253,9 +2359,13 @@ class SyncService {
           r.isSynced = true;
           await dbHelper.updateRepair(r);
         }
-        debugPrint('⚡ syncRepairData: ✅ synced ${toMarkSynced.length} repairs to cloud');
+        debugPrint(
+          '⚡ syncRepairData: ✅ synced ${toMarkSynced.length} repairs to cloud',
+        );
       } catch (e) {
-        debugPrint('⚡ syncRepairData: ❌ batch commit failed: $e - will retry next sync');
+        debugPrint(
+          '⚡ syncRepairData: ❌ batch commit failed: $e - will retry next sync',
+        );
       }
     } catch (e) {
       debugPrint('⚡ syncRepairData error: $e');
@@ -2333,8 +2443,9 @@ class SyncService {
                   },
                 );
             // Giữ lại các ảnh cũ là URL và thêm ảnh mới
-            List<String> allUrls =
-              allPaths.where((path) => _isCloudImagePath(path)).toList();
+            List<String> allUrls = allPaths
+                .where((path) => _isCloudImagePath(path))
+                .toList();
             allUrls.addAll(urls);
             data['imagePath'] = allUrls.join(',');
           }
@@ -2365,7 +2476,9 @@ class SyncService {
         }
         debugPrint("✅ Synced ${repairsToMarkSynced.length} repairs to cloud");
       } catch (e) {
-        debugPrint("❌ Batch commit repairs failed: $e - repairs will retry next sync");
+        debugPrint(
+          "❌ Batch commit repairs failed: $e - repairs will retry next sync",
+        );
       }
 
       // Sync SALES
@@ -2407,7 +2520,9 @@ class SyncService {
         }
         debugPrint("✅ Synced ${salesToMarkSynced.length} sales to cloud");
       } catch (e) {
-        debugPrint("❌ Batch commit sales failed: $e - sales will retry next sync");
+        debugPrint(
+          "❌ Batch commit sales failed: $e - sales will retry next sync",
+        );
       }
 
       // Sync EXPENSES (Chi phí)
@@ -2458,9 +2573,13 @@ class SyncService {
               expense.isSynced = true;
               await dbHelper.updateExpense(expense);
             }
-            debugPrint("✅ Synced ${expensesToMarkSynced.length} expenses to cloud");
+            debugPrint(
+              "✅ Synced ${expensesToMarkSynced.length} expenses to cloud",
+            );
           } catch (e) {
-            debugPrint("❌ Batch commit expenses failed: $e - expenses will retry next sync");
+            debugPrint(
+              "❌ Batch commit expenses failed: $e - expenses will retry next sync",
+            );
           }
         }
       } catch (e) {
@@ -2499,8 +2618,9 @@ class SyncService {
                     return <String>[];
                   },
                 );
-            final existingCloud =
-                allPaths.where((path) => _isCloudImagePath(path)).toList();
+            final existingCloud = allPaths
+                .where((path) => _isCloudImagePath(path))
+                .toList();
             existingCloud.addAll(urls);
             data['images'] = existingCloud.join(',');
           }
@@ -2530,7 +2650,9 @@ class SyncService {
         }
         debugPrint("✅ Synced ${productsToMarkSynced.length} products to cloud");
       } catch (e) {
-        debugPrint("❌ Batch commit products failed: $e - products will retry next sync");
+        debugPrint(
+          "❌ Batch commit products failed: $e - products will retry next sync",
+        );
       }
 
       // Sync ATTENDANCE
@@ -2613,9 +2735,13 @@ class SyncService {
           for (var a in attendanceToMarkSynced) {
             await dbHelper.updateAttendance(a);
           }
-          debugPrint("✅ Synced ${attendanceToMarkSynced.length} attendance to cloud");
+          debugPrint(
+            "✅ Synced ${attendanceToMarkSynced.length} attendance to cloud",
+          );
         } catch (e) {
-          debugPrint("❌ Batch commit attendance failed: $e - attendance will retry next sync");
+          debugPrint(
+            "❌ Batch commit attendance failed: $e - attendance will retry next sync",
+          );
         }
       } catch (e) {
         debugPrint("Lỗi sync attendance collection: $e");
@@ -2663,7 +2789,9 @@ class SyncService {
               code.isSynced = true;
               await dbHelper.updateQuickInputCode(code);
             }
-            debugPrint("✅ Synced ${qicToMarkSynced.length} quick input codes to cloud");
+            debugPrint(
+              "✅ Synced ${qicToMarkSynced.length} quick input codes to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit quick input codes failed: $e");
           }
@@ -2689,7 +2817,10 @@ class SyncService {
             final data = doc.data();
             if (data['deleted'] == true) continue;
             final decrypted = EncryptionService.decryptMap(data);
-            final name = (decrypted['name'] ?? '').toString().toLowerCase().trim();
+            final name = (decrypted['name'] ?? '')
+                .toString()
+                .toLowerCase()
+                .trim();
             if (name.isNotEmpty) {
               existingByName[name] = doc.id;
             }
@@ -2715,8 +2846,12 @@ class SyncService {
               data.remove('firestoreId');
 
               // Check if supplier with same name already exists in Firestore
-              final nameKey = (supplierMap['name'] ?? '').toString().toLowerCase().trim();
-              final docId = existingByName[nameKey] ??
+              final nameKey = (supplierMap['name'] ?? '')
+                  .toString()
+                  .toLowerCase()
+                  .trim();
+              final docId =
+                  existingByName[nameKey] ??
                   "supplier_${DateTime.now().millisecondsSinceEpoch}_${supplierMap['id']}";
               supplierBatch.set(
                 _db.collection('suppliers').doc(docId),
@@ -2724,7 +2859,10 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              suppliersToMarkSynced.add({'supplierMap': supplierMap, 'docId': docId});
+              suppliersToMarkSynced.add({
+                'supplierMap': supplierMap,
+                'docId': docId,
+              });
             } catch (e) {
               debugPrint("Lỗi sync supplier ${supplierMap['id']}: $e");
             }
@@ -2736,7 +2874,9 @@ class SyncService {
               updateData['firestoreId'] = item['docId'];
               await dbHelper.upsertSupplier(updateData);
             }
-            debugPrint("✅ Synced ${suppliersToMarkSynced.length} suppliers to cloud");
+            debugPrint(
+              "✅ Synced ${suppliersToMarkSynced.length} suppliers to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit suppliers failed: $e");
           }
@@ -2777,7 +2917,10 @@ class SyncService {
                 SetOptions(merge: true),
               );
 
-              partnersToMarkSynced.add({'partnerMap': partnerMap, 'docId': docId});
+              partnersToMarkSynced.add({
+                'partnerMap': partnerMap,
+                'docId': docId,
+              });
             } catch (e) {
               debugPrint("Lỗi sync repair partner ${partnerMap['id']}: $e");
             }
@@ -2789,7 +2932,9 @@ class SyncService {
               updateData['firestoreId'] = item['docId'];
               await dbHelper.upsertRepairPartner(updateData);
             }
-            debugPrint("✅ Synced ${partnersToMarkSynced.length} repair partners to cloud");
+            debugPrint(
+              "✅ Synced ${partnersToMarkSynced.length} repair partners to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit repair partners failed: $e");
           }
@@ -2826,7 +2971,8 @@ class SyncService {
               data.remove('isSynced');
               data.remove('firestoreId');
 
-              final docId = firestoreId ??
+              final docId =
+                  firestoreId ??
                   "sup_pay_${data['paidAt']}_${data['supplierId'] ?? 'sup'}";
               supplierPaymentBatch.set(
                 _db.collection('supplier_payments').doc(docId),
@@ -2842,12 +2988,14 @@ class SyncService {
           try {
             await supplierPaymentBatch.commit();
             for (var item in supPayToMarkSynced) {
-              await dbHelper.updateSupplierPayment(
-                item['id'],
-                {'firestoreId': item['docId'], 'isSynced': 1},
-              );
+              await dbHelper.updateSupplierPayment(item['id'], {
+                'firestoreId': item['docId'],
+                'isSynced': 1,
+              });
             }
-            debugPrint("✅ Synced ${supPayToMarkSynced.length} supplier payments to cloud");
+            debugPrint(
+              "✅ Synced ${supPayToMarkSynced.length} supplier payments to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit supplier payments failed: $e");
           }
@@ -2858,7 +3006,8 @@ class SyncService {
 
       // Đồng bộ Repair Partner Payments
       try {
-        final partnerPayments = await dbHelper.getRepairPartnerPaymentsForSync();
+        final partnerPayments = await dbHelper
+            .getRepairPartnerPaymentsForSync();
         debugPrint(
           "syncAllToCloud: có ${partnerPayments.length} repair partner payments cần kiểm tra sync",
         );
@@ -2884,7 +3033,8 @@ class SyncService {
               data.remove('isSynced');
               data.remove('firestoreId');
 
-              final docId = firestoreId ??
+              final docId =
+                  firestoreId ??
                   "part_pay_${data['paidAt']}_${data['partnerId'] ?? 'partner'}";
               partnerPaymentBatch.set(
                 _db.collection('repair_partner_payments').doc(docId),
@@ -2902,12 +3052,14 @@ class SyncService {
           try {
             await partnerPaymentBatch.commit();
             for (var item in partPayToMarkSynced) {
-              await dbHelper.updateRepairPartnerPayment(
-                item['id'],
-                {'firestoreId': item['docId'], 'isSynced': 1},
-              );
+              await dbHelper.updateRepairPartnerPayment(item['id'], {
+                'firestoreId': item['docId'],
+                'isSynced': 1,
+              });
             }
-            debugPrint("✅ Synced ${partPayToMarkSynced.length} repair partner payments to cloud");
+            debugPrint(
+              "✅ Synced ${partPayToMarkSynced.length} repair partner payments to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit repair partner payments failed: $e");
           }
@@ -3019,7 +3171,9 @@ class SyncService {
             for (var item in debtPayToMarkSynced) {
               await dbHelper.updateDebtPaymentSynced(item['id'], item['docId']);
             }
-            debugPrint("✅ Synced ${debtPayToMarkSynced.length} debt payments to cloud");
+            debugPrint(
+              "✅ Synced ${debtPayToMarkSynced.length} debt payments to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit debt payments failed: $e");
           }
@@ -3065,7 +3219,9 @@ class SyncService {
             for (var docId in auditDocsToMarkSynced) {
               await dbHelper.updateAuditLogSynced(docId);
             }
-            debugPrint("✅ Synced ${auditDocsToMarkSynced.length} audit logs to cloud");
+            debugPrint(
+              "✅ Synced ${auditDocsToMarkSynced.length} audit logs to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit audit logs failed: $e");
           }
@@ -3110,9 +3266,14 @@ class SyncService {
           try {
             await partsBatch.commit();
             for (var item in partsToMarkSynced) {
-              await dbHelper.updateRepairPartSynced(item['localId'], item['docId']);
+              await dbHelper.updateRepairPartSynced(
+                item['localId'],
+                item['docId'],
+              );
             }
-            debugPrint("✅ Synced ${partsToMarkSynced.length} repair parts to cloud");
+            debugPrint(
+              "✅ Synced ${partsToMarkSynced.length} repair parts to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit repair parts failed: $e");
           }
@@ -3151,7 +3312,8 @@ class SyncService {
               data.remove('isSynced');
               data.remove('firestoreId');
 
-              final docId = firestoreId ??
+              final docId =
+                  firestoreId ??
                   "pi_${data['intentId'] ?? data['createdAt']}_${data['type'] ?? 'unknown'}";
               intentBatch.set(
                 _db.collection('payment_intents').doc(docId),
@@ -3167,9 +3329,14 @@ class SyncService {
           try {
             await intentBatch.commit();
             for (var item in intentsToMarkSynced) {
-              await dbHelper.updatePaymentIntentSynced(item['localId'], item['docId']);
+              await dbHelper.updatePaymentIntentSynced(
+                item['localId'],
+                item['docId'],
+              );
             }
-            debugPrint("✅ Synced ${intentsToMarkSynced.length} payment intents to cloud");
+            debugPrint(
+              "✅ Synced ${intentsToMarkSynced.length} payment intents to cloud",
+            );
           } catch (e) {
             debugPrint("❌ Batch commit payment intents failed: $e");
           }
@@ -3313,7 +3480,7 @@ class SyncService {
       // Giảm reads đáng kể khi data ít thay đổi
       // ═══════════════════════════════════════════════════════════════════════
       final prefs = await SharedPreferences.getInstance();
-      
+
       for (var col in allowedCollections) {
         // Yield to UI thread between collections to prevent ANR/frame drops
         await Future.delayed(Duration.zero);
@@ -3323,22 +3490,24 @@ class SyncService {
           final lastSyncKey = '$_lastSyncPrefix${col}_$shopId';
           final lastSyncMs = prefs.getInt(lastSyncKey) ?? 0;
           final isFirstSync = lastSyncMs == 0;
-          
+
           Query<Map<String, dynamic>> query = _db
               .collection(col)
               .where('shopId', isEqualTo: shopId);
-          
+
           // Incremental: chỉ lấy docs có updatedAt > lastSync
           if (!isFirstSync && !force) {
             query = query.where(
               'updatedAt',
               isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncMs),
             );
-            debugPrint("Downloading collection: $col (incremental, since ${DateTime.fromMillisecondsSinceEpoch(lastSyncMs)})...");
+            debugPrint(
+              "Downloading collection: $col (incremental, since ${DateTime.fromMillisecondsSinceEpoch(lastSyncMs)})...",
+            );
           } else {
             debugPrint("Downloading collection: $col (full sync)...");
           }
-          
+
           final snap = await query.get();
           debugPrint("  -> Found ${snap.docs.length} documents in $col");
 
@@ -3450,10 +3619,13 @@ class SyncService {
           debugPrint(
             "  -> $col: success=$successCount, skipped=$skipCount, errors=$errorCount",
           );
-          
+
           // Lưu thời điểm sync thành công cho incremental sync lần sau
           if (successCount > 0 || isFirstSync) {
-            await prefs.setInt(lastSyncKey, DateTime.now().millisecondsSinceEpoch);
+            await prefs.setInt(
+              lastSyncKey,
+              DateTime.now().millisecondsSinceEpoch,
+            );
           }
         } catch (e) {
           debugPrint("Lỗi tải collection $col: $e");

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -58,8 +60,19 @@ class SyncCheckResult {
 
   double get syncPercentage {
     if (cloudCount == 0 && localCount == 0) return 100.0;
-    if (cloudCount == 0) return 0.0;
-    return (matched / cloudCount) * 100;
+    final baseline = math.max(cloudCount, localCount);
+    if (baseline == 0) return 100.0;
+
+    final percentage = (matched / baseline) * 100;
+    if (hasIssues) {
+      return percentage.clamp(0.0, 99.0);
+    }
+    return percentage.clamp(0.0, 100.0);
+  }
+
+  int get displayPercentage {
+    if (isHealthy) return 100;
+    return syncPercentage.floor().clamp(0, 99);
   }
 }
 
@@ -152,7 +165,19 @@ class SyncHealthCheck {
       'debt_payments',
     ];
 
-    for (final collection in collections) {
+    final allowedCollections =
+        await SyncService.filterCollectionsForCurrentUser(collections);
+
+    final skippedCollections = collections
+        .where((collection) => !allowedCollections.contains(collection))
+        .toList();
+    if (skippedCollections.isNotEmpty) {
+      debugPrint(
+        'ℹ️ Sync Health bỏ qua collections ngoài quyền hiện tại: $skippedCollections',
+      );
+    }
+
+    for (final collection in allowedCollections) {
       results.add(
         await _checkCollection(collection: collection, shopId: validShopId),
       );
@@ -230,16 +255,11 @@ class SyncHealthCheck {
       }
 
       // Filter ra các documents không bị xóa (deleted != true)
-      final cloudIds = cloudSnap.docs
-          .where((d) => d.data()['deleted'] != true)
-          .map((d) => d.id)
-          .toSet();
+      final cloudRows = _buildCloudComparisonRows(collection, cloudSnap.docs);
+      final cloudIds = cloudRows.keys.toSet();
       final localRows = await _getActiveLocalRows(collection, shopId: shopId);
-      final localIds = localRows
-          .map(_firestoreIdFromRow)
-          .whereType<String>()
-          .toSet();
-      final localCount = localRows.length;
+      final localIds = _buildLocalComparisonKeys(collection, localRows);
+      final localCount = localIds.length;
       final unsyncedCount = localRows.where(_isUnsyncedRow).length;
       final pendingCreateLocal = localRows
           .where(
@@ -268,10 +288,9 @@ class SyncHealthCheck {
         int fixed = 0;
         for (final docId in missingIds) {
           try {
-            final doc = cloudSnap.docs.firstWhere((d) => d.id == docId);
-            var data = Map<String, dynamic>.from(doc.data());
+            final data = Map<String, dynamic>.from(cloudRows[docId]!);
             data = EncryptionService.decryptMap(data);
-            data['firestoreId'] = docId;
+            data['firestoreId'] = data['firestoreId'] ?? docId;
             data['isSynced'] = 1;
             data['deleted'] = data['deleted'] ?? 0;
             SyncService.convertTimestampFieldsPublic(data);
@@ -291,11 +310,11 @@ class SyncHealthCheck {
         collection,
         shopId: shopId,
       );
-      final localIdsAfter = localRowsAfter
-          .map(_firestoreIdFromRow)
-          .whereType<String>()
-          .toSet();
-      final localCountAfter = localRowsAfter.length;
+      final localIdsAfter = _buildLocalComparisonKeys(
+        collection,
+        localRowsAfter,
+      );
+      final localCountAfter = localIdsAfter.length;
       final matchedAfter = localIdsAfter.intersection(cloudIds).length;
       final cloudOnlyAfter = cloudIds.difference(localIdsAfter).length;
       final localOnlyAfter = localIdsAfter.difference(cloudIds).length;
@@ -384,6 +403,72 @@ class SyncHealthCheck {
     final value = row['firestoreId']?.toString().trim();
     if (value == null || value.isEmpty) return null;
     return value;
+  }
+
+  static Map<String, Map<String, dynamic>> _buildCloudComparisonRows(
+    String collection,
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final rows = <String, Map<String, dynamic>>{};
+
+    for (final doc in docs) {
+      final data = Map<String, dynamic>.from(doc.data());
+      if (data['deleted'] == true) continue;
+
+      data['firestoreId'] = doc.id;
+      final key = _comparisonKeyForRow(collection, data, fallbackId: doc.id);
+      if (key == null) continue;
+      rows.putIfAbsent(key, () => data);
+    }
+
+    return rows;
+  }
+
+  static Set<String> _buildLocalComparisonKeys(
+    String collection,
+    Iterable<Map<String, dynamic>> rows,
+  ) {
+    return rows
+        .map((row) => _comparisonKeyForRow(collection, row))
+        .whereType<String>()
+        .toSet();
+  }
+
+  static String? _comparisonKeyForRow(
+    String collection,
+    Map<String, dynamic> row, {
+    String? fallbackId,
+  }) {
+    switch (collection) {
+      case 'customers':
+        final phone = _normalizePhone(row['phone']);
+        if (phone.isNotEmpty) return 'phone:$phone';
+
+        final name = _normalizeText(row['name'] ?? row['customerName']);
+        if (name.isNotEmpty) return 'name:$name';
+        break;
+      case 'suppliers':
+        final name = _normalizeText(row['name']);
+        if (name.isNotEmpty) return 'name:$name';
+
+        final phone = _normalizePhone(row['phone']);
+        if (phone.isNotEmpty) return 'phone:$phone';
+        break;
+    }
+
+    final firestoreId = _normalizeText(row['firestoreId'] ?? fallbackId);
+    if (firestoreId.isNotEmpty) return 'id:$firestoreId';
+    return null;
+  }
+
+  static String _normalizeText(dynamic value) {
+    return value?.toString().trim().toUpperCase() ?? '';
+  }
+
+  static String _normalizePhone(dynamic value) {
+    final raw = value?.toString().trim() ?? '';
+    if (raw.isEmpty) return '';
+    return raw.replaceAll(RegExp(r'\D'), '');
   }
 
   static bool _isUnsyncedRow(Map<String, dynamic> row) {

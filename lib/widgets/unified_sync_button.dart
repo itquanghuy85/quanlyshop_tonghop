@@ -1030,7 +1030,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   }
 
   Widget _buildReportRow(SyncCheckResult r) {
-    final isOk = r.syncPercentage >= 100;
+    final isOk = r.isHealthy;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -1063,7 +1063,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
             ),
           ),
           Text(
-            '${r.syncPercentage.toStringAsFixed(0)}%',
+            '${r.displayPercentage}%',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: isOk ? Colors.green : Colors.orange,
