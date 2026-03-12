@@ -135,6 +135,7 @@ class _HomeViewState extends State<HomeView>
   @override
   void initState() {
     super.initState();
+    _primePermissionsFromCache();
     WidgetsBinding.instance.addObserver(
       this,
     ); // Lifecycle observer for iOS background handling
@@ -199,6 +200,25 @@ class _HomeViewState extends State<HomeView>
     } catch (e) {
       debugPrint('HomeView: Failed to load saved tab index: $e');
     }
+  }
+
+  void _primePermissionsFromCache() {
+    final cached = UserService.getCurrentUserPermissionsSync();
+    if (cached == null) return;
+
+    _shopLocked = cached['shopAppLocked'] == true;
+    _lockedByAdmin = List<dynamic>.from(
+      cached['lockedByAdmin'] as List<dynamic>? ?? const [],
+    );
+    _lockedByOwner = List<dynamic>.from(
+      cached['lockedByOwner'] as List<dynamic>? ?? const [],
+    );
+    _permissions = {};
+    cached.forEach((key, value) {
+      if (value is bool) {
+        _permissions[key] = value;
+      }
+    });
   }
 
   void _setCurrentTab(int index) {
@@ -1426,10 +1446,12 @@ class _HomeViewState extends State<HomeView>
     }
   }
 
-  Future<void> _updatePermissions() async {
+  Future<void> _updatePermissions({bool forceRefresh = false}) async {
     debugPrint('HomeView: _updatePermissions called');
     try {
-      final perms = await UserService.getCurrentUserPermissions();
+      final perms = await UserService.getCurrentUserPermissions(
+        forceRefresh: forceRefresh,
+      );
       if (!mounted) return;
       setState(() {
         _shopLocked = perms['shopAppLocked'] == true;

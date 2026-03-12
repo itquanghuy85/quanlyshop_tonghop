@@ -59,9 +59,61 @@ class UserService {
   static String? _adminSelectedShopId; // Shop được super admin chọn để xem
   static bool? _cachedCanViewCostPrice; // Cache permission xem giá vốn
   static DateTime? _cachedCanViewCostPriceTime; // Thời điểm cache
+  static Map<String, dynamic>? _cachedPermissions;
+  static String? _cachedPermissionsUid;
+  static String? _cachedPermissionsShopKey;
+  static DateTime? _cachedPermissionsTime;
+  static const Duration _permissionsCacheTtl = Duration(minutes: 10);
+
+  static String? _currentPermissionsShopKey(User? user) {
+    if (user == null) return null;
+    if (_isSuperAdmin(user)) {
+      return 'super_admin:${_adminSelectedShopId ?? ''}';
+    }
+    return 'user:${user.uid}:${getShopIdSync() ?? ''}';
+  }
+
+  static bool _isPermissionsCacheValid(User? user) {
+    if (user == null || _cachedPermissions == null) return false;
+    if (_cachedPermissionsUid != user.uid) return false;
+    if (_cachedPermissionsShopKey != _currentPermissionsShopKey(user)) {
+      return false;
+    }
+    if (_cachedPermissionsTime == null) return false;
+    return DateTime.now().difference(_cachedPermissionsTime!) <=
+        _permissionsCacheTtl;
+  }
+
+  static void _savePermissionsCache(
+    User user,
+    Map<String, dynamic> permissions,
+  ) {
+    _cachedPermissions = Map<String, dynamic>.from(permissions);
+    _cachedPermissionsUid = user.uid;
+    _cachedPermissionsShopKey = _currentPermissionsShopKey(user);
+    _cachedPermissionsTime = DateTime.now();
+  }
+
+  static Map<String, dynamic>? getCurrentUserPermissionsSync() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return _defaultPermissionsForRole('user');
+    if (_isSuperAdmin(currentUser)) return _defaultPermissionsForRole('admin');
+    if (!_isPermissionsCacheValid(currentUser)) return null;
+    return Map<String, dynamic>.from(_cachedPermissions!);
+  }
+
+  static void invalidatePermissionsCache() {
+    _cachedPermissions = null;
+    _cachedPermissionsUid = null;
+    _cachedPermissionsShopKey = null;
+    _cachedPermissionsTime = null;
+  }
 
   // Method để cập nhật cache shopId từ bên ngoài (dùng cho sync)
   static void updateCachedShopId(String? shopId) {
+    if (_cachedShopId != shopId) {
+      invalidatePermissionsCache();
+    }
     _cachedShopId = shopId;
     _cachedUid = FirebaseAuth.instance.currentUser?.uid;
   }
@@ -126,7 +178,9 @@ class UserService {
       if (role != null) {
         await prefs.setString('auth_cache_role', role);
       }
-      debugPrint('💾 saveAuthCache: shopId=$_cachedShopId, uid=$_cachedUid, role=$role');
+      debugPrint(
+        '💾 saveAuthCache: shopId=$_cachedShopId, uid=$_cachedUid, role=$role',
+      );
     } catch (e) {
       debugPrint('⚠️ saveAuthCache error: $e');
     }
@@ -136,17 +190,23 @@ class UserService {
   /// Trả về true nếu cache hợp lệ (đúng uid), false nếu không có.
   static Future<bool> restoreAuthCache(String currentUid) async {
     // Đã có cache đúng user → không cần đọc prefs
-    if (_cachedShopId != null && _cachedShopId!.isNotEmpty && _cachedUid == currentUid) {
+    if (_cachedShopId != null &&
+        _cachedShopId!.isNotEmpty &&
+        _cachedUid == currentUid) {
       return true;
     }
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedUid = prefs.getString('auth_cache_uid');
       final savedShopId = prefs.getString('auth_cache_shopId');
-      if (savedUid == currentUid && savedShopId != null && savedShopId.isNotEmpty) {
+      if (savedUid == currentUid &&
+          savedShopId != null &&
+          savedShopId.isNotEmpty) {
         _cachedShopId = savedShopId;
         _cachedUid = currentUid;
-        debugPrint('♻️ restoreAuthCache: restored shopId=$savedShopId for uid=$currentUid');
+        debugPrint(
+          '♻️ restoreAuthCache: restored shopId=$savedShopId for uid=$currentUid',
+        );
         return true;
       }
     } catch (e) {
@@ -171,16 +231,19 @@ class UserService {
     _cachedShopId = null;
     _cachedUid = null;
     _adminSelectedShopId = null;
+    invalidatePermissionsCache();
     _cachedCanViewCostPrice = null;
     _cachedCanViewCostPriceTime = null;
     ClaimsService().stopClaimsSync(); // Stop claims listener on logout
     PaymentIntentService.clearCache(); // Clear payment intent cache
     // Xóa auth cache prefs
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.remove('auth_cache_shopId');
-      prefs.remove('auth_cache_uid');
-      prefs.remove('auth_cache_role');
-    }).catchError((_) {});
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.remove('auth_cache_shopId');
+          prefs.remove('auth_cache_uid');
+          prefs.remove('auth_cache_role');
+        })
+        .catchError((_) {});
   }
 
   /// Initialize claims sync after login
@@ -275,7 +338,8 @@ class UserService {
         try {
           final aTime = a['createdAt'];
           final bTime = b['createdAt'];
-          if (aTime is Timestamp && bTime is Timestamp) return bTime.compareTo(aTime);
+          if (aTime is Timestamp && bTime is Timestamp)
+            return bTime.compareTo(aTime);
           if (aTime is Timestamp) return -1;
           if (bTime is Timestamp) return 1;
         } catch (_) {}
@@ -291,6 +355,9 @@ class UserService {
   /// Super admin chọn shop để xem
   static void setAdminSelectedShop(String? shopId) {
     if (!isCurrentUserSuperAdmin()) return;
+    if (_adminSelectedShopId != shopId) {
+      invalidatePermissionsCache();
+    }
     _adminSelectedShopId = shopId;
     _cachedShopId = shopId;
     _cachedUid = FirebaseAuth.instance.currentUser?.uid;
@@ -369,7 +436,10 @@ class UserService {
       'allowViewRevenue': isOwner, // Chỉ chủ shop được xem tài chính
       'allowViewExpenses': isOwner, // Chỉ chủ shop được xem chi phí
       'allowViewDebts': isOwner, // Chỉ chủ shop được xem công nợ
-      'allowViewCostPrice': isOwner || isManager || isAdmin, // Xem giá vốn - mặc định chỉ owner/manager/admin
+      'allowViewCostPrice':
+          isOwner ||
+          isManager ||
+          isAdmin, // Xem giá vốn - mặc định chỉ owner/manager/admin
       'allowViewSettings': isOwner || isManager || isAdmin,
       'allowManageStaff': isOwner || isManager || isAdmin,
       'shopAppLocked': false,
@@ -455,7 +525,9 @@ class UserService {
               'getCurrentShopId: recovered missing user.shopId -> $ownedShopId',
             );
           } catch (e) {
-            debugPrint('getCurrentShopId: failed to persist recovered shopId: $e');
+            debugPrint(
+              'getCurrentShopId: failed to persist recovered shopId: $e',
+            );
           }
         }
       }
@@ -468,11 +540,14 @@ class UserService {
           final role = (data?['role'] ?? '').toString().trim().toLowerCase();
           final isOwnerRole = role == 'owner';
           final ownerUid = shopDoc.data()?['ownerUid']?.toString();
-          final ownerMismatch = isOwnerRole && ownerUid != null && ownerUid != currentUser.uid;
+          final ownerMismatch =
+              isOwnerRole && ownerUid != null && ownerUid != currentUser.uid;
 
           if (!shopDoc.exists || shopDeleted || ownerMismatch) {
             final ownedShopId = await _findOwnedActiveShopId(currentUser.uid);
-            if (ownedShopId != null && ownedShopId.isNotEmpty && ownedShopId != shopId) {
+            if (ownedShopId != null &&
+                ownedShopId.isNotEmpty &&
+                ownedShopId != shopId) {
               debugPrint(
                 'getCurrentShopId: switching from invalid/mismatched shopId=$shopId to owned shop=$ownedShopId',
               );
@@ -695,7 +770,8 @@ class UserService {
             forceRefresh: true,
           );
           final freshClaimsShopId = freshClaims?['shopId']?.toString();
-          if (freshClaimsShopId != null && freshClaimsShopId.trim().isNotEmpty) {
+          if (freshClaimsShopId != null &&
+              freshClaimsShopId.trim().isNotEmpty) {
             shopId = freshClaimsShopId.trim();
             debugPrint('🔁 syncUserInfo: Reusing FRESH claims shopId=$shopId');
           }
@@ -710,60 +786,69 @@ class UserService {
             'lastRecoveredAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
         } else {
-        final ownedShopId = await _findOwnedActiveShopId(uid);
-        if (ownedShopId != null && ownedShopId.isNotEmpty) {
-          shopId = ownedShopId;
-          debugPrint('🔁 syncUserInfo: Reusing existing owned shopId=$shopId');
-        } else {
-          shopId = uid;
-          isNewShop = true;
-          debugPrint(
-            '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
-          );
+          final ownedShopId = await _findOwnedActiveShopId(uid);
+          if (ownedShopId != null && ownedShopId.isNotEmpty) {
+            shopId = ownedShopId;
+            debugPrint(
+              '🔁 syncUserInfo: Reusing existing owned shopId=$shopId',
+            );
+          } else {
+            shopId = uid;
+            isNewShop = true;
+            debugPrint(
+              '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
+            );
 
-          // CRITICAL: Tạo shop document trước và đợi hoàn thành
-          try {
-            await _db.collection('shops').doc(shopId).set({
-              'shopId': shopId,
-              'ownerUid': uid,
-              'ownerEmail': email,
-              'name': extra?['shopName'] ?? 'Cửa hàng mới',
-              'businessType': 'electronics', // Default cho shop mới
-              'createdAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-            debugPrint('✅ syncUserInfo: Shop document created successfully');
-
-            // Tạo shop_settings subcollection doc cho shop mới
+            // CRITICAL: Tạo shop document trước và đợi hoàn thành
             try {
-              final settings = {
+              await _db.collection('shops').doc(shopId).set({
                 'shopId': shopId,
-                'businessType': 'electronics',
-                'businessTypeName': 'Điện thoại & Điện tử',
-                'enableRepair': true,
-                'enableSerial': true,
-                'enableWarranty': true,
-                'enableExpiry': false,
-                'enableVariants': false,
-                'enableBatch': false,
-                'defaultUnit': 'cái',
-                'expiryWarningDays': 7,
-                'lowStockWarning': 5,
-                'createdAt': DateTime.now().toIso8601String(),
-                'updatedAt': DateTime.now().toIso8601String(),
-              };
-              await _db.collection('shops').doc(shopId)
-                  .collection('settings').doc('shop_settings')
-                  .set(settings);
-              debugPrint('✅ syncUserInfo: shop_settings created for new shop');
+                'ownerUid': uid,
+                'ownerEmail': email,
+                'name': extra?['shopName'] ?? 'Cửa hàng mới',
+                'businessType': 'electronics', // Default cho shop mới
+                'createdAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+              debugPrint('✅ syncUserInfo: Shop document created successfully');
+
+              // Tạo shop_settings subcollection doc cho shop mới
+              try {
+                final settings = {
+                  'shopId': shopId,
+                  'businessType': 'electronics',
+                  'businessTypeName': 'Điện thoại & Điện tử',
+                  'enableRepair': true,
+                  'enableSerial': true,
+                  'enableWarranty': true,
+                  'enableExpiry': false,
+                  'enableVariants': false,
+                  'enableBatch': false,
+                  'defaultUnit': 'cái',
+                  'expiryWarningDays': 7,
+                  'lowStockWarning': 5,
+                  'createdAt': DateTime.now().toIso8601String(),
+                  'updatedAt': DateTime.now().toIso8601String(),
+                };
+                await _db
+                    .collection('shops')
+                    .doc(shopId)
+                    .collection('settings')
+                    .doc('shop_settings')
+                    .set(settings);
+                debugPrint(
+                  '✅ syncUserInfo: shop_settings created for new shop',
+                );
+              } catch (e) {
+                debugPrint(
+                  '⚠️ syncUserInfo: Failed to create shop_settings: $e',
+                );
+                // Non-critical, CategoryService will auto-create from shop doc businessType
+              }
             } catch (e) {
-              debugPrint('⚠️ syncUserInfo: Failed to create shop_settings: $e');
-              // Non-critical, CategoryService will auto-create from shop doc businessType
+              debugPrint('❌ syncUserInfo: Failed to create shop: $e');
+              rethrow; // Không tiếp tục nếu không tạo được shop
             }
-          } catch (e) {
-            debugPrint('❌ syncUserInfo: Failed to create shop: $e');
-            rethrow; // Không tiếp tục nếu không tạo được shop
           }
-        }
         }
       }
     }
@@ -786,13 +871,16 @@ class UserService {
 
     // Determine displayName with multiple fallbacks
     String resolvedDisplayName = '';
-    if (data['displayName'] != null && data['displayName'].toString().trim().isNotEmpty) {
+    if (data['displayName'] != null &&
+        data['displayName'].toString().trim().isNotEmpty) {
       resolvedDisplayName = data['displayName'].toString().trim();
-    } else if (data['name'] != null && data['name'].toString().trim().isNotEmpty) {
+    } else if (data['name'] != null &&
+        data['name'].toString().trim().isNotEmpty) {
       resolvedDisplayName = data['name'].toString().trim();
     } else if (FirebaseAuth.instance.currentUser?.displayName != null &&
-               FirebaseAuth.instance.currentUser!.displayName!.trim().isNotEmpty) {
-      resolvedDisplayName = FirebaseAuth.instance.currentUser!.displayName!.trim();
+        FirebaseAuth.instance.currentUser!.displayName!.trim().isNotEmpty) {
+      resolvedDisplayName = FirebaseAuth.instance.currentUser!.displayName!
+          .trim();
     } else if (email.isNotEmpty) {
       // Fallback: capitalize phần trước @ của email
       final emailPrefix = email.split('@').first;
@@ -863,7 +951,9 @@ class UserService {
             }
           }
         } catch (e) {
-          debugPrint('⚠️ syncUserInfo: retry ${retry + 1}/$maxRetries error: $e');
+          debugPrint(
+            '⚠️ syncUserInfo: retry ${retry + 1}/$maxRetries error: $e',
+          );
         }
       }
 
@@ -924,7 +1014,9 @@ class UserService {
   /// - allowView*: quyền xem từng chức năng
   /// - shopAppLocked, shopAdminFinanceLocked: cờ khóa từ Super Admin
   /// - lockedBy*: nguồn gốc khóa ('admin' = Super Admin, 'owner' = Chủ shop phân quyền)
-  static Future<Map<String, dynamic>> getCurrentUserPermissions() async {
+  static Future<Map<String, dynamic>> getCurrentUserPermissions({
+    bool forceRefresh = false,
+  }) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       return _defaultPermissionsForRole('user');
@@ -933,6 +1025,14 @@ class UserService {
     // Admin tối cao luôn có toàn quyền
     if (_isSuperAdmin(currentUser)) {
       return _defaultPermissionsForRole('admin');
+    }
+
+    if (!forceRefresh) {
+      final cached = getCurrentUserPermissionsSync();
+      if (cached != null) {
+        debugPrint('getCurrentUserPermissions: using in-memory cache');
+        return cached;
+      }
     }
 
     try {
@@ -944,8 +1044,11 @@ class UserService {
       debugPrint('getCurrentUserPermissions: defaults = $defaults');
       // Debug: kiểm tra allowViewCostPrice từ Firestore vs force override
       final firestoreCostPrice = data['allowViewCostPrice'];
-      final forceTrue = (role == 'owner' || role == 'manager' || role == 'admin');
-      debugPrint('getCurrentUserPermissions: Firestore allowViewCostPrice=$firestoreCostPrice, forceTrue=$forceTrue');
+      final forceTrue =
+          (role == 'owner' || role == 'manager' || role == 'admin');
+      debugPrint(
+        'getCurrentUserPermissions: Firestore allowViewCostPrice=$firestoreCostPrice, forceTrue=$forceTrue',
+      );
 
       // Bắt đầu từ quyền riêng trên tài khoản (nếu chưa cấu hình thì dùng mặc định theo role)
       final perms = <String, dynamic>{
@@ -993,8 +1096,9 @@ class UserService {
         // Owner, Manager, Admin LUÔN được xem giá vốn, không bao giờ bị tắt
         'allowViewCostPrice':
             (role == 'owner' || role == 'manager' || role == 'admin')
-              ? true
-              : ((data['allowViewCostPrice'] as bool?) ?? defaults['allowViewCostPrice']!),
+            ? true
+            : ((data['allowViewCostPrice'] as bool?) ??
+                  defaults['allowViewCostPrice']!),
         'allowViewSettings':
             (data['allowViewSettings'] as bool?) ??
             defaults['allowViewSettings']!,
@@ -1109,8 +1213,17 @@ class UserService {
       perms['lockedByAdmin'] = adminLockedList;
 
       debugPrint('UserService: final perms = $perms');
+      _savePermissionsCache(currentUser, perms);
       return perms;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('getCurrentUserPermissions error: $e');
+      final cached = getCurrentUserPermissionsSync();
+      if (cached != null) {
+        debugPrint(
+          'getCurrentUserPermissions: returning cached permissions after error',
+        );
+        return cached;
+      }
       return _defaultPermissionsForRole('user');
     }
   }
@@ -1413,7 +1526,10 @@ class UserService {
 
   /// Xóa user + Auth account + dữ liệu liên quan qua Cloud Function
   /// Chỉ Super Admin mới có quyền
-  static Future<Map<String, dynamic>> deleteUserWithData(String uid, {bool deleteAuth = true}) async {
+  static Future<Map<String, dynamic>> deleteUserWithData(
+    String uid, {
+    bool deleteAuth = true,
+  }) async {
     final callable = FirebaseFunctions.instanceFor(
       region: 'asia-southeast1',
     ).httpsCallable('deleteUserData');
@@ -1444,8 +1560,10 @@ class UserService {
     if (isCurrentUserSuperAdmin()) return true;
 
     // Check cache (5 phút)
-    if (_cachedCanViewCostPrice != null && _cachedCanViewCostPriceTime != null) {
-      if (DateTime.now().difference(_cachedCanViewCostPriceTime!).inMinutes < 5) {
+    if (_cachedCanViewCostPrice != null &&
+        _cachedCanViewCostPriceTime != null) {
+      if (DateTime.now().difference(_cachedCanViewCostPriceTime!).inMinutes <
+          5) {
         return _cachedCanViewCostPrice!;
       }
     }
@@ -1453,11 +1571,11 @@ class UserService {
     // Lấy permissions từ Firestore
     final perms = await getCurrentUserPermissions();
     final canView = perms['allowViewCostPrice'] as bool? ?? false;
-    
+
     // Cache kết quả
     _cachedCanViewCostPrice = canView;
     _cachedCanViewCostPriceTime = DateTime.now();
-    
+
     return canView;
   }
 
