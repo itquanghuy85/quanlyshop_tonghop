@@ -49,11 +49,14 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
       final db = await DBHelper().database;
       final results = await Future.wait([
         db.rawQuery('SELECT COUNT(*) FROM repairs WHERE status IN (1, 2)'),
-        db.rawQuery("SELECT COUNT(*) FROM products WHERE pendingConfirm = 1"),
+        db.rawQuery('SELECT COUNT(*) FROM products WHERE isPending = 1'),
         // Warranty expiring within 7 days
-        db.query('repairs',
+        db.query(
+          'repairs',
           columns: ['deliveredAt', 'warranty'],
-          where: "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH' AND status = 4"),
+          where:
+              "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH' AND status = 4",
+        ),
       ]);
 
       final pendingR = (results[0].first.values.first as num?)?.toInt() ?? 0;
@@ -96,36 +99,44 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
 
     final items = <_ActionItem>[];
     if (widget.enableRepair && _pendingRepairs > 0) {
-      items.add(_ActionItem(
-        icon: Icons.build_circle,
-        label: '$_pendingRepairs đơn sửa chờ xử lý',
-        color: Colors.blue,
-        onTap: widget.onPendingRepairsTap,
-      ));
+      items.add(
+        _ActionItem(
+          icon: Icons.build_circle,
+          label: '$_pendingRepairs đơn sửa chờ xử lý',
+          color: Colors.blue,
+          onTap: widget.onPendingRepairsTap,
+        ),
+      );
     }
     if (_pendingStock > 0) {
-      items.add(_ActionItem(
-        icon: Icons.pending_actions,
-        label: '$_pendingStock hàng chờ xác nhận nhập kho',
-        color: Colors.orange,
-        onTap: widget.onPendingStockTap,
-      ));
+      items.add(
+        _ActionItem(
+          icon: Icons.pending_actions,
+          label: '$_pendingStock hàng chờ xác nhận nhập kho',
+          color: Colors.orange,
+          onTap: widget.onPendingStockTap,
+        ),
+      );
     }
     if (widget.enableWarranty && _expiringWarranty > 0) {
-      items.add(_ActionItem(
-        icon: Icons.shield,
-        label: '$_expiringWarranty thiết bị sắp hết bảo hành',
-        color: Colors.amber.shade800,
-        onTap: widget.onWarrantyTap,
-      ));
+      items.add(
+        _ActionItem(
+          icon: Icons.shield,
+          label: '$_expiringWarranty thiết bị sắp hết bảo hành',
+          color: Colors.amber.shade800,
+          onTap: widget.onWarrantyTap,
+        ),
+      );
     }
     if (widget.enableExpiry && _expiringProducts > 0) {
-      items.add(_ActionItem(
-        icon: Icons.timer,
-        label: '$_expiringProducts sản phẩm sắp hết HSD',
-        color: Colors.red,
-        onTap: widget.onExpiryTap,
-      ));
+      items.add(
+        _ActionItem(
+          icon: Icons.timer,
+          label: '$_expiringProducts sản phẩm sắp hết HSD',
+          color: Colors.red,
+          onTap: widget.onExpiryTap,
+        ),
+      );
     }
 
     if (items.isEmpty) return const SizedBox.shrink();
@@ -143,7 +154,11 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
         children: [
           Row(
             children: [
-              Icon(Icons.notification_important, color: Colors.orange.shade700, size: 18),
+              Icon(
+                Icons.notification_important,
+                color: Colors.orange.shade700,
+                size: 18,
+              ),
               const SizedBox(width: 6),
               Text(
                 'CẦN XỬ LÝ (${items.length})',
@@ -157,37 +172,43 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
             ],
           ),
           const SizedBox(height: 8),
-          ...items.map((item) => InkWell(
-            onTap: item.onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: item.color.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
+          ...items.map(
+            (item) => InkWell(
+              onTap: item.onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: item.color.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(item.icon, color: item.color, size: 16),
                     ),
-                    child: Icon(item.icon, color: item.color, size: 16),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      item.label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade800,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade800,
+                        ),
                       ),
                     ),
-                  ),
-                  Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey.shade400),
-                ],
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 12,
+                      color: Colors.grey.shade400,
+                    ),
+                  ],
+                ),
               ),
             ),
-          )),
+          ),
         ],
       ),
     );
@@ -204,7 +225,12 @@ class _ActionItem {
   final String label;
   final Color color;
   final VoidCallback? onTap;
-  const _ActionItem({required this.icon, required this.label, required this.color, this.onTap});
+  const _ActionItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.onTap,
+  });
 }
 
 /// Compact finance summary - shows Doanh thu / Lợi nhuận / Quỹ
@@ -252,7 +278,11 @@ class FinanceSummaryCard extends StatelessWidget {
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.account_balance_wallet, color: Colors.blue.shade600, size: 16),
+                  child: Icon(
+                    Icons.account_balance_wallet,
+                    color: Colors.blue.shade600,
+                    size: 16,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
@@ -270,7 +300,11 @@ class FinanceSummaryCard extends StatelessWidget {
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                 ),
                 const SizedBox(width: 4),
-                Icon(Icons.arrow_forward_ios, size: 10, color: Colors.grey.shade400),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 10,
+                  color: Colors.grey.shade400,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -289,7 +323,9 @@ class FinanceSummaryCard extends StatelessWidget {
                   child: _metricTile(
                     '📈 Lợi nhuận',
                     '${netProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(netProfit)}',
-                    netProfit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                    netProfit >= 0
+                        ? Colors.green.shade700
+                        : Colors.red.shade700,
                   ),
                 ),
                 Container(width: 1, height: 36, color: Colors.grey.shade200),
@@ -334,11 +370,7 @@ class ActivityFeedCard extends StatefulWidget {
   final bool enableRepair;
   final VoidCallback? onViewAll;
 
-  const ActivityFeedCard({
-    super.key,
-    this.enableRepair = true,
-    this.onViewAll,
-  });
+  const ActivityFeedCard({super.key, this.enableRepair = true, this.onViewAll});
 
   @override
   State<ActivityFeedCard> createState() => _ActivityFeedCardState();
@@ -364,40 +396,77 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
       // Load recent sales, repairs, expenses, debt_payments, supplier_payments from today
       final results = await Future.wait([
         // Recent sales (last 5)
-        db.query('sales',
+        db.query(
+          'sales',
           columns: ['customerName', 'totalPrice', 'soldAt', 'paymentMethod'],
-          where: 'soldAt >= ?', whereArgs: [startMs],
-          orderBy: 'soldAt DESC', limit: 5),
+          where: 'soldAt >= ?',
+          whereArgs: [startMs],
+          orderBy: 'soldAt DESC',
+          limit: 5,
+        ),
         // Recent repairs (last 5)
         if (widget.enableRepair)
-          db.query('repairs',
-            columns: ['customerName', 'model', 'price', 'createdAt', 'status', 'deliveredAt'],
-            where: 'createdAt >= ? OR (deliveredAt IS NOT NULL AND deliveredAt >= ?)',
+          db.query(
+            'repairs',
+            columns: [
+              'customerName',
+              'model',
+              'price',
+              'createdAt',
+              'status',
+              'deliveredAt',
+            ],
+            where:
+                'createdAt >= ? OR (deliveredAt IS NOT NULL AND deliveredAt >= ?)',
             whereArgs: [startMs, startMs],
-            orderBy: 'createdAt DESC', limit: 5)
+            orderBy: 'createdAt DESC',
+            limit: 5,
+          )
         else
           Future.value(<Map<String, dynamic>>[]),
         // Recent expenses (last 5)
-        db.query('expenses',
+        db.query(
+          'expenses',
           columns: ['title', 'amount', 'date', 'type', 'category'],
-          where: 'date >= ?', whereArgs: [startMs],
-          orderBy: 'date DESC', limit: 5),
-        // Recent debt payments (last 5)
-        db.query('debt_payments',
-          columns: ['amount', 'paidAt', 'paymentMethod', 'debtType', 'note'],
-          where: 'paidAt >= ?', whereArgs: [startMs],
-          orderBy: 'paidAt DESC', limit: 5),
-        // Recent supplier payments (last 5)
-        db.query('supplier_payments',
-          columns: ['amount', 'paidAt', 'paymentMethod', 'supplierId', 'note'],
-          where: 'paidAt >= ?', whereArgs: [startMs],
-          orderBy: 'paidAt DESC', limit: 5),
-        // Recent repair partner payments (last 5)
-        db.query('repair_partner_payments',
-          columns: ['amount', 'paidAt', 'paymentMethod', 'partnerName', 'note'],
-          where: 'paidAt >= ? AND (deleted IS NULL OR deleted != 1)',
+          where: 'date >= ?',
           whereArgs: [startMs],
-          orderBy: 'paidAt DESC', limit: 5)
+          orderBy: 'date DESC',
+          limit: 5,
+        ),
+        // Recent debt payments (last 5)
+        db.query(
+          'debt_payments',
+          columns: ['amount', 'paidAt', 'paymentMethod', 'debtType', 'note'],
+          where: 'paidAt >= ?',
+          whereArgs: [startMs],
+          orderBy: 'paidAt DESC',
+          limit: 5,
+        ),
+        // Recent supplier payments (last 5)
+        db.query(
+          'supplier_payments',
+          columns: ['amount', 'paidAt', 'paymentMethod', 'supplierId', 'note'],
+          where: 'paidAt >= ?',
+          whereArgs: [startMs],
+          orderBy: 'paidAt DESC',
+          limit: 5,
+        ),
+        // Recent repair partner payments (last 5)
+        db
+            .query(
+              'repair_partner_payments',
+              columns: [
+                'amount',
+                'paidAt',
+                'paymentMethod',
+                'partnerName',
+                'note',
+              ],
+              where: 'paidAt >= ? AND (deleted IS NULL OR deleted != 1)',
+              whereArgs: [startMs],
+              orderBy: 'paidAt DESC',
+              limit: 5,
+            )
             .catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
@@ -408,14 +477,16 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final name = s['customerName'] ?? 'Khách lẻ';
         final price = (s['totalPrice'] as num?)?.toInt() ?? 0;
         final at = (s['soldAt'] as num?)?.toInt() ?? 0;
-        activities.add(_ActivityItem(
-          icon: Icons.shopping_cart,
-          color: Colors.green,
-          title: 'Bán hàng - $name',
-          amount: '+${MoneyUtils.formatVND(price)}',
-          amountColor: Colors.green,
-          timestamp: at,
-        ));
+        activities.add(
+          _ActivityItem(
+            icon: Icons.shopping_cart,
+            color: Colors.green,
+            title: 'Bán hàng - $name',
+            amount: '+${MoneyUtils.formatVND(price)}',
+            amountColor: Colors.green,
+            timestamp: at,
+          ),
+        );
       }
 
       // Repairs
@@ -423,17 +494,24 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final name = (r['customerName'] ?? '').toString();
         final device = (r['model'] ?? '').toString();
         final status = (r['status'] as num?)?.toInt() ?? 1;
-        final at = (r['deliveredAt'] as num?)?.toInt() ?? (r['createdAt'] as num?)?.toInt() ?? 0;
+        final at =
+            (r['deliveredAt'] as num?)?.toInt() ??
+            (r['createdAt'] as num?)?.toInt() ??
+            0;
         final price = (r['price'] as num?)?.toInt() ?? 0;
         final isDelivered = status == 4;
-        activities.add(_ActivityItem(
-          icon: isDelivered ? Icons.check_circle : Icons.build_circle,
-          color: isDelivered ? Colors.blue : Colors.orange,
-          title: isDelivered ? 'Giao máy - $name' : 'Nhận sửa - ${device.isNotEmpty ? device : name}',
-          amount: isDelivered ? '+${MoneyUtils.formatVND(price)}' : '',
-          amountColor: Colors.blue,
-          timestamp: at,
-        ));
+        activities.add(
+          _ActivityItem(
+            icon: isDelivered ? Icons.check_circle : Icons.build_circle,
+            color: isDelivered ? Colors.blue : Colors.orange,
+            title: isDelivered
+                ? 'Giao máy - $name'
+                : 'Nhận sửa - ${device.isNotEmpty ? device : name}',
+            amount: isDelivered ? '+${MoneyUtils.formatVND(price)}' : '',
+            amountColor: Colors.blue,
+            timestamp: at,
+          ),
+        );
       }
 
       // Expenses
@@ -443,14 +521,18 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final at = (e['date'] as num?)?.toInt() ?? 0;
         final eType = (e['type'] as String? ?? '').toUpperCase();
         final isIncome = eType == 'THU';
-        activities.add(_ActivityItem(
-          icon: isIncome ? Icons.add_circle : Icons.remove_circle,
-          color: isIncome ? Colors.teal : Colors.red,
-          title: isIncome ? 'Thu: $title' : 'Chi: $title',
-          amount: isIncome ? '+${MoneyUtils.formatVND(amount)}' : '-${MoneyUtils.formatVND(amount)}',
-          amountColor: isIncome ? Colors.teal : Colors.red,
-          timestamp: at,
-        ));
+        activities.add(
+          _ActivityItem(
+            icon: isIncome ? Icons.add_circle : Icons.remove_circle,
+            color: isIncome ? Colors.teal : Colors.red,
+            title: isIncome ? 'Thu: $title' : 'Chi: $title',
+            amount: isIncome
+                ? '+${MoneyUtils.formatVND(amount)}'
+                : '-${MoneyUtils.formatVND(amount)}',
+            amountColor: isIncome ? Colors.teal : Colors.red,
+            timestamp: at,
+          ),
+        );
       }
 
       // Debt payments
@@ -459,15 +541,24 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final at = (d['paidAt'] as num?)?.toInt() ?? 0;
         final debtType = (d['debtType'] as String? ?? '').toUpperCase();
         final note = (d['note'] ?? '').toString();
-        final isShopOwes = debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED';
-        activities.add(_ActivityItem(
-          icon: isShopOwes ? Icons.payment : Icons.account_balance_wallet,
-          color: isShopOwes ? Colors.deepOrange : Colors.cyan,
-          title: isShopOwes ? 'Trả nợ NCC${note.isNotEmpty ? ' - $note' : ''}' : 'Thu nợ KH${note.isNotEmpty ? ' - $note' : ''}',
-          amount: isShopOwes ? '-${MoneyUtils.formatVND(amount)}' : '+${MoneyUtils.formatVND(amount)}',
-          amountColor: isShopOwes ? Colors.deepOrange : Colors.cyan,
-          timestamp: at,
-        ));
+        final isShopOwes =
+            debtType == 'SHOP_OWES' ||
+            debtType == 'OTHER_SHOP_OWES' ||
+            debtType == 'OWED';
+        activities.add(
+          _ActivityItem(
+            icon: isShopOwes ? Icons.payment : Icons.account_balance_wallet,
+            color: isShopOwes ? Colors.deepOrange : Colors.cyan,
+            title: isShopOwes
+                ? 'Trả nợ NCC${note.isNotEmpty ? ' - $note' : ''}'
+                : 'Thu nợ KH${note.isNotEmpty ? ' - $note' : ''}',
+            amount: isShopOwes
+                ? '-${MoneyUtils.formatVND(amount)}'
+                : '+${MoneyUtils.formatVND(amount)}',
+            amountColor: isShopOwes ? Colors.deepOrange : Colors.cyan,
+            timestamp: at,
+          ),
+        );
       }
 
       // Supplier payments
@@ -475,14 +566,16 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final amount = (sp['amount'] as num?)?.toInt() ?? 0;
         final at = (sp['paidAt'] as num?)?.toInt() ?? 0;
         final supplier = (sp['supplierId'] ?? 'NCC').toString();
-        activities.add(_ActivityItem(
-          icon: Icons.local_shipping,
-          color: Colors.brown,
-          title: 'Trả NCC - $supplier',
-          amount: '-${MoneyUtils.formatVND(amount)}',
-          amountColor: Colors.brown,
-          timestamp: at,
-        ));
+        activities.add(
+          _ActivityItem(
+            icon: Icons.local_shipping,
+            color: Colors.brown,
+            title: 'Trả NCC - $supplier',
+            amount: '-${MoneyUtils.formatVND(amount)}',
+            amountColor: Colors.brown,
+            timestamp: at,
+          ),
+        );
       }
 
       // Repair partner payments
@@ -490,14 +583,16 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final amount = (rp['amount'] as num?)?.toInt() ?? 0;
         final at = (rp['paidAt'] as num?)?.toInt() ?? 0;
         final partner = (rp['partnerName'] ?? 'Đối tác').toString();
-        activities.add(_ActivityItem(
-          icon: Icons.handshake,
-          color: Colors.indigo,
-          title: 'TT đối tác - $partner',
-          amount: '-${MoneyUtils.formatVND(amount)}',
-          amountColor: Colors.indigo,
-          timestamp: at,
-        ));
+        activities.add(
+          _ActivityItem(
+            icon: Icons.handshake,
+            color: Colors.indigo,
+            title: 'TT đối tác - $partner',
+            amount: '-${MoneyUtils.formatVND(amount)}',
+            amountColor: Colors.indigo,
+            timestamp: at,
+          ),
+        );
       }
 
       // Sort by timestamp desc, take top 10
@@ -614,7 +709,9 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
 
   Widget _buildActivityRow(_ActivityItem item) {
     final time = item.timestamp > 0
-        ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.timestamp))
+        ? DateFormat(
+            'HH:mm',
+          ).format(DateTime.fromMillisecondsSinceEpoch(item.timestamp))
         : '';
 
     return Padding(
@@ -626,7 +723,11 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             width: 40,
             child: Text(
               time,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           // Icon

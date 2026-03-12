@@ -112,8 +112,7 @@ class DBHelper {
   /// Strip keys from data that don't exist as columns in the given table
   Future<Map<String, dynamic>> _filterToTableColumns(
     String table,
-    Map<String, dynamic> data,
-    {
+    Map<String, dynamic> data, {
     DatabaseExecutor? executor,
   }) async {
     final validCols = await _getTableColumns(table, executor: executor);
@@ -132,16 +131,16 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, repairedBy TEXT, deliveredBy TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
         );
         await db.execute(
-           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
+          'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
         );
         await db.execute(
-           'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
-          await db.execute(
-            'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
-          );
         await db.execute(
-           'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, type TEXT, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+        );
+        await db.execute(
+          'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, type TEXT, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI")',
@@ -425,42 +424,94 @@ class DBHelper {
 
         // === Performance indexes for frequently queried columns ===
         // repairs
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_createdAt ON repairs(createdAt)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_repairedBy ON repairs(repairedBy)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_deleted ON repairs(deleted)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_repairs_createdAt ON repairs(createdAt)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_repairs_repairedBy ON repairs(repairedBy)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_repairs_deleted ON repairs(deleted)',
+        );
         // sales
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_soldAt ON sales(soldAt)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_sellerName ON sales(sellerName)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_sales_soldAt ON sales(soldAt)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_sales_sellerName ON sales(sellerName)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)',
+        );
         // products
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_products_shopId ON products(shopId)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_products_shopId ON products(shopId)',
+        );
         // expenses
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)',
+        );
         // debts
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_createdAt ON debts(createdAt)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_debts_createdAt ON debts(createdAt)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted)',
+        );
         // attendance
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_dateKey ON attendance(dateKey)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_userId ON attendance(userId)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_attendance_dateKey ON attendance(dateKey)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_attendance_userId ON attendance(userId)',
+        );
         // leave_requests
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_userId ON leave_requests(userId)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_leave_requests_userId ON leave_requests(userId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)',
+        );
         // debt_payments
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_paidAt ON debt_payments(paidAt)');
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_debtId ON debt_payments(debtId)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_debt_payments_paidAt ON debt_payments(paidAt)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_debt_payments_debtId ON debt_payments(debtId)',
+        );
         // supplier_payments
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_supplier_payments_paidAt ON supplier_payments(paidAt)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_supplier_payments_paidAt ON supplier_payments(paidAt)',
+        );
         // repair_partner_payments
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)',
+        );
         // customers
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
-        await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ''");
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)',
+        );
+        await db.execute(
+          "CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ''",
+        );
       },
       onUpgrade: (db, oldV, newV) async {
         debugPrint('Upgrading DB from $oldV to $newV');
@@ -570,16 +621,12 @@ class DBHelper {
             debugPrint('DB upgrade error (repairs isWalkIn): $e');
           }
           try {
-            await db.execute(
-              'ALTER TABLE repairs ADD COLUMN walkInName TEXT',
-            );
+            await db.execute('ALTER TABLE repairs ADD COLUMN walkInName TEXT');
           } catch (e) {
             debugPrint('DB upgrade error (repairs walkInName): $e');
           }
           try {
-            await db.execute(
-              'ALTER TABLE repairs ADD COLUMN walkInPhone TEXT',
-            );
+            await db.execute('ALTER TABLE repairs ADD COLUMN walkInPhone TEXT');
           } catch (e) {
             debugPrint('DB upgrade error (repairs walkInPhone): $e');
           }
@@ -591,25 +638,19 @@ class DBHelper {
             debugPrint('DB upgrade error (sales isWalkIn): $e');
           }
           try {
-            await db.execute(
-              'ALTER TABLE sales ADD COLUMN walkInName TEXT',
-            );
+            await db.execute('ALTER TABLE sales ADD COLUMN walkInName TEXT');
           } catch (e) {
             debugPrint('DB upgrade error (sales walkInName): $e');
           }
           try {
-            await db.execute(
-              'ALTER TABLE sales ADD COLUMN walkInPhone TEXT',
-            );
+            await db.execute('ALTER TABLE sales ADD COLUMN walkInPhone TEXT');
           } catch (e) {
             debugPrint('DB upgrade error (sales walkInPhone): $e');
           }
         }
         if (oldV < 71) {
           try {
-            await db.execute(
-              'ALTER TABLE products ADD COLUMN labelInfo TEXT',
-            );
+            await db.execute('ALTER TABLE products ADD COLUMN labelInfo TEXT');
           } catch (e) {
             debugPrint('DB upgrade error (products labelInfo): $e');
           }
@@ -638,7 +679,9 @@ class DBHelper {
             debugPrint('DB upgrade error (products shopId): $e');
           }
           try {
-            await db.execute('ALTER TABLE products ADD COLUMN updatedAt INTEGER');
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN updatedAt INTEGER',
+            );
           } catch (e) {
             debugPrint('DB upgrade error (products updatedAt): $e');
           }
@@ -655,15 +698,21 @@ class DBHelper {
         }
         if (oldV < 74) {
           // Add firestoreId column to payment_intents table for cloud sync
-          debugPrint('DB upgrade v74: Adding firestoreId to payment_intents table...');
+          debugPrint(
+            'DB upgrade v74: Adding firestoreId to payment_intents table...',
+          );
           try {
-            await db.execute('ALTER TABLE payment_intents ADD COLUMN firestoreId TEXT');
+            await db.execute(
+              'ALTER TABLE payment_intents ADD COLUMN firestoreId TEXT',
+            );
             debugPrint('v74: added firestoreId column to payment_intents');
           } catch (e) {
             debugPrint('v74 error (firestoreId): $e');
           }
           try {
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_intents_firestoreId ON payment_intents(firestoreId)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_payment_intents_firestoreId ON payment_intents(firestoreId)',
+            );
             debugPrint('v74: created index on payment_intents firestoreId');
           } catch (e) {
             debugPrint('v74 error (index): $e');
@@ -726,7 +775,9 @@ class DBHelper {
                 isSynced INTEGER DEFAULT 0
               )
             ''');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_product_categories_shopId ON product_categories(shopId)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_product_categories_shopId ON product_categories(shopId)',
+            );
             debugPrint('v75: created product_categories table');
           } catch (e) {
             debugPrint('v75 error (product_categories): $e');
@@ -758,8 +809,12 @@ class DBHelper {
                 isSynced INTEGER DEFAULT 0
               )
             ''');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_product_variants_productId ON product_variants(productId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_product_variants_shopId ON product_variants(shopId)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_product_variants_productId ON product_variants(productId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_product_variants_shopId ON product_variants(shopId)',
+            );
             debugPrint('v75: created product_variants table');
           } catch (e) {
             debugPrint('v75 error (product_variants): $e');
@@ -778,19 +833,25 @@ class DBHelper {
             debugPrint('v75 error (products unit): $e');
           }
           try {
-            await db.execute('ALTER TABLE products ADD COLUMN expiryDate INTEGER');
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN expiryDate INTEGER',
+            );
             debugPrint('v75: added expiryDate to products');
           } catch (e) {
             debugPrint('v75 error (products expiryDate): $e');
           }
           try {
-            await db.execute('ALTER TABLE products ADD COLUMN batchNumber TEXT');
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN batchNumber TEXT',
+            );
             debugPrint('v75: added batchNumber to products');
           } catch (e) {
             debugPrint('v75 error (products batchNumber): $e');
           }
           try {
-            await db.execute('ALTER TABLE products ADD COLUMN variantParentId TEXT');
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN variantParentId TEXT',
+            );
             debugPrint('v75: added variantParentId to products');
           } catch (e) {
             debugPrint('v75 error (products variantParentId): $e');
@@ -852,9 +913,7 @@ class DBHelper {
           // v77: Add size column to products for fashion products
           debugPrint('DB upgrade v77: Adding size column to products...');
           try {
-            await db.execute(
-              'ALTER TABLE products ADD COLUMN size TEXT',
-            );
+            await db.execute('ALTER TABLE products ADD COLUMN size TEXT');
             debugPrint('v77: added size column to products');
           } catch (e) {
             debugPrint('v77 error (size): $e');
@@ -876,7 +935,9 @@ class DBHelper {
         }
         if (oldV < 79) {
           // v79: Add cashAmount and transferAmount to sales for combined payment support
-          debugPrint('DB upgrade v79: Adding cashAmount and transferAmount to sales...');
+          debugPrint(
+            'DB upgrade v79: Adding cashAmount and transferAmount to sales...',
+          );
           try {
             await db.execute(
               'ALTER TABLE sales ADD COLUMN cashAmount INTEGER DEFAULT 0',
@@ -912,9 +973,7 @@ class DBHelper {
           // v81: Add sku column to products
           debugPrint('DB upgrade v81: Adding sku column to products...');
           try {
-            await db.execute(
-              'ALTER TABLE products ADD COLUMN sku TEXT',
-            );
+            await db.execute('ALTER TABLE products ADD COLUMN sku TEXT');
             debugPrint('v81: added sku column to products');
           } catch (e) {
             debugPrint('v81 error (products sku): $e');
@@ -925,29 +984,75 @@ class DBHelper {
           // v82: Add performance indexes for frequently queried columns
           debugPrint('DB upgrade v82: Adding performance indexes...');
           try {
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_createdAt ON repairs(createdAt)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_repairedBy ON repairs(repairedBy)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_repairs_deleted ON repairs(deleted)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_soldAt ON sales(soldAt)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_sellerName ON sales(sellerName)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_products_shopId ON products(shopId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_createdAt ON debts(createdAt)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_dateKey ON attendance(dateKey)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_userId ON attendance(userId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_paidAt ON debt_payments(paidAt)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_debt_payments_debtId ON debt_payments(debtId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_supplier_payments_paidAt ON supplier_payments(paidAt)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_repairs_createdAt ON repairs(createdAt)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_repairs_status ON repairs(status)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_repairs_repairedBy ON repairs(repairedBy)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_repairs_deleted ON repairs(deleted)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_sales_soldAt ON sales(soldAt)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_sales_sellerName ON sales(sellerName)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_products_name ON products(name)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_products_shopId ON products(shopId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_debts_createdAt ON debts(createdAt)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_debts_deleted ON debts(deleted)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_attendance_dateKey ON attendance(dateKey)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_attendance_userId ON attendance(userId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_debt_payments_paidAt ON debt_payments(paidAt)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_debt_payments_debtId ON debt_payments(debtId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_supplier_payments_paidAt ON supplier_payments(paidAt)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_repair_partner_payments_paidAt ON repair_partner_payments(paidAt)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)',
+            );
             debugPrint('v82: All performance indexes created');
           } catch (e) {
             debugPrint('v82 error (indexes): $e');
@@ -957,7 +1062,9 @@ class DBHelper {
           // v83: Add deleted column to sales table (was missing, caused index creation crash)
           debugPrint('DB upgrade v83: Adding deleted column to sales...');
           try {
-            await db.execute('ALTER TABLE sales ADD COLUMN deleted INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE sales ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
             debugPrint('v83: sales.deleted column added');
           } catch (e) {
             // Column may already exist if DB was recreated fresh with v83 schema
@@ -965,7 +1072,9 @@ class DBHelper {
           }
           // Re-create the index that failed in v82 due to missing column
           try {
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_sales_deleted ON sales(deleted)',
+            );
             debugPrint('v83: idx_sales_deleted created');
           } catch (e) {
             debugPrint('v83 error (sales deleted index): $e');
@@ -973,9 +1082,13 @@ class DBHelper {
         }
         if (oldV < 84) {
           // v84: Add partnerFirestoreId column to partner_repair_history for stable cross-device sync
-          debugPrint('DB upgrade v84: Adding partnerFirestoreId to partner_repair_history...');
+          debugPrint(
+            'DB upgrade v84: Adding partnerFirestoreId to partner_repair_history...',
+          );
           try {
-            await db.execute('ALTER TABLE partner_repair_history ADD COLUMN partnerFirestoreId TEXT');
+            await db.execute(
+              'ALTER TABLE partner_repair_history ADD COLUMN partnerFirestoreId TEXT',
+            );
             debugPrint('v84: partnerFirestoreId column added');
           } catch (e) {
             debugPrint('v84: partnerFirestoreId already exists or error: $e');
@@ -983,21 +1096,29 @@ class DBHelper {
         }
         if (oldV < 85) {
           // v85: Add repair parts cost tracking columns for cash fund recording
-          debugPrint('DB upgrade v85: Adding repair cost fund tracking columns...');
+          debugPrint(
+            'DB upgrade v85: Adding repair cost fund tracking columns...',
+          );
           try {
-            await db.execute('ALTER TABLE repairs ADD COLUMN costRecordedInFund INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN costRecordedInFund INTEGER DEFAULT 0',
+            );
             debugPrint('v85: costRecordedInFund column added');
           } catch (e) {
             debugPrint('v85: costRecordedInFund already exists or error: $e');
           }
           try {
-            await db.execute('ALTER TABLE repairs ADD COLUMN costPaymentMethod TEXT');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN costPaymentMethod TEXT',
+            );
             debugPrint('v85: costPaymentMethod column added');
           } catch (e) {
             debugPrint('v85: costPaymentMethod already exists or error: $e');
           }
           try {
-            await db.execute('ALTER TABLE repairs ADD COLUMN costRecordedAt INTEGER');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN costRecordedAt INTEGER',
+            );
             debugPrint('v85: costRecordedAt column added');
           } catch (e) {
             debugPrint('v85: costRecordedAt already exists or error: $e');
@@ -1018,7 +1139,9 @@ class DBHelper {
           // v87: Persist exact amount recorded into fund for repairs
           debugPrint('DB upgrade v87: Adding costRecordedAmount to repairs...');
           try {
-            await db.execute('ALTER TABLE repairs ADD COLUMN costRecordedAmount INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN costRecordedAmount INTEGER DEFAULT 0',
+            );
             debugPrint('v87: costRecordedAmount column added');
           } catch (e) {
             debugPrint('v87: costRecordedAmount already exists or error: $e');
@@ -1027,7 +1150,9 @@ class DBHelper {
         if (oldV < 88) {
           // v88: customers.phone was globally UNIQUE and caused cross-shop/walk-in conflicts.
           // Recreate customers table and enforce uniqueness by (shopId, phone) only.
-          debugPrint('DB upgrade v88: Rebuilding customers uniqueness to (shopId, phone)...');
+          debugPrint(
+            'DB upgrade v88: Rebuilding customers uniqueness to (shopId, phone)...',
+          );
           try {
             await db.execute('''
               CREATE TABLE IF NOT EXISTS customers_new(
@@ -1065,8 +1190,12 @@ class DBHelper {
             ''');
             await db.execute('DROP TABLE customers');
             await db.execute('ALTER TABLE customers_new RENAME TO customers');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)');
-            await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ''");
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)',
+            );
+            await db.execute(
+              "CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_shop_phone_unique ON customers(shopId, phone) WHERE phone IS NOT NULL AND phone <> ''",
+            );
             debugPrint('v88: customers table rebuilt successfully');
           } catch (e) {
             debugPrint('v88 error (customers rebuild): $e');
@@ -1074,7 +1203,13 @@ class DBHelper {
         }
         if (oldV < 89) {
           // v89: Add missing columns to debt_payments for Firestore sync compatibility
-          for (final col in ['personName TEXT', 'receivedBy TEXT', 'totalDebt INTEGER DEFAULT 0', 'alreadyPaid INTEGER DEFAULT 0', 'customerName TEXT']) {
+          for (final col in [
+            'personName TEXT',
+            'receivedBy TEXT',
+            'totalDebt INTEGER DEFAULT 0',
+            'alreadyPaid INTEGER DEFAULT 0',
+            'customerName TEXT',
+          ]) {
             try {
               await db.execute('ALTER TABLE debt_payments ADD COLUMN $col');
             } catch (_) {}
@@ -1082,7 +1217,11 @@ class DBHelper {
         }
         if (oldV < 90) {
           // v90: Attendance management overhaul - add overtime window, request type; create leave_requests table
-          for (final col in ['overtimeStartAt INTEGER', 'overtimeEndAt INTEGER', 'requestType TEXT']) {
+          for (final col in [
+            'overtimeStartAt INTEGER',
+            'overtimeEndAt INTEGER',
+            'requestType TEXT',
+          ]) {
             try {
               await db.execute('ALTER TABLE attendance ADD COLUMN $col');
             } catch (_) {}
@@ -1091,8 +1230,12 @@ class DBHelper {
             await db.execute(
               'CREATE TABLE IF NOT EXISTS leave_requests(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, leaveType TEXT, startDate TEXT, endDate TEXT, totalDays REAL, reason TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
             );
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_userId ON leave_requests(userId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_leave_requests_userId ON leave_requests(userId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)',
+            );
           } catch (e) {
             debugPrint('v90 error (leave_requests): $e');
           }
@@ -2321,7 +2464,9 @@ class DBHelper {
             await db.execute(
               'ALTER TABLE repair_partner_payments ADD COLUMN partnerName TEXT',
             );
-            debugPrint('v66: added partnerName column to repair_partner_payments');
+            debugPrint(
+              'v66: added partnerName column to repair_partner_payments',
+            );
           } catch (e) {
             debugPrint('v66 error (partnerName): $e');
           }
@@ -2329,7 +2474,9 @@ class DBHelper {
             await db.execute(
               'ALTER TABLE repair_partner_payments ADD COLUMN updatedAt INTEGER',
             );
-            debugPrint('v66: added updatedAt column to repair_partner_payments');
+            debugPrint(
+              'v66: added updatedAt column to repair_partner_payments',
+            );
           } catch (e) {
             debugPrint('v66 error (updatedAt): $e');
           }
@@ -2362,8 +2509,12 @@ class DBHelper {
                 isSynced INTEGER DEFAULT 0
               )
             ''');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_intents_status ON payment_intents(status)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_payment_intents_type ON payment_intents(type)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_payment_intents_status ON payment_intents(status)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_payment_intents_type ON payment_intents(type)',
+            );
             debugPrint('v67: created payment_intents table');
           } catch (e) {
             debugPrint('v67 error (payment_intents): $e');
@@ -2372,9 +2523,13 @@ class DBHelper {
         }
         if (oldV < 68) {
           // v68: Add deleted and debtType columns to debts table for proper filtering
-          debugPrint('DB upgrade v68: Adding deleted and debtType to debts table...');
+          debugPrint(
+            'DB upgrade v68: Adding deleted and debtType to debts table...',
+          );
           try {
-            await db.execute('ALTER TABLE debts ADD COLUMN deleted INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE debts ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
             debugPrint('v68: added deleted column to debts');
           } catch (e) {
             debugPrint('v68 error (deleted): $e');
@@ -2411,6 +2566,9 @@ class DBHelper {
           final hasLabelInfo = cols.any(
             (c) => (c['name'] ?? c['name'.toString()]) == 'labelInfo',
           );
+          final hasIsPending = cols.any(
+            (c) => (c['name'] ?? c['name'.toString()]) == 'isPending',
+          );
 
           if (!hasPaymentMethod) {
             await db.execute(
@@ -2429,10 +2587,14 @@ class DBHelper {
             debugPrint('DB: added updatedAt column');
           }
           if (!hasLabelInfo) {
-            await db.execute(
-              'ALTER TABLE products ADD COLUMN labelInfo TEXT',
-            );
+            await db.execute('ALTER TABLE products ADD COLUMN labelInfo TEXT');
             debugPrint('DB: added labelInfo column');
+          }
+          if (!hasIsPending) {
+            await db.execute(
+              'ALTER TABLE products ADD COLUMN isPending INTEGER DEFAULT 0',
+            );
+            debugPrint('DB: added isPending column');
           }
 
           // Ensure sku column exists (v81)
@@ -2440,9 +2602,7 @@ class DBHelper {
             (c) => (c['name'] ?? c['name'.toString()]) == 'sku',
           );
           if (!hasSku) {
-            await db.execute(
-              'ALTER TABLE products ADD COLUMN sku TEXT',
-            );
+            await db.execute('ALTER TABLE products ADD COLUMN sku TEXT');
             debugPrint('DB onOpen: added sku column to products');
           }
         } catch (e) {
@@ -2451,7 +2611,9 @@ class DBHelper {
 
         // Ensure labelInfo column exists in quick_input_codes table
         try {
-          final cols = await db.rawQuery('PRAGMA table_info(quick_input_codes)');
+          final cols = await db.rawQuery(
+            'PRAGMA table_info(quick_input_codes)',
+          );
           final has = cols.any(
             (c) => (c['name'] ?? c['name'.toString()]) == 'labelInfo',
           );
@@ -2579,7 +2741,9 @@ class DBHelper {
             debugPrint('DB onOpen: added shopId to repairs');
           }
           if (!colNames.contains('deleted')) {
-            await db.execute('ALTER TABLE repairs ADD COLUMN deleted INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
             debugPrint('DB onOpen: added deleted to repairs');
           }
         } catch (e) {
@@ -2595,7 +2759,9 @@ class DBHelper {
             debugPrint('DB onOpen: added shopId to sales');
           }
           if (!colNames.contains('deleted')) {
-            await db.execute('ALTER TABLE sales ADD COLUMN deleted INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE sales ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
             debugPrint('DB onOpen: added deleted to sales');
           }
         } catch (e) {
@@ -2915,13 +3081,15 @@ class DBHelper {
         } catch (e) {
           debugPrint('DB onOpen check error (cash_closings columns): $e');
         }
-        
+
         // Ensure deleted column exists in expenses table
         try {
           final cols = await db.rawQuery('PRAGMA table_info(expenses)');
           final colNames = cols.map((c) => c['name'] as String).toSet();
           if (!colNames.contains('deleted')) {
-            await db.execute('ALTER TABLE expenses ADD COLUMN deleted INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE expenses ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
             debugPrint('DB onOpen: added deleted to expenses');
           }
         } catch (e) {
@@ -2933,11 +3101,15 @@ class DBHelper {
           final cols = await db.rawQuery('PRAGMA table_info(purchase_orders)');
           final colNames = cols.map((c) => c['name'] as String).toSet();
           if (!colNames.contains('shopId')) {
-            await db.execute('ALTER TABLE purchase_orders ADD COLUMN shopId TEXT');
+            await db.execute(
+              'ALTER TABLE purchase_orders ADD COLUMN shopId TEXT',
+            );
             debugPrint('DB onOpen: added shopId to purchase_orders');
           }
           if (!colNames.contains('deleted')) {
-            await db.execute('ALTER TABLE purchase_orders ADD COLUMN deleted INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE purchase_orders ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
             debugPrint('DB onOpen: added deleted to purchase_orders');
           }
         } catch (e) {
@@ -2949,20 +3121,94 @@ class DBHelper {
           final cols = await db.rawQuery('PRAGMA table_info(sales_returns)');
           final colNames = cols.map((c) => c['name'] as String).toSet();
           if (!colNames.contains('deleted')) {
-            await db.execute('ALTER TABLE sales_returns ADD COLUMN deleted INTEGER DEFAULT 0');
+            await db.execute(
+              'ALTER TABLE sales_returns ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
             debugPrint('DB onOpen: added deleted to sales_returns');
           }
         } catch (e) {
           debugPrint('DB onOpen check error (sales_returns columns): $e');
         }
 
+        // Ensure Home cashflow columns exist in debt_payments table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(debt_payments)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('shopId')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN shopId TEXT',
+            );
+            debugPrint('DB onOpen: added shopId to debt_payments');
+          }
+          if (!colNames.contains('createdAt')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN createdAt INTEGER',
+            );
+            debugPrint('DB onOpen: added createdAt to debt_payments');
+          }
+          if (!colNames.contains('updatedAt')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN updatedAt INTEGER',
+            );
+            debugPrint('DB onOpen: added updatedAt to debt_payments');
+          }
+          if (!colNames.contains('debtType')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN debtType TEXT',
+            );
+            debugPrint('DB onOpen: added debtType to debt_payments');
+          }
+          if (!colNames.contains('personName')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN personName TEXT',
+            );
+            debugPrint('DB onOpen: added personName to debt_payments');
+          }
+          if (!colNames.contains('receivedBy')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN receivedBy TEXT',
+            );
+            debugPrint('DB onOpen: added receivedBy to debt_payments');
+          }
+          if (!colNames.contains('totalDebt')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN totalDebt INTEGER DEFAULT 0',
+            );
+            debugPrint('DB onOpen: added totalDebt to debt_payments');
+          }
+          if (!colNames.contains('alreadyPaid')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN alreadyPaid INTEGER DEFAULT 0',
+            );
+            debugPrint('DB onOpen: added alreadyPaid to debt_payments');
+          }
+          if (!colNames.contains('customerName')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN customerName TEXT',
+            );
+            debugPrint('DB onOpen: added customerName to debt_payments');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (debt_payments columns): $e');
+        }
+
         // Tạo index cho bảng products để tăng tốc query
         try {
-          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_createdAt ON products(createdAt DESC)');
-          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)');
-          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_type ON products(type)');
-          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_quantity ON products(quantity)');
-          await db.execute('CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)');
+          await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_products_createdAt ON products(createdAt DESC)',
+          );
+          await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted)',
+          );
+          await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_products_type ON products(type)',
+          );
+          await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_products_quantity ON products(quantity)',
+          );
+          await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)',
+          );
           debugPrint('DB: created indexes for products table');
         } catch (e) {
           debugPrint('DB onOpen check error (products indexes): $e');
@@ -3118,15 +3364,20 @@ class DBHelper {
       (await database).delete('repairs', where: 'id = ?', whereArgs: [id]);
   Future<int> deleteRepairByFirestoreId(String fId) async => (await database)
       .delete('repairs', where: 'firestoreId = ?', whereArgs: [fId]);
-  
+
   /// Search repairs by query string using SQL LIKE on key columns.
   /// Searches both original query and Vietnamese-normalized query for accent-insensitive matching.
   /// Returns max [limit] results ordered by createdAt DESC.
-  Future<List<Repair>> searchRepairs(String query, String normalizedQuery, {int limit = 25}) async {
+  Future<List<Repair>> searchRepairs(
+    String query,
+    String normalizedQuery, {
+    int limit = 25,
+  }) async {
     final db = await database;
     final like = '%$query%';
     final likeNorm = '%$normalizedQuery%';
-    final maps = await db.rawQuery('''
+    final maps = await db.rawQuery(
+      '''
       SELECT * FROM repairs
       WHERE (customerName LIKE ? OR customerName LIKE ?
         OR phone LIKE ?
@@ -3135,16 +3386,34 @@ class DBHelper {
         OR address LIKE ? OR address LIKE ?)
       ORDER BY createdAt DESC
       LIMIT ?
-    ''', [like, likeNorm, like, like, likeNorm, like, likeNorm, like, likeNorm, limit]);
+    ''',
+      [
+        like,
+        likeNorm,
+        like,
+        like,
+        likeNorm,
+        like,
+        likeNorm,
+        like,
+        likeNorm,
+        limit,
+      ],
+    );
     return List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
   }
 
   /// Search sales by query string using SQL LIKE on key columns.
-  Future<List<SaleOrder>> searchSales(String query, String normalizedQuery, {int limit = 25}) async {
+  Future<List<SaleOrder>> searchSales(
+    String query,
+    String normalizedQuery, {
+    int limit = 25,
+  }) async {
     final db = await database;
     final like = '%$query%';
     final likeNorm = '%$normalizedQuery%';
-    final maps = await db.rawQuery('''
+    final maps = await db.rawQuery(
+      '''
       SELECT * FROM sales
       WHERE (customerName LIKE ? OR customerName LIKE ?
         OR phone LIKE ?
@@ -3152,16 +3421,23 @@ class DBHelper {
         OR productImeis LIKE ?)
       ORDER BY soldAt DESC
       LIMIT ?
-    ''', [like, likeNorm, like, like, likeNorm, like, limit]);
+    ''',
+      [like, likeNorm, like, like, likeNorm, like, limit],
+    );
     return List.generate(maps.length, (i) => SaleOrder.fromMap(maps[i]));
   }
 
   /// Search products by query string using SQL LIKE on key columns.
-  Future<List<Product>> searchProducts(String query, String normalizedQuery, {int limit = 25}) async {
+  Future<List<Product>> searchProducts(
+    String query,
+    String normalizedQuery, {
+    int limit = 25,
+  }) async {
     final db = await database;
     final like = '%$query%';
     final likeNorm = '%$normalizedQuery%';
-    final maps = await db.rawQuery('''
+    final maps = await db.rawQuery(
+      '''
       SELECT * FROM products
       WHERE (deleted = 0 OR deleted IS NULL)
         AND (name LIKE ? OR name LIKE ?
@@ -3171,7 +3447,20 @@ class DBHelper {
           OR capacity LIKE ? OR capacity LIKE ?)
       ORDER BY createdAt DESC
       LIMIT ?
-    ''', [like, likeNorm, like, like, likeNorm, like, likeNorm, like, likeNorm, limit]);
+    ''',
+      [
+        like,
+        likeNorm,
+        like,
+        like,
+        likeNorm,
+        like,
+        likeNorm,
+        like,
+        likeNorm,
+        limit,
+      ],
+    );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
   }
 
@@ -3206,7 +3495,10 @@ class DBHelper {
   }
 
   /// Get ALL repairs within a createdAt date range (all statuses)
-  Future<List<Repair>> getRepairsByCreatedAtRange(int startMs, int endMs) async {
+  Future<List<Repair>> getRepairsByCreatedAtRange(
+    int startMs,
+    int endMs,
+  ) async {
     final db = await database;
     final maps = await db.query(
       'repairs',
@@ -3219,11 +3511,15 @@ class DBHelper {
 
   /// Get delivered repairs within a date range, for financial report optimization
   /// Uses COALESCE(deliveredAt, createdAt) to handle NULL deliveredAt
-  Future<List<Repair>> getDeliveredRepairsByDateRange(int startMs, int endMs) async {
+  Future<List<Repair>> getDeliveredRepairsByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
     final db = await database;
     final maps = await db.query(
       'repairs',
-      where: 'COALESCE(deliveredAt, createdAt) >= ? AND COALESCE(deliveredAt, createdAt) <= ? AND status = 4 AND deleted = 0',
+      where:
+          'COALESCE(deliveredAt, createdAt) >= ? AND COALESCE(deliveredAt, createdAt) <= ? AND status = 4 AND deleted = 0',
       whereArgs: [startMs, endMs],
       orderBy: 'createdAt DESC',
     );
@@ -3458,41 +3754,52 @@ class DBHelper {
       where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0',
       orderBy: 'createdAt DESC',
     );
-    return parts.map((p) => Product(
-      id: p['id'] as int?,
-      firestoreId: p['firestoreId']?.toString(),
-      name: p['partName']?.toString() ?? p['name']?.toString() ?? '',
-      type: 'PHU_KIEN',
-      quantity: (p['quantity'] as num?)?.toInt() ?? 0,
-      cost: (p['cost'] as num?)?.toInt() ?? 0,
-      price: (p['price'] as num?)?.toInt() ?? 0,
-      createdAt: (p['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-      status: 1,
-      isSynced: p['isSynced'] == 1,
-    )).toList();
+    return parts
+        .map(
+          (p) => Product(
+            id: p['id'] as int?,
+            firestoreId: p['firestoreId']?.toString(),
+            name: p['partName']?.toString() ?? p['name']?.toString() ?? '',
+            type: 'PHU_KIEN',
+            quantity: (p['quantity'] as num?)?.toInt() ?? 0,
+            cost: (p['cost'] as num?)?.toInt() ?? 0,
+            price: (p['price'] as num?)?.toInt() ?? 0,
+            createdAt:
+                (p['createdAt'] as num?)?.toInt() ??
+                DateTime.now().millisecondsSinceEpoch,
+            status: 1,
+            isSynced: p['isSynced'] == 1,
+          ),
+        )
+        .toList();
   }
 
   /// Get products with pagination support for lazy loading
   /// Returns [limit] products starting from [offset], ordered by createdAt DESC
-  Future<List<Product>> getProductsPaged(int limit, int offset, {String? type, bool inStockOnly = false}) async {
+  Future<List<Product>> getProductsPaged(
+    int limit,
+    int offset, {
+    String? type,
+    bool inStockOnly = false,
+  }) async {
     final shopId = UserService.getShopIdSync();
     String where = '(deleted = 0 OR deleted IS NULL)';
     List<dynamic> whereArgs = [];
-    
+
     // Add shopId filter for multi-shop support
     if (shopId != null && shopId.isNotEmpty) {
       where += ' AND (shopId = ? OR shopId IS NULL)';
       whereArgs.add(shopId);
     }
-    
+
     if (type != null) {
       where += ' AND ${_typeWhereClause(type, whereArgs)}';
     }
-    
+
     if (inStockOnly) {
       where += ' AND quantity > 0 AND (status = 1 OR status IS NULL)';
     }
-    
+
     final maps = await (await database).query(
       'products',
       where: where,
@@ -3509,50 +3816,52 @@ class DBHelper {
     final shopId = UserService.getShopIdSync();
     String where = '(deleted = 0 OR deleted IS NULL)';
     List<dynamic> args = [];
-    
+
     // Add shopId filter for multi-shop support
     if (shopId != null && shopId.isNotEmpty) {
       where += ' AND (shopId = ? OR shopId IS NULL)';
       args.add(shopId);
     }
-    
+
     if (type != null) {
       where += ' AND ${_typeWhereClause(type, args)}';
     }
-    
+
     if (inStockOnly) {
       where += ' AND quantity > 0 AND (status = 1 OR status IS NULL)';
     }
-    
+
     String query = 'SELECT COUNT(*) as count FROM products WHERE $where';
     final result = await (await database).rawQuery(query, args);
     return Sqflite.firstIntValue(result) ?? 0;
   }
-  
+
   /// Get inventory summary (total quantity and capital) for all products
   /// This calculates from ALL products in DB, not just paginated data
   Future<Map<String, int>> getInventorySummary({String? type}) async {
     final shopId = UserService.getShopIdSync();
     String shopFilter = '';
     List<dynamic> args = [];
-    
+
     // Add shopId filter for multi-shop support
     if (shopId != null && shopId.isNotEmpty) {
       shopFilter = ' AND (shopId = ? OR shopId IS NULL)';
       args.add(shopId);
     }
-    
-    String query = '''
+
+    String query =
+        '''
       SELECT 
         COALESCE(SUM(quantity), 0) as totalQty,
         COALESCE(SUM(cost * quantity), 0) as totalCapital
       FROM products 
       WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)$shopFilter
     ''';
-    
+
     if (type != null && type != 'TẤT CẢ') {
       final typeClause = _typeWhereClause(type, args);
-      query = '''
+      query =
+          '''
         SELECT 
           COALESCE(SUM(quantity), 0) as totalQty,
           COALESCE(SUM(cost * quantity), 0) as totalCapital
@@ -3560,12 +3869,12 @@ class DBHelper {
         WHERE quantity > 0 AND (status = 1 OR status IS NULL) AND (deleted = 0 OR deleted IS NULL)$shopFilter AND $typeClause
       ''';
     }
-    
+
     final result = await (await database).rawQuery(query, args);
     if (result.isEmpty) {
       return {'totalQty': 0, 'totalCapital': 0};
     }
-    
+
     return {
       'totalQty': (result.first['totalQty'] as num?)?.toInt() ?? 0,
       'totalCapital': (result.first['totalCapital'] as num?)?.toInt() ?? 0,
@@ -3576,13 +3885,13 @@ class DBHelper {
     final shopId = UserService.getShopIdSync();
     String whereClause = '(deleted = 0 OR deleted IS NULL)';
     List<dynamic> whereArgs = [];
-    
+
     // Filter by shopId if available (for multi-shop support)
     if (shopId != null && shopId.isNotEmpty) {
       whereClause += ' AND (shopId = ? OR shopId IS NULL)';
       whereArgs.add(shopId);
     }
-    
+
     final maps = await (await database).query(
       'products',
       where: whereClause,
@@ -3600,17 +3909,17 @@ class DBHelper {
     List<dynamic> whereArgs = [];
     final typeClause = _typeWhereClause(type, whereArgs);
     String where = '$typeClause AND (deleted = 0 OR deleted IS NULL)';
-    
+
     // Add shopId filter for multi-shop support
     if (shopId != null && shopId.isNotEmpty) {
       where += ' AND (shopId = ? OR shopId IS NULL)';
       whereArgs.add(shopId);
     }
-    
+
     if (inStockOnly) {
       where += ' AND quantity > 0 AND (status = 1 OR status IS NULL)';
     }
-    
+
     final maps = await (await database).query(
       'products',
       where: where,
@@ -3676,7 +3985,10 @@ class DBHelper {
   }
 
   /// Khôi phục số lượng linh kiện theo tên (tìm trong cả repair_parts và products type=LINH_KIEN)
-  Future<bool> restorePartQuantityByNameUnified(String partName, int quantity) async {
+  Future<bool> restorePartQuantityByNameUnified(
+    String partName,
+    int quantity,
+  ) async {
     // Try repair_parts first
     final restored = await restorePartQuantityByName(partName, quantity);
     if (restored) return true;
@@ -3690,7 +4002,9 @@ class DBHelper {
       limit: 1,
     );
     if (products.isEmpty) {
-      debugPrint('⚠️ restorePartQuantityByNameUnified: Not found in either table: $partName');
+      debugPrint(
+        '⚠️ restorePartQuantityByNameUnified: Not found in either table: $partName',
+      );
       return false;
     }
 
@@ -3725,11 +4039,11 @@ class DBHelper {
         'UPDATE products SET status = ? WHERE id = ?',
         [status, id],
       );
-  
+
   /// Trừ số lượng sản phẩm trong kho và sync ngay lập tức
   Future<void> deductProductQuantity(int id, int amount) async {
     final db = await database;
-    
+
     // Lấy thông tin product trước để có firestoreId và quantity
     final productResult = await db.query(
       'products',
@@ -3737,14 +4051,14 @@ class DBHelper {
       whereArgs: [id],
       limit: 1,
     );
-    
+
     if (productResult.isEmpty) return;
-    
+
     final product = productResult.first;
     final currentQty = (product['quantity'] as int?) ?? 0;
     final newQty = currentQty - amount;
     final firestoreId = product['firestoreId'] as String?;
-    
+
     await db.rawUpdate(
       'UPDATE products SET quantity = quantity - ?, updatedAt = ?, isSynced = 0 WHERE id = ?',
       [amount, DateTime.now().millisecondsSinceEpoch, id],
@@ -3753,7 +4067,7 @@ class DBHelper {
       'UPDATE products SET status = 0 WHERE id = ? AND quantity <= 0',
       [id],
     );
-    
+
     // FIX: Sync ngay lập tức để tránh trường hợp 2 thiết bị bán cùng 1 sản phẩm
     if (firestoreId != null && firestoreId.isNotEmpty) {
       try {
@@ -3761,15 +4075,14 @@ class DBHelper {
             .collection('products')
             .doc(firestoreId)
             .update({
-          'quantity': newQty < 0 ? 0 : newQty,
-          'status': newQty <= 0 ? 0 : 1,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+              'quantity': newQty < 0 ? 0 : newQty,
+              'status': newQty <= 0 ? 0 : 1,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
         // Đánh dấu đã sync
-        await db.rawUpdate(
-          'UPDATE products SET isSynced = 1 WHERE id = ?',
-          [id],
-        );
+        await db.rawUpdate('UPDATE products SET isSynced = 1 WHERE id = ?', [
+          id,
+        ]);
         debugPrint('✅ Synced product quantity: $firestoreId, newQty: $newQty');
       } catch (e) {
         debugPrint('⚠️ Failed to sync product quantity immediately: $e');
@@ -3923,7 +4236,8 @@ class DBHelper {
         if (name != null && shopId != null) {
           await db.delete(
             'suppliers',
-            where: "name = ? AND shopId = ? AND firestoreId != ? AND (deleted = 0 OR deleted IS NULL)",
+            where:
+                "name = ? AND shopId = ? AND firestoreId != ? AND (deleted = 0 OR deleted IS NULL)",
             whereArgs: [name, shopId, firestoreId],
           );
         }
@@ -3950,7 +4264,8 @@ class DBHelper {
           // Xóa các bản duplicate khác cùng tên
           await db.delete(
             'suppliers',
-            where: "name = ? AND shopId = ? AND id != ? AND (deleted = 0 OR deleted IS NULL)",
+            where:
+                "name = ? AND shopId = ? AND id != ? AND (deleted = 0 OR deleted IS NULL)",
             whereArgs: [name, shopId, existingId],
           );
           return;
@@ -4039,7 +4354,11 @@ class DBHelper {
       }
 
       // Merge: cập nhật bản giữ lại với thông tin mới nhất
-      final keepRow = await db.query('suppliers', where: 'id = ?', whereArgs: [keepId]);
+      final keepRow = await db.query(
+        'suppliers',
+        where: 'id = ?',
+        whereArgs: [keepId],
+      );
       if (keepRow.isEmpty) continue;
 
       // Xóa các bản duplicate
@@ -4049,7 +4368,9 @@ class DBHelper {
           removed++;
         }
       }
-      debugPrint('🔧 Dedup supplier: kept id=$keepId, removed ${ids.length - 1} duplicates for "${group['name']}"');
+      debugPrint(
+        '🔧 Dedup supplier: kept id=$keepId, removed ${ids.length - 1} duplicates for "${group['name']}"',
+      );
     }
     if (removed > 0) {
       debugPrint('🔧 deduplicateSuppliers: removed $removed duplicates total');
@@ -4065,7 +4386,7 @@ class DBHelper {
       _upsert('expenses', e.toMap(), e.firestoreId ?? "exp_${e.date}");
   Future<int> insertExpense(Map<String, dynamic> e) async =>
       (await database).insert('expenses', e);
-  
+
   /// Lấy tất cả expenses của shop hiện tại
   Future<List<Map<String, dynamic>>> getAllExpenses() async {
     final shopId = UserService.getShopIdSync();
@@ -4083,25 +4404,30 @@ class DBHelper {
   }
 
   /// Get expenses within a date range (by date field), for financial report optimization
-  Future<List<Map<String, dynamic>>> getExpensesByDateRange(int startMs, int endMs) async {
+  Future<List<Map<String, dynamic>>> getExpensesByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
     final shopId = UserService.getShopIdSync();
     final db = await database;
     if (shopId != null && shopId.isNotEmpty) {
       return db.query(
         'expenses',
-        where: '(shopId = ? OR shopId IS NULL) AND COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) <= ?',
+        where:
+            '(shopId = ? OR shopId IS NULL) AND COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) <= ?',
         whereArgs: [shopId, startMs, endMs],
         orderBy: 'date DESC',
       );
     }
     return db.query(
       'expenses',
-      where: 'COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) <= ?',
+      where:
+          'COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) <= ?',
       whereArgs: [startMs, endMs],
       orderBy: 'date DESC',
     );
   }
-  
+
   Future<List<Expense>> getAllExpensesForSync() async {
     final db = await database;
     final maps = await db.query('expenses', orderBy: 'date DESC');
@@ -4144,6 +4470,7 @@ class DBHelper {
     }
     return db.query('debts', orderBy: 'status ASC, createdAt DESC');
   }
+
   Future<List<Map<String, dynamic>>> getPurchaseDebts() async =>
       (await database).query(
         'purchase_orders',
@@ -4257,7 +4584,8 @@ class DBHelper {
     if (shopId != null && shopId.isNotEmpty) {
       final res = await db.query(
         'cash_closings',
-        where: '(dateKey < ? AND isLocked = 1) AND (shopId = ? OR shopId IS NULL)',
+        where:
+            '(dateKey < ? AND isLocked = 1) AND (shopId = ? OR shopId IS NULL)',
         whereArgs: [todayDateKey, shopId],
         orderBy: 'dateKey DESC',
         limit: 1,
@@ -4279,7 +4607,7 @@ class DBHelper {
     final shopId = UserService.getShopIdSync();
     final db = await database;
     debugPrint('🔍 [DB] getClosingByDateKey: dateKey=$dateKey, shopId=$shopId');
-    
+
     if (shopId != null && shopId.isNotEmpty) {
       final res = await db.query(
         'cash_closings',
@@ -4287,7 +4615,9 @@ class DBHelper {
         whereArgs: [dateKey, shopId],
         limit: 1,
       );
-      debugPrint('🔍 [DB] getClosingByDateKey result: ${res.isNotEmpty ? 'FOUND' : 'NOT FOUND'} (with shopId filter)');
+      debugPrint(
+        '🔍 [DB] getClosingByDateKey result: ${res.isNotEmpty ? 'FOUND' : 'NOT FOUND'} (with shopId filter)',
+      );
       return res.isNotEmpty ? res.first : null;
     }
     final res = await db.query(
@@ -4296,7 +4626,9 @@ class DBHelper {
       whereArgs: [dateKey],
       limit: 1,
     );
-    debugPrint('🔍 [DB] getClosingByDateKey result: ${res.isNotEmpty ? 'FOUND' : 'NOT FOUND'} (without shopId filter)');
+    debugPrint(
+      '🔍 [DB] getClosingByDateKey result: ${res.isNotEmpty ? 'FOUND' : 'NOT FOUND'} (without shopId filter)',
+    );
     return res.isNotEmpty ? res.first : null;
   }
 
@@ -4377,7 +4709,9 @@ class DBHelper {
     final filteredData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     await _filterToTableColumns('cash_closings', filteredData);
 
-    debugPrint('upsertCashClosing: filtered data keys=${filteredData.keys.toList()}');
+    debugPrint(
+      'upsertCashClosing: filtered data keys=${filteredData.keys.toList()}',
+    );
 
     // FIX: Use dateKey + shopId as unique key to avoid overwriting other shops' data
     final shopId = data['shopId'] as String? ?? UserService.getShopIdSync();
@@ -4502,7 +4836,11 @@ class DBHelper {
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
     await _filterToTableColumns('work_schedules', data);
-    await db.insert('work_schedules', data, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert(
+      'work_schedules',
+      data,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   // --- LEAVE REQUESTS ---
@@ -4517,12 +4855,13 @@ class DBHelper {
     return 1;
   }
 
-  Future<int> updateLeaveRequest(LeaveRequest lr) async => (await database).update(
-    'leave_requests',
-    lr.toMap(),
-    where: 'id = ?',
-    whereArgs: [lr.id],
-  );
+  Future<int> updateLeaveRequest(LeaveRequest lr) async =>
+      (await database).update(
+        'leave_requests',
+        lr.toMap(),
+        where: 'id = ?',
+        whereArgs: [lr.id],
+      );
 
   Future<int> deleteLeaveRequestByFirestoreId(String fId) async =>
       (await database).delete(
@@ -4582,9 +4921,13 @@ class DBHelper {
     return maps.map((m) => LeaveRequest.fromMap(m)).toList();
   }
 
-  Future<List<LeaveRequest>> getLeaveRequestsByDateRange(String start, String end) async {
+  Future<List<LeaveRequest>> getLeaveRequestsByDateRange(
+    String start,
+    String end,
+  ) async {
     final shopId = UserService.getShopIdSync();
-    String where = 'deleted = 0 AND ((startDate BETWEEN ? AND ?) OR (endDate BETWEEN ? AND ?))';
+    String where =
+        'deleted = 0 AND ((startDate BETWEEN ? AND ?) OR (endDate BETWEEN ? AND ?))';
     List<dynamic> args = [start, end, start, end];
     if (shopId != null && shopId.isNotEmpty) {
       where += ' AND shopId = ?';
@@ -4735,10 +5078,18 @@ class DBHelper {
     final db = await database;
 
     if (type == 'DIEN_THOAI') {
-      return await db.query('products', where: 'status = 1 AND type = ?', whereArgs: ['DIEN_THOAI']);
+      return await db.query(
+        'products',
+        where: 'status = 1 AND type = ?',
+        whereArgs: ['DIEN_THOAI'],
+      );
     } else if (type == 'LINH_KIEN') {
       // Linh kiện - match cả giá trị cũ 'LINH KIỆN' và mới 'LINH_KIEN'
-      return await db.query('products', where: 'status = 1 AND (type = ? OR type = ?)', whereArgs: ['LINH KIỆN', 'LINH_KIEN']);
+      return await db.query(
+        'products',
+        where: 'status = 1 AND (type = ? OR type = ?)',
+        whereArgs: ['LINH KIỆN', 'LINH_KIEN'],
+      );
     }
     // PHU_KIEN - gộp cả hai nguồn:
     // 1. Products có type = PHU_KIEN hoặc PHỤ KIỆN
@@ -4746,16 +5097,20 @@ class DBHelper {
     final List<Map<String, dynamic>> results = [];
 
     // Phụ kiện từ bảng products (match cả format cũ và mới)
-    final productPK = await db.query('products', where: 'status = 1 AND (type = ? OR type = ?)', whereArgs: ['PHU_KIEN', 'PHỤ KIỆN']);
+    final productPK = await db.query(
+      'products',
+      where: 'status = 1 AND (type = ? OR type = ?)',
+      whereArgs: ['PHU_KIEN', 'PHỤ KIỆN'],
+    );
     results.addAll(productPK);
 
     // Phụ tùng từ bảng repair_parts (map partName → name để UI đọc được)
-    final parts = await db.query('repair_parts', where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0');
+    final parts = await db.query(
+      'repair_parts',
+      where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0',
+    );
     for (final p in parts) {
-      results.add({
-        ...p,
-        'name': p['partName'] ?? p['name'] ?? '',
-      });
+      results.add({...p, 'name': p['partName'] ?? p['name'] ?? ''});
     }
 
     return results;
@@ -4827,7 +5182,7 @@ class DBHelper {
     final newQty = currentQty - quantity;
     final now = DateTime.now().millisecondsSinceEpoch;
     final firestoreId = part['firestoreId'] as String?;
-    
+
     await db.update(
       'repair_parts',
       {
@@ -4838,7 +5193,7 @@ class DBHelper {
       where: 'id = ?',
       whereArgs: [partId],
     );
-    
+
     // FIX: Sync ngay lập tức để tránh trường hợp 2 thiết bị dùng cùng 1 part
     if (firestoreId != null && firestoreId.isNotEmpty) {
       try {
@@ -4846,9 +5201,9 @@ class DBHelper {
             .collection('repair_parts')
             .doc(firestoreId)
             .update({
-          'quantity': newQty,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+              'quantity': newQty,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
         // Đánh dấu đã sync
         await db.update(
           'repair_parts',
@@ -4862,14 +5217,14 @@ class DBHelper {
         // Vẫn return true vì local đã update, sẽ sync sau
       }
     }
-    
+
     return true;
   }
 
   /// Khôi phục số lượng phụ tùng theo tên (khi xóa đơn sửa chữa)
   Future<bool> restorePartQuantityByName(String partName, int quantity) async {
     final db = await database;
-    
+
     // Tìm phụ tùng theo tên trong bảng repair_parts
     final parts = await db.query(
       'repair_parts',
@@ -4877,30 +5232,26 @@ class DBHelper {
       whereArgs: [partName],
       limit: 1,
     );
-    
+
     if (parts.isEmpty) {
       debugPrint('⚠️ restorePartQuantityByName: Part not found: $partName');
       return false;
     }
-    
+
     final part = parts.first;
     final partId = part['id'] as int;
     final currentQty = part['quantity'] as int? ?? 0;
     final newQty = currentQty + quantity;
     final firestoreId = part['firestoreId'] as String?;
     final now = DateTime.now().millisecondsSinceEpoch;
-    
+
     await db.update(
       'repair_parts',
-      {
-        'quantity': newQty,
-        'updatedAt': now,
-        'isSynced': 0,
-      },
+      {'quantity': newQty, 'updatedAt': now, 'isSynced': 0},
       where: 'id = ?',
       whereArgs: [partId],
     );
-    
+
     // Sync ngay lập tức
     if (firestoreId != null && firestoreId.isNotEmpty) {
       try {
@@ -4908,21 +5259,23 @@ class DBHelper {
             .collection('repair_parts')
             .doc(firestoreId)
             .update({
-          'quantity': newQty,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+              'quantity': newQty,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
         await db.update(
           'repair_parts',
           {'isSynced': 1},
           where: 'id = ?',
           whereArgs: [partId],
         );
-        debugPrint('✅ Restored part quantity: $partName, +$quantity => $newQty');
+        debugPrint(
+          '✅ Restored part quantity: $partName, +$quantity => $newQty',
+        );
       } catch (e) {
         debugPrint('⚠️ Failed to sync restored part quantity: $e');
       }
     }
-    
+
     return true;
   }
 
@@ -5379,7 +5732,9 @@ class DBHelper {
   }
 
   /// Xóa cài đặt lương by firestoreId (for sync)
-  Future<void> deleteEmployeeSalarySettingsByFirestoreId(String firestoreId) async {
+  Future<void> deleteEmployeeSalarySettingsByFirestoreId(
+    String firestoreId,
+  ) async {
     final db = await database;
     await db.delete(
       'employee_salary_settings',
@@ -5479,7 +5834,9 @@ class DBHelper {
     ''');
 
     if (totalDeleted > 0) {
-      debugPrint('DB cleanup: removed $totalDeleted cloud-shadow duplicate rows');
+      debugPrint(
+        'DB cleanup: removed $totalDeleted cloud-shadow duplicate rows',
+      );
     }
     return totalDeleted;
   }
@@ -5488,8 +5845,17 @@ class DBHelper {
   /// Returns a map of tableName -> count of unsynced records
   Future<Map<String, int>> countAllUnsyncedData() async {
     final db = await database;
-    final tables = ['sales', 'products', 'repairs', 'expenses', 'debts',
-      'customers', 'purchase_orders', 'debt_payments', 'attendance'];
+    final tables = [
+      'sales',
+      'products',
+      'repairs',
+      'expenses',
+      'debts',
+      'customers',
+      'purchase_orders',
+      'debt_payments',
+      'attendance',
+    ];
     final result = <String, int>{};
     for (final t in tables) {
       try {
@@ -5554,7 +5920,7 @@ class DBHelper {
   /// Dùng khi xóa shop mà không muốn ảnh hưởng data shop khác
   Future<void> deleteDataByShopId(String shopId) async {
     final db = await database;
-    
+
     // Chỉ các bảng CÓ cột shopId trong schema (đã kiểm tra CREATE TABLE)
     // repairs, sales, purchase_orders, cash_closings KHÔNG có cột shopId
     final tablesWithShopId = [
@@ -5576,7 +5942,7 @@ class DBHelper {
       'supplier_product_prices',
       'supplier_import_history',
     ];
-    
+
     await db.transaction((txn) async {
       for (var table in tablesWithShopId) {
         try {
@@ -5594,7 +5960,7 @@ class DBHelper {
         }
       }
     });
-    
+
     debugPrint('deleteDataByShopId: Completed for shop $shopId');
   }
 
@@ -5623,7 +5989,8 @@ class DBHelper {
     final shopId = UserService.getShopIdSync();
     final db = await database;
     if (shopId != null && shopId.isNotEmpty) {
-      return await db.rawQuery('''
+      return await db.rawQuery(
+        '''
         SELECT p.*,
           COALESCE(NULLIF(p.debtType, ''), d.type, '') as debtType,
           COALESCE(d.personName, p.customerName, '') as personName
@@ -5633,7 +6000,9 @@ class DBHelper {
           OR (p.debtFirestoreId IS NOT NULL AND p.debtFirestoreId != '' AND p.debtFirestoreId = d.firestoreId)
         WHERE p.shopId = ? OR p.shopId IS NULL
         ORDER BY p.paidAt DESC
-      ''', [shopId]);
+      ''',
+        [shopId],
+      );
     }
     return await db.rawQuery('''
       SELECT p.*,
@@ -5649,26 +6018,35 @@ class DBHelper {
 
   /// Get debt payments within a date range with debt info, for financial report optimization
   /// Replaces the N+1 pattern: getAllDebts() → for each debt getDebtPayments()
-  Future<List<Map<String, dynamic>>> getDebtPaymentsWithDebtInfoByDateRange(int startMs, int endMs) async {
+  Future<List<Map<String, dynamic>>> getDebtPaymentsWithDebtInfoByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
     final shopId = UserService.getShopIdSync();
     final db = await database;
     if (shopId != null && shopId.isNotEmpty) {
-      return await db.rawQuery('''
+      return await db.rawQuery(
+        '''
         SELECT p.*, d.type as debtType, d.personName as debtPersonName
         FROM debt_payments p
         INNER JOIN debts d ON p.debtId = d.id
         WHERE p.paidAt >= ? AND p.paidAt <= ?
           AND (p.shopId = ? OR p.shopId IS NULL)
         ORDER BY p.paidAt DESC
-      ''', [startMs, endMs, shopId]);
+      ''',
+        [startMs, endMs, shopId],
+      );
     }
-    return await db.rawQuery('''
+    return await db.rawQuery(
+      '''
       SELECT p.*, d.type as debtType, d.personName as debtPersonName
       FROM debt_payments p
       INNER JOIN debts d ON p.debtId = d.id
       WHERE p.paidAt >= ? AND p.paidAt <= ?
       ORDER BY p.paidAt DESC
-    ''', [startMs, endMs]);
+    ''',
+      [startMs, endMs],
+    );
   }
 
   /// Debt payments for cash-flow dashboards.
@@ -5769,7 +6147,8 @@ class DBHelper {
     final db = await database;
     // Generate firestoreId if not present to prevent duplicates on sync
     if (code.firestoreId == null || code.firestoreId!.isEmpty) {
-      code.firestoreId = "qic_${code.createdAt}_${code.name.replaceAll(' ', '_')}";
+      code.firestoreId =
+          "qic_${code.createdAt}_${code.name.replaceAll(' ', '_')}";
     }
     // Use upsert to prevent duplicates with same firestoreId
     final existing = await db.query(
@@ -5997,7 +6376,10 @@ class DBHelper {
   }
 
   /// Get ALL supplier import history within a date range (for revenue view)
-  Future<List<Map<String, dynamic>>> getAllSupplierImportHistoryByDateRange(int startMs, int endMs) async {
+  Future<List<Map<String, dynamic>>> getAllSupplierImportHistoryByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
     final db = await database;
     return await db.query(
       'supplier_import_history',
@@ -6014,7 +6396,8 @@ class DBHelper {
     if (shopId != null && shopId.isNotEmpty) {
       return await db.query(
         'supplier_payments',
-        where: '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL)',
+        where:
+            '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL)',
         whereArgs: [shopId],
         orderBy: 'paidAt DESC',
       );
@@ -6027,13 +6410,17 @@ class DBHelper {
   }
 
   /// Get supplier payments within a date range (by paidAt)
-  Future<List<Map<String, dynamic>>> getSupplierPaymentsByDateRange(int startMs, int endMs) async {
+  Future<List<Map<String, dynamic>>> getSupplierPaymentsByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
     final db = await database;
     final shopId = UserService.getShopIdSync();
     if (shopId != null && shopId.isNotEmpty) {
       return await db.query(
         'supplier_payments',
-        where: '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL) AND paidAt >= ? AND paidAt <= ?',
+        where:
+            '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL) AND paidAt >= ? AND paidAt <= ?',
         whereArgs: [shopId, startMs, endMs],
         orderBy: 'paidAt DESC',
       );
@@ -6059,11 +6446,11 @@ class DBHelper {
     String? supplierName,
   }) async {
     final db = await database;
-    
+
     // Query theo cả supplierId và supplierName (fallback nếu supplierId = 0 hoặc không tìm thấy)
     String whereClause;
     List<dynamic> whereArgs;
-    
+
     if (supplierName != null && supplierName.isNotEmpty) {
       // Tìm theo supplierId HOẶC supplierName (case-insensitive)
       // GROUP BY id để loại bỏ duplicate hoàn toàn
@@ -6098,7 +6485,8 @@ class DBHelper {
 
     // Dùng subquery với GROUP BY khóa tự nhiên để loại duplicate thực sự
     // Ưu tiên referenceId khi có (nhập kho chuẩn), fallback theo fingerprint dữ liệu
-    String query = '''
+    String query =
+        '''
       SELECT * FROM supplier_import_history
       WHERE id IN (
         SELECT MIN(id) FROM supplier_import_history
@@ -6115,7 +6503,7 @@ class DBHelper {
       )
       ORDER BY importDate DESC
     ''';
-    
+
     if (limit != null) {
       query += ' LIMIT $limit';
       if (offset != null) {
@@ -6141,13 +6529,17 @@ class DBHelper {
   }
 
   /// Lấy TẤT CẢ import history theo khoảng ngày (không filter supplierId)
-  Future<List<Map<String, dynamic>>> getAllImportHistoryByDateRange(int startMs, int endMs) async {
+  Future<List<Map<String, dynamic>>> getAllImportHistoryByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
     final db = await database;
     final shopId = UserService.getShopIdSync();
     if (shopId != null && shopId.isNotEmpty) {
       return await db.query(
         'supplier_import_history',
-        where: '(shopId = ? OR shopId IS NULL) AND importDate >= ? AND importDate <= ?',
+        where:
+            '(shopId = ? OR shopId IS NULL) AND importDate >= ? AND importDate <= ?',
         whereArgs: [shopId, startMs, endMs],
         orderBy: 'importDate DESC',
       );
@@ -6161,13 +6553,17 @@ class DBHelper {
   }
 
   /// Lấy repair_partner_payments theo khoảng ngày
-  Future<List<Map<String, dynamic>>> getRepairPartnerPaymentsByDateRange(int startMs, int endMs) async {
+  Future<List<Map<String, dynamic>>> getRepairPartnerPaymentsByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
     final db = await database;
     final shopId = UserService.getShopIdSync();
     if (shopId != null && shopId.isNotEmpty) {
       return await db.query(
         'repair_partner_payments',
-        where: '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL) AND paidAt >= ? AND paidAt <= ?',
+        where:
+            '(deleted = 0 OR deleted IS NULL) AND (shopId = ? OR shopId IS NULL) AND paidAt >= ? AND paidAt <= ?',
         whereArgs: [shopId, startMs, endMs],
         orderBy: 'paidAt DESC',
       );
@@ -6180,18 +6576,20 @@ class DBHelper {
     );
   }
 
-  Future<Map<String, dynamic>?> getSupplierImportStats(int supplierId, {String? shopId}) async {
+  Future<Map<String, dynamic>?> getSupplierImportStats(
+    int supplierId, {
+    String? shopId,
+  }) async {
     final db = await database;
     String whereClause = 'supplierId = ?';
     List<dynamic> whereArgs = [supplierId];
-    
+
     if (shopId != null) {
       whereClause += ' AND shopId = ?';
       whereArgs.add(shopId);
     }
-    
-    final result = await db.rawQuery(
-      '''
+
+    final result = await db.rawQuery('''
       SELECT
         COUNT(*) as totalImports,
         SUM(totalAmount) as totalAmount,
@@ -6222,9 +6620,7 @@ class DBHelper {
           costPrice,
           supplierName
       ) t
-    ''',
-      whereArgs,
-    );
+    ''', whereArgs);
     return result.isNotEmpty ? result.first : null;
   }
 
@@ -6289,11 +6685,11 @@ class DBHelper {
     List<dynamic> whereArgs;
 
     if (referenceId != null && referenceId.toString().isNotEmpty) {
-        whereClause =
+      whereClause =
           "referenceId = ? AND productName = ? AND IFNULL(imei, '') = ? AND importDate = ?";
       whereArgs = [referenceId, productName, imei, importDate];
     } else {
-        whereClause =
+      whereClause =
           "productName = ? AND IFNULL(imei, '') = ? AND importDate = ? AND totalAmount = ? AND quantity = ? AND costPrice = ? AND supplierName = ?";
       whereArgs = [
         productName,
@@ -6518,7 +6914,9 @@ class DBHelper {
     );
   }
 
-  Future<int> deletePartnerRepairHistoryByFirestoreId(String firestoreId) async {
+  Future<int> deletePartnerRepairHistoryByFirestoreId(
+    String firestoreId,
+  ) async {
     final db = await database;
     return await db.delete(
       'partner_repair_history',
@@ -6552,7 +6950,9 @@ class DBHelper {
     if (repairOrderId != null) {
       whereClause = 'repairOrderId = ?';
       whereArgs = [repairOrderId];
-    } else if (partnerFirestoreId != null && partnerFirestoreId.isNotEmpty && partnerId != null) {
+    } else if (partnerFirestoreId != null &&
+        partnerFirestoreId.isNotEmpty &&
+        partnerId != null) {
       // Query bằng OR: tìm theo partnerFirestoreId HOẶC partnerId (record cũ chưa có partnerFirestoreId)
       whereClause = '(partnerFirestoreId = ? OR partnerId = ?)';
       whereArgs = [partnerFirestoreId, partnerId];
@@ -6572,7 +6972,11 @@ class DBHelper {
     );
   }
 
-  Future<Map<String, dynamic>?> getPartnerRepairStats(int partnerId, {String? shopId, String? partnerFirestoreId}) async {
+  Future<Map<String, dynamic>?> getPartnerRepairStats(
+    int partnerId, {
+    String? shopId,
+    String? partnerFirestoreId,
+  }) async {
     final db = await database;
     String whereClause;
     List<dynamic> whereArgs;
@@ -6585,14 +6989,13 @@ class DBHelper {
       whereClause = 'partnerId = ?';
       whereArgs = [partnerId];
     }
-    
+
     if (shopId != null) {
       whereClause += ' AND shopId = ?';
       whereArgs.add(shopId);
     }
-    
-    final result = await db.rawQuery(
-      '''
+
+    final result = await db.rawQuery('''
       SELECT
         COUNT(*) as totalRepairs,
         COALESCE(SUM(partnerCost), 0) as totalCost,
@@ -6600,9 +7003,7 @@ class DBHelper {
         MAX(sentAt) as lastRepairDate
       FROM partner_repair_history
       WHERE $whereClause
-    ''',
-      whereArgs,
-    );
+    ''', whereArgs);
     return result.isNotEmpty ? result.first : null;
   }
 
@@ -6663,21 +7064,21 @@ class DBHelper {
     String? supplierName,
   }) async {
     final db = await database;
-    
+
     // Query theo cả supplierId và supplierName để bắt được các record lưu với supplierId = 0
     String whereClause;
     List<dynamic> whereArgs;
-    
+
     if (supplierName != null && supplierName.isNotEmpty) {
-      whereClause = '(sih.supplierId = ? OR UPPER(sih.supplierName) = UPPER(?)) AND sih.shopId = ?';
+      whereClause =
+          '(sih.supplierId = ? OR UPPER(sih.supplierName) = UPPER(?)) AND sih.shopId = ?';
       whereArgs = [supplierId, supplierName, shopId];
     } else {
       whereClause = 'sih.supplierId = ? AND sih.shopId = ?';
       whereArgs = [supplierId, shopId];
     }
-    
-    final result = await db.rawQuery(
-      '''
+
+    final result = await db.rawQuery('''
       SELECT
         COUNT(DISTINCT sih.id) as totalImports,
         COALESCE(SUM(sih.totalAmount), 0) as totalImportValue,
@@ -6685,9 +7086,7 @@ class DBHelper {
       FROM supplier_import_history sih
       LEFT JOIN supplier_payments sp ON sih.supplierId = sp.supplierId
       WHERE $whereClause
-    ''',
-      whereArgs,
-    );
+    ''', whereArgs);
     return result.isNotEmpty ? result.first : {};
   }
 
@@ -6810,9 +7209,7 @@ class DBHelper {
     final firestoreId = payment['firestoreId'];
 
     // Loại bỏ id vì SQLite auto-generate
-    final cleanData = _sanitizeForSqlite(
-      Map<String, dynamic>.from(payment),
-    );
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(payment));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
     await _filterToTableColumns('repair_partner_payments', cleanData);
@@ -6856,7 +7253,12 @@ class DBHelper {
       );
       if (existing.isNotEmpty) {
         final existingId = (existing.first['id'] as num).toInt();
-        await db.update('customers', data, where: 'id = ?', whereArgs: [existingId]);
+        await db.update(
+          'customers',
+          data,
+          where: 'id = ?',
+          whereArgs: [existingId],
+        );
         return existingId;
       }
     }
@@ -6866,7 +7268,8 @@ class DBHelper {
     } catch (e) {
       // Fallback for old DBs still carrying global unique(phone).
       final msg = e.toString();
-      if (msg.contains('UNIQUE constraint failed: customers.phone') && phone.isNotEmpty) {
+      if (msg.contains('UNIQUE constraint failed: customers.phone') &&
+          phone.isNotEmpty) {
         final existingByPhone = await db.query(
           'customers',
           where: 'phone = ?',
@@ -6875,7 +7278,12 @@ class DBHelper {
         );
         if (existingByPhone.isNotEmpty) {
           final existingId = (existingByPhone.first['id'] as num).toInt();
-          await db.update('customers', data, where: 'id = ?', whereArgs: [existingId]);
+          await db.update(
+            'customers',
+            data,
+            where: 'id = ?',
+            whereArgs: [existingId],
+          );
           return existingId;
         }
       }
@@ -7026,7 +7434,8 @@ class DBHelper {
       await db.insert('customers', cleanData);
     } catch (e) {
       final msg = e.toString();
-      if (msg.contains('UNIQUE constraint failed: customers.phone') && phone.isNotEmpty) {
+      if (msg.contains('UNIQUE constraint failed: customers.phone') &&
+          phone.isNotEmpty) {
         final existingByPhone = await db.query(
           'customers',
           where: 'phone = ?',
@@ -7035,7 +7444,12 @@ class DBHelper {
         );
         if (existingByPhone.isNotEmpty) {
           final existingId = (existingByPhone.first['id'] as num).toInt();
-          await db.update('customers', cleanData, where: 'id = ?', whereArgs: [existingId]);
+          await db.update(
+            'customers',
+            cleanData,
+            where: 'id = ?',
+            whereArgs: [existingId],
+          );
           return;
         }
       }
@@ -7235,21 +7649,30 @@ class DBHelper {
 
   /// Get all returned quantities for a sale order, grouped by product IMEI/name.
   /// Returns a map: { 'IMEI_or_productName' : totalReturnedQty }
-  Future<Map<String, int>> getReturnedQuantitiesForSale(int salesOrderId) async {
+  Future<Map<String, int>> getReturnedQuantitiesForSale(
+    int salesOrderId,
+  ) async {
     final db = await database;
-    final rows = await db.rawQuery('''
+    final rows = await db.rawQuery(
+      '''
       SELECT sri.productImei, sri.productName, SUM(sri.quantity) as totalQty
       FROM sales_return_items sri
       INNER JOIN sales_returns sr ON sr.id = sri.salesReturnId
       WHERE sr.salesOrderId = ? AND sr.status != 'CANCELLED'
       GROUP BY COALESCE(UPPER(sri.productImei), UPPER(sri.productName))
-    ''', [salesOrderId]);
+    ''',
+      [salesOrderId],
+    );
     final result = <String, int>{};
     for (final row in rows) {
       final imei = (row['productImei'] as String?)?.toUpperCase() ?? '';
       final name = (row['productName'] as String?)?.toUpperCase() ?? '';
-      final key = imei.isNotEmpty && imei != 'NO_IMEI' && !imei.startsWith('PKX') ? imei : name;
-      result[key] = (result[key] ?? 0) + ((row['totalQty'] as num?)?.toInt() ?? 0);
+      final key =
+          imei.isNotEmpty && imei != 'NO_IMEI' && !imei.startsWith('PKX')
+          ? imei
+          : name;
+      result[key] =
+          (result[key] ?? 0) + ((row['totalQty'] as num?)?.toInt() ?? 0);
     }
     return result;
   }
@@ -7274,13 +7697,22 @@ class DBHelper {
     cleanData.remove('_encrypted');
     // Convert Timestamp objects to int
     if (cleanData['returnDate'] is! int && cleanData['returnDate'] != null) {
-      try { cleanData['returnDate'] = (cleanData['returnDate'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
+      try {
+        cleanData['returnDate'] =
+            (cleanData['returnDate'] as dynamic).millisecondsSinceEpoch;
+      } catch (_) {}
     }
     if (cleanData['createdAt'] is! int && cleanData['createdAt'] != null) {
-      try { cleanData['createdAt'] = (cleanData['createdAt'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
+      try {
+        cleanData['createdAt'] =
+            (cleanData['createdAt'] as dynamic).millisecondsSinceEpoch;
+      } catch (_) {}
     }
     if (cleanData['approvedAt'] is! int && cleanData['approvedAt'] != null) {
-      try { cleanData['approvedAt'] = (cleanData['approvedAt'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
+      try {
+        cleanData['approvedAt'] =
+            (cleanData['approvedAt'] as dynamic).millisecondsSinceEpoch;
+      } catch (_) {}
     }
     await _filterToTableColumns('sales_returns', cleanData);
 
@@ -7615,7 +8047,11 @@ class DBHelper {
         )
     ''');
     for (final row in nullEntries) {
-      await db.delete('financial_activity_log', where: 'id = ?', whereArgs: [row['id']]);
+      await db.delete(
+        'financial_activity_log',
+        where: 'id = ?',
+        whereArgs: [row['id']],
+      );
       totalDeleted++;
     }
 
@@ -7631,18 +8067,23 @@ class DBHelper {
       HAVING cnt > 1
     ''');
     for (final group in dupGroups) {
-      final deleted = await db.rawDelete('''
+      final deleted = await db.rawDelete(
+        '''
         DELETE FROM financial_activity_log
         WHERE firestoreId IS NULL
           AND referenceType = ?
           AND referenceId = ?
           AND id != ?
-      ''', [group['referenceType'], group['referenceId'], group['keepId']]);
+      ''',
+        [group['referenceType'], group['referenceId'], group['keepId']],
+      );
       totalDeleted += deleted;
     }
 
     if (totalDeleted > 0) {
-      debugPrint('🧹 Dedup: removed $totalDeleted duplicate financial activities');
+      debugPrint(
+        '🧹 Dedup: removed $totalDeleted duplicate financial activities',
+      );
     }
     return totalDeleted;
   }
@@ -7711,13 +8152,18 @@ class DBHelper {
     return await db.query(
       'payment_intents',
       where: 'status = ? AND shopId = ?',
-      whereArgs: ['PENDING', shopId], // Must match PaymentIntentStatus.pending.code = 'PENDING'
+      whereArgs: [
+        'PENDING',
+        shopId,
+      ], // Must match PaymentIntentStatus.pending.code = 'PENDING'
       orderBy: 'createdAt DESC',
     );
   }
 
   /// Get payment intents by status - filtered by current shopId
-  Future<List<Map<String, dynamic>>> getPaymentIntentsByStatus(String status) async {
+  Future<List<Map<String, dynamic>>> getPaymentIntentsByStatus(
+    String status,
+  ) async {
     final db = await database;
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
@@ -7732,7 +8178,9 @@ class DBHelper {
   }
 
   /// Get payment intent by intentId
-  Future<Map<String, dynamic>?> getPaymentIntentByIntentId(String intentId) async {
+  Future<Map<String, dynamic>?> getPaymentIntentByIntentId(
+    String intentId,
+  ) async {
     final db = await database;
     final results = await db.query(
       'payment_intents',
@@ -7744,7 +8192,10 @@ class DBHelper {
   }
 
   /// Update payment intent
-  Future<int> updatePaymentIntent(String intentId, Map<String, dynamic> data) async {
+  Future<int> updatePaymentIntent(
+    String intentId,
+    Map<String, dynamic> data,
+  ) async {
     final db = await database;
     return await db.update(
       'payment_intents',
@@ -7755,7 +8206,13 @@ class DBHelper {
   }
 
   /// Update payment intent status
-  Future<int> updatePaymentIntentStatus(String intentId, String status, {String? paidBy, int? paidAt, String? paymentMethod}) async {
+  Future<int> updatePaymentIntentStatus(
+    String intentId,
+    String status, {
+    String? paidBy,
+    int? paidAt,
+    String? paymentMethod,
+  }) async {
     final db = await database;
     final data = <String, dynamic>{'status': status};
     if (paidBy != null) data['paidBy'] = paidBy;
@@ -7790,7 +8247,9 @@ class DBHelper {
   }
 
   /// Get payment intents history (completed/cancelled/failed) - filtered by current shopId
-  Future<List<Map<String, dynamic>>> getPaymentIntentsHistory({int limit = 100}) async {
+  Future<List<Map<String, dynamic>>> getPaymentIntentsHistory({
+    int limit = 100,
+  }) async {
     final db = await database;
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
@@ -7800,14 +8259,20 @@ class DBHelper {
     return await db.query(
       'payment_intents',
       where: 'status != ? AND shopId = ?',
-      whereArgs: ['PENDING', shopId], // Must match PaymentIntentStatus.pending.code = 'PENDING'
+      whereArgs: [
+        'PENDING',
+        shopId,
+      ], // Must match PaymentIntentStatus.pending.code = 'PENDING'
       orderBy: 'paidAt DESC, createdAt DESC',
       limit: limit,
     );
   }
 
   /// Get payment intents by type - filtered by current shopId
-  Future<List<Map<String, dynamic>>> getPaymentIntentsByType(String type, {String? status}) async {
+  Future<List<Map<String, dynamic>>> getPaymentIntentsByType(
+    String type, {
+    String? status,
+  }) async {
     final db = await database;
     final shopId = await _getCurrentShopId();
     if (shopId == null) {
@@ -7840,7 +8305,8 @@ class DBHelper {
     if (shopId == null) return [];
     return await db.query(
       'payment_intents',
-      where: 'shopId = ? AND (isSynced = 0 OR isSynced IS NULL OR firestoreId IS NULL)',
+      where:
+          'shopId = ? AND (isSynced = 0 OR isSynced IS NULL OR firestoreId IS NULL)',
       whereArgs: [shopId],
       orderBy: 'createdAt DESC',
     );
@@ -7919,7 +8385,10 @@ class DBHelper {
   }
 
   /// Update payment intent sync status after cloud sync
-  Future<void> updatePaymentIntentSynced(int localId, String firestoreId) async {
+  Future<void> updatePaymentIntentSynced(
+    int localId,
+    String firestoreId,
+  ) async {
     final db = await database;
     await db.update(
       'payment_intents',
@@ -7940,7 +8409,9 @@ class DBHelper {
   }
 
   /// Get payment intent by firestoreId
-  Future<Map<String, dynamic>?> getPaymentIntentByFirestoreId(String firestoreId) async {
+  Future<Map<String, dynamic>?> getPaymentIntentByFirestoreId(
+    String firestoreId,
+  ) async {
     final db = await database;
     final results = await db.query(
       'payment_intents',
@@ -8037,7 +8508,10 @@ class DBHelper {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getPaymentRequestsByPhone(String phone, String? shopId) async {
+  Future<List<Map<String, dynamic>>> getPaymentRequestsByPhone(
+    String phone,
+    String? shopId,
+  ) async {
     final db = await database;
     try {
       await db.execute('''
@@ -8091,11 +8565,13 @@ class DBHelper {
   // ============ DEBUG & CLEANUP FUNCTIONS ============
 
   /// Debug: Xem chi tiết các repair_parts chưa sync
-  Future<List<Map<String, dynamic>>> debugGetUnsyncedRepairPartsDetails() async {
+  Future<List<Map<String, dynamic>>>
+  debugGetUnsyncedRepairPartsDetails() async {
     final db = await database;
     return await db.query(
       'repair_parts',
-      where: '(isSynced = 0 OR isSynced IS NULL) AND (deleted = 0 OR deleted IS NULL)',
+      where:
+          '(isSynced = 0 OR isSynced IS NULL) AND (deleted = 0 OR deleted IS NULL)',
     );
   }
 
@@ -8105,9 +8581,10 @@ class DBHelper {
     final db = await database;
     final orphans = await db.query(
       'repair_parts',
-      where: "(firestoreId IS NULL OR firestoreId = '') AND (isSynced = 0 OR isSynced IS NULL)",
+      where:
+          "(firestoreId IS NULL OR firestoreId = '') AND (isSynced = 0 OR isSynced IS NULL)",
     );
-    
+
     if (orphans.isEmpty) {
       debugPrint('DB: Không có orphan repair_parts cần cleanup');
       return 0;
@@ -8115,13 +8592,16 @@ class DBHelper {
 
     debugPrint('DB: Tìm thấy ${orphans.length} orphan repair_parts:');
     for (var part in orphans) {
-      debugPrint('  - id=${part['id']}, partName=${part['partName']}, createdAt=${part['createdAt']}');
+      debugPrint(
+        '  - id=${part['id']}, partName=${part['partName']}, createdAt=${part['createdAt']}',
+      );
     }
 
     // Xóa orphans
     final deleted = await db.delete(
       'repair_parts',
-      where: "(firestoreId IS NULL OR firestoreId = '') AND (isSynced = 0 OR isSynced IS NULL)",
+      where:
+          "(firestoreId IS NULL OR firestoreId = '') AND (isSynced = 0 OR isSynced IS NULL)",
     );
     debugPrint('DB: Đã xóa $deleted orphan repair_parts');
     return deleted;
@@ -8134,7 +8614,8 @@ class DBHelper {
     final result = await db.update(
       'repair_parts',
       {'isSynced': 1},
-      where: "firestoreId IS NOT NULL AND firestoreId != '' AND (isSynced = 0 OR isSynced IS NULL)",
+      where:
+          "firestoreId IS NOT NULL AND firestoreId != '' AND (isSynced = 0 OR isSynced IS NULL)",
     );
     debugPrint('DB: Force marked $result repair_parts as synced');
     return result;
@@ -8153,7 +8634,9 @@ class DBHelper {
 
     debugPrint('DB: Found ${stuck.length} repair_parts stuck with deleted=1:');
     for (var p in stuck) {
-      debugPrint('  - firestoreId=${p['firestoreId']}, partName=${p['partName']}');
+      debugPrint(
+        '  - firestoreId=${p['firestoreId']}, partName=${p['partName']}',
+      );
     }
 
     final fixed = await db.update(
@@ -8184,14 +8667,25 @@ class DBHelper {
 
     // Ensure timestamps are integers
     if (cleanData['createdAt'] is String) {
-      cleanData['createdAt'] = DateTime.tryParse(cleanData['createdAt'])?.millisecondsSinceEpoch;
+      cleanData['createdAt'] = DateTime.tryParse(
+        cleanData['createdAt'],
+      )?.millisecondsSinceEpoch;
     }
     if (cleanData['updatedAt'] is String) {
-      cleanData['updatedAt'] = DateTime.tryParse(cleanData['updatedAt'])?.millisecondsSinceEpoch;
+      cleanData['updatedAt'] = DateTime.tryParse(
+        cleanData['updatedAt'],
+      )?.millisecondsSinceEpoch;
     }
 
     // Convert booleans to int for SQLite
-    for (final key in ['trackExpiry', 'trackSerial', 'hasVariants', 'hasWarranty', 'isActive', 'isSynced']) {
+    for (final key in [
+      'trackExpiry',
+      'trackSerial',
+      'hasVariants',
+      'hasWarranty',
+      'isActive',
+      'isSynced',
+    ]) {
       if (cleanData[key] is bool) {
         cleanData[key] = cleanData[key] == true ? 1 : 0;
       }
@@ -8237,10 +8731,14 @@ class DBHelper {
 
     // Ensure timestamps are integers
     if (cleanData['createdAt'] is String) {
-      cleanData['createdAt'] = DateTime.tryParse(cleanData['createdAt'])?.millisecondsSinceEpoch;
+      cleanData['createdAt'] = DateTime.tryParse(
+        cleanData['createdAt'],
+      )?.millisecondsSinceEpoch;
     }
     if (cleanData['updatedAt'] is String) {
-      cleanData['updatedAt'] = DateTime.tryParse(cleanData['updatedAt'])?.millisecondsSinceEpoch;
+      cleanData['updatedAt'] = DateTime.tryParse(
+        cleanData['updatedAt'],
+      )?.millisecondsSinceEpoch;
     }
 
     // Convert booleans to int for SQLite
@@ -8285,7 +8783,9 @@ class DBHelper {
   }
 
   /// Lấy danh sách ProductVariant theo productId
-  Future<List<Map<String, dynamic>>> getProductVariants(String productId) async {
+  Future<List<Map<String, dynamic>>> getProductVariants(
+    String productId,
+  ) async {
     final db = await database;
     return await db.query(
       'product_variants',
