@@ -288,7 +288,7 @@ class SyncHealthCheck {
         int fixed = 0;
         for (final docId in missingIds) {
           try {
-            final data = Map<String, dynamic>.from(cloudRows[docId]!);
+            var data = Map<String, dynamic>.from(cloudRows[docId]!);
             data = EncryptionService.decryptMap(data);
             data['firestoreId'] = data['firestoreId'] ?? docId;
             data['isSynced'] = 1;
@@ -412,10 +412,11 @@ class SyncHealthCheck {
     final rows = <String, Map<String, dynamic>>{};
 
     for (final doc in docs) {
-      final data = Map<String, dynamic>.from(doc.data());
+      var data = Map<String, dynamic>.from(doc.data());
       if (data['deleted'] == true) continue;
 
       data['firestoreId'] = doc.id;
+      data = EncryptionService.decryptMap(data);
       final key = _comparisonKeyForRow(collection, data, fallbackId: doc.id);
       if (key == null) continue;
       rows.putIfAbsent(key, () => data);
@@ -448,11 +449,34 @@ class SyncHealthCheck {
         if (name.isNotEmpty) return 'name:$name';
         break;
       case 'suppliers':
+        final supplierFirestoreId = _normalizeText(
+          row['firestoreId'] ?? fallbackId,
+        );
+        if (supplierFirestoreId.isNotEmpty) {
+          return 'id:$supplierFirestoreId';
+        }
+
         final name = _normalizeText(row['name']);
         if (name.isNotEmpty) return 'name:$name';
 
         final phone = _normalizePhone(row['phone']);
         if (phone.isNotEmpty) return 'phone:$phone';
+        break;
+      case 'repair_parts':
+        final repairPartFirestoreId = _normalizeText(
+          row['firestoreId'] ?? fallbackId,
+        );
+        if (repairPartFirestoreId.isNotEmpty) {
+          return 'id:$repairPartFirestoreId';
+        }
+
+        final partName = _normalizeText(row['partName'] ?? row['name']);
+        final model = _normalizeText(row['compatibleModels']);
+        final cost = (row['cost'] as num?)?.toInt() ?? 0;
+        final price = (row['price'] as num?)?.toInt() ?? 0;
+        if (partName.isNotEmpty) {
+          return 'part:$partName|model:$model|cost:$cost|price:$price';
+        }
         break;
     }
 

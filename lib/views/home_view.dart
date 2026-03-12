@@ -1544,6 +1544,7 @@ class _HomeViewState extends State<HomeView>
         _supplierDebtRemain = supplierRemain;
         _partnerDebtRemain = partnerRemain;
         totalDebtRemain = totalRemain;
+        _rebuildTabWidgets();
       });
     } catch (e) {
       debugPrint('HomeView._loadDebtOverview error: $e');
