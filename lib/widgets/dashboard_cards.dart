@@ -371,7 +371,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent repairs (last 5)
         if (widget.enableRepair)
           db.query('repairs',
-            columns: ['customerName', 'deviceName', 'price', 'createdAt', 'status', 'deliveredAt'],
+            columns: ['customerName', 'model', 'price', 'createdAt', 'status', 'deliveredAt'],
             where: 'createdAt >= ? OR (deliveredAt IS NOT NULL AND deliveredAt >= ?)',
             whereArgs: [startMs, startMs],
             orderBy: 'createdAt DESC', limit: 5)
@@ -421,7 +421,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
       // Repairs
       for (final r in results[1]) {
         final name = (r['customerName'] ?? '').toString();
-        final device = (r['deviceName'] ?? '').toString();
+        final device = (r['model'] ?? '').toString();
         final status = (r['status'] as num?)?.toInt() ?? 1;
         final at = (r['deliveredAt'] as num?)?.toInt() ?? (r['createdAt'] as num?)?.toInt() ?? 0;
         final price = (r['price'] as num?)?.toInt() ?? 0;

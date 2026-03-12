@@ -2561,18 +2561,40 @@ class DBHelper {
           debugPrint('DB onOpen check error (repair_parts): $e');
         }
 
-        // Ensure services column exists in repairs table
+        // Ensure services, shopId columns exist in repairs table
         try {
           final cols = await db.rawQuery('PRAGMA table_info(repairs)');
-          final hasServices = cols.any(
-            (c) => (c['name'] ?? c['name'.toString()]) == 'services',
-          );
-          if (!hasServices) {
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('services')) {
             await db.execute('ALTER TABLE repairs ADD COLUMN services TEXT');
-            debugPrint('DB: added services column to repairs');
+            debugPrint('DB onOpen: added services to repairs');
+          }
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE repairs ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to repairs');
+          }
+          if (!colNames.contains('deleted')) {
+            await db.execute('ALTER TABLE repairs ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added deleted to repairs');
           }
         } catch (e) {
-          debugPrint('DB onOpen check error (repairs services): $e');
+          debugPrint('DB onOpen check error (repairs columns): $e');
+        }
+
+        // Ensure shopId, deleted columns exist in sales table
+        try {
+          final cols = await db.rawQuery('PRAGMA table_info(sales)');
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('shopId')) {
+            await db.execute('ALTER TABLE sales ADD COLUMN shopId TEXT');
+            debugPrint('DB onOpen: added shopId to sales');
+          }
+          if (!colNames.contains('deleted')) {
+            await db.execute('ALTER TABLE sales ADD COLUMN deleted INTEGER DEFAULT 0');
+            debugPrint('DB onOpen: added deleted to sales');
+          }
+        } catch (e) {
+          debugPrint('DB onOpen check error (sales columns): $e');
         }
 
         // Ensure isSynced, shopId, deleted columns exist in attendance table (defensive migration)
