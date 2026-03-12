@@ -91,6 +91,31 @@ class DBHelper {
     return _database!;
   }
 
+  /// Cache column names per table to avoid repeated PRAGMA queries
+  static final Map<String, Set<String>> _tableColumnsCache = {};
+
+  /// Get valid column names for a table, cached for performance
+  Future<Set<String>> _getTableColumns(String table) async {
+    if (_tableColumnsCache.containsKey(table)) {
+      return _tableColumnsCache[table]!;
+    }
+    final db = await database;
+    final cols = await db.rawQuery('PRAGMA table_info($table)');
+    final names = cols.map((c) => c['name'] as String).toSet();
+    _tableColumnsCache[table] = names;
+    return names;
+  }
+
+  /// Strip keys from data that don't exist as columns in the given table
+  Future<Map<String, dynamic>> _filterToTableColumns(
+    String table,
+    Map<String, dynamic> data,
+  ) async {
+    final validCols = await _getTableColumns(table);
+    data.removeWhere((key, _) => !validCols.contains(key));
+    return data;
+  }
+
   Future<Database> _initDB() async {
     _ensureDatabaseFactoryInitialized();
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
@@ -2920,6 +2945,8 @@ class DBHelper {
       data.remove(
         '_encrypted',
       ); // Field metadata của Firestore, không lưu SQLite
+      // Strip any Firestore fields not in SQLite schema
+      await _filterToTableColumns(table, data);
       if (existing.isNotEmpty) {
         await txn.update(
           table,
@@ -3808,6 +3835,8 @@ class DBHelper {
     cleanData.remove('id');
     cleanData.remove('_encrypted');
     cleanData.remove('email'); // Loại bỏ email nếu có
+    // Strip any Firestore fields not in SQLite schema
+    await _filterToTableColumns('suppliers', cleanData);
 
     if (firestoreId != null && firestoreId.toString().isNotEmpty) {
       // Tìm theo firestoreId trước
@@ -4238,17 +4267,9 @@ class DBHelper {
 
     final db = await database;
 
-    // Lấy danh sách các cột hợp lệ trong bảng
-    final cols = await db.rawQuery('PRAGMA table_info(adjustment_entries)');
-    final validColumns = cols.map((c) => c['name'] as String).toSet();
-
-    // Lọc chỉ giữ lại các trường có trong schema
-    final filteredData = <String, dynamic>{};
-    data.forEach((key, value) {
-      if (validColumns.contains(key)) {
-        filteredData[key] = value;
-      }
-    });
+    // Filter to valid schema columns
+    final filteredData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    await _filterToTableColumns('adjustment_entries', filteredData);
 
     final existing = await db.query(
       'adjustment_entries',
@@ -4285,22 +4306,11 @@ class DBHelper {
 
     final db = await database;
 
-    // Lấy danh sách các cột hợp lệ trong bảng cash_closings
-    final cols = await db.rawQuery('PRAGMA table_info(cash_closings)');
-    final validColumns = cols.map((c) => c['name'] as String).toSet();
+    // Filter to valid schema columns
+    final filteredData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    await _filterToTableColumns('cash_closings', filteredData);
 
-    // Lọc chỉ giữ lại các trường có trong schema
-    final filteredData = <String, dynamic>{};
-    data.forEach((key, value) {
-      if (validColumns.contains(key)) {
-        filteredData[key] = value;
-      }
-    });
-
-    debugPrint('upsertCashClosing: valid columns=$validColumns');
-    debugPrint(
-      'upsertCashClosing: filtered data keys=${filteredData.keys.toList()}',
-    );
+    debugPrint('upsertCashClosing: filtered data keys=${filteredData.keys.toList()}');
 
     // FIX: Use dateKey + shopId as unique key to avoid overwriting other shops' data
     final shopId = data['shopId'] as String? ?? UserService.getShopIdSync();
@@ -4310,7 +4320,7 @@ class DBHelper {
       whereClause = 'dateKey = ? AND (shopId = ? OR shopId IS NULL)';
       whereArgs = [dateKey, shopId];
       // Ensure shopId is in the data
-      if (!filteredData.containsKey('shopId') && validColumns.contains('shopId')) {
+      if (!filteredData.containsKey('shopId')) {
         filteredData['shopId'] = shopId;
       }
     } else {
@@ -4419,11 +4429,13 @@ class DBHelper {
     Map<String, dynamic> schedule,
   ) async {
     final db = await database;
-    await db.insert('work_schedules', {
+    final data = _sanitizeForSqlite({
       'userId': userId,
       ...schedule,
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
+    await _filterToTableColumns('work_schedules', data);
+    await db.insert('work_schedules', data, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   // --- LEAVE REQUESTS ---
@@ -4537,17 +4549,9 @@ class DBHelper {
 
     final db = await database;
 
-    // Lấy danh sách các cột hợp lệ trong bảng
-    final cols = await db.rawQuery('PRAGMA table_info(purchase_orders)');
-    final validColumns = cols.map((c) => c['name'] as String).toSet();
-
-    // Lọc chỉ giữ lại các trường có trong schema
-    final filteredData = <String, dynamic>{};
-    data.forEach((key, value) {
-      if (validColumns.contains(key)) {
-        filteredData[key] = value;
-      }
-    });
+    // Filter to valid schema columns
+    final filteredData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    await _filterToTableColumns('purchase_orders', filteredData);
 
     final existing = await db.query(
       'purchase_orders',
@@ -4843,6 +4847,8 @@ class DBHelper {
       cleanData.remove(
         '_encrypted',
       ); // Field metadata của Firestore, không lưu SQLite
+      // Strip any Firestore fields not in SQLite schema
+      await _filterToTableColumns('repair_parts', cleanData);
       cleanData['updatedAt'] =
           cleanData['updatedAt'] ?? DateTime.now().millisecondsSinceEpoch;
       cleanData['createdAt'] =
@@ -5180,19 +5186,15 @@ class DBHelper {
     final db = await database;
 
     // Chuyển đổi các giá trị về đúng kiểu
-    final cleanData = <String, dynamic>{};
-    data.forEach((key, value) {
-      if (value is Timestamp) {
-        cleanData[key] = value.millisecondsSinceEpoch;
-      } else if (value is DateTime) {
-        cleanData[key] = value.millisecondsSinceEpoch;
-      } else if (key == 'isActive' && value is bool) {
-        cleanData[key] = value ? 1 : 0;
-      } else {
-        cleanData[key] = value;
-      }
-    });
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    // Handle Timestamp/DateTime → milliseconds (not covered by _sanitizeForSqlite)
+    for (final key in cleanData.keys.toList()) {
+      final v = data[key];
+      if (v is Timestamp) cleanData[key] = v.millisecondsSinceEpoch;
+      if (v is DateTime) cleanData[key] = v.millisecondsSinceEpoch;
+    }
     cleanData['isSynced'] = 1;
+    await _filterToTableColumns('employee_salary_settings', cleanData);
 
     // Try update by firestoreId first
     if (firestoreId != null) {
@@ -5759,16 +5761,9 @@ class DBHelper {
     final db = await database;
     final firestoreId = data['firestoreId'];
     // Loại bỏ id vì SQLite auto-generate
-    final cleanData = Map<String, dynamic>.from(data);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     cleanData.remove('id');
-
-    // Convert bool to int for SQLite
-    if (cleanData['isSynced'] is bool) {
-      cleanData['isSynced'] = (cleanData['isSynced'] as bool) ? 1 : 0;
-    }
-    if (cleanData['isActive'] is bool) {
-      cleanData['isActive'] = (cleanData['isActive'] as bool) ? 1 : 0;
-    }
+    await _filterToTableColumns('supplier_product_prices', cleanData);
 
     if (firestoreId == null) {
       await db.insert(
@@ -6140,18 +6135,9 @@ class DBHelper {
     final db = await database;
     final firestoreId = data['firestoreId'];
     // Loại bỏ id vì SQLite auto-generate
-    final cleanData = Map<String, dynamic>.from(data);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     cleanData.remove('id');
-    // FIX: Remove updatedAt - table doesn't have this column
-    cleanData.remove('updatedAt');
-
-    // Convert bool to int for SQLite
-    if (cleanData['isSynced'] is bool) {
-      cleanData['isSynced'] = (cleanData['isSynced'] as bool) ? 1 : 0;
-    }
-    if (cleanData['deleted'] is bool) {
-      cleanData['deleted'] = (cleanData['deleted'] as bool) ? 1 : 0;
-    }
+    await _filterToTableColumns('supplier_import_history', cleanData);
 
     if (firestoreId == null) {
       await db.insert(
@@ -6306,16 +6292,12 @@ class DBHelper {
       '_encrypted',
     ); // Field metadata của Firestore, không lưu SQLite
 
-    // Convert bool to int for SQLite
-    if (cleanData['active'] is bool) {
-      cleanData['active'] = (cleanData['active'] as bool) ? 1 : 0;
-    }
-    if (cleanData['deleted'] is bool) {
-      cleanData['deleted'] = (cleanData['deleted'] as bool) ? 1 : 0;
-    }
-    if (cleanData['isSynced'] is bool) {
-      cleanData['isSynced'] = (cleanData['isSynced'] as bool) ? 1 : 0;
-    }
+    // Sanitize and filter to valid columns
+    final sanitized = _sanitizeForSqlite(cleanData);
+    cleanData
+      ..clear()
+      ..addAll(sanitized);
+    await _filterToTableColumns('repair_partners', cleanData);
 
     if (firestoreId == null) {
       await db.insert(
@@ -6394,6 +6376,7 @@ class DBHelper {
     final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
+    await _filterToTableColumns('partner_repair_history', cleanData);
 
     // Resolve local partnerId from partnerFirestoreId if available
     final partnerFsId = cleanData['partnerFirestoreId'];
@@ -6652,6 +6635,7 @@ class DBHelper {
     final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(payment));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
+    await _filterToTableColumns('supplier_payments', cleanData);
 
     if (firestoreId != null && firestoreId.toString().isNotEmpty) {
       final existing = await db.query(
@@ -6728,6 +6712,7 @@ class DBHelper {
     );
     cleanData.remove('id');
     cleanData.remove('_encrypted');
+    await _filterToTableColumns('repair_partner_payments', cleanData);
 
     if (firestoreId != null && firestoreId.toString().isNotEmpty) {
       final existing = await db.query(
@@ -6893,6 +6878,8 @@ class DBHelper {
     final cleanData = Map<String, dynamic>.from(customer);
     cleanData.remove('id');
     cleanData.remove('_encrypted');
+    // Strip any Firestore fields not in SQLite schema
+    await _filterToTableColumns('customers', cleanData);
 
     if (firestoreId != null && firestoreId.toString().isNotEmpty) {
       final existing = await db.query(
@@ -7179,11 +7166,9 @@ class DBHelper {
       whereArgs: [firestoreId],
     );
 
-    final cleanData = Map<String, dynamic>.from(data);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
-    cleanData.remove('deleted');
-    cleanData.remove('updatedAt');
     // Convert Timestamp objects to int
     if (cleanData['returnDate'] is! int && cleanData['returnDate'] != null) {
       try { cleanData['returnDate'] = (cleanData['returnDate'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
@@ -7194,6 +7179,7 @@ class DBHelper {
     if (cleanData['approvedAt'] is! int && cleanData['approvedAt'] != null) {
       try { cleanData['approvedAt'] = (cleanData['approvedAt'] as dynamic).millisecondsSinceEpoch; } catch (_) {}
     }
+    await _filterToTableColumns('sales_returns', cleanData);
 
     if (existing.isNotEmpty) {
       await db.update(
@@ -7222,11 +7208,10 @@ class DBHelper {
       whereArgs: [firestoreId],
     );
 
-    final cleanData = Map<String, dynamic>.from(data);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
-    cleanData.remove('deleted');
-    cleanData.remove('updatedAt');
+    await _filterToTableColumns('sales_return_items', cleanData);
 
     if (existing.isNotEmpty) {
       await db.update(
@@ -7465,11 +7450,10 @@ class DBHelper {
       whereArgs: [firestoreId],
     );
 
-    final cleanData = Map<String, dynamic>.from(data);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
-    cleanData.remove('deleted');
-    cleanData.remove('updatedAt');
+    await _filterToTableColumns('financial_activity_log', cleanData);
 
     if (existing.isNotEmpty) {
       await db.update(
@@ -7795,6 +7779,7 @@ class DBHelper {
     }
 
     final sanitized = _sanitizeForSqlite(data);
+    await _filterToTableColumns('payment_intents', sanitized);
     final intentId = sanitized['intentId'];
     final firestoreId = sanitized['firestoreId'];
 
@@ -7903,6 +7888,7 @@ class DBHelper {
     }
 
     final sanitized = _sanitizeForSqlite(data);
+    await _filterToTableColumns('payment_requests', sanitized);
     final firestoreId = sanitized['firestoreId'];
 
     if (firestoreId == null) {
@@ -8115,6 +8101,8 @@ class DBHelper {
       cleanData['customFields'] = '{${pairs.join(',')}}';
     }
 
+    await _filterToTableColumns('product_categories', cleanData);
+
     if (firestoreId != null && firestoreId.toString().isNotEmpty) {
       final existing = await db.query(
         'product_categories',
@@ -8159,6 +8147,8 @@ class DBHelper {
     if (cleanData['isSynced'] is bool) {
       cleanData['isSynced'] = cleanData['isSynced'] == true ? 1 : 0;
     }
+
+    await _filterToTableColumns('product_variants', cleanData);
 
     if (firestoreId != null && firestoreId.toString().isNotEmpty) {
       final existing = await db.query(
