@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Quản LÝ Shop</string>
+	<string>Quản Lý Shop</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -32,12 +32,8 @@
 	<string>Ứng dụng cần Bluetooth để kết nối máy in nhiệt.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Ứng dụng cần sử dụng Camera để chụp ảnh máy khách hàng và quét mã vạch/IMEI.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Ứng dụng cần sử dụng Microphone cho việc ghi hình đơn hàng.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Ứng dụng cần quyền lưu ảnh vào thư viện.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

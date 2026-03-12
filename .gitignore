@@ -48,6 +48,9 @@ app.*.map.json
 key.properties
 *.jks
 *.keystore
+*.p8
+*.p12
+*.mobileprovision
 ios_backup_20260304_005656/
 
 # Firebase config files (contain API keys)

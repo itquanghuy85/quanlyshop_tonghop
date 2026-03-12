@@ -17,9 +17,16 @@ Tai lieu nay tong hop cac buoc can lam de dua ung dung iOS len TestFlight va App
 2. Xac nhan icon app 1024x1024 da dep va khong chua alpha.
 3. Chot version va build number moi trong pubspec.yaml truoc moi lan gui build.
 4. Kiem tra Firebase production dang dung dung project cho iOS.
-5. Kiem tra push notification tren build Release/TestFlight, khong chi Debug.
+5. Upload APNs Auth Key (.p8) vao Firebase Console cho app iOS bundle id com.huluca.shop.
+6. Kiem tra push notification tren build Release/TestFlight, khong chi Debug.
 6. Chuan bi tai khoan demo cho App Review neu app can dang nhap.
 7. Chuan bi privacy policy URL va support URL.
+
+## Luu y quan trong ve APNs key
+
+- APNs Auth Key (.p8) KHONG duoc nhung vao app iOS va KHONG commit vao Git.
+- Key nay phai duoc upload tren Firebase Console hoac he thong server gui push.
+- Repo nay chi can dung bundle id, entitlements va code FCM dung. Cac muc nay da duoc cau hinh san cho iOS Release.
 
 ## Viec can tao tren App Store Connect
 
@@ -59,8 +66,9 @@ Tai lieu nay tong hop cac buoc can lam de dua ung dung iOS len TestFlight va App
    - Bundle Identifier: com.huluca.shop
    - Push Notifications: bat
    - Background Modes: fetch, remote notifications
-3. Chon Product -> Scheme -> Edit Scheme va dam bao build theo Release khi archive.
-4. Chay tren iPhone that mot lan bang Release neu co the.
+3. Xac nhan Signing la Automatic hoac provisioning profile dung voi bundle id com.huluca.shop.
+4. Chon Product -> Scheme -> Edit Scheme va dam bao build theo Release khi archive.
+5. Chay tren iPhone that mot lan bang Release neu co the.
 
 ## Len build TestFlight
 
