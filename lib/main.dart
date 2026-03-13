@@ -345,6 +345,59 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     });
   }
 
+  Future<Map<String, dynamic>?> _tryFastMobileBootstrap(
+    String uid,
+    String email,
+  ) async {
+    if (kIsWeb) return null;
+
+    try {
+      String? shopId = UserService.getShopIdSync();
+      if (shopId == null || shopId.isEmpty) {
+        shopId = await UserService.getCurrentShopId().timeout(
+          const Duration(seconds: 4),
+        );
+      }
+      if (shopId == null || shopId.isEmpty) {
+        shopId = await ClaimsService().getShopIdFromClaims().timeout(
+          const Duration(seconds: 2),
+        );
+      }
+
+      if (shopId == null || shopId.isEmpty) {
+        return null;
+      }
+
+      UserService.updateCachedShopId(shopId);
+
+      String? role = await UserService.getCachedRole();
+      role ??= await UserService.getRoleFast().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => 'user',
+      );
+      if (role == 'user') {
+        role = await UserService.getUserRole(
+          uid,
+        ).timeout(const Duration(seconds: 4), onTimeout: () => 'user');
+      }
+
+      await _checkAndClearLocalDataIfShopChanged(shopId);
+      try {
+        await CurrentShopService().init();
+      } catch (e) {
+        debugPrint('⚠️ fast bootstrap CurrentShopService.init failed: $e');
+      }
+
+      UserService.saveAuthCache(role: role);
+      _startBackgroundUserWarmup(uid, email);
+      debugPrint('⚡ Fast mobile bootstrap success: role=$role, shopId=$shopId');
+      return {'role': role, 'isSuperAdmin': false};
+    } catch (e) {
+      debugPrint('⚠️ fast mobile bootstrap failed: $e');
+      return null;
+    }
+  }
+
   /// Kiểm tra role và xử lý super admin
   /// Trả về Map với 'role' và 'isSuperAdmin'
   Future<Map<String, dynamic>> _getRoleAfterSync(
@@ -394,6 +447,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       debugPrint('🔑 Super admin đăng nhập - chờ chọn shop');
       PerfMonitor.stop('_getRoleAfterSync');
       return {'role': 'admin', 'isSuperAdmin': true};
+    }
+
+    final fastMobileBootstrap = await _tryFastMobileBootstrap(uid, email);
+    if (fastMobileBootstrap != null) {
+      PerfMonitor.stop('_getRoleAfterSync');
+      return fastMobileBootstrap;
     }
 
     // ═══════════ STEP 1: syncUserInfo (với timeout cho web) ═══════════
