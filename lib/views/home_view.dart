@@ -444,7 +444,7 @@ class _HomeViewState extends State<HomeView>
 
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
-      UserService.hasOwnerLevelAccess(widget.role, includeSuperAdmin: true);
+      _isSuperAdmin || widget.role == 'owner' || widget.role == 'admin';
 
   void _initializeTabConfigs() {
     final loc = AppLocalizations.of(context)!;
@@ -1093,6 +1093,32 @@ class _HomeViewState extends State<HomeView>
     return 'owner';
   }
 
+  /// Rebuild the actual tab widget by id (used when access is regained after being locked).
+  Widget _rebuildTabWidget(String tabId) {
+    switch (tabId) {
+      case 'home':
+        return _buildHomeTab();
+      case 'sales':
+        return _buildSalesTab();
+      case 'repairs':
+        return _buildRepairsTab();
+      case 'inventory':
+        return _buildInventoryTab();
+      case 'expiry':
+        return const ExpiryManagementView();
+      case 'variants':
+        return const VariantManagementView();
+      case 'staff':
+        return _buildStaffTab();
+      case 'finance':
+        return _buildFinanceTab();
+      case 'settings':
+        return _buildSettingsTab();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   void _updateAvailableTabs() {
     // THAY ĐỔI: Luôn hiển thị tất cả các tab, nhưng thay nội dung bằng màn hình khóa nếu không có quyền
     final allConfigs = _tabConfigs.map((config) {
@@ -1131,6 +1157,13 @@ class _HomeViewState extends State<HomeView>
         return {
           ...config,
           'widget': _buildLockedFeatureScreen(tabLabel, lockedBy: lockedBy),
+        };
+      }
+      // When access regained (was locked, now unlocked), rebuild the actual widget
+      if (previousAccess == false && hasPermission) {
+        return {
+          ...config,
+          'widget': _rebuildTabWidget(tabId),
         };
       }
       return config;
@@ -2905,6 +2938,9 @@ class _HomeViewState extends State<HomeView>
           break;
         case DashboardCardType.financeShortcuts:
           widgets.add(_buildFinanceShortcuts());
+          break;
+        case DashboardCardType.todayActivity:
+          // Today's operational activity card
           break;
       }
     }
@@ -6149,31 +6185,7 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildStaffTab() {
-    if (!hasFullAccess && _permissions['allowManageStaff'] != true) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.lock_person, size: 64, color: Colors.orange.shade300),
-              const SizedBox(height: 16),
-              Text(
-                loc.noAccessPermission,
-                style: AppTextStyles.headline3.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                loc.contactOwnerForAccess,
-                style: AppTextStyles.subtitle1.copyWith(color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    // Permission check is handled by _updateAvailableTabs() — do NOT duplicate here
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ResponsiveCenter(
