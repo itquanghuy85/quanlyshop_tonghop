@@ -507,6 +507,9 @@
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -699,6 +702,9 @@
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -725,6 +731,9 @@
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc khi sử dụng các tính năng liên quan.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ứng dụng cần vị trí để chấm công và xác định địa điểm làm việc.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
