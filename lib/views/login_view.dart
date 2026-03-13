@@ -399,7 +399,8 @@ class _LoginViewState extends State<LoginView> {
                     context,
                     MaterialPageRoute(builder: (_) => const RegisterView()),
                   );
-                  if (result == true) {
+                  if (!mounted) return;
+                  if (result == true && FirebaseAuth.instance.currentUser == null) {
                     messenger.showSnackBar(
                       SnackBar(content: Text(localizations.registerSuccess)),
                     );

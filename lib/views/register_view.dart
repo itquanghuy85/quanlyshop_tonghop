@@ -147,16 +147,22 @@ class _RegisterViewState extends State<RegisterView> {
             }
           }
         } catch (e) {
-          // Sign out on setup error to avoid stuck auth state
+          // Setup failed after Firebase Auth already signed the user in.
+          // Sign out immediately so AuthGate returns to login instead of
+          // staying in a half-configured authenticated state.
           await FirebaseAuth.instance.signOut();
           rethrow;
         }
-        // Sign out to avoid race condition with AuthGate's syncUserInfo
-        // User will log in manually with the new account
-        await FirebaseAuth.instance.signOut();
+
+        // Registration is complete. Keep the authenticated session and simply
+        // close this route so AuthGate can reveal HomeView underneath.
+        await cred.user!.reload();
       }
       if (!mounted) return;
-      Navigator.pop(context, true);
+      setState(() {
+        _loading = false;
+      });
+      Navigator.pop(context);
     } catch (e) {
       final errorMsg = _formatError(e);
       setState(() { _error = errorMsg; _loading = false; });
