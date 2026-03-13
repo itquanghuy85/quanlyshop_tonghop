@@ -36,7 +36,7 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
   final db = DBHelper();
   List<Map<String, dynamic>> combinedHistory = [];
   bool _isLoading = true;
-  
+
   // Shop settings for multi-industry
   ShopSettings? _shopSettings;
 
@@ -53,6 +53,7 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
     for (final image in images) {
       final normalized = image.trim();
       if (normalized.isEmpty) continue;
+      if (!StorageService.isResolvableDisplayPath(normalized)) continue;
 
       if (_isDirectDisplayUrl(normalized)) {
         resolvedImages.add(normalized);
@@ -68,6 +69,17 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
   }
 
   m.Widget _buildThumbImage(String thumb) {
+    if (!StorageService.isResolvableDisplayPath(thumb)) {
+      return m.Container(
+        color: m.Colors.grey.shade200,
+        child: m.Icon(
+          m.Icons.photo_outlined,
+          color: m.Colors.grey.shade400,
+          size: 20,
+        ),
+      );
+    }
+
     if (_isDirectDisplayUrl(thumb)) {
       return AppCachedImage(
         imageUrl: thumb,
@@ -115,7 +127,7 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
     _loadShopSettings();
     _loadUnifiedHistory();
   }
-  
+
   Future<void> _loadShopSettings() async {
     try {
       final settings = await CategoryService().getShopSettings();
@@ -146,7 +158,9 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
           'subtitle': "Sửa: ${r.issue.split('|').first}",
           'status': r.status,
           'amount': r.price,
-          'images': r.receiveImages,
+          'images': r.receiveImages
+              .where(StorageService.isResolvableDisplayPath)
+              .toList(),
           'data': r,
         });
       }
@@ -177,27 +191,38 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
     final validImages = await _resolveGalleryImages(images);
     if (validImages.isEmpty) return;
 
-    m.Navigator.push(context, m.MaterialPageRoute(builder: (_) => m.Scaffold(
-      appBar: m.AppBar(backgroundColor: m.Colors.black, iconTheme: const m.IconThemeData(color: m.Colors.white)),
-      backgroundColor: m.Colors.black,
-      body: PhotoViewGallery.builder(
-        itemCount: validImages.length,
-        builder: (context, i) => PhotoViewGalleryPageOptions(
-          imageProvider: (_isDirectDisplayUrl(validImages[i]))
-              ? CachedNetworkImageProvider(validImages[i])
-              : m.FileImage(File(validImages[i])) as m.ImageProvider,
-          initialScale: PhotoViewComputedScale.contained,
-          minScale: PhotoViewComputedScale.contained,
-          maxScale: PhotoViewComputedScale.covered * 3,
+    m.Navigator.push(
+      context,
+      m.MaterialPageRoute(
+        builder: (_) => m.Scaffold(
+          appBar: m.AppBar(
+            backgroundColor: m.Colors.black,
+            iconTheme: const m.IconThemeData(color: m.Colors.white),
+          ),
+          backgroundColor: m.Colors.black,
+          body: PhotoViewGallery.builder(
+            itemCount: validImages.length,
+            builder: (context, i) => PhotoViewGalleryPageOptions(
+              imageProvider: (_isDirectDisplayUrl(validImages[i]))
+                  ? CachedNetworkImageProvider(validImages[i])
+                  : m.FileImage(File(validImages[i])) as m.ImageProvider,
+              initialScale: PhotoViewComputedScale.contained,
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 3,
+            ),
+            pageController: PageController(
+              initialPage: index.clamp(0, validImages.length - 1),
+            ),
+            scrollPhysics: const m.BouncingScrollPhysics(),
+          ),
         ),
-        pageController: PageController(initialPage: index.clamp(0, validImages.length - 1)),
-        scrollPhysics: const m.BouncingScrollPhysics(),
       ),
-    )));
+    );
   }
 
-  String _fmtDate(int ms) =>
-      DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(ms));
+  String _fmtDate(int ms) => DateFormat(
+    'dd/MM/yyyy HH:mm',
+  ).format(DateTime.fromMillisecondsSinceEpoch(ms));
 
   @override
   Widget build(BuildContext context) {
@@ -210,8 +235,8 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
         color: m.Colors.transparent,
         child: SafeArea(
           child: _isLoading
-            ? const m.Center(child: m.CircularProgressIndicator())
-            : combinedHistory.isEmpty
+              ? const m.Center(child: m.CircularProgressIndicator())
+              : combinedHistory.isEmpty
               ? const m.Center(child: Text("Chưa có lịch sử giao dịch"))
               : m.ListView.builder(
                   padding: const m.EdgeInsets.all(16),
@@ -235,46 +260,92 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
                       decoration: m.BoxDecoration(
                         color: m.Colors.white,
                         borderRadius: m.BorderRadius.circular(15),
-                        boxShadow: [m.BoxShadow(color: m.Colors.black.withAlpha(5), blurRadius: 10)]
+                        boxShadow: [
+                          m.BoxShadow(
+                            color: m.Colors.black.withAlpha(5),
+                            blurRadius: 10,
+                          ),
+                        ],
                       ),
                       child: m.ListTile(
                         contentPadding: const m.EdgeInsets.all(12),
                         leading: m.GestureDetector(
-                          onTap: imgs.isNotEmpty ? () => _openGallery(imgs, 0) : null,
+                          onTap: imgs.isNotEmpty
+                              ? () => _openGallery(imgs, 0)
+                              : null,
                           child: m.Container(
-                            width: 55, height: 55,
+                            width: 55,
+                            height: 55,
                             decoration: m.BoxDecoration(
-                              color: isRepair ? m.Colors.orange.withAlpha(25) : m.Colors.pink.withAlpha(25),
+                              color: isRepair
+                                  ? m.Colors.orange.withAlpha(25)
+                                  : m.Colors.pink.withAlpha(25),
                               borderRadius: m.BorderRadius.circular(10),
                             ),
                             child: hasThumb
-                              ? m.ClipRRect(
-                                  borderRadius: m.BorderRadius.circular(10),
+                                ? m.ClipRRect(
+                                    borderRadius: m.BorderRadius.circular(10),
                                     child: _buildThumbImage(thumb),
-                                )
-                              : m.Icon(isRepair ? m.Icons.build : m.Icons.shopping_bag, color: isRepair ? m.Colors.orange : m.Colors.pink, size: 24),
+                                  )
+                                : m.Icon(
+                                    isRepair
+                                        ? m.Icons.build
+                                        : m.Icons.shopping_bag,
+                                    color: isRepair
+                                        ? m.Colors.orange
+                                        : m.Colors.pink,
+                                    size: 24,
+                                  ),
                           ),
                         ),
                         title: m.Text(
                           item['title'],
-                          style: m.TextStyle(fontWeight: m.FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
+                          style: m.TextStyle(
+                            fontWeight: m.FontWeight.bold,
+                            fontSize: AppTextStyles.headline3.fontSize,
+                          ),
                         ),
                         subtitle: m.Column(
                           crossAxisAlignment: m.CrossAxisAlignment.start,
                           children: [
-                            m.Text("${item['subtitle']} - ${MoneyUtils.formatVND(item['amount'])}đ", style: m.TextStyle(fontSize: AppTextStyles.headline5.fontSize)),
-                            m.Text(_fmtDate(item['time']), style: m.TextStyle(fontSize: AppTextStyles.body1.fontSize, color: m.Colors.grey)),
+                            m.Text(
+                              "${item['subtitle']} - ${MoneyUtils.formatVND(item['amount'])}đ",
+                              style: m.TextStyle(
+                                fontSize: AppTextStyles.headline5.fontSize,
+                              ),
+                            ),
+                            m.Text(
+                              _fmtDate(item['time']),
+                              style: m.TextStyle(
+                                fontSize: AppTextStyles.body1.fontSize,
+                                color: m.Colors.grey,
+                              ),
+                            ),
                           ],
                         ),
                         trailing: const m.Icon(m.Icons.chevron_right, size: 18),
                         onTap: () async {
                           if (isRepair) {
-                            await m.Navigator.push(context, m.MaterialPageRoute(builder: (_) => RepairDetailView(repair: item['data'] as Repair)));
+                            await m.Navigator.push(
+                              context,
+                              m.MaterialPageRoute(
+                                builder: (_) => RepairDetailView(
+                                  repair: item['data'] as Repair,
+                                ),
+                              ),
+                            );
                           } else {
-                            await m.Navigator.push(context, m.MaterialPageRoute(builder: (_) => SaleDetailView(sale: item['data'] as SaleOrder)));
+                            await m.Navigator.push(
+                              context,
+                              m.MaterialPageRoute(
+                                builder: (_) => SaleDetailView(
+                                  sale: item['data'] as SaleOrder,
+                                ),
+                              ),
+                            );
                           }
                           _loadUnifiedHistory();
-                         },
+                        },
                       ),
                     );
                   },

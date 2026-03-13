@@ -180,8 +180,9 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   // TAB 1: KHẤU TRỪ (Đi muộn, Về sớm, Nghỉ quá phép)
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildDeductionTab() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, bottomInset + 24),
       children: [
         // === ĐI MUỘN ===
         _buildSectionCard(
@@ -315,8 +316,9 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   // TAB 2: BẢO HIỂM (BHXH, BHYT, BHTN)
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildInsuranceTab() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, bottomInset + 24),
       children: [
         // Info card
         Card(
@@ -495,8 +497,9 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
   // TAB 3: THUẾ TNCN
   // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildTaxTab() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, bottomInset + 24),
       children: [
         // Info card
         Card(
@@ -821,7 +824,12 @@ class _ShopDeductionSettingsViewState extends State<ShopDeductionSettingsView>
                       ),
                     )
                   : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        4,
+                        16,
+                        MediaQuery.of(context).padding.bottom + 24,
+                      ),
                       itemCount: _adjustments.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 6),
                       itemBuilder: (context, index) {

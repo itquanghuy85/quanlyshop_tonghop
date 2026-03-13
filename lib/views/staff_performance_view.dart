@@ -19,6 +19,7 @@ class StaffPerformanceView extends StatefulWidget {
 }
 
 class _StaffPerformanceViewState extends State<StaffPerformanceView> {
+  static const double _bottomActionBarBaseHeight = 78;
   bool _loading = true;
   List<SalaryBreakdown> _salaryReports = [];
   DateTime _selectedMonth = DateTime.now();
@@ -108,6 +109,10 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomSafeInset = MediaQuery.of(context).padding.bottom;
+    final contentBottomPadding =
+        _bottomActionBarBaseHeight + bottomSafeInset + 16;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: CustomAppBar.build(
@@ -133,7 +138,12 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
                   child: _salaryReports.isEmpty
                       ? _buildEmptyState()
                       : ListView.builder(
-                          padding: const EdgeInsets.all(12),
+                          padding: EdgeInsets.fromLTRB(
+                            12,
+                            12,
+                            12,
+                            contentBottomPadding,
+                          ),
                           itemCount: _salaryReports.length,
                           itemBuilder: (ctx, i) =>
                               _buildStaffSalaryCard(_salaryReports[i]),
@@ -206,42 +216,53 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(0, 6, 0, 10),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _bottomAction(
-              icon: Icons.print,
-              label: 'In lương',
-              color: Colors.blue,
-              onTap: () => _showPrintMenu(),
+            Expanded(
+              child: _bottomAction(
+                icon: Icons.print,
+                label: 'In lương',
+                color: Colors.blue,
+                onTap: () => _showPrintMenu(),
+              ),
             ),
-            _bottomAction(
-              icon: Icons.receipt_long,
-              label: 'Khấu trừ',
-              color: Colors.orange,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ShopDeductionSettingsView(),
-                ),
-              ).then((_) => _loadReport()),
+            Expanded(
+              child: _bottomAction(
+                icon: Icons.receipt_long,
+                label: 'Khấu trừ',
+                color: Colors.orange,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ShopDeductionSettingsView(),
+                  ),
+                ).then((_) => _loadReport()),
+              ),
             ),
-            _bottomAction(
-              icon: Icons.settings,
-              label: 'Cài đặt',
-              color: Colors.teal,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const HRSalarySettingsView()),
-              ).then((_) => _loadReport()),
+            Expanded(
+              child: _bottomAction(
+                icon: Icons.settings,
+                label: 'Cài đặt',
+                color: Colors.teal,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const HRSalarySettingsView(),
+                  ),
+                ).then((_) => _loadReport()),
+              ),
             ),
-            _bottomAction(
-              icon: Icons.calendar_month,
-              label: 'Chọn tháng',
-              color: Colors.indigo,
-              onTap: () => _selectMonth(context),
+            Expanded(
+              child: _bottomAction(
+                icon: Icons.calendar_month,
+                label: 'Chọn tháng',
+                color: Colors.indigo,
+                onTap: () => _selectMonth(context),
+              ),
             ),
           ],
         ),
@@ -259,14 +280,17 @@ class _StaffPerformanceViewState extends State<StaffPerformanceView> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: color, size: 20),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: AppTextStyles.overlineSize,
                 fontWeight: FontWeight.w600,

@@ -1248,7 +1248,7 @@ class _HomeViewState extends State<HomeView>
       // Chỉ gọi downloadAllFromCloud TỐI ĐA 1 lần nếu thực sự cần
       if (needsCloudDownload) {
         debugPrint('HomeView: Cần cloud download, gọi 1 lần duy nhất...');
-        await SyncService.downloadAllFromCloud(force: true).timeout(
+        await SyncService.downloadAllFromCloud().timeout(
           const Duration(seconds: 20),
           onTimeout: () {
             debugPrint('HomeView: Cloud download timeout');
@@ -2681,6 +2681,7 @@ class _HomeViewState extends State<HomeView>
     // If config not loaded yet, show lightweight defaults (no greeting/finance)
     if (!_dashboardConfigLoaded || _dashboardConfigs.isEmpty) {
       return [
+        _buildTodayActivityDashboardCard(),
         _buildChatCard(),
         _buildUnifiedShortcuts(),
         _buildAlerts(),
@@ -2750,6 +2751,9 @@ class _HomeViewState extends State<HomeView>
           break;
         case DashboardCardType.quickActions:
           widgets.add(_buildUnifiedShortcuts());
+          break;
+        case DashboardCardType.todayActivity:
+          widgets.add(_buildTodayActivityDashboardCard());
           break;
         case DashboardCardType.financeSummary:
           // Merged into financeDetail below
@@ -6497,6 +6501,10 @@ class _HomeViewState extends State<HomeView>
 
               const SizedBox(height: 16),
 
+              _buildTodayActivityDashboardCard(),
+
+              const SizedBox(height: 16),
+
               // CÔNG NỢ TỔNG HỢP
               _buildSectionHeader("CÔNG NỢ"),
               _buildDebtSummaryCard(),
@@ -7784,159 +7792,199 @@ class _HomeViewState extends State<HomeView>
               ),
               const SizedBox(height: 14),
             ],
-
-            // ── HOẠT ĐỘNG HÔM NAY
-            Text(
-              loc.todayActivity,
-              style: AppTextStyles.caption.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.onSurface.withOpacity(0.5),
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Grid layout 3 cột - tránh bị bể UI khi nhiều items
-            Builder(
-              builder: (context) {
-                final activityItems = <Widget>[
-                  if (_enableRepair)
-                    _activityCard(
-                      icon: Icons.build_circle,
-                      label: loc.pendingRepairs,
-                      value: totalPendingRepair.toString(),
-                      color: AppColors.primary,
-                      onTap: () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OrderListView(
-                            role: widget.role,
-                            statusFilter: const [1, 2],
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_enableRepair)
-                    _activityCard(
-                      icon: Icons.hourglass_top,
-                      label: loc.pendingStatus,
-                      value: pendingApprovalCount.toString(),
-                      color: AppColors.repairPendingApproval,
-                      onTap: () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => OrderListView(
-                            role: widget.role,
-                            statusFilter: const [3],
-                          ),
-                        ),
-                      ),
-                    ),
-                  if (_enableExpiry)
-                    _activityCard(
-                      icon: Icons.timer,
-                      label: 'Sắp hết HSD',
-                      value: (_expiryStats?.atRiskCount ?? 0).toString(),
-                      color: Colors.orange,
-                      onTap: () {
-                        final expiryTabIndex = _navItems.indexWhere(
-                          (item) => item.label == 'HSD',
-                        );
-                        if (expiryTabIndex != -1) {
-                          _setCurrentTab(expiryTabIndex);
-                        }
-                      },
-                    ),
-                  if (_enableVariants)
-                    _activityCard(
-                      icon: Icons.checkroom,
-                      label: 'Hết size/màu',
-                      value: (_variantWarnings?.outOfStock ?? 0).toString(),
-                      color: Colors.blue,
-                      onTap: () {
-                        final variantTabIndex = _navItems.indexWhere(
-                          (item) => item.label == 'Size/Màu',
-                        );
-                        if (variantTabIndex != -1) {
-                          _setCurrentTab(variantTabIndex);
-                        }
-                      },
-                    ),
-                  _activityCard(
-                    icon: Icons.shopping_cart,
-                    label: loc.saleOrders,
-                    value: todaySaleCount.toString(),
-                    color: AppColors.success,
-                    onTap: () => _pushRoute(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const SaleListView(todayOnly: true),
-                      ),
-                    ),
-                  ),
-                  _activityCard(
-                    icon: Icons.receipt_long,
-                    label: loc.debt,
-                    value: MoneyUtils.formatCompact(totalDebtRemain),
-                    color: AppColors.warning,
-                    onTap: () => _pushRoute(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DebtView()),
-                    ),
-                  ),
-                  _activityCard(
-                    icon: Icons.notifications_active_rounded,
-                    label: 'Nhắc nhở',
-                    value: _totalReminderCount.toString(),
-                    color: _totalReminderCount > 0
-                        ? const Color(0xFFE65100)
-                        : AppColors.inactive,
-                    onTap: () => _pushRoute(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => RemindersView(
-                          role: widget.role,
-                          permissions: _permissions,
-                        ),
-                      ),
-                    ).then((_) => _loadReminderCount()),
-                  ),
-                ];
-                // Use fewer columns on narrow screens so labels/icons never overflow.
-                final r2 = context.responsive;
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    final isVeryNarrow = width < 360;
-                    final isNarrowMobile = width < 420;
-                    final crossAxisCount = r2.isDesktop
-                        ? activityItems.length.clamp(1, 6)
-                        : r2.isTablet
-                        ? activityItems.length.clamp(1, 5)
-                        : isVeryNarrow
-                        ? activityItems.length.clamp(1, 3)
-                        : isNarrowMobile
-                        ? activityItems.length.clamp(1, 4)
-                        : activityItems.length.clamp(1, 5);
-                    final childAspectRatio = isVeryNarrow
-                        ? 0.62
-                        : isNarrowMobile
-                        ? 0.68
-                        : 0.78;
-                    return GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: crossAxisCount,
-                      mainAxisSpacing: 4,
-                      crossAxisSpacing: 4,
-                      childAspectRatio: childAspectRatio,
-                      children: activityItems,
-                    );
-                  },
-                );
-              },
-            ),
           ],
         ),
+      ),
+    );
+  }
+
+  List<Widget> _buildTodayActivityItems() {
+    final canRepair = hasFullAccess || _permissions['allowViewRepairs'] == true;
+    final canInventory =
+        hasFullAccess || _permissions['allowViewInventory'] == true;
+    final canSales = hasFullAccess || _permissions['allowViewSales'] == true;
+    final canDebt = hasFullAccess || _permissions['allowViewDebts'] == true;
+
+    return [
+      if (_enableRepair && canRepair)
+        _activityCard(
+          icon: Icons.build_circle,
+          label: loc.pendingRepairs,
+          value: totalPendingRepair.toString(),
+          color: AppColors.primary,
+          onTap: () => _pushRoute(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  OrderListView(role: widget.role, statusFilter: const [1, 2]),
+            ),
+          ),
+        ),
+      if (_enableRepair && canRepair)
+        _activityCard(
+          icon: Icons.hourglass_top,
+          label: loc.pendingStatus,
+          value: pendingApprovalCount.toString(),
+          color: AppColors.repairPendingApproval,
+          onTap: () => _pushRoute(
+            context,
+            MaterialPageRoute(
+              builder: (_) =>
+                  OrderListView(role: widget.role, statusFilter: const [3]),
+            ),
+          ),
+        ),
+      if (_enableExpiry && canInventory)
+        _activityCard(
+          icon: Icons.timer,
+          label: 'Sắp hết HSD',
+          value: (_expiryStats?.atRiskCount ?? 0).toString(),
+          color: Colors.orange,
+          onTap: () {
+            final expiryTabIndex = _navItems.indexWhere(
+              (item) => item.label == 'HSD',
+            );
+            if (expiryTabIndex != -1) {
+              _setCurrentTab(expiryTabIndex);
+            }
+          },
+        ),
+      if (_enableVariants && canInventory)
+        _activityCard(
+          icon: Icons.checkroom,
+          label: 'Hết size/màu',
+          value: (_variantWarnings?.outOfStock ?? 0).toString(),
+          color: Colors.blue,
+          onTap: () {
+            final variantTabIndex = _navItems.indexWhere(
+              (item) => item.label == 'Size/Màu',
+            );
+            if (variantTabIndex != -1) {
+              _setCurrentTab(variantTabIndex);
+            }
+          },
+        ),
+      if (canSales)
+        _activityCard(
+          icon: Icons.shopping_cart,
+          label: loc.saleOrders,
+          value: todaySaleCount.toString(),
+          color: AppColors.success,
+          onTap: () => _pushRoute(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const SaleListView(todayOnly: true),
+            ),
+          ),
+        ),
+      if (canDebt)
+        _activityCard(
+          icon: Icons.receipt_long,
+          label: loc.debt,
+          value: MoneyUtils.formatCompact(totalDebtRemain),
+          color: AppColors.warning,
+          onTap: () => _pushRoute(
+            context,
+            MaterialPageRoute(builder: (_) => const DebtView()),
+          ),
+        ),
+      _activityCard(
+        icon: Icons.notifications_active_rounded,
+        label: 'Nhắc nhở',
+        value: _totalReminderCount.toString(),
+        color: _totalReminderCount > 0
+            ? const Color(0xFFE65100)
+            : AppColors.inactive,
+        onTap: () => _pushRoute(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                RemindersView(role: widget.role, permissions: _permissions),
+          ),
+        ).then((_) => _loadReminderCount()),
+      ),
+    ];
+  }
+
+  Widget _buildTodayActivityDashboardCard() {
+    final activityItems = _buildTodayActivityItems();
+    if (activityItems.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.space_dashboard_rounded,
+                color: Colors.deepOrange.shade400,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                loc.todayActivity.toUpperCase(),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepOrange.shade600,
+                  fontSize: 14,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final r2 = context.responsive;
+              final itemCount = activityItems.length;
+              final width = constraints.maxWidth;
+              final isPhone = !r2.isTablet && !r2.isDesktop;
+              final isVeryNarrow = width < 360;
+              final crossAxisCount = r2.isDesktop
+                  ? itemCount.clamp(1, 6)
+                  : r2.isTablet
+                  ? itemCount.clamp(1, 4)
+                  : itemCount <= 3
+                  ? itemCount
+                  : isVeryNarrow
+                  ? 3
+                  : isPhone
+                  ? 3
+                  : 4;
+              final childAspectRatio = r2.isDesktop
+                  ? 1.0
+                  : r2.isTablet
+                  ? 0.9
+                  : isVeryNarrow
+                  ? 0.72
+                  : 0.84;
+
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: 6,
+                crossAxisSpacing: 6,
+                childAspectRatio: childAspectRatio,
+                children: activityItems,
+              );
+            },
+          ),
+        ],
       ),
     );
   }

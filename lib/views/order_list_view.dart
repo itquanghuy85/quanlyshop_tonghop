@@ -63,7 +63,8 @@ class OrderListViewState extends State<OrderListView> {
 
   // Shop settings for dynamic terminology
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   // Date filter
   String _timeFilter = 'all'; // all, today, week, month, custom
@@ -76,7 +77,7 @@ class OrderListViewState extends State<OrderListView> {
   bool _canDelete = false;
 
   bool get canDelete => _canDelete;
-  
+
   /// Check if we need full data (for filtering)
   bool get _needsFullData =>
       _currentSearch.isNotEmpty ||
@@ -109,7 +110,7 @@ class OrderListViewState extends State<OrderListView> {
     _loadShopSettings();
     _loadDeletePermission();
     _loadInitialData();
-    
+
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
 
@@ -131,7 +132,9 @@ class OrderListViewState extends State<OrderListView> {
       setState(() => _canDelete = can);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _canDelete = widget.role == 'admin' || widget.role == 'owner');
+      setState(
+        () => _canDelete = widget.role == 'admin' || widget.role == 'owner',
+      );
     }
   }
 
@@ -154,14 +157,14 @@ class OrderListViewState extends State<OrderListView> {
     _scrollController.dispose();
     super.dispose();
   }
-  
+
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
       _loadMoreIfNeeded();
     }
   }
-  
+
   Future<void> _loadMoreIfNeeded() async {
     if (_isLoadingMore || !_hasMore || _needsFullData) return;
 
@@ -234,7 +237,7 @@ class OrderListViewState extends State<OrderListView> {
 
   void _onSearch(String val) async {
     setState(() => _currentSearch = val);
-    
+
     if (_allLoadedRepairs.isEmpty) {
       _allLoadedRepairs = await db.getAllRepairs();
     }
@@ -243,15 +246,16 @@ class OrderListViewState extends State<OrderListView> {
     final searched = val.isEmpty
         ? filtered
         : filtered
-            .where(
-              (r) =>
-                  VietnameseUtils.containsVietnamese(r.customerName, val) ||
-                  r.phone.contains(val) ||
-                  VietnameseUtils.containsVietnamese(r.model, val) ||
-                  VietnameseUtils.containsVietnamese(r.issue, val) ||
-                  (r.notes != null && VietnameseUtils.containsVietnamese(r.notes!, val)),
-            )
-            .toList();
+              .where(
+                (r) =>
+                    VietnameseUtils.containsVietnamese(r.customerName, val) ||
+                    r.phone.contains(val) ||
+                    VietnameseUtils.containsVietnamese(r.model, val) ||
+                    VietnameseUtils.containsVietnamese(r.issue, val) ||
+                    (r.notes != null &&
+                        VietnameseUtils.containsVietnamese(r.notes!, val)),
+              )
+              .toList();
 
     searched.sort(_compareRepairs);
 
@@ -362,7 +366,9 @@ class OrderListViewState extends State<OrderListView> {
                 children: [
                   Text(
                     'BỘ LỌC',
-                    style: AppTextStyles.headline3.copyWith(fontWeight: FontWeight.bold),
+                    style: AppTextStyles.headline3.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   TextButton(
                     onPressed: () {
@@ -393,11 +399,31 @@ class OrderListViewState extends State<OrderListView> {
                 runSpacing: 8,
                 children: [
                   _statusChipMulti(loc.all, null, setSheetState),
-                  _statusChipMulti(loc.received, 1, setSheetState, AppColors.repairReceived),
-                  _statusChipMulti(loc.repairing, 2, setSheetState, AppColors.repairRepairing),
-                  _statusChipMulti(loc.repairDone, 3, setSheetState, AppColors.repairDone),
+                  _statusChipMulti(
+                    loc.received,
+                    1,
+                    setSheetState,
+                    AppColors.repairReceived,
+                  ),
+                  _statusChipMulti(
+                    loc.repairing,
+                    2,
+                    setSheetState,
+                    AppColors.repairRepairing,
+                  ),
+                  _statusChipMulti(
+                    loc.repairDone,
+                    3,
+                    setSheetState,
+                    AppColors.repairDone,
+                  ),
                   _pendingApprovalChip(setSheetState),
-                  _statusChipMulti(loc.delivered, 4, setSheetState, AppColors.repairDelivered),
+                  _statusChipMulti(
+                    loc.delivered,
+                    4,
+                    setSheetState,
+                    AppColors.repairDelivered,
+                  ),
                 ],
               ),
               if (_statusFilters.isNotEmpty)
@@ -663,7 +689,7 @@ class OrderListViewState extends State<OrderListView> {
 
   void _confirmDelete(Repair r) {
     if (!canDelete) return;
-    
+
     // === KIỂM TRA ĐIỀU KIỆN XÓA ===
     // 1. Chỉ xóa đơn chưa giao (status < 4)
     if (r.status >= 4) {
@@ -675,11 +701,11 @@ class OrderListViewState extends State<OrderListView> {
       );
       return;
     }
-    
+
     // 2. Cảnh báo nếu đơn đã có giá (có số liệu kế toán)
     final hasAccountingData = r.price > 0 || r.cost > 0;
     final hasPartsUsed = r.partsUsed.isNotEmpty;
-    
+
     final passCtrl = TextEditingController();
     showDialog(
       context: context,
@@ -687,7 +713,9 @@ class OrderListViewState extends State<OrderListView> {
         title: Row(
           children: [
             Icon(
-              hasAccountingData || hasPartsUsed ? Icons.warning_amber_rounded : Icons.delete_forever,
+              hasAccountingData || hasPartsUsed
+                  ? Icons.warning_amber_rounded
+                  : Icons.delete_forever,
               color: Colors.red,
             ),
             const SizedBox(width: 8),
@@ -708,14 +736,17 @@ class OrderListViewState extends State<OrderListView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(r.model, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    r.model,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Text('${r.customerName} - ${r.phone}'),
                   Text('Trạng thái: ${_getStatusText(r.status)}'),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            
+
             // Cảnh báo nếu có số liệu
             if (hasAccountingData)
               Container(
@@ -728,18 +759,25 @@ class OrderListViewState extends State<OrderListView> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.attach_money, color: Colors.orange, size: 20),
+                    const Icon(
+                      Icons.attach_money,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        loc.orderHasAccounting(_formatMoney(r.price), _formatMoney(r.cost)),
+                        loc.orderHasAccounting(
+                          _formatMoney(r.price),
+                          _formatMoney(r.cost),
+                        ),
                         style: const TextStyle(fontSize: 14),
                       ),
                     ),
                   ],
                 ),
               ),
-            
+
             // Cảnh báo nếu có phụ tùng
             if (hasPartsUsed)
               Container(
@@ -757,20 +795,33 @@ class OrderListViewState extends State<OrderListView> {
                       children: [
                         const Icon(Icons.build, color: Colors.blue, size: 20),
                         const SizedBox(width: 8),
-                        Text(loc.orderHasParts, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Text(
+                          loc.orderHasParts,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(r.partsUsed, style: const TextStyle(fontSize: 13, color: Colors.blue)),
+                    Text(
+                      r.partsUsed,
+                      style: const TextStyle(fontSize: 13, color: Colors.blue),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       loc.partsWillReturn,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.green),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
                     ),
                   ],
                 ),
               ),
-            
+
             const SizedBox(height: 8),
             TextField(
               controller: passCtrl,
@@ -797,27 +848,36 @@ class OrderListViewState extends State<OrderListView> {
       ),
     );
   }
-  
+
   String _getStatusText(int status) {
     switch (status) {
-      case 1: return loc.received;
-      case 2: return loc.repairing;
-      case 3: return loc.repairDone;
-      case 4: return loc.delivered;
-      default: return 'Unknown';
+      case 1:
+        return loc.received;
+      case 2:
+        return loc.repairing;
+      case 3:
+        return loc.repairDone;
+      case 4:
+        return loc.delivered;
+      default:
+        return 'Unknown';
     }
   }
-  
+
   String _formatMoney(int amount) {
     if (amount == 0) return '0đ';
     return '${NumberFormat('#,###', 'vi_VN').format(amount)}đ';
   }
-  
-  Future<void> _executeDelete(BuildContext ctx, Repair r, String password) async {
+
+  Future<void> _executeDelete(
+    BuildContext ctx,
+    Repair r,
+    String password,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || user.email == null) return;
-    
+
     try {
       final navigator = Navigator.of(ctx);
       final cred = EmailAuthProvider.credential(
@@ -858,28 +918,39 @@ class OrderListViewState extends State<OrderListView> {
       }
 
       // Ghi nhật ký
-      final partsInfo = r.partsUsed.isNotEmpty ? loc.returnedParts(r.partsUsed) : '';
+      final partsInfo = r.partsUsed.isNotEmpty
+          ? loc.returnedParts(r.partsUsed)
+          : '';
       await db.logAction(
         userId: user.uid,
         userName: user.email?.split('@').first.toUpperCase() ?? 'NV',
         action: loc.deleteRepairAction,
         type: 'REPAIR',
         targetId: repairFirestoreId,
-        desc: loc.deletedRepairDesc(r.model, r.customerName, r.phone, partsInfo),
+        desc: loc.deletedRepairDesc(
+          r.model,
+          r.customerName,
+          r.phone,
+          partsInfo,
+        ),
       );
 
       // KHÔNG cần enqueue delete nữa vì đã soft delete trực tiếp trên Firestore rồi
       // Việc enqueue delete sẽ tạo pending sync không cần thiết
       // Realtime listener sẽ tự đồng xóa local khi nhận deleted=true từ Firestore
-      debugPrint('✅ Repair deleted directly on Firestore - no need for sync queue');
+      debugPrint(
+        '✅ Repair deleted directly on Firestore - no need for sync queue',
+      );
 
       navigator.pop();
       _loadInitialData();
       messenger.showSnackBar(
         SnackBar(
-          content: Text(r.partsUsed.isNotEmpty 
-            ? '✅ Đã xóa đơn và hoàn trả phụ tùng về kho'
-            : '✅ Đã xóa đơn thành công'),
+          content: Text(
+            r.partsUsed.isNotEmpty
+                ? '✅ Đã xóa đơn và hoàn trả phụ tùng về kho'
+                : '✅ Đã xóa đơn thành công',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -892,12 +963,12 @@ class OrderListViewState extends State<OrderListView> {
       );
     }
   }
-  
+
   /// Hoàn trả phụ tùng về kho
   /// Format partsUsed: "Part1 x1, Part2 x2, ..."
   Future<void> _restorePartsToInventory(String partsUsed) async {
     if (partsUsed.isEmpty) return;
-    
+
     // Parse partsUsed
     final parts = partsUsed.split(', ');
     for (final part in parts) {
@@ -905,7 +976,7 @@ class OrderListViewState extends State<OrderListView> {
       final match = RegExp(r'^(.+?)\s*x(\d+)$').firstMatch(part.trim());
       String partName;
       int quantity;
-      
+
       if (match != null) {
         partName = match.group(1)!.trim();
         quantity = int.tryParse(match.group(2)!) ?? 1;
@@ -913,9 +984,9 @@ class OrderListViewState extends State<OrderListView> {
         partName = part.trim();
         quantity = 1;
       }
-      
+
       if (partName.isEmpty) continue;
-      
+
       // Tìm part trong kho và cộng số lượng
       await db.restorePartQuantityByName(partName, quantity);
     }
@@ -943,13 +1014,14 @@ class OrderListViewState extends State<OrderListView> {
           children: [
             Text(
               "DANH SÁCH ${_terms.productLabel.toUpperCase()} SỬA",
-              style: AppTextStyles.headline2.copyWith(fontWeight: FontWeight.bold, color: Colors.white),
+              style: AppTextStyles.headline2.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
             Text(
               '$count ${_terms.productLabel.toLowerCase()} • $pendingCount đang xử lý',
-              style: AppTextStyles.caption.copyWith(
-                color: Colors.white70,
-              ),
+              style: AppTextStyles.caption.copyWith(color: Colors.white70),
             ),
           ],
         ),
@@ -1009,7 +1081,10 @@ class OrderListViewState extends State<OrderListView> {
             icon: const Icon(Icons.file_download_outlined, color: Colors.white),
             tooltip: 'Xuất Excel đơn sửa',
             onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn sửa');
+              final result = await ExportDateFilterDialog.show(
+                context,
+                title: 'Xuất đơn sửa',
+              );
               if (result == null) return;
               if (!mounted) return;
               await ExcelExportHelper.exportRepairs(
@@ -1024,96 +1099,107 @@ class OrderListViewState extends State<OrderListView> {
       body: ResponsiveCenter(
         child: Column(
           children: [
-          // Active filter chip
-          if (_activeFilterCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.blue.shade50,
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.filter_list,
-                    size: 16,
-                    color: Color(0xFF2962FF),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Lọc: ${_getTimeFilterLabel()}',
-                    style: AppTextStyles.subtitle1.copyWith(
-                      color: const Color(0xFF2962FF),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _timeFilter = 'all';
-                        _customStartDate = null;
-                        _customEndDate = null;
-                      });
-                      _onSearch(_currentSearch);
-                    },
-                    child: const Icon(
-                      Icons.close,
-                      size: 18,
+            // Active filter chip
+            if (_activeFilterCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: Colors.blue.shade50,
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.filter_list,
+                      size: 16,
                       color: Color(0xFF2962FF),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Text(
+                      'Lọc: ${_getTimeFilterLabel()}',
+                      style: AppTextStyles.subtitle1.copyWith(
+                        color: const Color(0xFF2962FF),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _timeFilter = 'all';
+                          _customStartDate = null;
+                          _customEndDate = null;
+                        });
+                        _onSearch(_currentSearch);
+                      },
+                      child: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Color(0xFF2962FF),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              onChanged: _onSearch,
-              decoration: InputDecoration(
-                hintText: "Tìm khách, model, lỗi, SĐT...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextField(
+                onChanged: _onSearch,
+                decoration: InputDecoration(
+                  hintText: "Tìm khách, model, lỗi, SĐT...",
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    onRefresh: _loadInitialData,
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _displayedRepairs.length + (_isLoadingMore ? 1 : 0) + (!_hasMore && _displayedRepairs.isNotEmpty ? 1 : 0),
-                      itemBuilder: (ctx, i) {
-                        if (i < _displayedRepairs.length) {
-                          return _buildRepairCard(_displayedRepairs[i], i + 1);
-                        }
-                        if (_isLoadingMore) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        }
-                        // End of list indicator
-                        return Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Center(
-                            child: Text(
-                              loc.displayedRepairs(_displayedRepairs.length),
-                              style: AppTextStyles.caption.copyWith(color: Colors.grey[600]),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: _loadInitialData,
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount:
+                            _displayedRepairs.length +
+                            (_isLoadingMore ? 1 : 0) +
+                            (!_hasMore && _displayedRepairs.isNotEmpty ? 1 : 0),
+                        itemBuilder: (ctx, i) {
+                          if (i < _displayedRepairs.length) {
+                            return _buildRepairCard(
+                              _displayedRepairs[i],
+                              i + 1,
+                            );
+                          }
+                          if (_isLoadingMore) {
+                            return const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          // End of list indicator
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Center(
+                              child: Text(
+                                loc.displayedRepairs(_displayedRepairs.length),
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: GradientFab.purple(
         onPressed: () async {
@@ -1134,7 +1220,7 @@ class OrderListViewState extends State<OrderListView> {
   Widget _buildRepairCard(Repair r, int index) {
     final List<String> images = _collectRepairImages(r);
     final String firstImage = _pickBestPreviewImage(images);
-    
+
     // Determine card color based on status
     Color bgColor;
     Color borderColor;
@@ -1211,7 +1297,9 @@ class OrderListViewState extends State<OrderListView> {
             if (r.status >= 4) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('❌ Không thể xóa đơn ĐÃ GIAO. Chỉ xóa đơn chưa giao.'),
+                  content: Text(
+                    '❌ Không thể xóa đơn ĐÃ GIAO. Chỉ xóa đơn chưa giao.',
+                  ),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -1259,7 +1347,8 @@ class OrderListViewState extends State<OrderListView> {
                             decoration: BoxDecoration(
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(8),
-                              image: firstImage.isNotEmpty &&
+                              image:
+                                  firstImage.isNotEmpty &&
                                       !_isGsStoragePath(firstImage) &&
                                       !_isStorageRelativePath(firstImage) &&
                                       ((firstImage.startsWith('http') ||
@@ -1267,10 +1356,13 @@ class OrderListViewState extends State<OrderListView> {
                                               firstImage.startsWith('data:')) ||
                                           !kIsWeb)
                                   ? DecorationImage(
-                                      image: (firstImage.startsWith('http') ||
+                                      image:
+                                          (firstImage.startsWith('http') ||
                                               firstImage.startsWith('blob:') ||
                                               firstImage.startsWith('data:'))
-                                          ? CachedNetworkImageProvider(firstImage)
+                                          ? CachedNetworkImageProvider(
+                                              firstImage,
+                                            )
                                           : FileImage(File(firstImage))
                                                 as ImageProvider,
                                       fit: BoxFit.cover,
@@ -1283,9 +1375,12 @@ class OrderListViewState extends State<OrderListView> {
                                     color: Colors.grey,
                                     size: 24,
                                   )
-                                : ((_isGsStoragePath(firstImage) || _isStorageRelativePath(firstImage))
+                                : ((_isGsStoragePath(firstImage) ||
+                                          _isStorageRelativePath(firstImage))
                                       ? FutureBuilder<String?>(
-                                          future: _resolveDisplayImagePath(firstImage),
+                                          future: _resolveDisplayImagePath(
+                                            firstImage,
+                                          ),
                                           builder: (context, snapshot) {
                                             final url = snapshot.data;
                                             if (url == null || url.isEmpty) {
@@ -1296,7 +1391,8 @@ class OrderListViewState extends State<OrderListView> {
                                               );
                                             }
                                             return ClipRRect(
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
                                               child: AppCachedImage(
                                                 imageUrl: url,
                                                 fit: BoxFit.cover,
@@ -1352,9 +1448,13 @@ class OrderListViewState extends State<OrderListView> {
                     ),
                     // KTV sửa chữa (header) - luôn hiển thị
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
-                        color: (r.repairedBy != null && r.repairedBy!.isNotEmpty)
+                        color:
+                            (r.repairedBy != null && r.repairedBy!.isNotEmpty)
                             ? Colors.purple.shade100
                             : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(8),
@@ -1365,7 +1465,8 @@ class OrderListViewState extends State<OrderListView> {
                             : '👨‍🔧 Chưa có KTV',
                         style: AppTextStyles.caption.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: (r.repairedBy != null && r.repairedBy!.isNotEmpty)
+                          color:
+                              (r.repairedBy != null && r.repairedBy!.isNotEmpty)
                               ? Colors.purple.shade800
                               : Colors.grey.shade600,
                         ),
@@ -1373,9 +1474,9 @@ class OrderListViewState extends State<OrderListView> {
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 6),
-                
+
                 // Info chips row
                 Wrap(
                   spacing: 6,
@@ -1493,7 +1594,7 @@ class OrderListViewState extends State<OrderListView> {
       }
     }
 
-    return result;
+    return result.where(StorageService.isResolvableDisplayPath).toList();
   }
 
   String _pickBestPreviewImage(List<String> images) {
@@ -1517,13 +1618,13 @@ class OrderListViewState extends State<OrderListView> {
     final lower = path.toLowerCase();
     return lower.startsWith('http://') ||
         lower.startsWith('https://') ||
-      lower.startsWith('gs://') ||
-      lower.startsWith('repairs/') ||
-      lower.startsWith('/repairs/') ||
+        lower.startsWith('gs://') ||
+        lower.startsWith('repairs/') ||
+        lower.startsWith('/repairs/') ||
         lower.startsWith('blob:') ||
         lower.startsWith('data:');
   }
-  
+
   Widget _repairInfoChip(
     String text,
     Color color, {
@@ -1534,7 +1635,10 @@ class OrderListViewState extends State<OrderListView> {
   }) {
     return ConstrainedBox(
       constraints: BoxConstraints(
-        maxWidth: (MediaQuery.sizeOf(context).width - 100).clamp(0, 400), // Prevent overflow
+        maxWidth: (MediaQuery.sizeOf(context).width - 100).clamp(
+          0,
+          400,
+        ), // Prevent overflow
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1543,7 +1647,7 @@ class OrderListViewState extends State<OrderListView> {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          text, 
+          text,
           style: AppTextStyles.caption.copyWith(
             color: textColor,
             fontWeight: fontWeight,

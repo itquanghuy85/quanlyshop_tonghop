@@ -21,7 +21,12 @@ class StorageService {
 
   /// Các extension hình ảnh được hỗ trợ nén
   static const List<String> _imageExtensions = [
-    '.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.webp',
+    '.heic',
+    '.heif',
   ];
 
   /// Kiểm tra file có phải là hình ảnh không
@@ -38,10 +43,12 @@ class StorageService {
     try {
       final filePath = file.path;
       final ext = path.extension(filePath).toLowerCase();
-      
+
       // Lấy kích thước file gốc
       final originalSize = await file.length();
-      debugPrint('📸 Nén ảnh: ${path.basename(filePath)} - Size gốc: ${(originalSize / 1024).toStringAsFixed(1)} KB');
+      debugPrint(
+        '📸 Nén ảnh: ${path.basename(filePath)} - Size gốc: ${(originalSize / 1024).toStringAsFixed(1)} KB',
+      );
 
       // Tạo đường dẫn file tạm để lưu ảnh nén
       final tempDir = await getTemporaryDirectory();
@@ -57,15 +64,16 @@ class StorageService {
       }
 
       // Nén ảnh
-      final XFile? compressedXFile = await FlutterImageCompress.compressAndGetFile(
-        filePath,
-        targetPath,
-        quality: 70, // Chất lượng 70%
-        minWidth: 1920, // Max width
-        minHeight: 1920, // Max height
-        format: format,
-        keepExif: false, // Bỏ metadata để giảm dung lượng
-      );
+      final XFile? compressedXFile =
+          await FlutterImageCompress.compressAndGetFile(
+            filePath,
+            targetPath,
+            quality: 70, // Chất lượng 70%
+            minWidth: 1920, // Max width
+            minHeight: 1920, // Max height
+            format: format,
+            keepExif: false, // Bỏ metadata để giảm dung lượng
+          );
 
       if (compressedXFile == null) {
         debugPrint('⚠️ Không thể nén ảnh, sử dụng file gốc');
@@ -74,9 +82,13 @@ class StorageService {
 
       final compressedFile = File(compressedXFile.path);
       final compressedSize = await compressedFile.length();
-      final savedPercent = ((originalSize - compressedSize) / originalSize * 100).toStringAsFixed(1);
-      
-      debugPrint('✅ Nén xong: ${(compressedSize / 1024).toStringAsFixed(1)} KB (giảm $savedPercent%)');
+      final savedPercent =
+          ((originalSize - compressedSize) / originalSize * 100)
+              .toStringAsFixed(1);
+
+      debugPrint(
+        '✅ Nén xong: ${(compressedSize / 1024).toStringAsFixed(1)} KB (giảm $savedPercent%)',
+      );
 
       // Nếu file nén lớn hơn file gốc, dùng file gốc
       if (compressedSize >= originalSize) {
@@ -93,7 +105,10 @@ class StorageService {
   }
 
   /// Tự động upload và trả về URL để đồng bộ giữa các máy
-  static Future<String?> uploadAndGetUrl(String localPath, String folder) async {
+  static Future<String?> uploadAndGetUrl(
+    String localPath,
+    String folder,
+  ) async {
     try {
       if (localPath.startsWith('http')) return localPath; // Đã là link cloud
 
@@ -116,19 +131,22 @@ class StorageService {
       }
 
       // Đặt tên file theo định dạng chuẩn: shopId_timestamp_name
-      String fileName = "${DateTime.now().millisecondsSinceEpoch}_${path.basename(localPath)}";
+      String fileName =
+          "${DateTime.now().millisecondsSinceEpoch}_${path.basename(localPath)}";
       Reference ref = _storage.ref().child(folder).child(fileName);
-      
+
       UploadTask uploadTask = ref.putFile(fileToUpload);
-      TaskSnapshot snapshot = await uploadTask.timeout(const Duration(seconds: 30));
-      
+      TaskSnapshot snapshot = await uploadTask.timeout(
+        const Duration(seconds: 30),
+      );
+
       // Xóa file nén tạm nếu có
       if (fileToUpload.path != file.path && fileToUpload.existsSync()) {
         try {
           await fileToUpload.delete();
         } catch (_) {}
       }
-      
+
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
       debugPrint("STORAGE_ERROR: $e");
@@ -137,7 +155,10 @@ class StorageService {
   }
 
   /// Upload trực tiếp từ XFile (an toàn cho web vì dùng bytes).
-  static Future<String?> uploadXFileAndGetUrl(XFile picked, String folder) async {
+  static Future<String?> uploadXFileAndGetUrl(
+    XFile picked,
+    String folder,
+  ) async {
     try {
       if (picked.path.startsWith('http')) return picked.path;
 
@@ -175,7 +196,9 @@ class StorageService {
 
       // Clean up temp compressed file
       if (fileToUpload.path != file.path && fileToUpload.existsSync()) {
-        try { await fileToUpload.delete(); } catch (_) {}
+        try {
+          await fileToUpload.delete();
+        } catch (_) {}
       }
 
       return await snapshot.ref.getDownloadURL();
@@ -231,6 +254,19 @@ class StorageService {
         isStorageRelativePath(normalized);
   }
 
+  static bool isResolvableDisplayPath(String filePath) {
+    final normalized = filePath.trim();
+    if (normalized.isEmpty) return false;
+    if (isDisplayableCloudPath(normalized)) return true;
+    if (kIsWeb) return false;
+
+    try {
+      return File(normalized).existsSync();
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<String?> resolveDisplayUrl(String filePath) async {
     final normalized = filePath.trim();
     if (normalized.isEmpty) return null;
@@ -254,23 +290,29 @@ class StorageService {
       final ref = isGsStoragePath(normalized)
           ? _storage.refFromURL(normalized)
           : _storage.ref(
-              normalized.startsWith('/')
-                  ? normalized.substring(1)
-                  : normalized,
+              normalized.startsWith('/') ? normalized.substring(1) : normalized,
             );
       final url = await ref.getDownloadURL();
       _resolvedUrlCache[normalized] = url;
       return url;
     } catch (e) {
-      debugPrint('StorageService: failed to resolve image path $normalized: $e');
+      debugPrint(
+        'StorageService: failed to resolve image path $normalized: $e',
+      );
       return null;
     }
   }
 
   /// Xử lý đồng loạt cho danh sách ảnh
-  static Future<String> uploadMultipleAndJoin(String localPathsCsv, String folder) async {
+  static Future<String> uploadMultipleAndJoin(
+    String localPathsCsv,
+    String folder,
+  ) async {
     if (localPathsCsv.isEmpty) return "";
-    List<String> paths = localPathsCsv.split(',').where((e) => e.trim().isNotEmpty).toList();
+    List<String> paths = localPathsCsv
+        .split(',')
+        .where((e) => e.trim().isNotEmpty)
+        .toList();
     List<String> urls = [];
 
     for (String p in paths) {
@@ -284,7 +326,10 @@ class StorageService {
   }
 
   /// Upload multiple images and return list of URLs
-  static Future<List<String>> uploadMultipleImages(List<String> localPaths, String folder) async {
+  static Future<List<String>> uploadMultipleImages(
+    List<String> localPaths,
+    String folder,
+  ) async {
     List<String> urls = [];
     for (String path in localPaths) {
       String? url = await uploadAndGetUrl(path, folder);

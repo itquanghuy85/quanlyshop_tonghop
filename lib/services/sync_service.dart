@@ -254,6 +254,33 @@ class SyncService {
     return _splitImagePaths(csv).any((p) => !_isCloudImagePath(p));
   }
 
+  static Future<String> _normalizeRepairImagePathsForCloud(
+    String? rawImagePath,
+    int createdAt,
+  ) async {
+    final allPaths = _splitImagePaths(rawImagePath);
+    if (allPaths.isEmpty) return '';
+
+    final cloudPaths = allPaths.where(_isCloudImagePath).toList();
+    final localPaths = allPaths.where((p) => !_isCloudImagePath(p)).toList();
+    if (localPaths.isEmpty) {
+      return cloudPaths.join(',');
+    }
+
+    final uploadedUrls = await StorageService.uploadMultipleImages(
+      localPaths,
+      'repairs/$createdAt',
+    );
+
+    if (uploadedUrls.length < localPaths.length) {
+      throw Exception(
+        'Repair images not fully uploaded (${uploadedUrls.length}/${localPaths.length})',
+      );
+    }
+
+    return [...cloudPaths, ...uploadedUrls].join(',');
+  }
+
   static String _normalizeLegacyShopName(String? rawName) {
     final name = (rawName ?? '').trim();
     if (name.isEmpty) return 'QUAN LY SHOP';
@@ -2316,24 +2343,15 @@ class SyncService {
           // Upload local images if needed
           if (_hasLocalImagePath(r.imagePath)) {
             try {
-              final allPaths = _splitImagePaths(r.imagePath);
-              List<String> urls =
-                  await StorageService.uploadMultipleImages(
-                    allPaths.where((path) => !_isCloudImagePath(path)).toList(),
-                    'repairs/${r.createdAt}',
-                  ).timeout(
-                    const Duration(seconds: 15),
-                    onTimeout: () => <String>[],
-                  );
-              List<String> allUrls = allPaths
-                  .where((path) => _isCloudImagePath(path))
-                  .toList();
-              allUrls.addAll(urls);
-              data['imagePath'] = allUrls.join(',');
+              data['imagePath'] = await _normalizeRepairImagePathsForCloud(
+                r.imagePath,
+                r.createdAt,
+              ).timeout(const Duration(seconds: 15));
             } catch (e) {
               debugPrint(
-                '⚡ syncRepairData: image upload failed for ${r.id}: $e',
+                '⚡ syncRepairData: image upload incomplete for ${r.id}, keep local data for retry: $e',
               );
+              continue;
             }
           }
 
@@ -2414,7 +2432,7 @@ class SyncService {
       // FIX: Collect items to mark synced AFTER batch commit succeeds
       final List<Repair> repairsToMarkSynced = [];
       for (var r in repairs) {
-        if (r.isSynced && !(r.imagePath?.contains('cache') ?? false)) continue;
+        if (r.isSynced && !_hasLocalImagePath(r.imagePath)) continue;
 
         try {
           Map<String, dynamic> data = r.toMap();
@@ -2428,26 +2446,17 @@ class SyncService {
 
           // Xử lý upload ảnh nếu là ảnh local với timeout
           if (_hasLocalImagePath(r.imagePath)) {
-            final allPaths = _splitImagePaths(r.imagePath);
-            List<String> urls =
-                await StorageService.uploadMultipleImages(
-                  allPaths.where((path) => !_isCloudImagePath(path)).toList(),
-                  'repairs/${r.createdAt}',
-                ).timeout(
-                  const Duration(seconds: 30),
-                  onTimeout: () {
-                    debugPrint(
-                      "Upload ảnh repair ${r.id} quá thời gian, bỏ qua",
-                    );
-                    return <String>[];
-                  },
-                );
-            // Giữ lại các ảnh cũ là URL và thêm ảnh mới
-            List<String> allUrls = allPaths
-                .where((path) => _isCloudImagePath(path))
-                .toList();
-            allUrls.addAll(urls);
-            data['imagePath'] = allUrls.join(',');
+            try {
+              data['imagePath'] = await _normalizeRepairImagePathsForCloud(
+                r.imagePath,
+                r.createdAt,
+              ).timeout(const Duration(seconds: 30));
+            } catch (e) {
+              debugPrint(
+                'Upload ảnh repair ${r.id} chưa hoàn tất, giữ local để retry: $e',
+              );
+              continue;
+            }
           }
 
           final docId =

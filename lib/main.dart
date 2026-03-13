@@ -216,6 +216,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   // Cache future để tránh gọi lại khi rebuild
   Future<Map<String, dynamic>>? _roleFuture;
   String? _currentUid;
+  Timer? _loggedOutFallbackTimer;
+  bool _showLoggedOutFallback = false;
 
   // Track if sync orchestrator is initialized
   bool _syncOrchestratorInitialized = false;
@@ -224,6 +226,17 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loggedOutFallbackTimer = Timer(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      if (FirebaseAuth.instance.currentUser == null) {
+        debugPrint(
+          '⚡ AuthGate: no current user after 4s, showing LoginView fallback',
+        );
+        setState(() {
+          _showLoggedOutFallback = true;
+        });
+      }
+    });
     // Delay notification listener to next frame to avoid blocking startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initNotificationListener();
@@ -246,6 +259,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _loggedOutFallbackTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -304,6 +318,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void _resetCache() {
     _roleFuture = null;
     _currentUid = null;
+    _showLoggedOutFallback = false;
   }
 
   void _startBackgroundUserWarmup(String uid, String email) {
@@ -323,7 +338,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       final currentShopId = UserService.getShopIdSync();
       if (currentShopId != null && currentShopId.isNotEmpty) {
         try {
-          await SyncService.downloadAllFromCloud(force: true).timeout(
+          await SyncService.downloadAllFromCloud().timeout(
             const Duration(seconds: 20),
             onTimeout: () {
               debugPrint('⚠️ Background sync timeout sau 20s');
@@ -545,7 +560,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       if (kIsWeb) {
         try {
           debugPrint('🔄 [WEB] Đồng bộ dữ liệu trước khi hiển thị...');
-          await SyncService.downloadAllFromCloud(force: true).timeout(
+          await SyncService.downloadAllFromCloud().timeout(
             const Duration(seconds: 20),
             onTimeout: () {
               debugPrint(
@@ -572,7 +587,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         Future.microtask(() async {
           try {
             debugPrint('🔄 Bắt đầu sync ở background...');
-            await SyncService.downloadAllFromCloud(force: true).timeout(
+            await SyncService.downloadAllFromCloud().timeout(
               const Duration(seconds: 20),
               onTimeout: () {
                 debugPrint(
@@ -664,20 +679,27 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
+      initialData: FirebaseAuth.instance.currentUser,
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snap) {
+        final currentUser = snap.data ?? FirebaseAuth.instance.currentUser;
+
         if (snap.connectionState == ConnectionState.waiting) {
+          if (_showLoggedOutFallback && currentUser == null) {
+            return LoginView(setLocale: widget.setLocale);
+          }
           return _buildLoadingScreen('Đang kiểm tra phiên đăng nhập...');
         }
 
         // Không có user = đã đăng xuất
-        if (snap.hasError || !snap.hasData) {
+        if (snap.hasError || currentUser == null) {
           _resetCache(); // Reset cache khi đăng xuất
           return LoginView(setLocale: widget.setLocale);
         }
 
-        final uid = snap.data!.uid;
-        final email = snap.data!.email!;
+        _loggedOutFallbackTimer?.cancel();
+        final uid = currentUser.uid;
+        final email = currentUser.email!;
 
         return FutureBuilder<Map<String, dynamic>>(
           future: _getOrCreateRoleFuture(uid, email),

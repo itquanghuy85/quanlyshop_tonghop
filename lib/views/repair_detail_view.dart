@@ -189,6 +189,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final normalized = images
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
+        .where(StorageService.isResolvableDisplayPath)
         .toList();
     if (!kIsWeb) return normalized;
     final web = normalized.where(_isWebImageSource).toList();
@@ -4314,8 +4315,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       } else {
         newServices.add(trackedService);
       }
-      final updatedCost = (r.cost - (oldService?.cost ?? 0) + trackedService.cost)
-          .clamp(0, 999999999);
+      final updatedCost =
+          (r.cost - (oldService?.cost ?? 0) + trackedService.cost).clamp(
+            0,
+            999999999,
+          );
       r.services = newServices;
       r.cost = updatedCost;
       r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;

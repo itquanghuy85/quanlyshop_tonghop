@@ -453,8 +453,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
 
   /// Tab 1: Cài đặt mặc định của shop
   Widget _buildShopDefaultsTab() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -684,7 +685,12 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        MediaQuery.of(context).padding.bottom + 24,
+      ),
       itemCount: _staffList.length,
       itemBuilder: (context, index) {
         final staff = _staffList[index];
