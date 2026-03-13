@@ -171,7 +171,10 @@ class DashboardCardConfig {
 /// Service to manage dashboard layout configuration
 class DashboardConfigService {
   static const String _prefsKey = 'dashboard_config_v3';
+  static const String _prefsVersionKey = 'dashboard_config_version_v1';
   static const String _cloudField = 'dashboardConfigV3';
+  static const String _cloudVersionField = 'dashboardConfigVersionV1';
+  static const int _schemaVersion = 2;
 
   static DocumentReference<Map<String, dynamic>>? _userDocRef() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -246,17 +249,193 @@ class DashboardConfigService {
     ];
   }
 
+  static List<DashboardCardConfig> _getLegacyDefaultLayout({
+    required String role,
+    required bool isSuperAdmin,
+  }) {
+    return [
+      DashboardCardConfig(
+        type: DashboardCardType.greeting,
+        visible: false,
+        order: 0,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.actionRequired,
+        visible: false,
+        order: 1,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.quickActions,
+        visible: true,
+        order: 2,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.financeSummary,
+        visible: false,
+        order: 3,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.financeDetail,
+        visible: false,
+        order: 4,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.activityFeed,
+        visible: false,
+        order: 5,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.chat,
+        visible: true,
+        order: 6,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.alerts,
+        visible: false,
+        order: 7,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.userGuide,
+        visible: true,
+        order: 8,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.financeShortcuts,
+        visible: true,
+        order: 9,
+      ),
+    ];
+  }
+
+  static bool _matchesDashboardTemplate(
+    List<DashboardCardConfig> configs,
+    List<DashboardCardConfig> template,
+  ) {
+    if (configs.length != template.length) return false;
+
+    final sortedConfigs = [...configs]
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final sortedTemplate = [...template]
+      ..sort((a, b) => a.order.compareTo(b.order));
+
+    for (int i = 0; i < sortedTemplate.length; i++) {
+      if (sortedConfigs[i].type != sortedTemplate[i].type) return false;
+      if (sortedConfigs[i].visible != sortedTemplate[i].visible) return false;
+    }
+    return true;
+  }
+
+  static List<DashboardCardConfig> _cloneDashboardConfigs(
+    List<DashboardCardConfig> configs,
+  ) {
+    return configs
+        .map(
+          (config) => DashboardCardConfig(
+            type: config.type,
+            visible: config.visible,
+            order: config.order,
+          ),
+        )
+        .toList();
+  }
+
+  static ({List<DashboardCardConfig> configs, bool migrated})
+  _migrateDashboardConfigs({
+    required List<DashboardCardConfig> configs,
+    required int savedVersion,
+    required String role,
+    required bool isSuperAdmin,
+  }) {
+    final defaults = getDefaultLayout(role: role, isSuperAdmin: isSuperAdmin);
+    final legacyDefaults = _getLegacyDefaultLayout(
+      role: role,
+      isSuperAdmin: isSuperAdmin,
+    );
+
+    if (savedVersion < _schemaVersion &&
+        _matchesDashboardTemplate(configs, legacyDefaults)) {
+      return (configs: _cloneDashboardConfigs(defaults), migrated: true);
+    }
+
+    bool migrated = savedVersion < _schemaVersion;
+    final configByType = {
+      for (final config in configs)
+        config.type: DashboardCardConfig(
+          type: config.type,
+          visible: config.visible,
+          order: config.order,
+        ),
+    };
+
+    final ordered = <DashboardCardConfig>[];
+    final seen = <DashboardCardType>{};
+    final existingSorted = [...configs]
+      ..sort((a, b) => a.order.compareTo(b.order));
+
+    for (final config in existingSorted) {
+      final item = configByType[config.type];
+      if (item == null || seen.contains(item.type)) continue;
+      ordered.add(item);
+      seen.add(item.type);
+    }
+
+    for (final defaultConfig in defaults) {
+      if (seen.contains(defaultConfig.type)) continue;
+      ordered.add(
+        DashboardCardConfig(
+          type: defaultConfig.type,
+          visible: defaultConfig.visible,
+          order: ordered.length,
+        ),
+      );
+      seen.add(defaultConfig.type);
+      migrated = true;
+    }
+
+    for (int i = 0; i < ordered.length; i++) {
+      ordered[i].order = i;
+    }
+
+    return (configs: ordered, migrated: migrated);
+  }
+
+  static Future<void> _writeLocalConfig(
+    List<DashboardCardConfig> configs,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final key = '${_prefsKey}_$uid';
+    final jsonStr = jsonEncode(configs.map((c) => c.toJson()).toList());
+    await prefs.setString(key, jsonStr);
+    await prefs.setInt('${_prefsVersionKey}_$uid', _schemaVersion);
+  }
+
+  static Future<void> _writeCloudConfig(
+    List<DashboardCardConfig> configs,
+  ) async {
+    final ref = _userDocRef();
+    if (ref == null) return;
+
+    await ref.set({
+      _cloudField: configs.map((c) => c.toJson()).toList(),
+      _cloudVersionField: _schemaVersion,
+      'dashboardConfigUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   /// Load saved config or return default
   static Future<List<DashboardCardConfig>> loadConfig({
     required String role,
     required bool isSuperAdmin,
   }) async {
     List<DashboardCardConfig>? localSaved;
+    int localVersion = 0;
     try {
       final prefs = await SharedPreferences.getInstance();
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final key = '${_prefsKey}_$uid';
       final jsonStr = prefs.getString(key);
+      localVersion = prefs.getInt('${_prefsVersionKey}_$uid') ?? 0;
 
       if (jsonStr != null) {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
@@ -275,6 +454,8 @@ class DashboardConfigService {
       if (ref != null) {
         final snap = await ref.get();
         final cloudRaw = snap.data()?[_cloudField];
+        final cloudVersion =
+            (snap.data()?[_cloudVersionField] as num?)?.toInt() ?? 0;
         if (cloudRaw is List) {
           final cloudSaved = cloudRaw
               .whereType<Map>()
@@ -284,36 +465,19 @@ class DashboardConfigService {
               )
               .toList();
           if (cloudSaved.isNotEmpty) {
-            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
-
-            // Refresh local cache from cloud for consistency across devices.
-            final prefs = await SharedPreferences.getInstance();
-            final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-            final key = '${_prefsKey}_$uid';
-            final jsonStr = jsonEncode(
-              cloudSaved.map((c) => c.toJson()).toList(),
-            );
-            await prefs.setString(key, jsonStr);
-
-            // Ensure all card types exist.
-            final defaults = getDefaultLayout(
+            final migrated = _migrateDashboardConfigs(
+              configs: cloudSaved,
+              savedVersion: cloudVersion,
               role: role,
               isSuperAdmin: isSuperAdmin,
             );
-            final cloudTypes = cloudSaved.map((c) => c.type).toSet();
-            for (final def in defaults) {
-              if (!cloudTypes.contains(def.type)) {
-                cloudSaved.add(
-                  DashboardCardConfig(
-                    type: def.type,
-                    visible: def.visible,
-                    order: cloudSaved.length,
-                  ),
-                );
-              }
+            if (migrated.migrated || cloudVersion != _schemaVersion) {
+              await _writeLocalConfig(migrated.configs);
+              await _writeCloudConfig(migrated.configs);
+            } else {
+              await _writeLocalConfig(migrated.configs);
             }
-            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
-            return cloudSaved;
+            return migrated.configs;
           }
         }
       }
@@ -324,34 +488,20 @@ class DashboardConfigService {
     if (localSaved != null) {
       // Backfill cloud from local cache if cloud is empty.
       try {
-        final ref = _userDocRef();
-        if (ref != null) {
-          await ref.set({
-            _cloudField: localSaved.map((c) => c.toJson()).toList(),
-            'dashboardConfigUpdatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
+        final migrated = _migrateDashboardConfigs(
+          configs: localSaved,
+          savedVersion: localVersion,
+          role: role,
+          isSuperAdmin: isSuperAdmin,
+        );
+        await _writeLocalConfig(migrated.configs);
+        await _writeCloudConfig(migrated.configs);
+        return migrated.configs;
       } catch (e) {
         debugPrint(
           'DashboardConfigService: Error backfilling cloud config: $e',
         );
       }
-
-      final defaults = getDefaultLayout(role: role, isSuperAdmin: isSuperAdmin);
-      final localTypes = localSaved.map((c) => c.type).toSet();
-      for (final def in defaults) {
-        if (!localTypes.contains(def.type)) {
-          localSaved.add(
-            DashboardCardConfig(
-              type: def.type,
-              visible: def.visible,
-              order: localSaved.length,
-            ),
-          );
-        }
-      }
-      localSaved.sort((a, b) => a.order.compareTo(b.order));
-      return localSaved;
     }
 
     return getDefaultLayout(role: role, isSuperAdmin: isSuperAdmin);
@@ -369,11 +519,13 @@ class DashboardConfigService {
       }
       final jsonStr = jsonEncode(configs.map((c) => c.toJson()).toList());
       await prefs.setString(key, jsonStr);
+      await prefs.setInt('${_prefsVersionKey}_$uid', _schemaVersion);
 
       final ref = _userDocRef();
       if (ref != null) {
         await ref.set({
           _cloudField: configs.map((c) => c.toJson()).toList(),
+          _cloudVersionField: _schemaVersion,
           'dashboardConfigUpdatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
@@ -389,11 +541,13 @@ class DashboardConfigService {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final key = '${_prefsKey}_$uid';
       await prefs.remove(key);
+      await prefs.remove('${_prefsVersionKey}_$uid');
 
       final ref = _userDocRef();
       if (ref != null) {
         await ref.set({
           _cloudField: FieldValue.delete(),
+          _cloudVersionField: FieldValue.delete(),
           'dashboardConfigUpdatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
@@ -709,7 +863,10 @@ class ShortcutConfig {
 /// Service to manage shortcut configuration
 class ShortcutConfigService {
   static const String _prefsKey = 'shortcut_config_v1';
+  static const String _prefsVersionKey = 'shortcut_config_version_v1';
   static const String _cloudField = 'shortcutConfigV1';
+  static const String _cloudVersionField = 'shortcutConfigVersionV1';
+  static const int _schemaVersion = 2;
 
   /// Get default shortcuts - first 12 visible, rest hidden
   static List<ShortcutConfig> getDefaultShortcuts() {
@@ -741,14 +898,129 @@ class ShortcutConfigService {
     return defaults;
   }
 
+  static List<ShortcutConfig> _getLegacyDefaultShortcuts() {
+    final defaults = <ShortcutConfig>[];
+    for (int i = 0; i < ShortcutType.values.length; i++) {
+      defaults.add(
+        ShortcutConfig(type: ShortcutType.values[i], visible: i < 12, order: i),
+      );
+    }
+    return defaults;
+  }
+
+  static bool _matchesShortcutTemplate(
+    List<ShortcutConfig> configs,
+    List<ShortcutConfig> template,
+  ) {
+    if (configs.length != template.length) return false;
+
+    final sortedConfigs = [...configs]
+      ..sort((a, b) => a.order.compareTo(b.order));
+    final sortedTemplate = [...template]
+      ..sort((a, b) => a.order.compareTo(b.order));
+
+    for (int i = 0; i < sortedTemplate.length; i++) {
+      if (sortedConfigs[i].type != sortedTemplate[i].type) return false;
+      if (sortedConfigs[i].visible != sortedTemplate[i].visible) return false;
+    }
+    return true;
+  }
+
+  static List<ShortcutConfig> _cloneShortcutConfigs(
+    List<ShortcutConfig> configs,
+  ) {
+    return configs
+        .map(
+          (config) => ShortcutConfig(
+            type: config.type,
+            visible: config.visible,
+            order: config.order,
+          ),
+        )
+        .toList();
+  }
+
+  static ({List<ShortcutConfig> configs, bool migrated})
+  _migrateShortcutConfigs(List<ShortcutConfig> configs, int savedVersion) {
+    final defaults = getDefaultShortcuts();
+    final legacyDefaults = _getLegacyDefaultShortcuts();
+
+    if (savedVersion < _schemaVersion &&
+        _matchesShortcutTemplate(configs, legacyDefaults)) {
+      return (configs: _cloneShortcutConfigs(defaults), migrated: true);
+    }
+
+    bool migrated = savedVersion < _schemaVersion;
+    final configByType = {
+      for (final config in configs)
+        config.type: ShortcutConfig(
+          type: config.type,
+          visible: config.visible,
+          order: config.order,
+        ),
+    };
+    final ordered = <ShortcutConfig>[];
+    final seen = <ShortcutType>{};
+    final existingSorted = [...configs]
+      ..sort((a, b) => a.order.compareTo(b.order));
+
+    for (final config in existingSorted) {
+      final item = configByType[config.type];
+      if (item == null || seen.contains(item.type)) continue;
+      ordered.add(item);
+      seen.add(item.type);
+    }
+
+    for (final defaultConfig in defaults) {
+      if (seen.contains(defaultConfig.type)) continue;
+      ordered.add(
+        ShortcutConfig(
+          type: defaultConfig.type,
+          visible: defaultConfig.visible,
+          order: ordered.length,
+        ),
+      );
+      seen.add(defaultConfig.type);
+      migrated = true;
+    }
+
+    for (int i = 0; i < ordered.length; i++) {
+      ordered[i].order = i;
+    }
+
+    return (configs: ordered, migrated: migrated);
+  }
+
+  static Future<void> _writeLocalConfig(List<ShortcutConfig> configs) async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final key = '${_prefsKey}_$uid';
+    final jsonStr = jsonEncode(configs.map((c) => c.toJson()).toList());
+    await prefs.setString(key, jsonStr);
+    await prefs.setInt('${_prefsVersionKey}_$uid', _schemaVersion);
+  }
+
+  static Future<void> _writeCloudConfig(List<ShortcutConfig> configs) async {
+    final ref = DashboardConfigService._userDocRef();
+    if (ref == null) return;
+
+    await ref.set({
+      _cloudField: configs.map((c) => c.toJson()).toList(),
+      _cloudVersionField: _schemaVersion,
+      'shortcutConfigUpdatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   /// Load saved shortcut config or return defaults
   static Future<List<ShortcutConfig>> loadConfig() async {
     List<ShortcutConfig>? localSaved;
+    int localVersion = 0;
     try {
       final prefs = await SharedPreferences.getInstance();
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final key = '${_prefsKey}_$uid';
       final jsonStr = prefs.getString(key);
+      localVersion = prefs.getInt('${_prefsVersionKey}_$uid') ?? 0;
 
       if (jsonStr != null) {
         final List<dynamic> jsonList = jsonDecode(jsonStr);
@@ -765,37 +1037,22 @@ class ShortcutConfigService {
       if (ref != null) {
         final snap = await ref.get();
         final cloudRaw = snap.data()?[_cloudField];
+        final cloudVersion =
+            (snap.data()?[_cloudVersionField] as num?)?.toInt() ?? 0;
         if (cloudRaw is List) {
           final cloudSaved = cloudRaw
               .whereType<Map>()
               .map((j) => ShortcutConfig.fromJson(Map<String, dynamic>.from(j)))
               .toList();
           if (cloudSaved.isNotEmpty) {
-            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
-
-            final prefs = await SharedPreferences.getInstance();
-            final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
-            final key = '${_prefsKey}_$uid';
-            final jsonStr = jsonEncode(
-              cloudSaved.map((c) => c.toJson()).toList(),
-            );
-            await prefs.setString(key, jsonStr);
-
-            final savedTypes = cloudSaved.map((c) => c.type).toSet();
-            final defaults = getDefaultShortcuts();
-            for (final def in defaults) {
-              if (!savedTypes.contains(def.type)) {
-                cloudSaved.add(
-                  ShortcutConfig(
-                    type: def.type,
-                    visible: def.visible,
-                    order: cloudSaved.length,
-                  ),
-                );
-              }
+            final migrated = _migrateShortcutConfigs(cloudSaved, cloudVersion);
+            if (migrated.migrated || cloudVersion != _schemaVersion) {
+              await _writeLocalConfig(migrated.configs);
+              await _writeCloudConfig(migrated.configs);
+            } else {
+              await _writeLocalConfig(migrated.configs);
             }
-            cloudSaved.sort((a, b) => a.order.compareTo(b.order));
-            return cloudSaved;
+            return migrated.configs;
           }
         }
       }
@@ -805,32 +1062,13 @@ class ShortcutConfigService {
 
     if (localSaved != null) {
       try {
-        final ref = DashboardConfigService._userDocRef();
-        if (ref != null) {
-          await ref.set({
-            _cloudField: localSaved.map((c) => c.toJson()).toList(),
-            'shortcutConfigUpdatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
+        final migrated = _migrateShortcutConfigs(localSaved, localVersion);
+        await _writeLocalConfig(migrated.configs);
+        await _writeCloudConfig(migrated.configs);
+        return migrated.configs;
       } catch (e) {
         debugPrint('ShortcutConfigService: Error backfilling cloud config: $e');
       }
-
-      final savedTypes = localSaved.map((c) => c.type).toSet();
-      final defaults = getDefaultShortcuts();
-      for (final def in defaults) {
-        if (!savedTypes.contains(def.type)) {
-          localSaved.add(
-            ShortcutConfig(
-              type: def.type,
-              visible: def.visible,
-              order: localSaved.length,
-            ),
-          );
-        }
-      }
-      localSaved.sort((a, b) => a.order.compareTo(b.order));
-      return localSaved;
     }
 
     return getDefaultShortcuts();
@@ -847,11 +1085,13 @@ class ShortcutConfigService {
       }
       final jsonStr = jsonEncode(configs.map((c) => c.toJson()).toList());
       await prefs.setString(key, jsonStr);
+      await prefs.setInt('${_prefsVersionKey}_$uid', _schemaVersion);
 
       final ref = DashboardConfigService._userDocRef();
       if (ref != null) {
         await ref.set({
           _cloudField: configs.map((c) => c.toJson()).toList(),
+          _cloudVersionField: _schemaVersion,
           'shortcutConfigUpdatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
@@ -867,11 +1107,13 @@ class ShortcutConfigService {
       final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
       final key = '${_prefsKey}_$uid';
       await prefs.remove(key);
+      await prefs.remove('${_prefsVersionKey}_$uid');
 
       final ref = DashboardConfigService._userDocRef();
       if (ref != null) {
         await ref.set({
           _cloudField: FieldValue.delete(),
+          _cloudVersionField: FieldValue.delete(),
           'shortcutConfigUpdatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
