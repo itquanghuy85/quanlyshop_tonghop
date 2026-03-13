@@ -240,18 +240,9 @@ class SyncHealthCheck {
         '📊 _checkCollection $collection: shopId=$shopId, cloudDocs=${cloudSnap.docs.length}',
       );
       if (cloudSnap.docs.isEmpty) {
-        // Thử query không filter shopId để xem có data không
-        final allDocs = await _db.collection(collection).limit(5).get();
-        if (allDocs.docs.isNotEmpty) {
-          final sampleShopIds = allDocs.docs
-              .map((d) => d.data()['shopId'])
-              .toSet();
           debugPrint(
-            '⚠️ $collection có ${allDocs.docs.length}+ docs trên cloud nhưng shopId khác: $sampleShopIds',
+            'ℹ️ $collection chưa có dữ liệu cloud cho shop hiện tại ($shopId)',
           );
-        } else {
-          debugPrint('ℹ️ $collection không có data nào trên cloud');
-        }
       }
 
       // Filter ra các documents không bị xóa (deleted != true)
@@ -343,6 +334,26 @@ class SyncHealthCheck {
         pendingUpdateLocal: pendingUpdateAfter,
         missingOnCloud: localIdsAfter.difference(cloudIds).take(10).toList(),
         missingOnLocal: cloudIds.difference(localIdsAfter).take(10).toList(),
+      );
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        debugPrint(
+          'ℹ️ Bỏ qua kiểm tra $collection do không có quyền với shop hiện tại ($shopId): ${e.message ?? e.code}',
+        );
+      } else {
+        debugPrint('❌ Lỗi kiểm tra $collection: $e');
+      }
+      return SyncCheckResult(
+        collection: collection,
+        localCount: 0,
+        cloudCount: 0,
+        localOnly: 0,
+        cloudOnly: 0,
+        matched: 0,
+        unsyncedLocal: 0,
+        pendingCreateLocal: 0,
+        pendingUpdateLocal: 0,
+        error: e.toString(),
       );
     } catch (e) {
       debugPrint('❌ Lỗi kiểm tra $collection: $e');

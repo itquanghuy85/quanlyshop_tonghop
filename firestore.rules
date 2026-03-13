@@ -852,6 +852,34 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+          // ═══════════ 7.1b LEAVE_REQUESTS ═══════════
+          match /leave_requests/{requestId} {
+            // READ: Own requests OR manager sees all requests in shop
+            allow read: if isAuth() &&
+                           docInMyShop() &&
+                           (isManager() || resource.data.userId == uid());
+
+            // CREATE: Employee can only create own request
+            allow create: if isAuth() &&
+                             newDocInMyShop() &&
+                             has(['userId', 'leaveType', 'startDate', 'endDate', 'createdAt', 'shopId']) &&
+                             request.resource.data.userId == uid();
+
+            // UPDATE: Manager can approve/reject, employee can edit own request before approval
+            allow update: if isAuth() &&
+                             docInMyShop() &&
+                             shopIdLocked() &&
+                             (isManager() ||
+                              (resource.data.userId == uid() &&
+                               resource.data.status == 'pending' &&
+                               !changed('status') &&
+                               !changed('approvedBy') &&
+                               !changed('approvedAt') &&
+                               !changed('rejectReason')));
+
+            allow delete: if false;
+          }
+
     // ═══════════ 7.2 WORK_SCHEDULES ═══════════
     // Stores work schedule settings (general shop settings and per-staff schedules)
     // Document IDs: "shop_general_{shopId}" for general, "staff_{userId}_{shopId}" for staff

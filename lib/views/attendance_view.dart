@@ -8,6 +8,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
+import '../models/leave_request_model.dart';
+import '../services/attendance_approval_service.dart';
+import '../services/encryption_service.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
@@ -35,13 +38,13 @@ class _AttendanceViewState extends State<AttendanceView>
   Attendance? _today;
   String _role = 'employee';
   late TabController _tabController;
-  bool _hasPermission = false;
   Timer? _clockTimer;
   DateTime _clockNow = DateTime.now();
   String _userName = '';
 
   Map<String, dynamic> _workSchedule = {};
   List<Attendance> _history = [];
+  List<LeaveRequest> _leaveRequests = [];
 
   // Shop location for attendance verification
   double? _shopLatitude;
@@ -72,8 +75,6 @@ class _AttendanceViewState extends State<AttendanceView>
     int tabCount = (r == 'owner' || r == 'manager') ? 3 : 2;
     _tabController = TabController(length: tabCount, vsync: this);
 
-    final perms = await UserService.getCurrentUserPermissions();
-
     // Load user display name
     final name = await UserService.getCurrentUserName();
 
@@ -83,7 +84,6 @@ class _AttendanceViewState extends State<AttendanceView>
     if (!mounted) return;
     setState(() {
       _role = r;
-      _hasPermission = perms['allowViewAttendance'] ?? false;
       _userName = name.isNotEmpty
           ? name
           : (FirebaseAuth.instance.currentUser?.email
@@ -120,20 +120,76 @@ class _AttendanceViewState extends State<AttendanceView>
     if (uid == null) return;
 
     setState(() => _loading = true);
+    final shopId = await UserService.getCurrentShopId();
+    await _pullOwnCloudData(uid: uid, shopId: shopId);
     final rec = await db.getAttendance(
       DateFormat('yyyy-MM-dd').format(DateTime.now()),
       uid,
     );
     final schedule = await db.getWorkSchedule(uid);
     final history = await db.getAttendanceByUser(uid);
+    final leaveRequests = await db.getLeaveRequestsByUser(uid);
 
     if (!mounted) return;
     setState(() {
       _today = rec;
       _workSchedule = schedule ?? {};
       _history = history;
+      _leaveRequests = leaveRequests;
       _loading = false;
     });
+  }
+
+  Future<void> _pullOwnCloudData({
+    required String uid,
+    required String? shopId,
+  }) async {
+    if (shopId == null || shopId.isEmpty) return;
+
+    try {
+      final attendanceSnap = await FirebaseFirestore.instance
+          .collection('attendance')
+          .where('shopId', isEqualTo: shopId)
+          .where('userId', isEqualTo: uid)
+          .get();
+
+      for (final doc in attendanceSnap.docs) {
+        final data = EncryptionService.decryptMap(doc.data());
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        _normalizeTimestampField(data, 'checkInAt');
+        _normalizeTimestampField(data, 'checkOutAt');
+        _normalizeTimestampField(data, 'createdAt');
+        _normalizeTimestampField(data, 'updatedAt');
+        _normalizeTimestampField(data, 'approvedAt');
+        await db.upsertAttendance(Attendance.fromMap(data));
+      }
+
+      final leaveSnap = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('shopId', isEqualTo: shopId)
+          .where('userId', isEqualTo: uid)
+          .get();
+
+      for (final doc in leaveSnap.docs) {
+        final data = EncryptionService.decryptMap(doc.data());
+        data['firestoreId'] = doc.id;
+        data['isSynced'] = 1;
+        _normalizeTimestampField(data, 'createdAt');
+        _normalizeTimestampField(data, 'updatedAt');
+        _normalizeTimestampField(data, 'approvedAt');
+        await db.upsertLeaveRequest(LeaveRequest.fromMap(data));
+      }
+    } catch (e) {
+      debugPrint('Error pulling personal attendance data: $e');
+    }
+  }
+
+  void _normalizeTimestampField(Map<String, dynamic> data, String field) {
+    final value = data[field];
+    if (value is Timestamp) {
+      data[field] = value.millisecondsSinceEpoch;
+    }
   }
 
   Future<void> _actionCheck(bool isIn) async {
@@ -215,9 +271,12 @@ class _AttendanceViewState extends State<AttendanceView>
         endMinute,
       );
 
-      if (isIn && now.isAfter(startTime.add(const Duration(minutes: 15))))
+      if (isIn && now.isAfter(startTime.add(const Duration(minutes: 15)))) {
         isLate = true;
-      if (!isIn && now.isBefore(endTime)) isEarly = true;
+      }
+      if (!isIn && now.isBefore(endTime)) {
+        isEarly = true;
+      }
 
       final firestoreId =
           "att_${DateFormat('yyyyMMdd').format(now)}_${user.uid}";
@@ -353,22 +412,8 @@ class _AttendanceViewState extends State<AttendanceView>
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
-
-    if (!_hasPermission) {
-      return Scaffold(
-        appBar: CustomAppBar.build(
-          title: AppLocalizations.of(context)?.attendance ?? "ATTENDANCE",
-        ),
-        body: Center(
-          child: Text(
-            AppLocalizations.of(context)?.noAccessPermission ??
-                "You don't have access to this feature",
-            style: AppTextStyles.body1.copyWith(color: AppColors.inactive),
-          ),
-        ),
-      );
     }
 
     return Scaffold(
@@ -376,26 +421,27 @@ class _AttendanceViewState extends State<AttendanceView>
       appBar: CustomAppBar.build(
         title: AppLocalizations.of(context)?.attendance ?? "CHẤM CÔNG",
         subtitle:
-            AppLocalizations.of(context)?.attendanceManagement ??
-            "Quản lý giờ làm việc",
+            AppLocalizations.of(context)?.personalAttendanceDescription ??
+            "Check-in/out và xem lịch sử chấm công cá nhân",
         actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download_outlined),
-            tooltip: 'Xuất Excel chấm công',
-            onPressed: () async {
-              final result = await ExportDateFilterDialog.show(
-                context,
-                title: 'Xuất chấm công',
-              );
-              if (result == null) return;
-              if (!mounted) return;
-              await ExcelExportHelper.exportAttendance(
-                context,
-                startMs: result['startMs'],
-                endMs: result['endMs'],
-              );
-            },
-          ),
+          if (_role == 'owner' || _role == 'manager')
+            IconButton(
+              icon: const Icon(Icons.file_download_outlined),
+              tooltip: 'Xuất Excel chấm công',
+              onPressed: () async {
+                final result = await ExportDateFilterDialog.show(
+                  context,
+                  title: 'Xuất chấm công',
+                );
+                if (result == null) return;
+                if (!context.mounted) return;
+                await ExcelExportHelper.exportAttendance(
+                  context,
+                  startMs: result['startMs'],
+                  endMs: result['endMs'],
+                );
+              },
+            ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -456,6 +502,10 @@ class _AttendanceViewState extends State<AttendanceView>
           ),
           const SizedBox(height: 12),
           if (_today != null) _buildTodaySummary(),
+          const SizedBox(height: 12),
+          _buildRequestActionsCard(),
+          const SizedBox(height: 12),
+          _buildMyLeaveRequestsCard(),
           if (_role == 'owner' || _role == 'manager') ...[
             const SizedBox(height: 10),
             const Divider(),
@@ -642,8 +692,9 @@ class _AttendanceViewState extends State<AttendanceView>
   );
 
   Widget _buildHistoryTab() {
-    if (_history.isEmpty)
+    if (_history.isEmpty) {
       return const Center(child: Text("Chưa có dữ liệu lịch sử"));
+    }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _history.length,
@@ -707,6 +758,518 @@ class _AttendanceViewState extends State<AttendanceView>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildRequestActionsCard() {
+    final loc = AppLocalizations.of(context)!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'YÊU CẦU CÁ NHÂN',
+            style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Gửi yêu cầu quên chấm công hoặc xin nghỉ mà không cần vào màn quản lý.',
+            style: AppTextStyles.body2.copyWith(
+              color: AppColors.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _showForgotCheckinRequestDialog,
+                  icon: const Icon(Icons.add_alarm),
+                  label: Text(loc.forgotCheckin),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showCreateLeaveRequestDialog,
+                  icon: const Icon(Icons.event_busy),
+                  label: Text(loc.leaveRequests),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMyLeaveRequestsCard() {
+    final loc = AppLocalizations.of(context)!;
+    final items = _leaveRequests.take(3).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'ĐƠN CỦA TÔI',
+                style: AppTextStyles.caption.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onSurface.withOpacity(0.7),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_leaveRequests.length} đơn',
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.inactive,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (items.isEmpty)
+            Text(
+              loc.noLeaveRequests,
+              style: AppTextStyles.body2.copyWith(color: AppColors.inactive),
+            )
+          else
+            ...items.map(_buildLeaveRequestItem),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeaveRequestItem(LeaveRequest request) {
+    final statusColor = switch (request.status) {
+      'approved' => AppColors.success,
+      'rejected' => AppColors.error,
+      _ => AppColors.warning,
+    };
+    final statusLabel = switch (request.status) {
+      'approved' => 'Đã duyệt',
+      'rejected' => 'Từ chối',
+      _ => 'Chờ duyệt',
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  LeaveRequest.leaveTypeDisplayVi(request.leaveType),
+                  style: AppTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Text(
+                statusLabel,
+                style: AppTextStyles.caption.copyWith(
+                  color: statusColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${request.startDate} -> ${request.endDate}',
+            style: AppTextStyles.body2.copyWith(color: AppColors.inactive),
+          ),
+          if ((request.reason ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Lý do: ${request.reason}',
+                style: AppTextStyles.caption,
+              ),
+            ),
+          if ((request.rejectReason ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Từ chối: ${request.rejectReason}',
+                style: AppTextStyles.caption.copyWith(color: AppColors.error),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showForgotCheckinRequestDialog() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    DateTime selectedDate = DateTime.now();
+    TimeOfDay? checkInTime;
+    TimeOfDay? checkOutTime;
+    String note = '';
+    final displayName = _userName.isNotEmpty
+        ? _userName
+        : (user.email?.split('@').first.toUpperCase() ?? 'NV');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.add_alarm, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(context)!.forgotCheckinRequest,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      displayName,
+                      style: AppTextStyles.body2.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Ngày: ${DateFormat('dd/MM/yyyy').format(selectedDate)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: selectedDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                      );
+                      if (d != null) setDlg(() => selectedDate = d);
+                    },
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Giờ vào: ${checkInTime?.format(ctx) ?? '--:--'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.access_time, size: 18),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                        context: ctx,
+                        initialTime: const TimeOfDay(hour: 8, minute: 0),
+                      );
+                      if (t != null) setDlg(() => checkInTime = t);
+                    },
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Giờ ra: ${checkOutTime?.format(ctx) ?? '--:--'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.access_time, size: 18),
+                    onTap: () async {
+                      final t = await showTimePicker(
+                        context: ctx,
+                        initialTime: const TimeOfDay(hour: 17, minute: 0),
+                      );
+                      if (t != null) setDlg(() => checkOutTime = t);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Ghi chú',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => note = v,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (checkInTime == null) {
+                    NotificationService.showSnackBar(
+                      'Chọn giờ vào',
+                      color: Colors.red,
+                    );
+                    return;
+                  }
+                  final dateKey = DateFormat('yyyy-MM-dd').format(selectedDate);
+                  final inMs = DateTime(
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                    checkInTime!.hour,
+                    checkInTime!.minute,
+                  ).millisecondsSinceEpoch;
+                  final outMs = checkOutTime != null
+                      ? DateTime(
+                          selectedDate.year,
+                          selectedDate.month,
+                          selectedDate.day,
+                          checkOutTime!.hour,
+                          checkOutTime!.minute,
+                        ).millisecondsSinceEpoch
+                      : null;
+                  Navigator.pop(ctx);
+                  final ok =
+                      await AttendanceApprovalService.createForgotCheckinRequest(
+                        userId: user.uid,
+                        email: user.email ?? '',
+                        name: displayName,
+                        dateKey: dateKey,
+                        checkInAt: inMs,
+                        checkOutAt: outMs,
+                        note: note.isNotEmpty ? note : null,
+                      );
+                  if (ok) {
+                    NotificationService.showSnackBar(
+                      'Đã gửi yêu cầu bổ sung chấm công',
+                      color: AppColors.success,
+                    );
+                    await _refreshAttendanceData();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: const Text('Gửi yêu cầu'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showCreateLeaveRequestDialog() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    String leaveType = 'annual';
+    DateTime startDate = DateTime.now().add(const Duration(days: 1));
+    DateTime endDate = DateTime.now().add(const Duration(days: 1));
+    String reason = '';
+    final displayName = _userName.isNotEmpty
+        ? _userName
+        : (user.email?.split('@').first.toUpperCase() ?? 'NV');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) {
+          final days = endDate.difference(startDate).inDays + 1;
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.event_busy, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  AppLocalizations.of(context)!.createLeaveRequest,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      displayName,
+                      style: AppTextStyles.body2.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: leaveType,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.leaveType,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: ['annual', 'sick', 'unpaid', 'personal', 'maternity']
+                        .map(
+                          (t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(
+                              LeaveRequest.leaveTypeDisplayVi(t),
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) => setDlg(() => leaveType = v ?? 'annual'),
+                  ),
+                  const SizedBox(height: 10),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${AppLocalizations.of(context)!.startDate}: ${DateFormat('dd/MM/yyyy').format(startDate)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: startDate,
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                      );
+                      if (d != null) {
+                        setDlg(() {
+                          startDate = d;
+                          if (endDate.isBefore(startDate)) endDate = startDate;
+                        });
+                      }
+                    },
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      '${AppLocalizations.of(context)!.endDate}: ${DateFormat('dd/MM/yyyy').format(endDate)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    trailing: const Icon(Icons.calendar_today, size: 18),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: ctx,
+                        initialDate: endDate,
+                        firstDate: startDate,
+                        lastDate: startDate.add(const Duration(days: 90)),
+                      );
+                      if (d != null) setDlg(() => endDate = d);
+                    },
+                  ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${AppLocalizations.of(context)!.totalDays}: $days ngày',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.leaveReason,
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (v) => reason = v,
+                    maxLines: 2,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final request = LeaveRequest(
+                    userId: user.uid,
+                    email: user.email ?? '',
+                    name: displayName,
+                    leaveType: leaveType,
+                    startDate: DateFormat('yyyy-MM-dd').format(startDate),
+                    endDate: DateFormat('yyyy-MM-dd').format(endDate),
+                    totalDays: days.toDouble(),
+                    reason: reason.isNotEmpty ? reason : null,
+                    status: 'pending',
+                    createdAt: DateTime.now().millisecondsSinceEpoch,
+                    updatedAt: DateTime.now().millisecondsSinceEpoch,
+                    isSynced: false,
+                  );
+                  Navigator.pop(ctx);
+                  final ok = await AttendanceApprovalService.createLeaveRequest(
+                    request,
+                  );
+                  if (ok) {
+                    NotificationService.showSnackBar(
+                      'Đã gửi đơn xin nghỉ',
+                      color: AppColors.success,
+                    );
+                    await _refreshAttendanceData();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                child: Text(AppLocalizations.of(context)!.createLeaveRequest),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
