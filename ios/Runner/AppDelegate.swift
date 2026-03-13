@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 import FirebaseCore
 import FirebaseMessaging
 
@@ -7,6 +8,8 @@ import FirebaseMessaging
 @main
 @MainActor
 @objc class AppDelegate: FlutterAppDelegate {
+  private(set) static var lastApnsRegistrationError: String?
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -40,8 +43,22 @@ import FirebaseMessaging
   // Handle APNs token registration
   override func application(_ application: UIApplication,
                            didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-    Messaging.messaging().apnsToken = deviceToken
+    AppDelegate.lastApnsRegistrationError = nil
+    #if DEBUG
+    Messaging.messaging().setAPNSToken(deviceToken, type: .sandbox)
+    #else
+    Messaging.messaging().setAPNSToken(deviceToken, type: .prod)
+    #endif
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    AppDelegate.lastApnsRegistrationError = error.localizedDescription
+    NSLog("APNs registration failed: %@", error.localizedDescription)
+    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
   }
 }
 

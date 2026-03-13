@@ -110,9 +110,64 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
+class _HomeShopReadScope {
+  final String? shopId;
+
+  const _HomeShopReadScope(this.shopId);
+
+  bool get hasScopedShop => shopId != null && shopId!.isNotEmpty;
+
+  String where(String baseWhere, {bool includeLegacyNull = true}) {
+    if (!hasScopedShop) return baseWhere;
+    final legacyClause = includeLegacyNull ? ' OR shopId IS NULL' : '';
+    return '($baseWhere) AND (shopId = ?$legacyClause)';
+  }
+
+  List<Object?> args(List<Object?> baseArgs, {bool includeLegacyNull = true}) {
+    if (!hasScopedShop) return baseArgs;
+    return [...baseArgs, shopId];
+  }
+
+  String get coreRecordCountSql {
+    if (hasScopedShop) {
+      return 'SELECT '
+          '(SELECT COUNT(*) FROM repairs WHERE shopId = ? OR shopId IS NULL) + '
+          '(SELECT COUNT(*) FROM sales WHERE shopId = ? OR shopId IS NULL) + '
+          '(SELECT COUNT(*) FROM products WHERE shopId = ? OR shopId IS NULL) '
+          'AS total';
+    }
+    return 'SELECT '
+        '(SELECT COUNT(*) FROM repairs) + '
+        '(SELECT COUNT(*) FROM sales) + '
+        '(SELECT COUNT(*) FROM products) '
+        'AS total';
+  }
+
+  List<Object?> get coreRecordCountArgs {
+    if (!hasScopedShop) return const [];
+    return [shopId, shopId, shopId];
+  }
+
+  String get breakdownRecordCountSql {
+    if (hasScopedShop) {
+      return 'SELECT '
+          '(SELECT COUNT(*) FROM repairs WHERE shopId = ? OR shopId IS NULL) as repairs, '
+          '(SELECT COUNT(*) FROM sales WHERE shopId = ? OR shopId IS NULL) as sales, '
+          '(SELECT COUNT(*) FROM products WHERE shopId = ? OR shopId IS NULL) as products';
+    }
+    return 'SELECT '
+        '(SELECT COUNT(*) FROM repairs) as repairs, '
+        '(SELECT COUNT(*) FROM sales) as sales, '
+        '(SELECT COUNT(*) FROM products) as products';
+  }
+
+  List<Object?> get breakdownRecordCountArgs => coreRecordCountArgs;
+}
+
 class _HomeViewState extends State<HomeView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _lastTabIndexPrefKey = 'home_last_tab_index_v1';
+  static const String _lastTabIdPrefKey = 'home_last_tab_id_v1';
   static const String _homeTabId = 'home';
   static const String _financeTabId = 'finance';
 
@@ -122,7 +177,9 @@ class _HomeViewState extends State<HomeView>
   int todaySaleCount = 0;
   int _currentIndex = 0; // Bottom navigation index
   int? _restoredTabIndex;
+  String? _restoredTabId;
   final Map<String, GlobalKey<NavigatorState>> _tabNavigatorKeys = {};
+  final Map<String, int> _tabHostVersions = {};
 
   /// Getter for localization - dùng chung cho tất cả methods
   AppLocalizations get loc => AppLocalizations.of(context)!;
@@ -188,7 +245,7 @@ class _HomeViewState extends State<HomeView>
       Future.delayed(const Duration(seconds: 5), () {
         if (mounted && _permissions.isEmpty) {
           debugPrint('Permissions not loaded, forcing update');
-          _updatePermissions();
+          _updatePermissions(forceRefresh: true);
         }
       });
     });
@@ -198,9 +255,11 @@ class _HomeViewState extends State<HomeView>
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getInt(_lastTabIndexPrefKey);
-      if (!mounted || saved == null || saved < 0) return;
+      final savedTabId = prefs.getString(_lastTabIdPrefKey);
+      if (!mounted) return;
       setState(() {
-        _restoredTabIndex = saved;
+        _restoredTabId = savedTabId;
+        _restoredTabIndex = saved != null && saved >= 0 ? saved : null;
       });
     } catch (e) {
       debugPrint('HomeView: Failed to load saved tab index: $e');
@@ -229,12 +288,15 @@ class _HomeViewState extends State<HomeView>
   void _setCurrentTab(int index) {
     if (index < 0 || index >= _navItems.length) return;
     setState(() => _currentIndex = index);
-    unawaited(_persistCurrentTabIndex(index));
+    unawaited(_persistCurrentTabSelection(index));
   }
 
   String _tabIdAt(int index) {
-    if (index < 0 || index >= _tabConfigs.length) return _homeTabId;
-    return _tabConfigs[index]['id'] as String? ?? 'tab_$index';
+    final source = _visibleTabConfigs.isNotEmpty
+        ? _visibleTabConfigs
+        : _tabConfigs;
+    if (index < 0 || index >= source.length) return _homeTabId;
+    return source[index]['id'] as String? ?? 'tab_$index';
   }
 
   bool _usesNestedNavigator(int index) {
@@ -270,21 +332,30 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildTabHost(int index) {
+    final tabId = _tabIdAt(index);
     final child = _tabWidgets[index];
+    final version = _tabHostVersions[tabId] ?? 0;
     if (!_usesNestedNavigator(index)) {
-      return child;
+      return KeyedSubtree(
+        key: ValueKey('home_tab_host_${tabId}_$version'),
+        child: child,
+      );
     }
 
-    return Navigator(
-      key: _navigatorKeyForTab(index),
-      onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => child),
+    return KeyedSubtree(
+      key: ValueKey('home_tab_host_${tabId}_$version'),
+      child: Navigator(
+        key: _navigatorKeyForTab(index),
+        onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => child),
+      ),
     );
   }
 
-  Future<void> _persistCurrentTabIndex(int index) async {
+  Future<void> _persistCurrentTabSelection(int index) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_lastTabIndexPrefKey, index);
+      await prefs.setString(_lastTabIdPrefKey, _tabIdAt(index));
     } catch (e) {
       debugPrint('HomeView: Failed to persist tab index: $e');
     }
@@ -305,8 +376,10 @@ class _HomeViewState extends State<HomeView>
 
   // Tab configurations with permissions
   List<Map<String, dynamic>> _tabConfigs = [];
+  List<Map<String, dynamic>> _visibleTabConfigs = [];
   List<BottomNavigationBarItem> _navItems = [];
   List<Widget> _tabWidgets = [];
+  final Map<String, bool> _tabAccessState = {};
 
   int _rebuildCounter = 0; // Force rebuild counter
   bool _isLoadingStats = false; // Guard chống load nhiều lần
@@ -371,7 +444,7 @@ class _HomeViewState extends State<HomeView>
 
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
-      widget.role == 'admin' || widget.role == 'owner' || _isSuperAdmin;
+      UserService.hasOwnerLevelAccess(widget.role, includeSuperAdmin: true);
 
   void _initializeTabConfigs() {
     final loc = AppLocalizations.of(context)!;
@@ -482,8 +555,7 @@ class _HomeViewState extends State<HomeView>
       },
       {
         'id': 'settings',
-        'permission':
-            null, // Settings always open for all, only Super Admin can lock
+        'permission': null,
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.settings_outlined),
           activeIcon: const Icon(Icons.settings_rounded),
@@ -1024,6 +1096,7 @@ class _HomeViewState extends State<HomeView>
   void _updateAvailableTabs() {
     // THAY ĐỔI: Luôn hiển thị tất cả các tab, nhưng thay nội dung bằng màn hình khóa nếu không có quyền
     final allConfigs = _tabConfigs.map((config) {
+      final tabId = config['id'] as String? ?? 'unknown';
       final permission = config['permission'] as String?;
       // Nếu không có quyền yêu cầu (null), luôn cho phép
       // hasFullAccess (admin/owner/superAdmin) luôn có quyền
@@ -1039,6 +1112,15 @@ class _HomeViewState extends State<HomeView>
       } else {
         hasPermission = _permissions[permission] == true;
       }
+
+      final previousAccess = _tabAccessState[tabId];
+      if (previousAccess != null && previousAccess != hasPermission) {
+        _tabNavigatorKeys[tabId] = GlobalKey<NavigatorState>(
+          debugLabel: 'home_tab_$tabId',
+        );
+        _tabHostVersions[tabId] = (_tabHostVersions[tabId] ?? 0) + 1;
+      }
+      _tabAccessState[tabId] = hasPermission;
 
       // Nếu không có quyền, thay thế widget bằng màn hình khóa
       if (!hasPermission) {
@@ -1056,40 +1138,33 @@ class _HomeViewState extends State<HomeView>
 
     // Limit to 7 tabs max for BottomNavigationBar compatibility
     if (allConfigs.length > 7) {
-      // Prioritize: Home, Sales, Repairs, Inventory, Staff, Finance, Settings
+      // Prioritize by stable tab id instead of localized labels.
       final priorityTabs = [
-        'Home',
-        'Bán hàng',
-        'Sửa chữa',
-        'Kho',
-        'Nhân sự',
-        'Tài chính',
-        'Cài đặt',
+        _homeTabId,
+        'sales',
+        'repairs',
+        'inventory',
+        'staff',
+        _financeTabId,
+        'settings',
       ];
       final prioritized = allConfigs
-          .where(
-            (config) => priorityTabs.contains(
-              (config['item'] as BottomNavigationBarItem).label,
-            ),
-          )
+          .where((config) => priorityTabs.contains(config['id'] as String?))
           .toList();
       final remaining = allConfigs
-          .where(
-            (config) => !priorityTabs.contains(
-              (config['item'] as BottomNavigationBarItem).label,
-            ),
-          )
+          .where((config) => !priorityTabs.contains(config['id'] as String?))
           .toList();
       allConfigs.clear();
       allConfigs.addAll(prioritized);
       allConfigs.addAll(remaining.take(7 - prioritized.length));
     }
 
-    // Preserve current tab by label before rebuilding
-    final String? currentLabel = (_currentIndex < _navItems.length)
-        ? _navItems[_currentIndex].label
+    // Preserve current tab by stable id before rebuilding.
+    final String? currentTabId = (_currentIndex < _visibleTabConfigs.length)
+        ? _visibleTabConfigs[_currentIndex]['id'] as String?
         : null;
 
+    _visibleTabConfigs = List<Map<String, dynamic>>.from(allConfigs);
     _navItems = allConfigs
         .map((config) => config['item'] as BottomNavigationBarItem)
         .toList();
@@ -1097,13 +1172,28 @@ class _HomeViewState extends State<HomeView>
         .map((config) => config['widget'] as Widget)
         .toList();
 
-    // Restore current tab by label match (prevents reset when tabs shift)
-    if (currentLabel != null) {
-      final restored = _navItems.indexWhere(
-        (item) => item.label == currentLabel,
+    // Restore current tab by id match (prevents reset when labels/locales shift).
+    if (currentTabId != null) {
+      final restored = _visibleTabConfigs.indexWhere(
+        (config) => config['id'] == currentTabId,
       );
       if (restored >= 0) {
         _currentIndex = restored;
+      } else if (_currentIndex >= _navItems.length) {
+        _currentIndex = 0;
+      }
+    } else if (_restoredTabId != null) {
+      final restored = _visibleTabConfigs.indexWhere(
+        (config) => config['id'] == _restoredTabId,
+      );
+      if (restored >= 0) {
+        _currentIndex = restored;
+        _restoredTabId = null;
+        _restoredTabIndex = null;
+      } else if (_restoredTabIndex != null &&
+          _restoredTabIndex! < _navItems.length) {
+        _currentIndex = _restoredTabIndex!;
+        _restoredTabIndex = null;
       } else if (_currentIndex >= _navItems.length) {
         _currentIndex = 0;
       }
@@ -1115,7 +1205,7 @@ class _HomeViewState extends State<HomeView>
       _currentIndex = 0;
     }
 
-    unawaited(_persistCurrentTabIndex(_currentIndex));
+    unawaited(_persistCurrentTabSelection(_currentIndex));
   }
 
   /// Rebuild ONLY the home tab widget to reflect updated stats.
@@ -1165,6 +1255,7 @@ class _HomeViewState extends State<HomeView>
           (_) => _syncNow(silent: true),
         );
         debugPrint('HomeView: App resumed - restarted sync timer');
+        unawaited(_updatePermissions(forceRefresh: true));
         // Quick sync after resume
         _syncNow(silent: true);
         _debouncedLoadStats();
@@ -1188,7 +1279,7 @@ class _HomeViewState extends State<HomeView>
     try {
       // Load UI ngay lập tức với data local, không chờ Firestore
       // 1. Load permissions và config trước (nhanh)
-      _updatePermissions();
+      unawaited(_updatePermissions(forceRefresh: true));
       _loadShopSettings();
       _loadDashboardConfig();
       _loadShortcutConfig();
@@ -1203,9 +1294,11 @@ class _HomeViewState extends State<HomeView>
       // main.dart đã await downloadAllFromCloud cho web,
       // nhưng nếu vào HomeView qua route khác thì cần kiểm tra lại
       if (kIsWeb) {
+        final bootstrapScope = _HomeShopReadScope(UserService.getShopIdSync());
         final counts = await db.database.then(
           (d) => d.rawQuery(
-            'SELECT (SELECT COUNT(*) FROM repairs) + (SELECT COUNT(*) FROM sales) + (SELECT COUNT(*) FROM products) AS total',
+            bootstrapScope.coreRecordCountSql,
+            bootstrapScope.coreRecordCountArgs,
           ),
         );
         final totalRecords = (counts.first['total'] as int?) ?? 0;
@@ -1267,7 +1360,7 @@ class _HomeViewState extends State<HomeView>
     } catch (e) {
       debugPrint('Error in _initialSetup: $e');
       // Still try to load permissions
-      _updatePermissions();
+      unawaited(_updatePermissions(forceRefresh: true));
     }
   }
 
@@ -1770,15 +1863,19 @@ class _HomeViewState extends State<HomeView>
       final endMs = todayEnd.millisecondsSinceEpoch;
       final dbConn = await db.database;
       final shopId = UserService.getShopIdSync();
+      final scope = _HomeShopReadScope(shopId);
 
       // === BATCH 1: Run all independent DB queries in parallel ===
       final batch1 = await Future.wait([
         // [0] pendingR
-        dbConn.rawQuery('SELECT COUNT(*) FROM repairs WHERE status IN (1, 2)'),
+        dbConn.rawQuery(
+          'SELECT COUNT(*) FROM repairs WHERE ${scope.where('status IN (1, 2)')}',
+          scope.args(const []),
+        ),
         // [1] newRT
         dbConn.rawQuery(
-          'SELECT COUNT(*) FROM repairs WHERE createdAt >= ? AND createdAt < ?',
-          [startMs, endMs],
+          'SELECT COUNT(*) FROM repairs WHERE ${scope.where('createdAt >= ? AND createdAt < ?')}',
+          scope.args([startMs, endMs]),
         ),
         // [2] fSales
         dbConn.query(
@@ -1798,8 +1895,8 @@ class _HomeViewState extends State<HomeView>
             'soldAt',
             'warranty',
           ],
-          where: 'soldAt >= ? AND soldAt < ?',
-          whereArgs: [startMs, endMs],
+          where: scope.where('soldAt >= ? AND soldAt < ?'),
+          whereArgs: scope.args([startMs, endMs]),
         ),
         // [3] fSettlements
         dbConn.query(
@@ -1814,9 +1911,10 @@ class _HomeViewState extends State<HomeView>
             'loanAmount2',
             'soldAt',
           ],
-          where:
-              'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
-          whereArgs: [startMs, endMs],
+          where: scope.where(
+            'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
+          ),
+          whereArgs: scope.args([startMs, endMs]),
         ),
         // [4] fRepairs
         dbConn.query(
@@ -1828,9 +1926,10 @@ class _HomeViewState extends State<HomeView>
             'deliveredAt',
             'warranty',
           ],
-          where:
-              'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
-          whereArgs: [startMs, endMs],
+          where: scope.where(
+            'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
+          ),
+          whereArgs: scope.args([startMs, endMs]),
         ),
         // [5] fExpenses
         dbConn.query(
@@ -1844,12 +1943,8 @@ class _HomeViewState extends State<HomeView>
             'type',
             'paymentMethod',
           ],
-          where: shopId != null && shopId.isNotEmpty
-              ? '(date >= ? AND date < ?) AND (shopId = ? OR shopId IS NULL)'
-              : 'date >= ? AND date < ?',
-          whereArgs: shopId != null && shopId.isNotEmpty
-              ? [startMs, endMs, shopId]
-              : [startMs, endMs],
+          where: scope.where('date >= ? AND date < ?'),
+          whereArgs: scope.args([startMs, endMs]),
         ),
         // [6] debtPayments - resolved debtType + shop filter để khớp chốt quỹ
         db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs),
@@ -1857,17 +1952,19 @@ class _HomeViewState extends State<HomeView>
         dbConn.query(
           'repair_partner_payments',
           columns: ['amount', 'paidAt', 'paymentMethod'],
-          where:
-              'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
-          whereArgs: [startMs, endMs],
+          where: scope.where(
+            'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+          ),
+          whereArgs: scope.args([startMs, endMs]),
         ),
         // [8] supplierPayments
         dbConn.query(
           'supplier_payments',
           columns: ['amount', 'paidAt', 'paymentMethod'],
-          where:
-              'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
-          whereArgs: [startMs, endMs],
+          where: scope.where(
+            'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+          ),
+          whereArgs: scope.args([startMs, endMs]),
         ),
         // [9] supplierImports
         dbConn.query(
@@ -1879,21 +1976,24 @@ class _HomeViewState extends State<HomeView>
             'importDate',
             'createdAt',
           ],
-          where:
-              '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
-          whereArgs: [startMs, endMs, startMs, endMs],
+          where: scope.where(
+            '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
+          ),
+          whereArgs: scope.args([startMs, endMs, startMs, endMs]),
         ),
         // [10] repairPartsCostFund — repairs with cost recorded in fund today
         dbConn.query(
           'repairs',
           columns: ['cost', 'costRecordedAmount', 'costPaymentMethod'],
-          where:
-              'costRecordedInFund = 1 AND costRecordedAt IS NOT NULL AND costRecordedAt >= ? AND costRecordedAt < ?',
-          whereArgs: [startMs, endMs],
+          where: scope.where(
+            'costRecordedInFund = 1 AND costRecordedAt IS NOT NULL AND costRecordedAt >= ? AND costRecordedAt < ?',
+          ),
+          whereArgs: scope.args([startMs, endMs]),
         ),
         // [11] pendingApproval — đơn chờ duyệt giao (status 3 + pendingDeliveryApproval = 1)
         dbConn.rawQuery(
-          'SELECT COUNT(*) FROM repairs WHERE status = 3 AND pendingDeliveryApproval = 1',
+          'SELECT COUNT(*) FROM repairs WHERE ${scope.where('status = 3 AND pendingDeliveryApproval = 1')}',
+          scope.args(const []),
         ),
         // [12] salesReturns — phiếu trả hàng hôm nay (trừ vào doanh thu/quỹ)
         dbConn
@@ -1905,8 +2005,10 @@ class _HomeViewState extends State<HomeView>
                 'refundMethod',
                 'returnDate',
               ],
-              where: 'returnDate >= ? AND returnDate < ? AND status = ?',
-              whereArgs: [startMs, endMs, 'APPROVED'],
+              where: scope.where(
+                'returnDate >= ? AND returnDate < ? AND status = ?',
+              ),
+              whereArgs: scope.args([startMs, endMs, 'APPROVED']),
             )
             .catchError((_) => <Map<String, dynamic>>[]),
       ]);
@@ -1954,29 +2056,31 @@ class _HomeViewState extends State<HomeView>
 
       // === BATCH 2: Secondary queries in parallel ===
       // (warranty, debts, partner debts, record counts - all independent)
-      final batch2 = await Future.wait([
+      final batch2 = await Future.wait<Object?>([
         // [0] repairsWarranty
         dbConn.query(
           'repairs',
           columns: ['deliveredAt', 'warranty'],
-          where:
-              "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+          where: scope.where(
+            "deliveredAt IS NOT NULL AND warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+          ),
+          whereArgs: scope.args(const []),
         ),
         // [1] salesWarranty
         dbConn.query(
           'sales',
           columns: ['soldAt', 'warranty'],
-          where:
-              "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+          where: scope.where(
+            "warranty IS NOT NULL AND warranty != '' AND UPPER(warranty) != 'KO BH'",
+          ),
+          whereArgs: scope.args(const []),
         ),
         // [2] debt overview — same source of truth as DebtView
         _debtSummaryService.getDebtOverview(),
         // [4] record counts (single combined query)
         dbConn.rawQuery(
-          'SELECT '
-          '(SELECT COUNT(*) FROM repairs) as repairs, '
-          '(SELECT COUNT(*) FROM sales) as sales, '
-          '(SELECT COUNT(*) FROM products) as products',
+          scope.breakdownRecordCountSql,
+          scope.breakdownRecordCountArgs,
         ),
         // [5] previous day closing balance for "Quỹ hiện có"
         db.getPreviousDayClosing(DateFormat('yyyy-MM-dd').format(todayStart)),
@@ -2751,9 +2855,6 @@ class _HomeViewState extends State<HomeView>
           break;
         case DashboardCardType.quickActions:
           widgets.add(_buildUnifiedShortcuts());
-          break;
-        case DashboardCardType.todayActivity:
-          widgets.add(_buildTodayActivityDashboardCard());
           break;
         case DashboardCardType.financeSummary:
           // Merged into financeDetail below
@@ -7542,17 +7643,9 @@ class _HomeViewState extends State<HomeView>
   }
 
   String _getTabTitle(int index) {
-    if (index < _tabWidgets.length) {
-      // Get the corresponding config from the original configs
-      final availableConfigs = _tabConfigs.where((config) {
-        final permission = config['permission'] as String?;
-        return permission == null || (_permissions[permission] == true);
-      }).toList();
-
-      if (index < availableConfigs.length) {
-        final item = availableConfigs[index]['item'] as BottomNavigationBarItem;
-        return item.label?.toUpperCase() ?? 'TAB';
-      }
+    if (index >= 0 && index < _visibleTabConfigs.length) {
+      final item = _visibleTabConfigs[index]['item'] as BottomNavigationBarItem;
+      return item.label?.toUpperCase() ?? 'TAB';
     }
     return "SHOP MANAGER";
   }
