@@ -306,6 +306,45 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     _currentUid = null;
   }
 
+  void _startBackgroundUserWarmup(String uid, String email) {
+    Future.microtask(() async {
+      try {
+        await UserService.syncUserInfo(uid, email).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            debugPrint('⚠️ [MOBILE] background syncUserInfo timeout, continue');
+          },
+        );
+        await CurrentShopService().init();
+      } catch (e) {
+        debugPrint('⚠️ background user warmup failed: $e');
+      }
+
+      final currentShopId = UserService.getShopIdSync();
+      if (currentShopId != null && currentShopId.isNotEmpty) {
+        try {
+          await SyncService.downloadAllFromCloud(force: true).timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint('⚠️ Background sync timeout sau 20s');
+            },
+          );
+          await _initSyncOrchestrator();
+          await CashClosingNotifier.instance.init();
+          await PaymentIntentService.initialize();
+        } catch (e) {
+          debugPrint('⚠️ background app services sync failed: $e');
+        }
+      }
+
+      try {
+        await SyncHealthCheck.runFullCheck();
+      } catch (e) {
+        debugPrint('⚠️ background health check failed: $e');
+      }
+    });
+  }
+
   /// Kiểm tra role và xử lý super admin
   /// Trả về Map với 'role' và 'isSuperAdmin'
   Future<Map<String, dynamic>> _getRoleAfterSync(
@@ -321,6 +360,22 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       debugPrint(
         '♻️ _getRoleAfterSync: Restored shopId from prefs = ${UserService.getShopIdSync()}',
       );
+    }
+
+    if (!kIsWeb && hasLocalCache) {
+      final cachedRole = await UserService.getCachedRole();
+      final cachedShopId = UserService.getShopIdSync();
+      if (cachedRole != null &&
+          cachedRole.isNotEmpty &&
+          cachedShopId != null &&
+          cachedShopId.isNotEmpty) {
+        debugPrint(
+          '⚡ _getRoleAfterSync: Using cached mobile session role=$cachedRole, shopId=$cachedShopId',
+        );
+        _startBackgroundUserWarmup(uid, email);
+        PerfMonitor.stop('_getRoleAfterSync');
+        return {'role': cachedRole, 'isSuperAdmin': false};
+      }
     }
 
     // Kiểm tra super admin TRƯỚC - không cần sync data
