@@ -19,6 +19,7 @@ import '../models/attendance_model.dart';
 import '../models/attendance_monthly_summary_model.dart';
 import '../models/product_model.dart';
 import '../models/inventory_check_model.dart';
+import '../services/user_service.dart';
 import 'money_utils.dart';
 
 /// Utility class for exporting data to Excel (.xlsx) files.
@@ -320,6 +321,10 @@ class ExcelExportHelper {
     int? startMs,
     int? endMs,
   }) async {
+    // Check cost price permission
+    final perms = await UserService.getCurrentUserPermissions();
+    final canViewCost = perms['allowViewCostPrice'] ?? false;
+
     List<Repair> repairs;
     if (startMs != null && endMs != null) {
       repairs = await _db.getRepairsByCreatedAtRange(startMs, endMs);
@@ -370,8 +375,8 @@ class ExcelExportHelper {
         r.accessories,
         _repairStatus(r.status),
         _fmtMoney(r.price),
-        _fmtMoney(r.cost),
-        _fmtMoney(r.price - r.cost),
+        canViewCost ? _fmtMoney(r.cost) : '***',
+        canViewCost ? _fmtMoney(r.price - r.cost) : '***',
         r.paymentMethod,
         r.createdBy ?? '',
         r.repairedBy ?? '',
@@ -401,6 +406,10 @@ class ExcelExportHelper {
     int? startMs,
     int? endMs,
   }) async {
+    // Check cost price permission
+    final perms = await UserService.getCurrentUserPermissions();
+    final canViewCost = perms['allowViewCostPrice'] ?? false;
+
     List<SaleOrder> sales;
     if (startMs != null && endMs != null) {
       sales = await _db.getSalesByDateRange(startMs, endMs);
@@ -446,8 +455,8 @@ class ExcelExportHelper {
         s.productNames,
         s.productImeis,
         _fmtMoney(s.totalPrice),
-        _fmtMoney(s.totalCost),
-        _fmtMoney(s.totalPrice - s.totalCost - s.discount),
+        canViewCost ? _fmtMoney(s.totalCost) : '***',
+        canViewCost ? _fmtMoney(s.totalPrice - s.totalCost - s.discount) : '***',
         _fmtMoney(s.discount),
         _fmtMoney(s.finalPrice),
         s.paymentMethod,
@@ -714,6 +723,10 @@ class ExcelExportHelper {
     int? startMs,
     int? endMs,
   }) async {
+    // Check cost price permission
+    final perms = await UserService.getCurrentUserPermissions();
+    final canViewCost = perms['allowViewCostPrice'] ?? false;
+
     List<Product> products = await _db.getAllProducts();
 
     // Filter by createdAt if date range specified
@@ -753,7 +766,7 @@ class ExcelExportHelper {
         p.capacity ?? '',
         p.condition,
         p.quantity,
-        _fmtMoney(p.cost),
+        canViewCost ? _fmtMoney(p.cost) : '***',
         _fmtMoney(p.price),
         p.supplier ?? '',
         p.warranty ?? '',
@@ -780,6 +793,10 @@ class ExcelExportHelper {
     int? startMs,
     int? endMs,
   }) async {
+    // Check cost price permission
+    final perms = await UserService.getCurrentUserPermissions();
+    final canViewCost = perms['allowViewCostPrice'] ?? false;
+
     List<Map<String, dynamic>> parts = await _db.getAllParts();
 
     // Filter by createdAt if date range specified
@@ -826,9 +843,9 @@ class ExcelExportHelper {
         p['partName'] ?? '',
         p['compatibleModels'] ?? '',
         qty,
-        _fmtMoney(cost),
+        canViewCost ? _fmtMoney(cost) : '***',
         _fmtMoney(p['price'] ?? 0),
-        _fmtMoney(cost * qty),
+        canViewCost ? _fmtMoney(cost * qty) : '***',
         getSupplierName(p['supplierId'] as int?),
         p['paymentMethod'] ?? '',
         _fmtDateTime(p['createdAt']),

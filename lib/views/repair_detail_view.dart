@@ -64,6 +64,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopAddr = "";
   String _shopPhone = "";
   bool _hasPermission = false;
+  bool _canViewCostPrice = false;
   List<RepairPartner> _partners = [];
 
   // Shop settings for dynamic terminology (reserved for future multi-industry use)
@@ -114,7 +115,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Future<void> _checkPermission() async {
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
-    setState(() => _hasPermission = perms['allowViewRepairs'] ?? false);
+    setState(() {
+      _hasPermission = perms['allowViewRepairs'] ?? false;
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+    });
   }
 
   Future<void> _loadShopInfo() async {
@@ -1918,6 +1922,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       fieldName: dialogLoc.chargeCustomerLabel,
                     ),
                   ),
+                  if (_canViewCostPrice) ...[
                   const SizedBox(height: 12),
                   CurrencyTextField(
                     controller: costC,
@@ -1928,6 +1933,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       fieldName: dialogLoc.partsCost,
                     ),
                   ),
+                  ],
                 ],
               ),
             ),
@@ -2397,6 +2403,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
+                          if (_canViewCostPrice)
                           Expanded(
                             child: Container(
                               padding: const EdgeInsets.symmetric(
@@ -2435,14 +2442,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                             ),
                           ),
+                          if (_canViewCostPrice)
                           const SizedBox(width: 8),
                           _miniFinCompact("THU", r.price, AppColors.primary),
-                          const SizedBox(width: 8),
+                          if (_canViewCostPrice) ...[                          const SizedBox(width: 8),
                           _miniFinCompact("VỐN", r.cost, AppColors.warning),
+                          ],
                         ],
                       ),
                       // Indicator: cost recorded in fund
-                      if (r.costRecordedInFund && r.cost > 0) ...[
+                      if (_canViewCostPrice && r.costRecordedInFund && r.cost > 0) ...[
                         const SizedBox(height: 4),
                         Row(
                           children: [
@@ -3177,6 +3186,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Widget _buildFinancialContent() {
     return Column(
       children: [
+        if (_canViewCostPrice)
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -3198,6 +3208,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         Row(
           children: [
             _miniFin(loc.priceLabel, r.price, AppColors.primary),
+            if (_canViewCostPrice)
             _miniFin(loc.costLabel, r.cost, AppColors.warning),
           ],
         ),
@@ -3479,6 +3490,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       ),
       child: Column(
         children: [
+          if (_canViewCostPrice)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -3502,6 +3514,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           Row(
             children: [
               _miniFin(loc.priceLabel, r.price, AppColors.primary),
+              if (_canViewCostPrice)
               _miniFin(loc.costLabel, r.cost, AppColors.warning),
             ],
           ),

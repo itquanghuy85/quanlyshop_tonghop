@@ -84,6 +84,7 @@ class _CashClosingViewState extends State<CashClosingView>
   final _txSearchController = TextEditingController();
   DateTime? _txEndDate; // null = single date, set = date range
   bool _hasPermission = false;
+  bool _canViewCostPrice = false;
 
   @override
   void initState() {
@@ -111,7 +112,10 @@ class _CashClosingViewState extends State<CashClosingView>
   Future<void> _checkPermission() async {
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
-    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
+    setState(() {
+      _hasPermission = perms['allowViewRevenue'] ?? false;
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+    });
   }
 
   @override
@@ -1826,6 +1830,7 @@ class _CashClosingViewState extends State<CashClosingView>
                   ],
                 ),
                 const SizedBox(height: 8),
+                if (_canViewCostPrice)
                 Row(
                   children: [
                     Expanded(
@@ -1844,7 +1849,9 @@ class _CashClosingViewState extends State<CashClosingView>
                     ),
                   ],
                 ),
+                if (_canViewCostPrice)
                 const SizedBox(height: 4),
+                if (_canViewCostPrice)
                 Text(
                   "= Doanh thu - Chi phí - Giá vốn",
                   style: TextStyle(

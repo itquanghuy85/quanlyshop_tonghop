@@ -38,6 +38,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   bool _isLoading = false;
   bool _isSaving = false;
 
+  // Permission: cost price visibility
+  bool _canViewCostPrice = false;
+
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
   bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings == null;
@@ -166,6 +169,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      // Load cost price permission
+      final perms = await UserService.getCurrentUserPermissions();
+      if (mounted) _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+
       // Load shop settings for multi-industry support
       final settings = await CategoryService().getShopSettings();
       debugPrint('📦 SmartStockIn: Loaded shop settings - businessType=${settings?.businessType}, enableSerial=${settings?.enableSerial}');
@@ -532,7 +539,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   bool get _canConfirmNow {
     if (_nameCtrl.text.trim().isEmpty) return false;
     // Sử dụng CurrencyTextField.getValue() để check giá vốn đúng cách
-    if (CurrencyTextField.getValue(_costCtrl) <= 0) return false;
+    if (_canViewCostPrice && CurrencyTextField.getValue(_costCtrl) <= 0) return false;
     if (_selectedSupplier == null) return false;
     if (_selectedPaymentMethod == null) return false;
     if (_hasIMEIConflict) return false; // Có IMEI nhưng SL != 1
@@ -557,7 +564,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   List<String> get _missingConfirmInfo {
     final missing = <String>[];
     if (_nameCtrl.text.trim().isEmpty) missing.add('Tên sản phẩm');
-    if (CurrencyTextField.getValue(_costCtrl) <= 0) missing.add('Giá vốn');
+    if (_canViewCostPrice && CurrencyTextField.getValue(_costCtrl) <= 0) missing.add('Giá vốn');
     if (_selectedSupplier == null) missing.add('Nhà cung cấp');
     if (_selectedPaymentMethod == null) missing.add('Phương thức TT');
     if (_isPhone) {
@@ -1560,6 +1567,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             // Giá vốn + Giá bán
             Row(
               children: [
+                if (_canViewCostPrice)
                 Expanded(
                   child: CurrencyTextField(
                     controller: _costCtrl,
@@ -1568,6 +1576,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
+                if (_canViewCostPrice)
                 const SizedBox(width: 8),
                 Expanded(
                   child: CurrencyTextField(

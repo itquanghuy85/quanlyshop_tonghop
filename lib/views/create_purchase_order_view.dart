@@ -57,6 +57,9 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
   bool get _isElectronics => _businessType == 'electronics';
   bool get _enableSerial => _shopSettings?.enableSerial ?? true;
 
+  // Permission: cost price visibility
+  bool _canViewCostPrice = false;
+
   // Item form
   final itemNameCtrl = TextEditingController();
   final itemImeiCtrl = TextEditingController();
@@ -93,9 +96,13 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
       final user = FirebaseAuth.instance.currentUser;
       final userData = await UserService.getUserInfo(user?.uid ?? '');
 
+      // Load cost price permission
+      final perms = await UserService.getCurrentUserPermissions();
+
       setState(() {
         _suppliers = suppliers.map((s) => s.toMap()).toList();
         _currentUserName = userData['name'] ?? 'Unknown';
+        _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
         _isLoading = false;
       });
     } catch (e) {
@@ -347,6 +354,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                   ),
                 ),
                 const SizedBox(width: 8),
+                if (_canViewCostPrice)
                 Expanded(
                   child: CurrencyTextField(
                     controller: itemCostCtrl,
@@ -461,6 +469,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                       ],
                     ),
                     const SizedBox(height: 4),
+                    if (_canViewCostPrice)
                     Text("Giá nhập: ${MoneyUtils.formatVND(item.unitCost)}đ"),
                     const SizedBox(height: 4),
                     Row(
@@ -533,6 +542,7 @@ class _CreatePurchaseOrderViewState extends State<CreatePurchaseOrderView> {
                       ],
                     ),
                     const SizedBox(height: 4),
+                    if (_canViewCostPrice)
                     Text(
                       "Thành tiền: ${MoneyUtils.formatVND(item.quantity * item.unitCost)}đ",
                       style: const TextStyle(fontWeight: FontWeight.w500),

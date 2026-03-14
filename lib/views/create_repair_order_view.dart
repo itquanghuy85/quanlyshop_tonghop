@@ -81,6 +81,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   final List<RepairService> _services = [];
   List<RepairPartner> _partners = [];
   bool _isWalkIn = false;
+  bool _canViewCostPrice = false;
 
   // Shop settings for dynamic terminology
   ShopSettings? _shopSettings;
@@ -179,10 +180,12 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   void _loadPartners() async {
     try {
+      final perms = await UserService.getCurrentUserPermissions();
       final service = RepairPartnerService();
       final partners = await service.getRepairPartners();
       if (!mounted) return;
       setState(() {
+        _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
         _partners = partners.where((p) => p.active).toList();
       });
     } catch (e) {
@@ -773,10 +776,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
           ),
         ),
         const SizedBox(height: 10),
-        Text(
-          loc.totalCost("${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())} VNĐ"),
-          style: AppTextStyles.priceStyle,
-        ),
+        if (_canViewCostPrice)
+          Text(
+            loc.totalCost("${MoneyUtils.formatVND(_services.fold(0, (sum, s) => sum + s.cost).toInt())} VNĐ"),
+            style: AppTextStyles.priceStyle,
+          ),
         const SizedBox(height: 10),
       ],
       ElevatedButton.icon(
@@ -837,15 +841,16 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                         : null,
                   ),
                   const SizedBox(height: 10),
-                  CurrencyTextField(
-                    controller: costCtrl,
-                    label: loc.costVND,
-                    validator: (v) => MoneyUtils.validateAmount(
-                      v ?? '',
-                      min: 1,
-                      fieldName: loc.costVND,
+                  if (_canViewCostPrice)
+                    CurrencyTextField(
+                      controller: costCtrl,
+                      label: loc.costVND,
+                      validator: (v) => MoneyUtils.validateAmount(
+                        v ?? '',
+                        min: 1,
+                        fieldName: loc.costVND,
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<RepairPartner>(
                     decoration: InputDecoration(

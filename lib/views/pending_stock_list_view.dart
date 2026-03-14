@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/user_service.dart';
 import '../models/shop_settings_model.dart';
 import '../widgets/gradient_fab.dart';
 import 'smart_stock_in_view.dart';
@@ -34,6 +35,9 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
   BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
+  // Permission: cost price visibility
+  bool _canViewCostPrice = false;
 
   @override
   void initState() {
@@ -92,6 +96,10 @@ class _PendingStockListViewState extends State<PendingStockListView> {
       // Load shop settings for terminology
       final settings = await CategoryService().getShopSettings();
       if (mounted) _shopSettings = settings;
+
+      // Load cost price permission
+      final perms = await UserService.getCurrentUserPermissions();
+      if (mounted) _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
       
       debugPrint('📋 PendingStockListView._loadData: START');
       final entries = await _service.getPendingEntries();
@@ -614,7 +622,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                 spacing: 6,
                 runSpacing: 4,
                 children: [
-                  if (item.cost != null)
+                  if (item.cost != null && _canViewCostPrice)
                     _infoChip(
                       'Vốn: ${NumberFormat.compact(locale: 'vi').format(item.cost)}đ',
                       Colors.orange.shade100,

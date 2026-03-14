@@ -44,6 +44,7 @@ class _RevenueViewState extends State<RevenueView>
   List<Map<String, dynamic>> _repairPartnerPayments = []; // Thanh toán đối tác sửa chữa
   Map<String, dynamic>? _todayClosing; // Thông tin chốt quỹ hôm nay
   bool _hasRevenueAccess = false;
+  bool _canViewCostPrice = false;
   bool _isLoading = true;
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
@@ -182,6 +183,7 @@ class _RevenueViewState extends State<RevenueView>
     if (!mounted) return;
     setState(() {
       _hasRevenueAccess = perms['allowViewRevenue'] ?? false;
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
     });
   }
 
@@ -851,6 +853,7 @@ class _RevenueViewState extends State<RevenueView>
           // ── Delta cards (compact) ──
           _deltaRow('Doanh thu', cur.totalRevenue, prev.totalRevenue, fmt, pct, const Color(0xFF1E88E5), Icons.trending_up),
           _deltaRow('Lợi nhuận', cur.profit, prev.profit, fmt, pct, const Color(0xFF43A047), Icons.account_balance_wallet),
+          if (_canViewCostPrice)
           _deltaRow('Giá vốn', cur.totalCost, prev.totalCost, fmt, pct, const Color(0xFFFB8C00), Icons.inventory_2_outlined),
           _deltaRow('Chi phí', cur.expenseOut, prev.expenseOut, fmt, pct, const Color(0xFFE53935), Icons.money_off),
           if (_enableRepair)
@@ -884,9 +887,9 @@ class _RevenueViewState extends State<RevenueView>
                 ),
                 Divider(height: 12, color: Colors.grey.shade200),
                 _compRow('Bán hàng', cur.salesIncome, prev.salesIncome, fmt, pct),
-                _compRow('Giá vốn BH', cur.salesCost, prev.salesCost, fmt, pct),
+                if (_canViewCostPrice) _compRow('Giá vốn BH', cur.salesCost, prev.salesCost, fmt, pct),
                 if (_enableRepair) _compRow('Sửa chữa', cur.repairsIncome, prev.repairsIncome, fmt, pct),
-                if (_enableRepair) _compRow('Vốn SC', cur.repairsCost, prev.repairsCost, fmt, pct),
+                if (_enableRepair && _canViewCostPrice) _compRow('Vốn SC', cur.repairsCost, prev.repairsCost, fmt, pct),
                 _compRow('Thu khác', cur.miscIncome, prev.miscIncome, fmt, pct),
                 _compRow('Chi phí HĐ', cur.expenseOut, prev.expenseOut, fmt, pct),
                 Divider(height: 12, color: Colors.grey.shade200),

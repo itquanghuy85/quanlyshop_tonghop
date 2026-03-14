@@ -46,6 +46,7 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
   List<Map<String, dynamic>> _supplierDebts = []; // Thêm debts cho suppliers
 
   bool _loading = true;
+  bool _canViewCostPrice = false;
 
   @override
   void initState() {
@@ -69,6 +70,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
+      final perms = await UserService.getCurrentUserPermissions();
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+
       // Clear old data to avoid duplicate accumulation on refresh
       _repairPartners = [];
       _partnerImportHistory = [];
@@ -373,7 +377,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         return Card(
           child: ListTile(
             title: Text('Lô ${history.batchId}', style: const TextStyle(fontSize: 16)),
-            subtitle: Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 14)),
+            subtitle: _canViewCostPrice
+                ? Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 14))
+                : Text(DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt)), style: const TextStyle(fontSize: 14)),
           ),
         );
       },
@@ -388,7 +394,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         return Card(
           child: ListTile(
             title: Text('Lô ${history.batchId}', style: const TextStyle(fontSize: 16)),
-            subtitle: Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 14)),
+            subtitle: _canViewCostPrice
+                ? Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 14))
+                : Text(DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt)), style: const TextStyle(fontSize: 14)),
           ),
         );
       },
@@ -403,7 +411,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         return Card(
           child: ListTile(
             title: Text(price.productId, style: const TextStyle(fontSize: 16)),
-            subtitle: Text('Giá nhập: ${MoneyUtils.formatVND(price.costPrice.toInt())}₫ - Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫', style: const TextStyle(fontSize: 14)),
+            subtitle: _canViewCostPrice
+                ? Text('Giá nhập: ${MoneyUtils.formatVND(price.costPrice.toInt())}₫ - Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫', style: const TextStyle(fontSize: 14))
+                : Text('Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫', style: const TextStyle(fontSize: 14)),
           ),
         );
       },

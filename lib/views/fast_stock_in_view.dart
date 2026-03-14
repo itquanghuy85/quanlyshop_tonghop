@@ -72,6 +72,9 @@ class _FastStockInViewState extends State<FastStockInView> {
   bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings == null;
   bool get _enableSerial => _shopSettings?.enableSerial ?? true;
 
+  // Permission: cost price visibility
+  bool _canViewCostPrice = false;
+
   // Current quick input code for price sync (reserved for future use)
   // ignore: unused_field
   QuickInputCode? _currentQuickInputCode;
@@ -258,6 +261,10 @@ class _FastStockInViewState extends State<FastStockInView> {
       final settings = await CategoryService().getShopSettings();
       if (mounted) _shopSettings = settings;
       
+      // Load cost price permission
+      final perms = await UserService.getCurrentUserPermissions();
+      if (mounted) _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+
       final sups = await supplierService.getSuppliers();
       if (mounted) {
         setState(() {
@@ -1785,12 +1792,13 @@ class _FastStockInViewState extends State<FastStockInView> {
                   ),
                   const SizedBox(height: 8),
 
-                  _buildCurrencyField(
+                  if (_canViewCostPrice) ...[                  _buildCurrencyField(
                     'Giá nhập (VNĐ) *',
                     costCtrl,
                     Icons.attach_money,
                   ),
                   const SizedBox(height: 8),
+                  ],
                   _buildCurrencyField('Giá bán (VNĐ)', priceCtrl, Icons.sell),
 
                   const SizedBox(height: 24),

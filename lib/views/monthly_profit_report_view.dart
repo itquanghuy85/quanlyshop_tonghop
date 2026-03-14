@@ -30,6 +30,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
   int _yearTotalIn = 0;
   int _yearTotalOut = 0;
   bool _hasPermission = false;
+  bool _canViewCostPrice = false;
 
   @override
   void initState() {
@@ -41,7 +42,10 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
   Future<void> _checkPermission() async {
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
-    setState(() => _hasPermission = perms['allowViewRevenue'] ?? false);
+    setState(() {
+      _hasPermission = perms['allowViewRevenue'] ?? false;
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+    });
   }
 
   Future<void> _loadData() async {
@@ -508,7 +512,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                     ),
                     Expanded(
                       child: Text(
-                        MoneyUtils.formatVND(m.expenseOut + m.saleCost + m.repairCost),
+                        MoneyUtils.formatVND(_canViewCostPrice ? (m.expenseOut + m.saleCost + m.repairCost) : m.expenseOut),
                         style: TextStyle(fontSize: 13, color: Colors.red.shade600),
                         textAlign: TextAlign.right,
                       ),
@@ -629,6 +633,7 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                   ]),
                   const SizedBox(height: 12),
                   // GIÁ VỐN section
+                  if (_canViewCostPrice)
                   _detailSection('📦 GIÁ VỐN', Colors.orange, [
                     _detailRow('Giá vốn bán', m.saleCost),
                     _detailRow('Giá vốn SC', m.repairCost),

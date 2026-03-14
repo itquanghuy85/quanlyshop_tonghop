@@ -75,6 +75,7 @@ class OrderListViewState extends State<OrderListView> {
   Set<int> _statusFilters = {}; // Empty = all, {1,2} = tiếp nhận + đang sửa
   bool _filterPendingApproval = false; // Lọc đơn chờ duyệt giao
   bool _canDelete = false;
+  bool _canViewCostPrice = false;
 
   bool get canDelete => _canDelete;
 
@@ -127,9 +128,16 @@ class OrderListViewState extends State<OrderListView> {
 
   Future<void> _loadDeletePermission() async {
     try {
-      final can = await UserService.isCurrentUserAdmin();
+      final results = await Future.wait([
+        UserService.isCurrentUserAdmin(),
+        UserService.getCurrentUserPermissions(),
+      ]);
       if (!mounted) return;
-      setState(() => _canDelete = can);
+      setState(() {
+        _canDelete = results[0] as bool;
+        final perms = results[1] as Map<String, dynamic>;
+        _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(
@@ -767,10 +775,15 @@ class OrderListViewState extends State<OrderListView> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        loc.orderHasAccounting(
-                          _formatMoney(r.price),
-                          _formatMoney(r.cost),
-                        ),
+                        _canViewCostPrice
+                            ? loc.orderHasAccounting(
+                                _formatMoney(r.price),
+                                _formatMoney(r.cost),
+                              )
+                            : loc.orderHasAccounting(
+                                _formatMoney(r.price),
+                                '***',
+                              ),
                         style: const TextStyle(fontSize: 14),
                       ),
                     ),

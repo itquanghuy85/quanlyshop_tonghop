@@ -4,6 +4,7 @@ import '../widgets/responsive_wrapper.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../services/adjustment_service.dart';
+import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -22,11 +23,21 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
   final db = DBHelper();
   List<Map<String, dynamic>> _adjustments = [];
   bool _isLoading = true;
+  bool _canViewCostPrice = false;
 
   @override
   void initState() {
     super.initState();
+    _loadPermissions();
     _loadAdjustments();
+  }
+
+  Future<void> _loadPermissions() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (!mounted) return;
+    setState(() {
+      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+    });
   }
 
   Future<void> _loadAdjustments() async {
@@ -265,16 +276,16 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
                   const SizedBox(height: 8),
                 ],
                 // Deltas
-                if (costDelta != 0 || debtDelta != 0)
+                if ((_canViewCostPrice && costDelta != 0) || debtDelta != 0)
                   Row(
                     children: [
-                      if (costDelta != 0)
+                      if (_canViewCostPrice && costDelta != 0)
                         _buildDeltaChip(
                           "Chi phí",
                           costDelta,
                           costDelta > 0 ? Colors.red : Colors.green,
                         ),
-                      if (costDelta != 0) const SizedBox(width: 8),
+                      if (_canViewCostPrice && costDelta != 0) const SizedBox(width: 8),
                       if (debtDelta != 0)
                         _buildDeltaChip(
                           "Công nợ",
@@ -367,6 +378,10 @@ class _AdjustmentHistoryViewState extends State<AdjustmentHistoryView> {
           ),
           const SizedBox(height: 4),
           ...allKeys.map((key) {
+            // Hide cost values when no permission
+            if (!_canViewCostPrice && (key == 'cost' || key == 'totalCost')) {
+              return const SizedBox.shrink();
+            }
             final oldVal = oldVals[key];
             final newVal = newVals[key];
             final oldStr = _formatValue(oldVal);
