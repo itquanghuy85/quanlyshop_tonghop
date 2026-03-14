@@ -570,6 +570,56 @@ class FirestoreService {
     }
   }
 
+  // --- SALVAGE PHONES (Kho máy xác) ---
+  static Future<void> addSalvagePhoneCloud(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      final String docId = data['firestoreId'] ??
+          'sp_${data['createdAt']}_${data['deviceName'].hashCode}';
+      data['shopId'] = shopId;
+      data['firestoreId'] = docId;
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      final encryptedData = EncryptionService.encryptMap(data);
+      await _db
+          .collection('salvage_phones')
+          .doc(docId)
+          .set(encryptedData, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore addSalvagePhoneCloud error: $e');
+    }
+  }
+
+  static Future<void> updateSalvagePhoneCloud(
+    Map<String, dynamic> data,
+  ) async {
+    if (data['firestoreId'] == null) return;
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      data['shopId'] = shopId;
+      data['updatedAt'] = FieldValue.serverTimestamp();
+      final encryptedData = EncryptionService.encryptMap(data);
+      await _db
+          .collection('salvage_phones')
+          .doc(data['firestoreId'])
+          .set(encryptedData, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore updateSalvagePhoneCloud error: $e');
+    }
+  }
+
+  static Future<void> deleteSalvagePhoneCloud(String firestoreId) async {
+    try {
+      await _db.collection('salvage_phones').doc(firestoreId).update({
+        'deleted': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Firestore deleteSalvagePhoneCloud error: $e');
+    }
+  }
+
   static Stream<QuerySnapshot> getExpenseStream() async* {
     try {
       final shopId = await UserService.getCurrentShopId();

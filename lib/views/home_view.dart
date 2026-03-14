@@ -48,6 +48,7 @@ import 'about_developer_view.dart';
 import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
 import 'parts_inventory_view.dart';
+import 'salvage_phone_view.dart';
 import 'financial_report_view.dart';
 import 'audit_log_view.dart';
 import 'hr_salary_settings_view.dart';
@@ -5843,6 +5844,19 @@ class _HomeViewState extends State<HomeView>
                   ),
                   subtitle: 'Danh sách phiếu trả hàng',
                 ),
+                if (_enableRepair)
+                  _tabMenuItem(
+                    'Kho máy xác',
+                    Icons.phone_android,
+                    Colors.brown,
+                    () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SalvagePhoneView(),
+                      ),
+                    ),
+                    subtitle: 'Mua bán máy xác, linh kiện',
+                  ),
               ],
             ),
           ],

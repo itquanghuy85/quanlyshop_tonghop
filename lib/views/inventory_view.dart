@@ -1577,16 +1577,23 @@ class _InventoryViewState extends State<InventoryView>
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           l,
           style: AppTextStyles.caption.copyWith(color: AppColors.onSurface),
         ),
-        Text(
-          v,
-          style: AppTextStyles.body2.copyWith(
-            fontWeight: FontWeight.bold,
-            color: color ?? AppColors.onSurface,
+        const SizedBox(width: 16),
+        Flexible(
+          child: Text(
+            v,
+            style: AppTextStyles.body2.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color ?? AppColors.onSurface,
+            ),
+            textAlign: TextAlign.right,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

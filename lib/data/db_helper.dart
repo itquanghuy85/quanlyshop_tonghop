@@ -186,7 +186,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 91,
+      version: 92,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -481,6 +481,36 @@ class DBHelper {
         );
         await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_product_variants_shopId ON product_variants(shopId)',
+        );
+
+        // Salvage phones (Kho máy xác)
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS salvage_phones(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            shopId TEXT,
+            deviceName TEXT,
+            customerName TEXT,
+            customerPhone TEXT,
+            cost INTEGER DEFAULT 0,
+            notes TEXT,
+            images TEXT,
+            status TEXT DEFAULT 'STORED',
+            createdAt INTEGER,
+            updatedAt INTEGER,
+            createdBy TEXT,
+            isSynced INTEGER DEFAULT 0,
+            deleted INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_salvage_phones_shopId ON salvage_phones(shopId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_salvage_phones_status ON salvage_phones(status)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_salvage_phones_createdAt ON salvage_phones(createdAt)',
         );
 
         // === Performance indexes for frequently queried columns ===
@@ -1314,6 +1344,25 @@ class DBHelper {
           try {
             await db.execute('ALTER TABLE sales ADD COLUMN sellerUid TEXT');
           } catch (_) {}
+        }
+        if (oldV < 92) {
+          // v92: Salvage phones (Kho máy xác)
+          try {
+            await db.execute(
+              "CREATE TABLE IF NOT EXISTS salvage_phones(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, deviceName TEXT, customerName TEXT, customerPhone TEXT, cost INTEGER DEFAULT 0, notes TEXT, images TEXT, status TEXT DEFAULT 'STORED', createdAt INTEGER, updatedAt INTEGER, createdBy TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)",
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_salvage_phones_shopId ON salvage_phones(shopId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_salvage_phones_status ON salvage_phones(status)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_salvage_phones_createdAt ON salvage_phones(createdAt)',
+            );
+          } catch (e) {
+            debugPrint('v92 error (salvage_phones): $e');
+          }
         }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
@@ -4562,6 +4611,57 @@ class DBHelper {
       limit: 1,
     );
     return res.isNotEmpty ? Expense.fromMap(res.first) : null;
+  }
+
+  // --- SALVAGE PHONES (Kho máy xác) ---
+  Future<void> upsertSalvagePhone(Map<String, dynamic> data) async {
+    final fId = data['firestoreId'] ??
+        'sp_${data['createdAt']}_${data['deviceName'].hashCode}';
+    await _upsert('salvage_phones', data, fId);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllSalvagePhones() async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return db.query(
+        'salvage_phones',
+        where: '(shopId = ? OR shopId IS NULL) AND deleted = 0',
+        whereArgs: [shopId],
+        orderBy: 'createdAt DESC',
+      );
+    }
+    return db.query(
+      'salvage_phones',
+      where: 'deleted = 0',
+      orderBy: 'createdAt DESC',
+    );
+  }
+
+  Future<int> deleteSalvagePhoneByFirestoreId(String fId) async =>
+      (await database)
+          .delete('salvage_phones', where: 'firestoreId = ?', whereArgs: [fId]);
+
+  Future<Map<String, dynamic>?> getSalvagePhoneByFirestoreId(
+    String firestoreId,
+  ) async {
+    final res = await (await database).query(
+      'salvage_phones',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+    return res.isNotEmpty ? res.first : null;
+  }
+
+  Future<void> updateSalvagePhone(Map<String, dynamic> data) async {
+    final db = await database;
+    await db.update(
+      'salvage_phones',
+      data,
+      where: 'id = ?',
+      whereArgs: [data['id']],
+    );
   }
 
   Future<void> upsertDebt(Debt d) async =>

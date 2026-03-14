@@ -1736,6 +1736,35 @@ class SyncService {
       debugPrint("Lỗi khởi tạo sales_return_items sync: $e");
     }
 
+    // 29. Đồng bộ SALVAGE PHONES (Kho máy xác)
+    try {
+      _subscribeToCollection(
+        collection: 'salvage_phones',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteSalvagePhoneByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertSalvagePhone(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync salvage_phone $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo salvage_phones sync: $e");
+    }
+
     PerfMonitor.stop('deferredSync');
     debugPrint(
       "✅ Deferred sync done — total ${_subscriptions.length} subscriptions active "

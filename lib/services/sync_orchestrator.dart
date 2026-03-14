@@ -30,6 +30,7 @@ enum SyncEntityType {
   adjustmentEntry,
   purchaseOrder,
   supplierImportHistory, // FIX BUG-001: Thêm entity type cho supplier import history
+  salvagePhone,
 }
 
 /// Enum định nghĩa operation
@@ -675,6 +676,8 @@ class SyncOrchestrator {
         return 'purchase_orders';
       case SyncEntityType.supplierImportHistory:
         return 'supplier_import_history';
+      case SyncEntityType.salvagePhone:
+        return 'salvage_phones';
     }
   }
 
@@ -719,6 +722,8 @@ class SyncOrchestrator {
         return 'purchase_orders';
       case SyncEntityType.supplierImportHistory:
         return 'supplier_import_history';
+      case SyncEntityType.salvagePhone:
+        return 'salvage_phones';
     }
   }
 
