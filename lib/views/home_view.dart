@@ -2495,103 +2495,108 @@ class _HomeViewState extends State<HomeView>
 
   Future<void> _handleLogout(BuildContext context) async {
     // Check for unsynced data before logout
-    final unsynced = await DBHelper().countAllUnsyncedData();
-    final totalUnsynced = unsynced.values.fold<int>(0, (a, b) => a + b);
+    try {
+      final unsynced = await DBHelper().countAllUnsyncedData();
+      final totalUnsynced = unsynced.values.fold<int>(0, (a, b) => a + b);
 
-    if (totalUnsynced > 0 && mounted) {
-      final details = unsynced.entries
-          .map((e) => '• ${e.key}: ${e.value} bản ghi')
-          .join('\n');
-      final shouldContinue = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Dữ liệu chưa đồng bộ!',
-                  style: TextStyle(fontSize: 16),
+      if (totalUnsynced > 0 && mounted) {
+        final details = unsynced.entries
+            .map((e) => '• ${e.key}: ${e.value} bản ghi')
+            .join('\n');
+        final shouldContinue = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Dữ liệu chưa đồng bộ!',
+                    style: TextStyle(fontSize: 16),
+                  ),
                 ),
+              ],
+            ),
+            content: Text(
+              'Có $totalUnsynced bản ghi chưa được đồng bộ lên server:\n\n$details\n\n'
+              'Nếu đăng xuất ngay, dữ liệu này sẽ BỊ MẤT.\n\n'
+              'Hãy kiểm tra kết nối mạng và thử đồng bộ trước.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  // Try force sync
+                  NotificationService.showSnackBar(
+                    'Đang đồng bộ...',
+                    color: Colors.blue,
+                  );
+                  try {
+                    await SyncOrchestrator().syncAll();
+                    // Re-check
+                    final remaining = await DBHelper().countAllUnsyncedData();
+                    final remainCount = remaining.values.fold<int>(
+                      0,
+                      (a, b) => a + b,
+                    );
+                    if (remainCount == 0) {
+                      NotificationService.showSnackBar(
+                        '✅ Đã đồng bộ xong!',
+                        color: Colors.green,
+                      );
+                    } else {
+                      NotificationService.showSnackBar(
+                        '⚠️ Còn $remainCount bản ghi chưa sync. Kiểm tra mạng.',
+                        color: Colors.orange,
+                      );
+                    }
+                  } catch (e) {
+                    NotificationService.showSnackBar(
+                      '❌ Lỗi sync: $e',
+                      color: Colors.red,
+                    );
+                  }
+                },
+                icon: const Icon(Icons.sync, size: 16),
+                label: const Text('Thử đồng bộ'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Vẫn đăng xuất'),
               ),
             ],
           ),
-          content: Text(
-            'Có $totalUnsynced bản ghi chưa được đồng bộ lên server:\n\n$details\n\n'
-            'Nếu đăng xuất ngay, dữ liệu này sẽ BỊ MẤT.\n\n'
-            'Hãy kiểm tra kết nối mạng và thử đồng bộ trước.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Hủy'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                // Try force sync
-                NotificationService.showSnackBar(
-                  'Đang đồng bộ...',
-                  color: Colors.blue,
-                );
-                try {
-                  await SyncOrchestrator().syncAll();
-                  // Re-check
-                  final remaining = await DBHelper().countAllUnsyncedData();
-                  final remainCount = remaining.values.fold<int>(
-                    0,
-                    (a, b) => a + b,
-                  );
-                  if (remainCount == 0) {
-                    NotificationService.showSnackBar(
-                      '✅ Đã đồng bộ xong!',
-                      color: Colors.green,
-                    );
-                  } else {
-                    NotificationService.showSnackBar(
-                      '⚠️ Còn $remainCount bản ghi chưa sync. Kiểm tra mạng.',
-                      color: Colors.orange,
-                    );
-                  }
-                } catch (e) {
-                  NotificationService.showSnackBar(
-                    '❌ Lỗi sync: $e',
-                    color: Colors.red,
-                  );
-                }
-              },
-              icon: const Icon(Icons.sync, size: 16),
-              label: const Text('Thử đồng bộ'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Vẫn đăng xuất'),
-            ),
-          ],
-        ),
-      );
-      if (shouldContinue != true) return;
+        );
+        if (shouldContinue != true) return;
+      }
+    } catch (e) {
+      debugPrint('Logout pre-check error (skipping): $e');
     }
 
-    await SyncService.cancelAllSubscriptions();
-    EncryptionService.reset();
-    UserService.clearCache();
-    CurrentShopService().clear();
-    UserService.setAdminSelectedShop(null);
-    await DBHelper().clearAllData();
+    // Always sign out — cleanup failures must not block logout
+    try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
+    try { EncryptionService.reset(); } catch (_) {}
+    try { UserService.clearCache(); } catch (_) {}
+    try { CurrentShopService().clear(); } catch (_) {}
+    try { UserService.setAdminSelectedShop(null); } catch (_) {}
+    try { await DBHelper().clearAllData(); } catch (_) {}
     try {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
-      debugPrint('Logout error: $e');
+      debugPrint('Logout signOut error: $e');
     }
   }
 
@@ -7517,10 +7522,14 @@ class _HomeViewState extends State<HomeView>
             ),
           );
           if (confirm == true) {
+            // Always sign out — cleanup failures must not block logout
+            try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
+            try { EncryptionService.reset(); } catch (_) {}
+            try { UserService.clearCache(); } catch (_) {}
+            try { CurrentShopService().clear(); } catch (_) {}
+            try { UserService.setAdminSelectedShop(null); } catch (_) {}
+            try { await DBHelper().clearAllData(); } catch (_) {}
             try {
-              await SyncService.cancelAllSubscriptions();
-              UserService.clearCache();
-              await DBHelper().clearAllData();
               await FirebaseAuth.instance.signOut();
             } catch (e) {
               debugPrint('Logout error: $e');

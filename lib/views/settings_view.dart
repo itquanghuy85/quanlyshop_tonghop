@@ -623,13 +623,13 @@ class _SettingsViewState extends State<SettingsView> {
                         ),
                       );
                       if (confirm == true) {
-                        // Thực hiện đăng xuất trực tiếp, không dùng dialog
+                        // Always sign out — cleanup failures must not block logout
+                        try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
+                        try { EncryptionService.reset(); } catch (_) {}
+                        try { UserService.clearCache(); } catch (_) {}
+                        try { UserService.setAdminSelectedShop(null); } catch (_) {}
+                        try { await DBHelper().clearAllData(); } catch (_) {}
                         try {
-                          await SyncService.cancelAllSubscriptions();
-                          EncryptionService.reset();
-                          UserService.clearCache();
-                          UserService.setAdminSelectedShop(null);
-                          await DBHelper().clearAllData();
                           await FirebaseAuth.instance.signOut();
                           // AuthGate sẽ tự động chuyển về LoginView
                         } catch (e) {
