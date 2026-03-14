@@ -97,6 +97,8 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
         allowViewExpenses: permissionKey == 'allowViewExpenses' ? value : (userData['allowViewExpenses'] ?? false),
         allowViewDebts: permissionKey == 'allowViewDebts' ? value : (userData['allowViewDebts'] ?? false),
         allowViewCostPrice: permissionKey == 'allowViewCostPrice' ? value : (userData['allowViewCostPrice'] ?? false),
+        allowManageStaff: permissionKey == 'allowManageStaff' ? value : (userData['allowManageStaff'] ?? false),
+        allowViewSettings: permissionKey == 'allowViewSettings' ? value : (userData['allowViewSettings'] ?? false),
       );
       if (mounted) {
         // Ghi log thay đổi quyền
@@ -154,6 +156,8 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
           allowViewExpenses: true,
           allowViewDebts: true,
           allowViewCostPrice: true,
+          allowManageStaff: true,
+          allowViewSettings: true,
         );
       }
 
@@ -328,6 +332,13 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
                             _buildPermissionRow("CHI PHÍ CỬA HÀNG", userData['allowViewExpenses'] ?? false, uid, 'allowViewExpenses'),
                             _buildPermissionRow("SỔ CÔNG NỢ", userData['allowViewDebts'] ?? false, uid, 'allowViewDebts'),
                             _buildPermissionRow("GIÁ VỐN SẢN PHẨM", userData['allowViewCostPrice'] ?? false, uid, 'allowViewCostPrice'),
+                            const SizedBox(height: 15),
+
+                            // Phân quyền quản lý hệ thống
+                            Text("QUYỀN QUẢN LÝ HỆ THỐNG", style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.bold, color: Colors.purple)),
+                            const SizedBox(height: 8),
+                            _buildPermissionRow("QUẢN LÝ NHÂN VIÊN", userData['allowManageStaff'] ?? false, uid, 'allowManageStaff'),
+                            _buildPermissionRow("CÀI ĐẶT HỆ THỐNG", userData['allowViewSettings'] ?? false, uid, 'allowViewSettings'),
                           ] else ...[
                             Container(
                               padding: const EdgeInsets.all(12),

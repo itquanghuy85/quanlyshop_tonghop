@@ -1326,6 +1326,8 @@ class UserService {
     required bool allowViewExpenses,
     required bool allowViewDebts,
     required bool allowViewCostPrice,
+    bool allowManageStaff = false,
+    bool allowViewSettings = false,
   }) async {
     // Refresh token để đảm bảo custom claims (role, shopId) được cập nhật
     try {
@@ -1350,6 +1352,8 @@ class UserService {
         'allowViewExpenses': allowViewExpenses,
         'allowViewDebts': allowViewDebts,
         'allowViewCostPrice': allowViewCostPrice,
+        'allowManageStaff': allowManageStaff,
+        'allowViewSettings': allowViewSettings,
         'permissionsUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       debugPrint('✅ Updated permissions for user $uid');
