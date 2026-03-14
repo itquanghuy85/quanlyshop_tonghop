@@ -116,6 +116,12 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
       );
     }
 
+    if (kIsWeb) {
+      return m.Container(
+        color: m.Colors.grey.shade200,
+        child: m.Icon(m.Icons.image, color: m.Colors.grey.shade400, size: 20),
+      );
+    }
     return m.Image.file(File(thumb), fit: m.BoxFit.cover);
   }
 
@@ -205,7 +211,9 @@ class _CustomerHistoryViewState extends State<CustomerHistoryView> {
             builder: (context, i) => PhotoViewGalleryPageOptions(
               imageProvider: (_isDirectDisplayUrl(validImages[i]))
                   ? CachedNetworkImageProvider(validImages[i])
-                  : m.FileImage(File(validImages[i])) as m.ImageProvider,
+                  : kIsWeb
+                      ? CachedNetworkImageProvider(validImages[i]) as m.ImageProvider
+                      : m.FileImage(File(validImages[i])) as m.ImageProvider,
               initialScale: PhotoViewComputedScale.contained,
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 3,

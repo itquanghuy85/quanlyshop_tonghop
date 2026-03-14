@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -402,7 +403,9 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                                     child: _selectedLogo != null
                                         ? ClipRRect(
                                             borderRadius: BorderRadius.circular(12),
-                                            child: Image.file(_selectedLogo!, fit: BoxFit.cover),
+                                            child: kIsWeb
+                                                ? Image.network(_selectedLogo!.path, fit: BoxFit.cover)
+                                                : Image.file(_selectedLogo!, fit: BoxFit.cover),
                                           )
                                         : _shopLogoUrl.isNotEmpty
                                             ? ClipRRect(

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1566,7 +1567,9 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.file(e.value, width: 80, height: 80, fit: BoxFit.cover),
+                                child: kIsWeb
+                                    ? Image.network(e.value.path, width: 80, height: 80, fit: BoxFit.cover)
+                                    : Image.file(e.value, width: 80, height: 80, fit: BoxFit.cover),
                               ),
                               Positioned(
                                 top: -4,

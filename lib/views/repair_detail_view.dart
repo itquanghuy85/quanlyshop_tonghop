@@ -4469,7 +4469,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           path.startsWith('blob:') ||
                           path.startsWith('data:'))
                       ? CachedNetworkImageProvider(path) as ImageProvider
-                      : FileImage(File(path)),
+                      : kIsWeb
+                          ? CachedNetworkImageProvider(path) as ImageProvider
+                          : FileImage(File(path)),
                   initialScale: PhotoViewComputedScale.contained,
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 3,
