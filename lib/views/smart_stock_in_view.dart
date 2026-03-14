@@ -640,7 +640,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       price: price,
       productType: _productType,
       labelInfo: _labelInfoCtrl.text.trim(),
-      labelNote: _labelNoteCtrl.text.trim().isNotEmpty ? _labelNoteCtrl.text.trim() : null,
+      labelNote: _labelNoteCtrl.text.trim().isNotEmpty ? _labelNoteCtrl.text.trim().toUpperCase() : null,
       // Điện thoại
       imei: _isPhone ? _imeiCtrl.text.trim() : null,
       brand: _isPhone ? _selectedBrand : null,
@@ -672,7 +672,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       supplierId: _selectedSupplierId,
       supplierName: _selectedSupplier,
       paymentMethod: _selectedPaymentMethod,
-      notes: _notesCtrl.text.trim(),
+      notes: _notesCtrl.text.trim().toUpperCase(),
       // Giữ nguyên các trường timestamp và audit từ edit entry
       createdAt: edit?.createdAt,
       createdBy: edit?.createdBy,
@@ -852,6 +852,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           TextFormField(
                             controller: _notesCtrl,
                             maxLines: 2,
+                            textCapitalization: TextCapitalization.characters,
                             decoration: const InputDecoration(
                               labelText: 'Ghi chú',
                               border: OutlineInputBorder(),
@@ -1010,6 +1011,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             TextFormField(
               controller: _labelNoteCtrl,
               maxLines: 2,
+              textCapitalization: TextCapitalization.characters,
               decoration: const InputDecoration(
                 labelText: 'Ghi chú sản phẩm',
                 hintText: 'Ghi chú thêm về sản phẩm...',

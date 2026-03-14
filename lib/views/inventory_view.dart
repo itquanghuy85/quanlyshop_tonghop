@@ -498,6 +498,9 @@ class _InventoryViewState extends State<InventoryView>
                   ? "Chờ xác nhận"
                   : (displayProduct.paymentMethod ?? "N/A"),
             ),
+            if (displayProduct.labelNote != null &&
+                displayProduct.labelNote!.isNotEmpty)
+              _detailItem("Ghi chú", displayProduct.labelNote!),
             _detailItem(
               "Cập nhật cuối",
               displayProduct.updatedAt != null
@@ -4351,7 +4354,7 @@ class _InventoryViewState extends State<InventoryView>
                 condition: selectedCondition ?? p.condition,
                 labelInfo: labelInfoC.text.trim(),
                 labelNote: labelNoteC.text.trim().isNotEmpty
-                    ? labelNoteC.text.trim()
+                    ? labelNoteC.text.trim().toUpperCase()
                     : null,
                 quantity: int.tryParse(qtyC.text) ?? 1,
                 type: type,
@@ -4398,7 +4401,7 @@ class _InventoryViewState extends State<InventoryView>
 
               HapticFeedback.lightImpact();
               if (mounted) {
-                Navigator.of(context).pop();
+                Navigator.of(ctx).pop();
                 _refresh();
                 NotificationService.showSnackBar(
                   "CẬP NHẬT THÀNH CÔNG",
@@ -4641,6 +4644,7 @@ class _InventoryViewState extends State<InventoryView>
                     child: TextFormField(
                       controller: labelNoteC,
                       maxLines: 2,
+                      textCapitalization: TextCapitalization.characters,
                       style: const TextStyle(fontSize: 13),
                       decoration: const InputDecoration(
                         labelText: 'Ghi chú',

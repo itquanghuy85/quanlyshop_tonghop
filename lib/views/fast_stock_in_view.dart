@@ -372,6 +372,7 @@ class _FastStockInViewState extends State<FastStockInView> {
               TextField(
                 controller: noteCtrl,
                 maxLines: 2,
+                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
                   labelText: 'Ghi chú',
                   hintText: 'Thông tin bổ sung (tùy chọn)',
@@ -414,7 +415,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                       ? addressCtrl.text.trim().toUpperCase()
                       : null,
                   note: noteCtrl.text.trim().isNotEmpty
-                      ? noteCtrl.text.trim()
+                      ? noteCtrl.text.trim().toUpperCase()
                       : null,
                   shopId: shopId ?? '',
                 );
@@ -754,7 +755,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         color: selectedColor!,
         capacity: selectedCapacity!,
         labelInfo: labelInfoCtrl.text.trim(),
-        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim() : null,
+        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim().toUpperCase() : null,
         paymentMethod: isPending
             ? null
             : selectedPaymentMethod, // Chỉ gán khi không pending
@@ -1055,7 +1056,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         color: selectedColor,
         condition: selectedCondition,
         labelInfo: labelInfoCtrl.text.trim().isNotEmpty ? labelInfoCtrl.text.trim() : null,
-        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim() : null,
+        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim().toUpperCase() : null,
         productType: 'DIEN_THOAI',
       );
 
@@ -1697,6 +1698,7 @@ class _FastStockInViewState extends State<FastStockInView> {
                   TextField(
                     controller: labelNoteCtrl,
                     maxLines: 2,
+                    textCapitalization: TextCapitalization.characters,
                     style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     decoration: InputDecoration(
                       hintText: 'Ghi chú thêm về sản phẩm...',
