@@ -126,7 +126,7 @@ class DailyActivityReportService {
       // 3: Created repairs today
       db.query('repairs', where: 'createdAt >= ? AND createdAt < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'createdAt DESC'),
       // 4: Expenses today
-      db.query('expenses', where: 'date >= ? AND date < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'date DESC'),
+      db.query('expenses', where: 'date >= ? AND date < ?', whereArgs: [startMs, endMs], orderBy: 'date DESC'),
       // 5: Debt payments
       _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs),
       // 6: Partner payments
@@ -134,11 +134,11 @@ class DailyActivityReportService {
       // 7: Supplier payments
       db.query('supplier_payments', where: 'paidAt >= ? AND paidAt < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'paidAt DESC'),
       // 8: Supplier imports
-      db.query('supplier_import_history', where: '((importDate >= ? AND importDate < ?) OR (createdAt >= ? AND createdAt < ?)) AND deleted != 1', whereArgs: [startMs, endMs, startMs, endMs], orderBy: 'createdAt DESC'),
+      db.query('supplier_import_history', where: '(importDate >= ? AND importDate < ?) OR (createdAt >= ? AND createdAt < ?)', whereArgs: [startMs, endMs, startMs, endMs], orderBy: 'createdAt DESC'),
       // 9: Repair parts cost fund
       db.query('repairs', where: 'costRecordedInFund = 1 AND costRecordedAt >= ? AND costRecordedAt < ? AND deleted != 1', whereArgs: [startMs, endMs]),
       // 10: Sales returns
-      db.query('sales_returns', where: 'returnDate >= ? AND returnDate < ? AND status = ? AND deleted != 1', whereArgs: [startMs, endMs, 'APPROVED'], orderBy: 'returnDate DESC'),
+      db.query('sales_returns', where: 'returnDate >= ? AND returnDate < ? AND status = ?', whereArgs: [startMs, endMs, 'APPROVED'], orderBy: 'returnDate DESC'),
       // 11: Pending repairs count
       db.rawQuery('SELECT COUNT(*) as cnt FROM repairs WHERE status IN (1, 2) AND deleted != 1'),
       // 12: Pending approvals count
