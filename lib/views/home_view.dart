@@ -334,8 +334,22 @@ class _HomeViewState extends State<HomeView>
 
   Widget _buildTabHost(int index) {
     final tabId = _tabIdAt(index);
-    final child = _tabWidgets[index];
     final version = _tabHostVersions[tabId] ?? 0;
+
+    // For home & finance tabs: build inline so that setState() alone
+    // refreshes them without replacing widget instances (avoids iOS
+    // back-navigation flicker).  Respect locked state — when the tab
+    // is locked the cached _tabWidgets already holds the lock screen.
+    Widget child;
+    final isLocked = _tabAccessState[tabId] == false;
+    if (!isLocked && tabId == _homeTabId) {
+      child = _buildHomeTab();
+    } else if (!isLocked && tabId == _financeTabId) {
+      child = _buildFinanceTab();
+    } else {
+      child = _tabWidgets[index];
+    }
+
     if (!_usesNestedNavigator(index)) {
       return KeyedSubtree(
         key: ValueKey('home_tab_host_${tabId}_$version'),
@@ -1243,36 +1257,6 @@ class _HomeViewState extends State<HomeView>
     unawaited(_persistCurrentTabSelection(_currentIndex));
   }
 
-  /// Rebuild ONLY the home tab widget to reflect updated stats.
-  /// Other tabs are self-contained views that load their own data,
-  /// so rebuilding them here wastes CPU and causes UI lag (~1 min delay
-  /// when entering/exiting shortcut edit mode).
-  void _rebuildTabWidgets() {
-    if (_tabWidgets.isEmpty) return; // Not initialized yet
-    // Update home tab (index 0) - shows dashboard stats
-    final homeWidget = _buildHomeTab();
-    _tabWidgets[0] = homeWidget;
-    _tabConfigs[0]['widget'] =
-        homeWidget; // Keep _tabConfigs in sync for _updateAvailableTabs()
-    // Update finance tab - also displays _todayTotalIn/_todayTotalOut/_todayNetProfit from parent state
-    // Only rebuild with real content if user has finance permission
-    final canViewFinance =
-        hasFullAccess || _permissions['allowViewRevenue'] == true;
-    for (int i = 1; i < _tabConfigs.length && i < _tabWidgets.length; i++) {
-      final label = (_tabConfigs[i]['item'] as BottomNavigationBarItem).label;
-      if (label == loc.financeTab) {
-        if (canViewFinance) {
-          final financeWidget = _buildFinanceTab();
-          _tabWidgets[i] = financeWidget;
-          _tabConfigs[i]['widget'] = financeWidget; // Keep _tabConfigs in sync
-        }
-        // If no permission, keep the locked screen - don't overwrite
-        break;
-      }
-    }
-    debugPrint('HomeView: Rebuilt home + finance tabs (stats updated)');
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
@@ -1705,7 +1689,6 @@ class _HomeViewState extends State<HomeView>
         _supplierDebtRemain = supplierRemain;
         _partnerDebtRemain = partnerRemain;
         totalDebtRemain = totalRemain;
-        _rebuildTabWidgets();
       });
     } catch (e) {
       debugPrint('HomeView._loadDebtOverview error: $e');
@@ -2252,7 +2235,6 @@ class _HomeViewState extends State<HomeView>
           _todayRefundOut = analysis.refundOut;
           _todayReturnCost = analysis.returnCost;
           _previousClosingTotal = prevClosingTotal;
-          _rebuildTabWidgets();
         });
       }
 
@@ -3007,7 +2989,6 @@ class _HomeViewState extends State<HomeView>
           _shortcutConfigs = result['shortcuts'] as List<ShortcutConfig>;
           _shortcutConfigLoaded = true;
         }
-        _rebuildTabWidgets();
       });
     }
   }
