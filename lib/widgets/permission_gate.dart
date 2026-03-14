@@ -21,6 +21,7 @@ const _permissionLabels = <String, String>{
   'allowViewDebts': 'Công nợ',
   'allowViewCostPrice': 'Giá vốn',
   'allowManageStaff': 'Nhân viên',
+  'allowViewSettings': 'Cài đặt hệ thống',
 };
 
 /// Wraps any child widget with a runtime permission check.

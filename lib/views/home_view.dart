@@ -555,7 +555,7 @@ class _HomeViewState extends State<HomeView>
       },
       {
         'id': 'settings',
-        'permission': null,
+        'permission': 'allowViewSettings',
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.settings_outlined),
           activeIcon: const Icon(Icons.settings_rounded),

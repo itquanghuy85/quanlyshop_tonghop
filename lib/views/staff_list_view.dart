@@ -1340,6 +1340,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   bool _canViewExpenses = false;
   bool _canViewDebts = false;
   bool _canViewCostPrice = false;
+  bool _canManageStaffPerm = false;
+  bool _canViewSettingsPerm = false;
 
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
@@ -1384,6 +1386,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       _canViewExpenses = widget.fullData['allowViewExpenses'] == true;
       _canViewDebts = widget.fullData['allowViewDebts'] == true;
       _canViewCostPrice = widget.fullData['allowViewCostPrice'] == true;
+      _canManageStaffPerm = widget.fullData['allowManageStaff'] == true;
+      _canViewSettingsPerm = widget.fullData['allowViewSettings'] == true;
 
       // Đồng bộ permissions với role hiện tại
       _syncPermissionsWithRole();
@@ -1416,6 +1420,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       _canViewRevenue = true;
       _canViewExpenses = true;
       _canViewDebts = true;
+      _canViewCostPrice = true;
+      _canManageStaffPerm = true;
+      _canViewSettingsPerm = true;
     }
   }
 
@@ -1802,6 +1809,8 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           allowViewExpenses: _canViewExpenses,
           allowViewDebts: _canViewDebts,
           allowViewCostPrice: _canViewCostPrice,
+          allowManageStaff: _canManageStaffPerm,
+          allowViewSettings: _canViewSettingsPerm,
         );
         debugPrint('✅ updateUserPermissions success for ${widget.uid}');
       } catch (e) {
@@ -2393,6 +2402,56 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                 value: _canViewDebts,
                                 onChanged: (v) =>
                                     setState(() => _canViewDebts = v),
+                              ),
+
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    "QUYỀN QUẢN LÝ HỆ THỐNG",
+                                    style: TextStyle(
+                                      fontSize: AppTextStyles.body1.fontSize,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.purple,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SwitchListTile(
+                                title: Text(
+                                  "QUẢN LÝ NHÂN VIÊN",
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                ),
+                                subtitle: Text(
+                                  "Xem danh sách và phân quyền nhân viên",
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.body1.fontSize,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                value: _canManageStaffPerm,
+                                onChanged: (v) =>
+                                    setState(() => _canManageStaffPerm = v),
+                              ),
+                              SwitchListTile(
+                                title: Text(
+                                  "CÀI ĐẶT HỆ THỐNG",
+                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                ),
+                                subtitle: Text(
+                                  "Truy cập màn hình cài đặt cửa hàng",
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.body1.fontSize,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                value: _canViewSettingsPerm,
+                                onChanged: (v) =>
+                                    setState(() => _canViewSettingsPerm = v),
                               ),
                             ],
                           ],

@@ -75,6 +75,27 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
 
   bool get _canManageStaff => _isSuperAdmin || _currentRole == 'owner' || _currentRole == 'manager';
 
+  static const _permissionLabels = <String, String>{
+    'allowViewSales': 'Bán hàng',
+    'allowViewRepairs': 'Sửa chữa',
+    'allowViewInventory': 'Kho hàng',
+    'allowViewParts': 'Linh kiện',
+    'allowViewSuppliers': 'Nhà cung cấp',
+    'allowViewCustomers': 'Khách hàng',
+    'allowViewWarranty': 'Bảo hành',
+    'allowViewChat': 'Chat nội bộ',
+    'allowViewAttendance': 'Chấm công',
+    'allowViewPrinter': 'Máy in',
+    'allowViewRevenue': 'Doanh thu',
+    'allowViewExpenses': 'Chi phí',
+    'allowViewDebts': 'Công nợ',
+    'allowViewCostPrice': 'Giá vốn',
+    'allowManageStaff': 'Quản lý nhân viên',
+    'allowViewSettings': 'Cài đặt hệ thống',
+  };
+
+  String _permissionLabel(String key) => _permissionLabels[key] ?? key;
+
   Future<void> _updateUserPermission(String uid, String permissionKey, bool value) async {
     try {
       // Lấy dữ liệu user hiện tại để có tất cả permissions
@@ -106,12 +127,12 @@ class _StaffPermissionsViewState extends State<StaffPermissionsView> {
           action: 'CẬP NHẬT QUYỀN',
           entityType: 'PERMISSION',
           entityId: uid,
-          summary: 'Đã ${value ? 'bật' : 'tắt'} quyền ${permissionKey.replaceAll('allowView', '').toLowerCase()}',
+          summary: 'Đã ${value ? 'bật' : 'tắt'} quyền ${_permissionLabel(permissionKey)}',
           payload: {'permissionKey': permissionKey, 'value': value},
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Đã cập nhật quyền ${permissionKey.replaceAll('allowView', '').toLowerCase()}"), backgroundColor: Colors.green),
+          SnackBar(content: Text("Đã cập nhật quyền ${_permissionLabel(permissionKey)}"), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
