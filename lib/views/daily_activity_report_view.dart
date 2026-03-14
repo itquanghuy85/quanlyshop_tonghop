@@ -7,6 +7,7 @@ import '../utils/excel_export_helper.dart';
 import '../services/unified_printer_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
+import '../services/label_settings_service.dart';
 import '../theme/app_colors.dart';
 
 class DailyActivityReportView extends StatefulWidget {
@@ -459,6 +460,8 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final totalPrice = (s['totalPrice'] as int?) ?? 0;
     final discount = (s['discount'] as int?) ?? 0;
     final amount = totalPrice - discount;
+    final cost = (s['totalCost'] as int?) ?? 0;
+    final profit = amount - cost;
     final code = s['code'] ?? '';
     final customerName = s['customerName'] ?? 'Khách lẻ';
     final time = _fmtTime(s['soldAt'] as int?);
@@ -472,11 +475,24 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                   style: TextStyle(
                       fontSize: 12, color: Colors.grey.shade600))),
           Expanded(
-            child: Text(
-              customerName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  customerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                if (profit != 0)
+                  Text(
+                    'Lãi: ${MoneyUtils.formatCurrency(profit)}đ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: profit >= 0 ? AppColors.success : AppColors.error,
+                    ),
+                  ),
+              ],
             ),
           ),
           if (code.isNotEmpty)
@@ -597,6 +613,8 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final customer = re['customerName'] ?? 'N/A';
     final device = re['deviceName'] ?? '';
     final price = (re['price'] as int?) ?? 0;
+    final cost = (re['cost'] as int?) ?? 0;
+    final profit = price - cost;
     final createdAt = re['createdAt'] as int?;
     final deliveredAt = re['deliveredAt'] as int?;
     final time = _fmtTime(status == 4 ? deliveredAt : createdAt);
@@ -637,6 +655,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade600)),
+                if (status == 4 && profit != 0)
+                  Text(
+                    'Lãi: ${MoneyUtils.formatCurrency(profit)}đ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: profit >= 0 ? AppColors.success : AppColors.error,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1196,7 +1222,19 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       final dateStr = DateFormat('dd/MM/yyyy').format(r.date);
       final lines = StringBuffer();
 
-      lines.writeln('[C][B]BÁO CÁO NGÀY');
+      // Shop info header
+      final shopInfo = await LabelSettingsService().getShopLabelSettings();
+      if (shopInfo.shopName.isNotEmpty) {
+        lines.writeln('[C][B]${shopInfo.shopName}');
+      }
+      if (shopInfo.address.isNotEmpty) {
+        lines.writeln('[C]${shopInfo.address}');
+      }
+      if (shopInfo.hotline.isNotEmpty) {
+        lines.writeln('[C]SDT: ${shopInfo.hotline}');
+      }
+      lines.writeln('');
+      lines.writeln('[C][B]BAO CAO NGAY');
       lines.writeln('[C]$dateStr');
       lines.writeln('[C]================================');
       lines.writeln('');
