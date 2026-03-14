@@ -16,6 +16,7 @@ import 'customer_history_view.dart';
 import 'quick_input_codes_view.dart';
 import '../utils/vietnamese_utils.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/permission_gate.dart';
 
 class GlobalSearchView extends StatefulWidget {
   final String role;
@@ -172,10 +173,13 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
 
   void _onResultTap(dynamic item) {
     if (item is Repair) {
+      if (!PermissionGateCheck.check(context, 'allowViewRepairs')) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) => RepairDetailView(repair: item)));
     } else if (item is SaleOrder) {
+      if (!PermissionGateCheck.check(context, 'allowViewSales')) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) => SaleDetailView(sale: item)));
     } else if (item is Product) {
+      if (!PermissionGateCheck.check(context, 'allowViewInventory')) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) => InventoryView(role: widget.role))).then((_) {
         // Optionally, scroll to the product or something
       });
@@ -183,6 +187,7 @@ class _GlobalSearchViewState extends State<GlobalSearchView> {
       Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputCodesView()));
     } else if (item.containsKey('customerName')) {
       // Customer from repair
+      if (!PermissionGateCheck.check(context, 'allowViewCustomers')) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) => CustomerHistoryView(phone: item['phone'], name: item['customerName'])));
     }
   }

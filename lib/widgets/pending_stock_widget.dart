@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/stock_entry_service.dart';
 import '../views/pending_stock_list_view.dart';
 import '../theme/app_text_styles.dart';
+import 'permission_gate.dart';
 
 /// Widget hiển thị số lượng hàng chờ xác nhận trên Dashboard
 class PendingStockWidget extends StatefulWidget {
@@ -44,6 +45,7 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
   }
 
   void _openPendingList() {
+    if (!PermissionGateCheck.check(context, 'allowViewInventory')) return;
     debugPrint(
       '🚀 PendingStockWidget._openPendingList: navigating to PendingStockListView',
     );
@@ -284,6 +286,7 @@ class PendingStockStreamWidget extends StatelessWidget {
           ),
           child: InkWell(
             onTap: () {
+              if (!PermissionGateCheck.check(context, 'allowViewInventory')) return;
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PendingStockListView()),

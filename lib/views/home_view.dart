@@ -3528,6 +3528,9 @@ class _HomeViewState extends State<HomeView>
 
   /// Chat card - hiển thị ngay dưới lời chào với badge tin nhắn chưa đọc
   Widget _buildChatCard() {
+    if (!(hasFullAccess || _permissions['allowViewChat'] == true)) {
+      return const SizedBox();
+    }
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: Card(
@@ -4840,55 +4843,65 @@ class _HomeViewState extends State<HomeView>
           Row(
             children: [
               // Hàng chờ xác nhận
-              Expanded(
-                child: _buildPinnedCard(
-                  icon: Icons.pending_actions,
-                  title: loc.pendingStockShort,
-                  subtitle: loc.stockIn,
-                  color: Colors.orange,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PendingStockListView(),
+              if (hasFullAccess ||
+                  _permissions['allowViewInventory'] == true)
+                Expanded(
+                  child: _buildPinnedCard(
+                    icon: Icons.pending_actions,
+                    title: loc.pendingStockShort,
+                    subtitle: loc.stockIn,
+                    color: Colors.orange,
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PendingStockListView(),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
+              if (hasFullAccess ||
+                  _permissions['allowViewInventory'] == true)
+                const SizedBox(width: 10),
               // Thu Chi
-              Expanded(
-                child: _buildPinnedCard(
-                  icon: Icons.account_balance_wallet,
-                  title: loc.incomeExpense,
-                  subtitle: 'Ghi thu chi',
-                  color: Colors.green,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ExpenseView()),
+              if (hasFullAccess ||
+                  _permissions['allowViewExpenses'] == true)
+                Expanded(
+                  child: _buildPinnedCard(
+                    icon: Icons.account_balance_wallet,
+                    title: loc.incomeExpense,
+                    subtitle: 'Ghi thu chi',
+                    color: Colors.green,
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ExpenseView()),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
               // Danh sách đơn bán
-              Expanded(
-                child: _buildPinnedCard(
-                  icon: Icons.receipt_long,
-                  title: loc.salesOrder,
-                  subtitle: loc.salesOrderList,
-                  color: Colors.blue,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SaleListView()),
+              if (hasFullAccess ||
+                  _permissions['allowViewSales'] == true)
+                Expanded(
+                  child: _buildPinnedCard(
+                    icon: Icons.receipt_long,
+                    title: loc.salesOrder,
+                    subtitle: loc.salesOrderList,
+                    color: Colors.blue,
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SaleListView()),
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: 10),
               // Danh sách đơn sửa - only show for electronics shops
-              if (_enableRepair)
+              if (_enableRepair &&
+                  (hasFullAccess ||
+                      _permissions['allowViewRepairs'] == true))
                 Expanded(
                   child: _buildPinnedCard(
                     icon: Icons.build_circle,
@@ -4902,7 +4915,9 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               // Alternative shortcut for non-electronics shops
-              if (!_enableRepair)
+              if (!_enableRepair &&
+                  (hasFullAccess ||
+                      _permissions['allowViewCustomers'] == true))
                 Expanded(
                   child: _buildPinnedCard(
                     icon: Icons.people,
@@ -5063,9 +5078,12 @@ class _HomeViewState extends State<HomeView>
   /// Quick Actions mới theo style Settings
   Widget _buildQuickActionsNew() {
     final loc = AppLocalizations.of(context)!;
+    bool _can(String perm) =>
+        hasFullAccess || _permissions[perm] == true;
     return Column(
       children: [
         // BÁN HÀNG
+        if (_can('allowViewSales'))
         Card(
           color: Colors.green.shade50,
           shape: RoundedRectangleBorder(
@@ -5110,10 +5128,10 @@ class _HomeViewState extends State<HomeView>
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        if (_can('allowViewSales')) const SizedBox(height: 6),
 
         // SỬA CHỮA - Only show for electronics shops
-        if (_enableRepair)
+        if (_enableRepair && _can('allowViewRepairs'))
           Card(
             color: Colors.blue.shade50,
             shape: RoundedRectangleBorder(
@@ -5160,9 +5178,10 @@ class _HomeViewState extends State<HomeView>
               ),
             ),
           ),
-        if (_enableRepair) const SizedBox(height: 6),
+        if (_enableRepair && _can('allowViewRepairs')) const SizedBox(height: 6),
 
         // Row: Nhập kho & Kiểm kho
+        if (_can('allowViewInventory'))
         Row(
           children: [
             Expanded(
@@ -5268,11 +5287,13 @@ class _HomeViewState extends State<HomeView>
             ),
           ],
         ),
+        if (_can('allowViewInventory'))
         const SizedBox(height: 6),
 
         // Row: Báo cáo & Chấm công
         Row(
           children: [
+            if (_can('allowViewRevenue'))
             Expanded(
               child: Card(
                 color: Colors.indigo.shade50,
@@ -5322,7 +5343,9 @@ class _HomeViewState extends State<HomeView>
                 ),
               ),
             ),
+            if (_can('allowViewRevenue'))
             const SizedBox(width: 8),
+            if (_can('allowViewAttendance'))
             Expanded(
               child: Card(
                 color: Colors.teal.shade50,
@@ -5379,6 +5402,7 @@ class _HomeViewState extends State<HomeView>
         // Row: Thêm chi phí & Thêm thu phát sinh
         Row(
           children: [
+            if (_can('allowViewExpenses'))
             Expanded(
               child: Card(
                 color: Colors.red.shade50,
@@ -5425,7 +5449,9 @@ class _HomeViewState extends State<HomeView>
                 ),
               ),
             ),
+            if (_can('allowViewExpenses'))
             const SizedBox(width: 8),
+            if (_can('allowViewRevenue'))
             Expanded(
               child: Card(
                 color: Colors.green.shade50,
@@ -5477,7 +5503,7 @@ class _HomeViewState extends State<HomeView>
         const SizedBox(height: 6),
 
         // BẢO HÀNH - Only show for electronics shops (repair/warranty enabled)
-        if (_enableWarranty)
+        if (_enableWarranty && _can('allowViewWarranty'))
           Card(
             color: Colors.amber.shade50,
             shape: RoundedRectangleBorder(
@@ -5528,12 +5554,15 @@ class _HomeViewState extends State<HomeView>
 
   Widget _buildQuickActions() {
     final loc = AppLocalizations.of(context)!;
+    bool _can(String perm) =>
+        hasFullAccess || _permissions[perm] == true;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 12),
         Row(
           children: [
+            if (_can('allowViewSales'))
             Expanded(
               child: _quickActionButton(
                 loc.createSale,
@@ -5545,7 +5574,9 @@ class _HomeViewState extends State<HomeView>
                 ),
               ),
             ),
+            if (_can('allowViewSales') && _can('allowViewRepairs'))
             const SizedBox(width: 8),
+            if (_can('allowViewRepairs'))
             Expanded(
               child: _quickActionButton(
                 loc.createRepair,
@@ -5562,6 +5593,7 @@ class _HomeViewState extends State<HomeView>
           ],
         ),
         const SizedBox(height: 8),
+        if (_can('allowViewInventory'))
         Row(
           children: [
             Expanded(
@@ -5600,6 +5632,7 @@ class _HomeViewState extends State<HomeView>
         const SizedBox(height: 8),
         Row(
           children: [
+            if (_can('allowViewRevenue'))
             Expanded(
               child: _quickActionButton(
                 loc.revenueReport,
@@ -5611,7 +5644,9 @@ class _HomeViewState extends State<HomeView>
                 ),
               ),
             ),
+            if (_can('allowViewRevenue') && _can('allowViewAttendance'))
             const SizedBox(width: 8),
+            if (_can('allowViewAttendance'))
             Expanded(
               child: _quickActionButton(
                 loc.attendance,
@@ -5628,6 +5663,7 @@ class _HomeViewState extends State<HomeView>
         const SizedBox(height: 8),
         Row(
           children: [
+            if (_can('allowViewChat'))
             Expanded(
               child: _quickActionButton(
                 "Chat",
@@ -5640,7 +5676,9 @@ class _HomeViewState extends State<HomeView>
                 // Badge đã ẩn theo yêu cầu
               ),
             ),
+            if (_can('allowViewChat') && _can('allowViewWarranty'))
             const SizedBox(width: 8),
+            if (_can('allowViewWarranty'))
             Expanded(
               child: _quickActionButton(
                 "Bảo hành",
@@ -6645,19 +6683,22 @@ class _HomeViewState extends State<HomeView>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: _financeQuickCard(
-                      'Thu Chi',
-                      Icons.swap_vert,
-                      Colors.blue,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ExpenseView()),
+                  if (hasFullAccess ||
+                      _permissions['allowViewExpenses'] == true)
+                    Expanded(
+                      child: _financeQuickCard(
+                        'Thu Chi',
+                        Icons.swap_vert,
+                        Colors.blue,
+                        () => _pushRoute(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ExpenseView()),
+                        ),
+                        subtitle:
+                            '+${MoneyUtils.formatVND(_todayTotalIn)} / -${MoneyUtils.formatVND(_todayTotalOut)}',
                       ),
-                      subtitle:
-                          '+${MoneyUtils.formatVND(_todayTotalIn)} / -${MoneyUtils.formatVND(_todayTotalOut)}',
                     ),
-                  ),
                 ],
               ),
 
@@ -6684,15 +6725,17 @@ class _HomeViewState extends State<HomeView>
                       MaterialPageRoute(builder: (_) => const RevenueView()),
                     ),
                   ),
-                  _financeQuickCard(
-                    'Quản lý công nợ',
-                    Icons.account_balance,
-                    Colors.orange,
-                    () => _pushRoute(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DebtView()),
+                  if (hasFullAccess ||
+                      _permissions['allowViewDebts'] == true)
+                    _financeQuickCard(
+                      'Quản lý công nợ',
+                      Icons.account_balance,
+                      Colors.orange,
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DebtView()),
+                      ),
                     ),
-                  ),
                   _financeQuickCard(
                     'Lịch sử tài chính',
                     Icons.receipt_long,
@@ -6865,6 +6908,9 @@ class _HomeViewState extends State<HomeView>
 
   /// Debt summary card for Finance tab: Khách nợ / NCC nợ / Đối tác nợ
   Widget _buildDebtSummaryCard() {
+    if (!(hasFullAccess || _permissions['allowViewDebts'] == true)) {
+      return const SizedBox();
+    }
     return GestureDetector(
       onTap: () => _pushRoute(
         context,
@@ -8472,30 +8518,36 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _financeShortcutButton(
-                  icon: Icons.account_balance_wallet,
-                  label: 'Công nợ',
-                  color: Colors.orange,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const DebtView()),
+              if (hasFullAccess ||
+                  _permissions['allowViewDebts'] == true) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _financeShortcutButton(
+                    icon: Icons.account_balance_wallet,
+                    label: 'Công nợ',
+                    color: Colors.orange,
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DebtView()),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _financeShortcutButton(
-                  icon: Icons.swap_vert,
-                  label: 'Thu Chi',
-                  color: Colors.blue,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ExpenseView()),
+              ],
+              if (hasFullAccess ||
+                  _permissions['allowViewExpenses'] == true) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _financeShortcutButton(
+                    icon: Icons.swap_vert,
+                    label: 'Thu Chi',
+                    color: Colors.blue,
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ExpenseView()),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
           ),
         ],
@@ -8547,6 +8599,9 @@ class _HomeViewState extends State<HomeView>
   Widget _buildAlerts() {
     // Only show warranty alerts for shops with warranty enabled (electronics)
     if (!_enableWarranty || expiringWarranties == 0) return const SizedBox();
+    final canWarranty =
+        hasFullAccess || _permissions['allowViewWarranty'] == true;
+    if (!canWarranty) return const SizedBox();
     return InkWell(
       onTap: () => _pushRoute(
         context,

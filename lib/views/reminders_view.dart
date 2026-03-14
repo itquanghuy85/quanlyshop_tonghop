@@ -12,6 +12,7 @@ import 'sales_return_list_view.dart';
 import 'pending_stock_list_view.dart';
 import 'purchase_order_list_view.dart';
 import 'payment_request_chat_view.dart';
+import '../widgets/permission_gate.dart';
 
 /// Trang Nhắc nhở — hiển thị tất cả task cần xử lý theo role & quyền
 class RemindersView extends StatefulWidget {
@@ -424,46 +425,58 @@ class _RemindersViewState extends State<RemindersView> {
   /// Navigate to relevant view based on reminder category
   void _onTapReminder(TaskReminder reminder) {
     Widget? targetView;
+    String? requiredPermission;
 
     switch (reminder.category) {
       case ReminderCategory.repairApproval:
+        requiredPermission = 'allowViewRepairs';
         targetView = OrderListView(
           role: widget.role,
           statusFilter: const [3],
         );
         break;
       case ReminderCategory.repairAssignment:
+        requiredPermission = 'allowViewRepairs';
         targetView = OrderListView(
           role: widget.role,
           statusFilter: const [1, 2],
         );
         break;
       case ReminderCategory.deliveryTask:
+        requiredPermission = 'allowViewRepairs';
         targetView = OrderListView(
           role: widget.role,
           statusFilter: const [3],
         );
         break;
       case ReminderCategory.activeDebt:
+        requiredPermission = 'allowViewDebts';
         targetView = const DebtView();
         break;
       case ReminderCategory.pendingStock:
+        requiredPermission = 'allowViewInventory';
         targetView = const PendingStockListView();
         break;
       case ReminderCategory.pendingPurchase:
+        requiredPermission = 'allowViewInventory';
         targetView = const PurchaseOrderListView();
         break;
       case ReminderCategory.salesReturn:
+        requiredPermission = 'allowViewSales';
         targetView = const SalesReturnListView();
         break;
       case ReminderCategory.paymentRequest:
+        requiredPermission = 'allowViewDebts';
         targetView = const PaymentRequestChatView();
         break;
       case ReminderCategory.paymentIntent:
+        requiredPermission = 'allowViewDebts';
         // No dedicated view — navigate to debt view which shows payment intents
         targetView = const DebtView();
         break;
     }
+
+    if (!PermissionGateCheck.check(context, requiredPermission)) return;
 
     Navigator.push(
       context,

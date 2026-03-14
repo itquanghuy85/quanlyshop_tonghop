@@ -22,6 +22,7 @@ import '../theme/app_text_styles.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/permission_gate.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 /// Chat View đẳng cấp với đầy đủ tính năng
@@ -1604,6 +1605,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
     try {
       if (message.linkedType == 'repair') {
+        if (!PermissionGateCheck.check(context, 'allowViewRepairs')) return;
         final repair = await _db.getRepairByFirestoreId(message.linkedKey!);
         if (repair != null && mounted) {
           Navigator.push(
@@ -1612,6 +1614,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           );
         }
       } else if (message.linkedType == 'sale') {
+        if (!PermissionGateCheck.check(context, 'allowViewSales')) return;
         final sale = await _db.getSaleByFirestoreId(message.linkedKey!);
         if (sale != null && mounted) {
           Navigator.push(
