@@ -110,6 +110,23 @@ class UnifiedPrinterService {
     return result;
   }
 
+  /// Public wrapper for printing raw text via ESC/POS thermal printer.
+  static Future<bool> printTextReceipt(
+    String text, {
+    PaperSize paper = PaperSize.mm80,
+    PrinterType? printerType,
+    dynamic bluetoothPrinter,
+    String? wifiIp,
+  }) {
+    return _printTextReceipt(
+      text,
+      paper: paper,
+      printerType: printerType,
+      bluetoothPrinter: bluetoothPrinter,
+      wifiIp: wifiIp,
+    );
+  }
+
   static Future<bool> _printTextReceipt(
     String text, {
     PaperSize paper = PaperSize.mm80,

@@ -94,6 +94,7 @@ import 'fashion/variant_management_view.dart';
 import 'onboarding/business_type_wizard.dart';
 import 'dashboard_settings_view.dart';
 import 'payment_request_chat_view.dart';
+import 'daily_activity_report_view.dart';
 import 'reminders_view.dart';
 import '../services/test_data_service.dart';
 import '../services/reminder_service.dart';
@@ -4336,6 +4337,11 @@ class _HomeViewState extends State<HomeView>
           return () => _pushRoute(
             context,
             MaterialPageRoute(builder: (_) => const PaymentRequestChatView()),
+          );
+        case ShortcutType.dailyReport:
+          return () => _pushRoute(
+            context,
+            MaterialPageRoute(builder: (_) => const DailyActivityReportView()),
           );
       }
     }

@@ -1701,4 +1701,192 @@ class ExcelExportHelper {
     final fileName = 'don_gui_sua_${safeName}_$now.xlsx';
     await _saveAndShare(excel, fileName, context);
   }
+
+  // ==================== DAILY ACTIVITY REPORT ====================
+
+  /// Export a comprehensive daily activity report with multiple sheets.
+  static Future<void> exportDailyActivityReport({
+    required BuildContext context,
+    required dynamic report, // DailyActivityReport
+  }) async {
+    final excel = Excel.createExcel();
+    final dateStr = DateFormat('dd/MM/yyyy').format(report.date as DateTime);
+    final enableRepair = report.shopSettings.enableRepair as bool;
+
+    // --- Sheet 1: Summary ---
+    final summary = excel['Tổng quan'];
+    summary.appendRow([
+      TextCellValue('BÁO CÁO HOẠT ĐỘNG NGÀY $dateStr'),
+    ]);
+    summary.appendRow([TextCellValue('')]);
+
+    final f = report.financial;
+    final summaryRows = <List<CellValue>>[
+      [TextCellValue('Chỉ tiêu'), TextCellValue('Giá trị (đ)')],
+      [TextCellValue('Tổng thu'), IntCellValue(f.totalIn as int)],
+      [TextCellValue('Tổng chi'), IntCellValue(f.totalOut as int)],
+      [TextCellValue('Lợi nhuận'), IntCellValue(f.netProfit as int)],
+      [TextCellValue(''), TextCellValue('')],
+      [TextCellValue('Thu bán hàng'), IntCellValue(f.saleIncome as int)],
+      [TextCellValue('Lãi bán hàng'), IntCellValue(f.saleProfit as int)],
+    ];
+    if (enableRepair) {
+      summaryRows.addAll([
+        [TextCellValue('Thu sửa chữa'), IntCellValue(f.repairIncome as int)],
+        [TextCellValue('Lãi sửa chữa'), IntCellValue(f.repairProfit as int)],
+      ]);
+    }
+    summaryRows.addAll([
+      [TextCellValue('Thu nợ'), IntCellValue(f.debtCollected as int)],
+      [TextCellValue('Thu khác'), IntCellValue(f.miscIncome as int)],
+      [TextCellValue(''), TextCellValue('')],
+      [TextCellValue('Chi phí'), IntCellValue(f.expenseOut as int)],
+      [TextCellValue('Nhập hàng'), IntCellValue(f.importOut as int)],
+      [TextCellValue('Trả NCC'), IntCellValue(f.supplierPaid as int)],
+      [TextCellValue('Giá vốn bán'), IntCellValue(f.saleCost as int)],
+    ]);
+    if (enableRepair) {
+      summaryRows.addAll([
+        [TextCellValue('Trả ĐT sửa chữa'), IntCellValue(f.partnerPaid as int)],
+        [TextCellValue('Giá vốn sửa'), IntCellValue(f.repairCost as int)],
+      ]);
+    }
+    if ((f.refundOut as int) > 0) {
+      summaryRows.add([TextCellValue('Hoàn trả'), IntCellValue(f.refundOut as int)]);
+    }
+    for (final row in summaryRows) {
+      summary.appendRow(row);
+    }
+
+    // --- Sheet 2: Sales ---
+    final sales = report.sales as List<Map<String, dynamic>>;
+    if (sales.isNotEmpty) {
+      final sSheet = excel['Bán hàng'];
+      _writeHeaders(sSheet, [
+        'STT', 'Thời gian', 'Mã đơn', 'Khách hàng', 'Tổng tiền',
+        'Giảm giá', 'Thực thu', 'Giá vốn', 'Lãi',
+      ]);
+      for (var i = 0; i < sales.length; i++) {
+        final s = sales[i];
+        final total = (s['totalPrice'] as int?) ?? 0;
+        final discount = (s['discount'] as int?) ?? 0;
+        final cost = (s['totalCost'] as int?) ?? 0;
+        _writeRow(sSheet, i + 1, [
+          '${i + 1}',
+          _fmtDateTime(s['soldAt'] as int?),
+          s['code'] ?? '',
+          s['customerName'] ?? 'Khách lẻ',
+          _fmtMoney(total),
+          _fmtMoney(discount),
+          _fmtMoney(total - discount),
+          _fmtMoney(cost),
+          _fmtMoney(total - discount - cost),
+        ]);
+      }
+    }
+
+    // --- Sheet 3: Repairs ---
+    final repairs = report.allRepairsToday as List<Map<String, dynamic>>;
+    if (enableRepair && repairs.isNotEmpty) {
+      final rSheet = excel['Sửa chữa'];
+      _writeHeaders(rSheet, [
+        'STT', 'Thời gian', 'Trạng thái', 'Khách hàng', 'Thiết bị',
+        'Lỗi', 'Giá', 'Linh kiện',
+      ]);
+      for (var i = 0; i < repairs.length; i++) {
+        final r = repairs[i];
+        final status = (r['status'] as int?) ?? 1;
+        final ts = status == 4 ? (r['deliveredAt'] as int?) : (r['createdAt'] as int?);
+        _writeRow(rSheet, i + 1, [
+          '${i + 1}',
+          _fmtDateTime(ts),
+          _repairStatus(status),
+          r['customerName'] ?? '',
+          r['deviceName'] ?? '',
+          r['issue'] ?? '',
+          _fmtMoney((r['price'] as int?) ?? 0),
+          _fmtMoney((r['partsCost'] as int?) ?? 0),
+        ]);
+      }
+    }
+
+    // --- Sheet 4: Expenses ---
+    final expenses = report.expenses as List<Map<String, dynamic>>;
+    if (expenses.isNotEmpty) {
+      final eSheet = excel['Chi phí'];
+      _writeHeaders(eSheet, [
+        'STT', 'Thời gian', 'Loại', 'Danh mục', 'Mô tả', 'Số tiền',
+      ]);
+      for (var i = 0; i < expenses.length; i++) {
+        final e = expenses[i];
+        final type = (e['type'] ?? 'CHI') == 'CHI' ? 'Chi' : 'Thu';
+        _writeRow(eSheet, i + 1, [
+          '${i + 1}',
+          _fmtDateTime(e['date'] as int?),
+          type,
+          e['category'] ?? '',
+          e['description'] ?? e['note'] ?? '',
+          _fmtMoney((e['amount'] as int?) ?? 0),
+        ]);
+      }
+    }
+
+    // --- Sheet 5: Debts ---
+    final debtPayments = report.debtPayments as List<Map<String, dynamic>>;
+    final supplierPayments =
+        report.supplierPayments as List<Map<String, dynamic>>;
+    if (debtPayments.isNotEmpty || supplierPayments.isNotEmpty) {
+      final dSheet = excel['Công nợ'];
+      _writeHeaders(dSheet, [
+        'STT', 'Loại', 'Đối tượng', 'Số tiền',
+      ]);
+      var idx = 0;
+      for (final p in debtPayments) {
+        idx++;
+        _writeRow(dSheet, idx, [
+          '$idx',
+          'Thu nợ KH',
+          p['customerName'] ?? p['debtorName'] ?? '',
+          _fmtMoney((p['amount'] as int?) ?? 0),
+        ]);
+      }
+      for (final p in supplierPayments) {
+        idx++;
+        _writeRow(dSheet, idx, [
+          '$idx',
+          'Trả nợ NCC',
+          p['supplierName'] ?? '',
+          _fmtMoney((p['amount'] as int?) ?? 0),
+        ]);
+      }
+    }
+
+    // --- Sheet 6: Staff ---
+    final attendance = report.attendance as List;
+    if (attendance.isNotEmpty) {
+      final aSheet = excel['Nhân viên'];
+      _writeHeaders(aSheet, [
+        'STT', 'Tên', 'Giờ vào', 'Giờ ra', 'Trễ', 'Về sớm',
+      ]);
+      for (var i = 0; i < attendance.length; i++) {
+        final a = attendance[i];
+        _writeRow(aSheet, i + 1, [
+          '${i + 1}',
+          a.name ?? '',
+          a.checkInAt != null ? _fmtDateTime(a.checkInAt as int?) : '',
+          a.checkOutAt != null ? _fmtDateTime(a.checkOutAt as int?) : '',
+          a.isLate == 1 ? 'Có' : '',
+          a.isEarlyLeave == 1 ? 'Có' : '',
+        ]);
+      }
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final dateFile = DateFormat('ddMMyyyy').format(report.date as DateTime);
+    final fileName = 'bao_cao_ngay_$dateFile.xlsx';
+    await _saveAndShare(excel, fileName, context);
+  }
 }

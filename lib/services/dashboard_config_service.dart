@@ -592,6 +592,7 @@ enum ShortcutType {
   expenses, // Thu chi
   expiryManage, // Hạn sử dụng
   paymentRequest, // Yêu cầu đóng tiền
+  dailyReport, // BC hoạt động ngày
 }
 
 /// Config for a single shortcut item
@@ -680,6 +681,8 @@ class ShortcutConfig {
         return 'Hạn SD';
       case ShortcutType.paymentRequest:
         return 'Đóng tiền';
+      case ShortcutType.dailyReport:
+        return 'BC ngày';
     }
   }
 
@@ -740,6 +743,8 @@ class ShortcutConfig {
         return Icons.timer;
       case ShortcutType.paymentRequest:
         return Icons.request_page;
+      case ShortcutType.dailyReport:
+        return Icons.summarize;
     }
   }
 
@@ -800,6 +805,8 @@ class ShortcutConfig {
         return Colors.orange;
       case ShortcutType.paymentRequest:
         return const Color(0xFF075E54);
+      case ShortcutType.dailyReport:
+        return const Color(0xFF1565C0);
     }
   }
 
@@ -836,6 +843,7 @@ class ShortcutConfig {
       case ShortcutType.cashClosing:
       case ShortcutType.financialReport:
       case ShortcutType.activityLog:
+      case ShortcutType.dailyReport:
         return 'allowViewRevenue';
       case ShortcutType.attendance:
         return 'allowViewAttendance';
