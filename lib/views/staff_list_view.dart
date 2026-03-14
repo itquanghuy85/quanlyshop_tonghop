@@ -1268,6 +1268,7 @@ class _StaffListViewState extends State<StaffListView> {
         role: currentRole,
         fullData: fullData,
         isSuperAdmin: _isSuperAdmin,
+        currentUserRole: _currentRole ?? 'employee',
       ),
     );
   }
@@ -1277,6 +1278,7 @@ class _StaffActivityCenter extends StatefulWidget {
   final String uid, name, email, role;
   final Map<String, dynamic> fullData;
   final bool isSuperAdmin;
+  final String currentUserRole;
   const _StaffActivityCenter({
     required this.uid,
     required this.name,
@@ -1284,6 +1286,7 @@ class _StaffActivityCenter extends StatefulWidget {
     required this.role,
     required this.fullData,
     required this.isSuperAdmin,
+    required this.currentUserRole,
   });
 
   @override
@@ -1294,6 +1297,20 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final db = DBHelper();
+
+  /// Only owner/superAdmin can change roles (Firestore rules enforce this)
+  bool get _canChangeRole =>
+      widget.isSuperAdmin || widget.currentUserRole == 'owner';
+
+  String _roleLabel(String role) {
+    switch (role) {
+      case 'owner': return 'CHỦ SHOP';
+      case 'manager': return 'QUẢN LÝ';
+      case 'employee': return 'NHÂN VIÊN';
+      case 'technician': return 'KỸ THUẬT';
+      default: return role.toUpperCase();
+    }
+  }
 
   // Controllers cho phần chỉnh sửa thông tin
   final nameCtrl = TextEditingController();
@@ -1748,12 +1765,14 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       }
 
       print('Updating user info for ${widget.uid}');
+      // Only send role if owner/superAdmin changed it (managers can't change roles per Firestore rules)
+      final roleToSave = _canChangeRole ? _selectedRole : widget.role;
       await UserService.updateUserInfo(
         uid: widget.uid,
         name: nameCtrl.text,
         phone: phoneCtrl.text,
         address: addressCtrl.text,
-        role: _selectedRole,
+        role: roleToSave,
         loc: AppLocalizations.of(context)!,
         photoUrl: photoUrl,
       );
@@ -2002,33 +2021,42 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          DropdownButton<String>(
-                            value: _selectedRole,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'owner',
-                                child: Text("CHỦ SHOP"),
+                          if (_canChangeRole)
+                            DropdownButton<String>(
+                              value: _selectedRole,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'owner',
+                                  child: Text("CHỦ SHOP"),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'manager',
+                                  child: Text("QUẢN LÝ"),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'employee',
+                                  child: Text("NHÂN VIÊN"),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'technician',
+                                  child: Text("KỸ THUẬT"),
+                                ),
+                              ],
+                              onChanged: (v) {
+                                setState(() {
+                                  _selectedRole = v!;
+                                  _syncPermissionsWithRole();
+                                });
+                              },
+                            )
+                          else
+                            Text(
+                              _roleLabel(_selectedRole),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.headline5.fontSize,
+                                color: Colors.blueGrey,
                               ),
-                              DropdownMenuItem(
-                                value: 'manager',
-                                child: Text("QUẢN LÝ"),
-                              ),
-                              DropdownMenuItem(
-                                value: 'employee',
-                                child: Text("NHÂN VIÊN"),
-                              ),
-                              DropdownMenuItem(
-                                value: 'technician',
-                                child: Text("KỸ THUẬT"),
-                              ),
-                            ],
-                            onChanged: (v) {
-                              setState(() {
-                                _selectedRole = v!;
-                                _syncPermissionsWithRole();
-                              });
-                            },
-                          ),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 8),
