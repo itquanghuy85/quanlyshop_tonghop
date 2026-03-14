@@ -13,7 +13,7 @@ import '../services/attendance_approval_service.dart';
 import '../services/encryption_service.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
-import '../services/storage_service.dart';
+import '../services/background_upload_service.dart';
 import '../services/osm_map_service.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
 import '../widgets/app_cached_image.dart';
@@ -219,18 +219,8 @@ class _AttendanceViewState extends State<AttendanceView>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      final cloudUrl = await StorageService.uploadXFileAndGetUrl(
-        picked,
-        'attendance',
-      );
-      if (cloudUrl == null) {
-        NotificationService.showSnackBar(
-          "Lỗi mạng! Không thể tải ảnh lên.",
-          color: Colors.red,
-        );
-        setState(() => _loading = false);
-        return;
-      }
+      // Use local path first — upload to cloud in background.
+      final localPhotoPath = picked.path;
 
       final now = DateTime.now();
       final timestamp = now.millisecondsSinceEpoch;
@@ -289,8 +279,8 @@ class _AttendanceViewState extends State<AttendanceView>
         dateKey: DateFormat('yyyy-MM-dd').format(now),
         checkInAt: isIn ? timestamp : _today?.checkInAt,
         checkOutAt: isIn ? null : timestamp,
-        photoIn: isIn ? cloudUrl : _today?.photoIn,
-        photoOut: isIn ? null : cloudUrl,
+        photoIn: isIn ? localPhotoPath : _today?.photoIn,
+        photoOut: isIn ? null : localPhotoPath,
         status: 'pending',
         isLate: isLate ? 1 : 0,
         isEarlyLeave: isEarly ? 1 : 0,
@@ -302,7 +292,7 @@ class _AttendanceViewState extends State<AttendanceView>
 
       await db.upsertAttendance(attendance);
 
-      // Sync to Firestore
+      // Sync to Firestore (with local path for now)
       await _syncAttendanceToCloud(attendance, shopId);
 
       await _refreshAttendanceData();
@@ -322,6 +312,14 @@ class _AttendanceViewState extends State<AttendanceView>
       NotificationService.showSnackBar(
         isIn ? "Chấm công vào thành công!" : "Chấm công ra thành công!",
         color: Colors.green,
+      );
+
+      // Upload photo to cloud in background
+      BackgroundUploadService.uploadAttendancePhoto(
+        firestoreId: firestoreId,
+        photo: picked,
+        isCheckIn: isIn,
+        shopId: shopId,
       );
     } catch (e) {
       NotificationService.showSnackBar("Lỗi: $e", color: Colors.red);

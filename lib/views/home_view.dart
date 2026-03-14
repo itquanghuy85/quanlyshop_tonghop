@@ -388,6 +388,7 @@ class _HomeViewState extends State<HomeView>
   bool _cloudBootstrapRunning = false;
 
   Timer? _autoSyncTimer;
+  DateTime? _lastPausedAt; // Track when app was paused for iOS flicker fix
   Timer? _statsDebounceTimer; // Add debounce timer
   Timer? _debtOverviewDebounceTimer;
   StreamSubscription? _eventBusSub; // EventBus subscription
@@ -1275,25 +1276,42 @@ class _HomeViewState extends State<HomeView>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      // Pause sync timer when app is backgrounded (saves battery on iOS)
+    if (state == AppLifecycleState.paused) {
+      // Only react to paused (not inactive) — iOS fires inactive for system
+      // overlays, route transitions, and notification center, causing false
+      // reloads that trigger flicker.
       _autoSyncTimer?.cancel();
       _autoSyncTimer = null;
-      debugPrint('HomeView: App backgrounded - paused sync timer');
+      _lastPausedAt = DateTime.now();
+      debugPrint('HomeView: App paused - paused sync timer');
     } else if (state == AppLifecycleState.resumed) {
-      // Resume sync timer when app returns to foreground
+      // Always restart the sync timer
       if (_autoSyncTimer == null) {
         _autoSyncTimer = Timer.periodic(
           const Duration(seconds: 120),
           (_) => _syncNow(silent: true),
         );
         debugPrint('HomeView: App resumed - restarted sync timer');
+      }
+
+      // Skip heavy reload if pause was very brief (< 2s) — this happens on
+      // iOS when returning from camera, image picker, or quick overlays.
+      // Avoids the flicker from full tab rebuild + permission refetch.
+      final pauseDuration = _lastPausedAt != null
+          ? DateTime.now().difference(_lastPausedAt!)
+          : const Duration(seconds: 999);
+      _lastPausedAt = null;
+
+      if (pauseDuration.inSeconds >= 2) {
+        // Genuine background resume — do full refresh
         unawaited(_updatePermissions(forceRefresh: true));
-        // Quick sync after resume
         _syncNow(silent: true);
         _debouncedLoadStats();
         _debouncedLoadDebtOverview();
+      } else {
+        // Quick resume (camera, picker, etc.) — lightweight refresh only
+        debugPrint('HomeView: Quick resume (${pauseDuration.inMilliseconds}ms) - skipping heavy reload');
+        _debouncedLoadStats();
       }
     }
   }
@@ -1590,16 +1608,32 @@ class _HomeViewState extends State<HomeView>
         forceRefresh: forceRefresh,
       );
       if (!mounted) return;
+
+      // Build new permission map
+      final newPerms = <String, bool>{};
+      perms.forEach((key, value) {
+        if (value is bool) {
+          newPerms[key] = value;
+        }
+      });
+      final newShopLocked = perms['shopAppLocked'] == true;
+      final newLockedByAdmin = perms['lockedByAdmin'] as List<dynamic>? ?? [];
+      final newLockedByOwner = perms['lockedByOwner'] as List<dynamic>? ?? [];
+
+      // Skip setState if nothing changed — avoids tab rebuild flicker
+      final permsSame = _permissions.length == newPerms.length &&
+          newPerms.entries.every((e) => _permissions[e.key] == e.value);
+      final lockedSame = _shopLocked == newShopLocked;
+      if (permsSame && lockedSame && _permissions.isNotEmpty) {
+        debugPrint('HomeView: Permissions unchanged, skipping rebuild');
+        return;
+      }
+
       setState(() {
-        _shopLocked = perms['shopAppLocked'] == true;
-        _lockedByAdmin = perms['lockedByAdmin'] as List<dynamic>? ?? [];
-        _lockedByOwner = perms['lockedByOwner'] as List<dynamic>? ?? [];
-        _permissions = {};
-        perms.forEach((key, value) {
-          if (value is bool) {
-            _permissions[key] = value;
-          }
-        });
+        _shopLocked = newShopLocked;
+        _lockedByAdmin = newLockedByAdmin;
+        _lockedByOwner = newLockedByOwner;
+        _permissions = newPerms;
         _updateAvailableTabs();
       });
       debugPrint('HomeView permissions updated: $_permissions');

@@ -8,7 +8,7 @@ import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/shop_settings_model.dart';
 import '../services/notification_service.dart';
-import '../services/storage_service.dart';
+import '../services/background_upload_service.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/firestore_service.dart';
@@ -375,34 +375,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       _uploadStatus = loc.syncingDataToServer;
     });
     try {
+      // Save with local paths first — upload to cloud in background after pop.
+      // Web blob URLs are not portable, so keep empty on web.
       String cloudImagePaths = "";
       if (_images.isNotEmpty) {
-        final uploadedUrls = <String>[];
-        for (final picked in _images) {
-          final url = await StorageService.uploadXFileAndGetUrl(
-            picked,
-            'repairs',
-          );
-          if (url != null && url.isNotEmpty) {
-            uploadedUrls.add(url);
-          }
-        }
-
-        // Không làm rơi ảnh: nếu upload cloud chưa xong thì giữ path local để sync lại.
-        if (uploadedUrls.isNotEmpty) {
-          cloudImagePaths = uploadedUrls.join(',');
+        if (kIsWeb) {
+          cloudImagePaths = '';
         } else {
-          // Web local/blob paths are not portable across sessions/devices.
-          // Keep empty to avoid broken thumbnails on other devices.
-          if (kIsWeb) {
-            cloudImagePaths = '';
-            NotificationService.showSnackBar(
-              'Ảnh chưa tải lên cloud, vui lòng thử lại mạng rồi lưu lại ảnh.',
-              color: Colors.orange,
-            );
-          } else {
-            cloudImagePaths = _images.map((e) => e.path).join(',');
-          }
+          cloudImagePaths = _images.map((e) => e.path).join(',');
         }
       }
 
@@ -690,6 +670,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
   Future<void> _onlySave() async {
     debugPrint('🔧 _onlySave: Starting save process...');
+    // Capture images before save (state may be disposed after pop)
+    final imagesToUpload = List<XFile>.from(_images);
     final r = await _saveOrderProcess();
     debugPrint(
       '🔧 _onlySave: _saveOrderProcess returned: ${r != null ? 'success' : 'null'}',
@@ -714,12 +696,23 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         loc.orderSavedSuccess,
         color: Colors.green,
       );
+
+      // Upload images in background after navigation
+      if (imagesToUpload.isNotEmpty && r.id != null && r.firestoreId != null) {
+        BackgroundUploadService.uploadRepairImages(
+          localRepairId: r.id!,
+          firestoreId: r.firestoreId!,
+          images: imagesToUpload,
+        );
+      }
     } else {
       debugPrint('🔧 _onlySave: Save failed, r is null');
     }
   }
 
   Future<void> _saveAndPrint() async {
+    // Capture images before save
+    final imagesToUpload = List<XFile>.from(_images);
     final r = await _saveOrderProcess();
     if (r != null) {
       HapticFeedback.mediumImpact();
@@ -739,6 +732,15 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
           MaterialPageRoute(
             builder: (_) => OrderListView(role: widget.role),
           ),
+        );
+      }
+
+      // Upload images in background after navigation
+      if (imagesToUpload.isNotEmpty && r.id != null && r.firestoreId != null) {
+        BackgroundUploadService.uploadRepairImages(
+          localRepairId: r.id!,
+          firestoreId: r.firestoreId!,
+          images: imagesToUpload,
         );
       }
     }
