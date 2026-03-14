@@ -618,7 +618,8 @@ class NotificationService {
     // Show in-app snackbar notification
     final title = message.notification?.title ?? 'Thông báo mới';
     final body = message.notification?.body ?? '';
-    showSnackBar('$title: $body', color: Colors.blueAccent);
+    // Show structured in-app notification instead of simple text
+    _showInAppNotification(title, body);
 
     // Check if notifications are enabled for this type
     _shouldShowNotification(message.data['type']).then((shouldShow) {
@@ -952,6 +953,12 @@ class NotificationService {
               showWhen: true,
               icon: '@mipmap/launcher_icon',
               playSound: _shouldPlaySound(channelId),
+              subText: 'Quản Lý Shop',
+              styleInformation: BigTextStyleInformation(
+                body,
+                contentTitle: title,
+                summaryText: _getChannelName(channelId),
+              ),
             );
 
         const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -1021,8 +1028,8 @@ class NotificationService {
                   const SizedBox(height: 4),
                   Text(
                     body,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                    maxLines: 2,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -1208,12 +1215,20 @@ class NotificationService {
   static Future<void> sendNewOrderNotification(
     String orderId,
     String customerName,
-    int price,
-  ) async {
-    const title = 'ĐƠN SỬA MỚI';
-    final body = 'Khách $customerName - ${MoneyUtils.formatVND(price)}đ';
+    int price, {
+    String? model,
+    String? phone,
+  }) async {
+    const title = '🔧 ĐƠN SỬA MỚI';
+    final now = DateTime.now();
+    final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final lines = <String>[
+      '👤 $customerName${phone != null && phone.isNotEmpty ? ' • 📞 $phone' : ''}',
+      if (model != null && model.isNotEmpty) '📱 $model',
+      '💰 ${MoneyUtils.formatVND(price)}đ • 🕐 $time',
+    ];
+    final body = lines.join('\n');
 
-    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
     await sendCloudNotification(title: title, body: body, type: 'new_order');
   }
 
@@ -1233,12 +1248,19 @@ class NotificationService {
   static Future<void> sendPaymentNotification(
     String orderId,
     double amount,
-    String paymentMethod,
-  ) async {
-    const title = 'THANH TOÁN THÀNH CÔNG';
-    final body = '${amount.toStringAsFixed(0)}đ qua $paymentMethod';
+    String paymentMethod, {
+    String? customerName,
+  }) async {
+    const title = '💰 THANH TOÁN THÀNH CÔNG';
+    final now = DateTime.now();
+    final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final lines = <String>[
+      if (customerName != null && customerName.isNotEmpty) '👤 $customerName',
+      '💵 ${MoneyUtils.formatVND(amount.toInt())}đ • 💳 $paymentMethod',
+      '🕐 $time',
+    ];
+    final body = lines.join('\n');
 
-    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
     await sendCloudNotification(title: title, body: body, type: 'payment');
   }
 
@@ -1248,11 +1270,14 @@ class NotificationService {
     int currentStock,
     int minStock,
   ) async {
-    const title = 'CẢNH BÁO KHO HÀNG';
-    final body =
-        '$productName chỉ còn $currentStock sản phẩm (tối thiểu: $minStock)';
+    const title = '⚠️ CẢNH BÁO KHO HÀNG';
+    final lines = <String>[
+      '📦 $productName',
+      '📊 Tồn kho: $currentStock / Tối thiểu: $minStock',
+      '🔴 Cần nhập thêm hàng!',
+    ];
+    final body = lines.join('\n');
 
-    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
     await sendCloudNotification(title: title, body: body, type: 'inventory');
   }
 
@@ -1262,10 +1287,18 @@ class NotificationService {
     String status,
     String time,
   ) async {
-    const title = 'ĐIỂM DANH NHÂN VIÊN';
-    final body = '$staffName đã $status lúc $time';
+    final isCheckIn = status.contains('check-in') || status.contains('check_in');
+    final emoji = isCheckIn ? '✅' : '🚪';
+    final title = '$emoji CHẤM CÔNG';
+    final now = DateTime.now();
+    final date = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    final lines = <String>[
+      '👤 $staffName',
+      '$emoji ${status.toUpperCase()} lúc $time',
+      '📅 $date',
+    ];
+    final body = lines.join('\n');
 
-    // Cloud Function sẽ lọc người nhận theo role, không cần check ở đây
     await sendCloudNotification(title: title, body: body, type: 'staff');
   }
 

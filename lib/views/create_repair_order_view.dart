@@ -638,6 +638,8 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
           rWithCloudId.firestoreId!,
           r.customerName,
           r.price,
+          model: r.model,
+          phone: r.phone,
         );
       } catch (e) {
         debugPrint('Failed to send new order notification: $e');

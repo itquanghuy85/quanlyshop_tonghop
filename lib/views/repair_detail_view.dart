@@ -531,7 +531,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           // Gửi push notification cho mọi người
           await NotificationService.sendCloudNotification(
             title: '$emoji $statusMsg',
-            body: '${r.customerName} - ${r.model}',
+            body: '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
             type: 'new_order',
           );
 
@@ -778,9 +778,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // Gửi notification cho quản lý
       await NotificationService.sendCloudNotification(
-        title: loc.notifRequestDeliveryApproval,
+        title: '📋 ${loc.notifRequestDeliveryApproval}',
         body:
-            '${r.customerName} - ${r.model} (${MoneyUtils.formatCurrency(r.price)}đ)',
+            '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ\n👷 $userName',
         type: 'approval_needed',
       );
 

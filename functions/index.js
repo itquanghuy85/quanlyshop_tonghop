@@ -450,10 +450,18 @@ exports.notifyNewRepair = onDocumentCreated("repairs/{repairId}", async (event) 
   const data = event.data?.data();
   if (!data) return;
 
+  const price = data.price ? Number(data.price).toLocaleString('vi-VN') : '0';
+  const phone = data.phone || '';
+  const time = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}) : '';
+  let body = `👤 ${data.customerName || 'N/A'}`;
+  if (phone) body += ` • 📞 ${phone}`;
+  body += `\n📱 ${data.model || 'N/A'} • 💰 ${price}đ`;
+  if (time) body += `\n🕐 ${time}`;
+
   const payload = {
     notification: {
-      title: "🔧 Có đơn sửa mới",
-      body: `${data.customerName} - ${data.model}`,
+      title: "🔧 ĐƠN SỬA MỚI",
+      body: body,
     },
     data: {
       repairId: event.params.repairId,
@@ -547,10 +555,13 @@ exports.notifyStatusChange = onDocumentUpdated("repairs/{repairId}", async (even
   if (after.status === 2) statusText = "🛠️ Đã sửa xong";
   if (after.status === 3) statusText = "✅ Đã giao máy";
 
+  const price = after.price ? Number(after.price).toLocaleString('vi-VN') : '0';
+  const body = `👤 ${after.customerName || 'N/A'} • 📱 ${after.model || 'N/A'}\n💰 ${price}đ`;
+
   const payload = {
     notification: {
       title: statusText,
-      body: `${after.customerName} - ${after.model}`,
+      body: body,
     },
   };
 
