@@ -48,8 +48,17 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
 
   Future<void> _load() async {
     try {
+      // Get fresh shopId to avoid cross-shop data contamination
+      final freshShopId = await UserService.getCurrentShopId();
       final maps = await DBHelper().getAllSalvagePhones();
-      final list = maps.map((m) => SalvagePhone.fromMap(m)).toList();
+      final list = maps
+          .map((m) => SalvagePhone.fromMap(m))
+          .where((p) {
+            if (freshShopId == null || freshShopId.isEmpty) return true;
+            final pShop = p.shopId ?? '';
+            return pShop.isEmpty || pShop == freshShopId;
+          })
+          .toList();
       if (mounted) {
         setState(() {
           _all = list;
@@ -749,6 +758,7 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
     List<String> existingImageUrls =
         existing != null ? List.from(existing.imageList) : [];
     bool saving = false;
+    bool showImages = existing != null && existing.imageList.isNotEmpty;
 
     showDialog(
       context: context,
@@ -821,6 +831,8 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
                         existingImageUrls,
                         newImages,
                         setDlg,
+                        showImages,
+                        (v) => setDlg(() => showImages = v),
                       ),
                     ],
                   ),
@@ -973,70 +985,61 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
     List<String> existingUrls,
     List<XFile> newImages,
     StateSetter setDlg,
+    bool showImages,
+    void Function(bool) onToggle,
   ) {
+    final totalImages = existingUrls.length + newImages.length;
+    final canAdd = totalImages < 3;
+
+    // Hidden by default — tap to expand
+    if (!showImages && totalImages == 0) {
+      return TextButton.icon(
+        onPressed: () => onToggle(true),
+        icon: Icon(Icons.add_a_photo, size: 16, color: Colors.grey.shade600),
+        label: Text(
+          'Thêm hình ảnh (tùy chọn)',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              'Hình ảnh (${existingUrls.length + newImages.length}/3)',
+              'Hình ảnh ($totalImages/3)',
               style: AppTextStyles.body2,
             ),
             const Spacer(),
-            if (existingUrls.length + newImages.length < 3)
-              TextButton.icon(
+            if (canAdd && !kIsWeb)
+              IconButton(
                 onPressed: () async {
-                  final source = kIsWeb ? ImageSource.gallery : null;
-                  if (source != null) {
-                    final f = await ImagePicker().pickImage(
-                      source: source,
-                      imageQuality: 40,
-                    );
-                    if (f != null) {
-                      setDlg(() => newImages.add(f));
-                    }
-                    return;
-                  }
-                  // Mobile: show picker choice
-                  final picked = await showModalBottomSheet<XFile>(
-                    context: context,
-                    builder: (bCtx) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: const Icon(Icons.camera_alt),
-                            title: const Text('Chụp ảnh'),
-                            onTap: () async {
-                              final f = await ImagePicker().pickImage(
-                                source: ImageSource.camera,
-                                imageQuality: 40,
-                              );
-                              if (bCtx.mounted) Navigator.of(bCtx).pop(f);
-                            },
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.photo_library),
-                            title: const Text('Chọn từ thư viện'),
-                            onTap: () async {
-                              final f = await ImagePicker().pickImage(
-                                source: ImageSource.gallery,
-                                imageQuality: 40,
-                              );
-                              if (bCtx.mounted) Navigator.of(bCtx).pop(f);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
+                  final f = await ImagePicker().pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 40,
                   );
-                  if (picked != null) {
-                    setDlg(() => newImages.add(picked));
-                  }
+                  if (f != null) setDlg(() => newImages.add(f));
                 },
-                icon: const Icon(Icons.add_a_photo, size: 16),
-                label: const Text('Thêm ảnh', style: TextStyle(fontSize: 12)),
+                icon: const Icon(Icons.camera_alt, size: 20),
+                tooltip: 'Chụp ảnh',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              ),
+            if (canAdd)
+              IconButton(
+                onPressed: () async {
+                  final f = await ImagePicker().pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 40,
+                  );
+                  if (f != null) setDlg(() => newImages.add(f));
+                },
+                icon: const Icon(Icons.photo_library, size: 20),
+                tooltip: 'Thư viện',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               ),
           ],
         ),
