@@ -325,13 +325,14 @@ class PaymentRequestService {
           expCategory = 'ĐIỆN NƯỚC';
           break;
         default:
-          expCategory = 'PHÁT SINH';
+          expCategory = 'ĐÓNG TIỀN';
       }
 
       // 1. Tạo chi phí (expense) → hiển thị trong chốt quỹ
       final expData = {
         'firestoreId': expFirestoreId,
         'title': expTitle,
+        'description': expTitle,
         'amount': amount,
         'category': expCategory,
         'date': now,

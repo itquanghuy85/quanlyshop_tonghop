@@ -721,7 +721,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
 
   Widget _expenseRow(Map<String, dynamic> e, {required bool isIncome}) {
     final amount = (e['amount'] as int?) ?? 0;
-    final desc = e['description'] ?? e['note'] ?? '';
+    final desc = e['title'] ?? e['description'] ?? e['note'] ?? '';
     final category = e['category'] ?? '';
     final time = _fmtTime(e['date'] as int?);
     return Padding(
