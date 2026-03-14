@@ -407,6 +407,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
   Widget _buildSalesSection(DailyActivityReport r) {
     final sales = r.sales;
     final returns = r.salesReturns;
+    final saleProfit = r.totalSaleRevenue - r.totalSaleCost;
     return _sectionCard(
       title: 'Bán hàng (${sales.length})',
       icon: Icons.shopping_cart,
@@ -420,6 +421,25 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       ),
       child: Column(
         children: [
+          if (sales.isNotEmpty) ...[            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text('Vốn: ${MoneyUtils.formatCurrency(r.totalSaleCost)}đ',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+                  ),
+                  Text('Lãi: ${MoneyUtils.formatCurrency(saleProfit)}đ',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: saleProfit >= 0 ? AppColors.success : AppColors.error)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            const SizedBox(height: 4),
+          ],
           if (sales.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
@@ -548,6 +568,12 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final repairs = r.allRepairsToday;
     final deliveredCount = r.repairsDelivered.length;
     final createdCount = r.repairsCreated.length;
+    // Compute delivered repair totals
+    final deliveredRevenue = r.repairsDelivered.fold<int>(
+        0, (s, e) => s + ((e['price'] as int?) ?? 0));
+    final deliveredCost = r.repairsDelivered.fold<int>(
+        0, (s, e) => s + ((e['cost'] as int?) ?? 0));
+    final deliveredProfit = deliveredRevenue - deliveredCost;
     return _sectionCard(
       title: 'Sửa chữa ($createdCount mới · $deliveredCount giao)',
       icon: Icons.build,
@@ -568,6 +594,28 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           : null,
       child: Column(
         children: [
+          if (deliveredCount > 0) ..[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'DT giao: ${MoneyUtils.formatCurrency(deliveredRevenue)}đ',
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                    ),
+                  ),
+                  Text('Lãi: ${MoneyUtils.formatCurrency(deliveredProfit)}đ',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: deliveredProfit >= 0 ? AppColors.success : AppColors.error)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            const SizedBox(height: 4),
+          ],
           if (repairs.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
@@ -1284,7 +1332,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         lines.writeln('');
       }
 
-      // Expenses
+      // Expenses (CHI)
       final expOnly = r.expensesOnly;
       if (expOnly.isNotEmpty) {
         final totalExp = expOnly.fold<int>(
@@ -1292,7 +1340,22 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         lines.writeln('[C][B]--- CHI PHI (${expOnly.length}) ---');
         lines.writeln('Tong chi: ${MoneyUtils.formatCurrency(totalExp)}d');
         for (final e in expOnly.take(10)) {
-          final desc = e['description'] ?? e['note'] ?? 'Chi';
+          final desc = e['title'] ?? e['description'] ?? e['note'] ?? 'Chi';
+          final amt = (e['amount'] as int?) ?? 0;
+          lines.writeln('  $desc: ${MoneyUtils.formatCurrency(amt)}d');
+        }
+        lines.writeln('');
+      }
+
+      // Income (THU)
+      final incOnly = r.incomeOnly;
+      if (incOnly.isNotEmpty) {
+        final totalInc = incOnly.fold<int>(
+            0, (s, e) => s + ((e['amount'] as int?) ?? 0));
+        lines.writeln('[C][B]--- THU KHAC (${incOnly.length}) ---');
+        lines.writeln('Tong thu: ${MoneyUtils.formatCurrency(totalInc)}d');
+        for (final e in incOnly.take(10)) {
+          final desc = e['title'] ?? e['description'] ?? e['note'] ?? 'Thu';
           final amt = (e['amount'] as int?) ?? 0;
           lines.writeln('  $desc: ${MoneyUtils.formatCurrency(amt)}d');
         }
