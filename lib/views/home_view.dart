@@ -6808,6 +6808,19 @@ class _HomeViewState extends State<HomeView>
                       ),
                     ),
                   ),
+                  if (hasFullAccess ||
+                      _permissions['allowViewRevenue'] == true)
+                    _financeQuickCard(
+                      'Báo cáo cuối ngày',
+                      Icons.summarize,
+                      const Color(0xFF1565C0),
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DailyActivityReportView(),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ],

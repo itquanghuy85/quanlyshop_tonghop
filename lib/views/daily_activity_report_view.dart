@@ -1196,41 +1196,52 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       final dateStr = DateFormat('dd/MM/yyyy').format(r.date);
       final lines = StringBuffer();
 
-      lines.writeln('[C]<b>BÁO CÁO NGÀY</b>');
+      lines.writeln('[C][B]BÁO CÁO NGÀY');
       lines.writeln('[C]$dateStr');
       lines.writeln('[C]================================');
       lines.writeln('');
 
       // Summary
-      lines.writeln('[C]<b>--- TỔNG QUAN ---</b>');
-      lines.writeln('Doanh thu:  ${MoneyUtils.formatCurrency(f.totalIn)}đ');
-      lines.writeln('Chi phí:    ${MoneyUtils.formatCurrency(f.totalOut)}đ');
-      lines.writeln('Lợi nhuận:  ${MoneyUtils.formatCurrency(f.netProfit)}đ');
-      lines.writeln('Giao dịch:  ${r.totalTransactions}');
+      lines.writeln('[C][B]--- TỔNG QUAN ---');
+      lines.writeln('Doanh thu:  ${MoneyUtils.formatCurrency(f.totalIn)}d');
+      lines.writeln('Chi phi:    ${MoneyUtils.formatCurrency(f.totalOut)}d');
+      lines.writeln('Loi nhuan:  ${MoneyUtils.formatCurrency(f.netProfit)}d');
+      lines.writeln('Giao dich:  ${r.totalTransactions}');
       lines.writeln('');
 
       // Sales
-      lines.writeln('[C]<b>--- BÁN HÀNG (${r.sales.length}) ---</b>');
-      lines.writeln('Tổng: ${MoneyUtils.formatCurrency(r.totalSaleRevenue)}đ');
+      lines.writeln('[C][B]--- BAN HANG (${r.sales.length}) ---');
+      lines.writeln('Tong: ${MoneyUtils.formatCurrency(r.totalSaleRevenue)}d');
       for (final s in r.sales.take(15)) {
         final total = ((s['totalPrice'] as int?) ?? 0) - ((s['discount'] as int?) ?? 0);
-        final name = s['customerName'] ?? 'Khách lẻ';
-        lines.writeln('  $name: ${MoneyUtils.formatCurrency(total)}đ');
+        final cost = (s['totalCost'] as int?) ?? 0;
+        final profit = total - cost;
+        final name = s['customerName'] ?? 'Khach le';
+        lines.writeln('  $name: ${MoneyUtils.formatCurrency(total)}d');
+        if (profit != 0) {
+          lines.writeln('    Lai: ${MoneyUtils.formatCurrency(profit)}d');
+        }
       }
       if (r.sales.length > 15) {
-        lines.writeln('  ...+${r.sales.length - 15} đơn khác');
+        lines.writeln('  ...+${r.sales.length - 15} don khac');
       }
       lines.writeln('');
 
       // Repairs
       if (r.shopSettings.enableRepair) {
         lines.writeln(
-            '[C]<b>--- SỬA CHỮA (${r.repairsCreated.length} mới) ---</b>');
+            '[C][B]--- SUA CHUA (${r.repairsCreated.length} moi) ---');
         for (final re in r.allRepairsToday.take(15)) {
-          final status = _repairStatusLabel((re['status'] as int?) ?? 1);
+          final status = (re['status'] as int?) ?? 1;
+          final statusLabel = _repairStatusLabel(status);
           final cust = re['customerName'] ?? 'N/A';
           final price = (re['price'] as int?) ?? 0;
-          lines.writeln('  [$status] $cust: ${MoneyUtils.formatCurrency(price)}đ');
+          final cost = (re['cost'] as int?) ?? 0;
+          lines.writeln('  [$statusLabel] $cust: ${MoneyUtils.formatCurrency(price)}d');
+          // Only show profit for delivered repairs (status 4)
+          if (status == 4 && (price - cost) != 0) {
+            lines.writeln('    Lai: ${MoneyUtils.formatCurrency(price - cost)}d');
+          }
         }
         lines.writeln('');
       }
@@ -1240,40 +1251,40 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       if (expOnly.isNotEmpty) {
         final totalExp = expOnly.fold<int>(
             0, (s, e) => s + ((e['amount'] as int?) ?? 0));
-        lines.writeln('[C]<b>--- CHI PHÍ (${expOnly.length}) ---</b>');
-        lines.writeln('Tổng chi: ${MoneyUtils.formatCurrency(totalExp)}đ');
+        lines.writeln('[C][B]--- CHI PHI (${expOnly.length}) ---');
+        lines.writeln('Tong chi: ${MoneyUtils.formatCurrency(totalExp)}d');
         for (final e in expOnly.take(10)) {
           final desc = e['description'] ?? e['note'] ?? 'Chi';
           final amt = (e['amount'] as int?) ?? 0;
-          lines.writeln('  $desc: ${MoneyUtils.formatCurrency(amt)}đ');
+          lines.writeln('  $desc: ${MoneyUtils.formatCurrency(amt)}d');
         }
         lines.writeln('');
       }
 
       // Cash flow summary
-      lines.writeln('[C]<b>--- LUỒNG TIỀN ---</b>');
+      lines.writeln('[C][B]--- LUONG TIEN ---');
       if (f.saleIncome > 0) {
-        lines.writeln('Bán hàng:     +${MoneyUtils.formatCurrency(f.saleIncome)}đ');
+        lines.writeln('Ban hang:     +${MoneyUtils.formatCurrency(f.saleIncome)}d');
       }
       if (r.shopSettings.enableRepair && f.repairIncome > 0) {
-        lines.writeln('Sửa chữa:    +${MoneyUtils.formatCurrency(f.repairIncome)}đ');
+        lines.writeln('Sua chua:     +${MoneyUtils.formatCurrency(f.repairIncome)}d');
       }
       if (f.debtCollected > 0) {
-        lines.writeln('Thu nợ:       +${MoneyUtils.formatCurrency(f.debtCollected)}đ');
+        lines.writeln('Thu no:       +${MoneyUtils.formatCurrency(f.debtCollected)}d');
       }
       if (f.expenseOut > 0) {
-        lines.writeln('Chi phí:      -${MoneyUtils.formatCurrency(f.expenseOut)}đ');
+        lines.writeln('Chi phi:      -${MoneyUtils.formatCurrency(f.expenseOut)}d');
       }
       if (f.importOut > 0) {
-        lines.writeln('Nhập hàng:    -${MoneyUtils.formatCurrency(f.importOut)}đ');
+        lines.writeln('Nhap hang:    -${MoneyUtils.formatCurrency(f.importOut)}d');
       }
       lines.writeln('');
 
       lines.writeln('[C]================================');
-      lines.writeln('[C]<b>LỢI NHUẬN: ${MoneyUtils.formatCurrency(f.netProfit)}đ</b>');
+      lines.writeln('[C][B]LOI NHUAN: ${MoneyUtils.formatCurrency(f.netProfit)}d');
       lines.writeln('[C]================================');
       lines.writeln('');
-      lines.writeln('[C]In lúc ${DateFormat('HH:mm dd/MM/yyyy').format(DateTime.now())}');
+      lines.writeln('[C]In luc ${DateFormat('HH:mm dd/MM/yyyy').format(DateTime.now())}');
 
       final success = await UnifiedPrinterService.printTextReceipt(
         lines.toString(),
