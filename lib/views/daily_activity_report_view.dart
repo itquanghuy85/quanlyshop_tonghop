@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import '../services/daily_activity_report_service.dart';
 import '../utils/money_utils.dart';
 import '../utils/excel_export_helper.dart';
 import '../services/unified_printer_service.dart';
+import '../models/printer_types.dart';
+import '../widgets/printer_selection_dialog.dart';
 import '../theme/app_colors.dart';
 
 class DailyActivityReportView extends StatefulWidget {
@@ -1178,6 +1181,15 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
   // ==================== PRINT ====================
   Future<void> _printReport() async {
     if (_report == null) return;
+
+    // Show printer selection dialog (same as invoice printing)
+    final printerConfig = await showPrinterSelectionDialog(context);
+    if (printerConfig == null) return; // User cancelled
+
+    final printerType = printerConfig['type'] as PrinterType?;
+    final bluetoothPrinter = printerConfig['bluetoothPrinter'];
+    final wifiIp = printerConfig['wifiIp'] as String?;
+
     try {
       final r = _report!;
       final f = r.financial;
@@ -1265,6 +1277,10 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
 
       final success = await UnifiedPrinterService.printTextReceipt(
         lines.toString(),
+        paper: PaperSize.mm58,
+        printerType: printerType,
+        bluetoothPrinter: bluetoothPrinter,
+        wifiIp: wifiIp,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

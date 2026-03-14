@@ -115,34 +115,39 @@ class DailyActivityReportService {
 
     final db = await _db.database;
 
+    // shopId filter pattern: (shopId = ? OR shopId IS NULL)
+    final hasShop = shopId.isNotEmpty;
+    final shopFilter = hasShop ? ' AND (shopId = ? OR shopId IS NULL)' : '';
+    final shopArg = hasShop ? [shopId] : <dynamic>[];
+
     // Batch parallel queries (all return List<Map<String, dynamic>>)
     final results = await Future.wait([
       // 0: Sales today
-      db.query('sales', where: 'soldAt >= ? AND soldAt < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'soldAt DESC'),
+      db.query('sales', where: 'soldAt >= ? AND soldAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'soldAt DESC'),
       // 1: Settlement sales
-      db.query('sales', where: 'settlementReceivedAt >= ? AND settlementReceivedAt < ? AND isInstallment = 1 AND deleted != 1', whereArgs: [startMs, endMs]),
+      db.query('sales', where: 'settlementReceivedAt >= ? AND settlementReceivedAt < ? AND isInstallment = 1 AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg]),
       // 2: Delivered repairs
-      db.query('repairs', where: 'status = 4 AND deliveredAt >= ? AND deliveredAt < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'deliveredAt DESC'),
+      db.query('repairs', where: 'status = 4 AND deliveredAt >= ? AND deliveredAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'deliveredAt DESC'),
       // 3: Created repairs today
-      db.query('repairs', where: 'createdAt >= ? AND createdAt < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'createdAt DESC'),
+      db.query('repairs', where: 'createdAt >= ? AND createdAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'createdAt DESC'),
       // 4: Expenses today
-      db.query('expenses', where: 'date >= ? AND date < ?', whereArgs: [startMs, endMs], orderBy: 'date DESC'),
+      db.query('expenses', where: 'date >= ? AND date < ?$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'date DESC'),
       // 5: Debt payments
       _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs),
       // 6: Partner payments
-      db.query('repair_partner_payments', where: 'paidAt >= ? AND paidAt < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'paidAt DESC'),
+      db.query('repair_partner_payments', where: 'paidAt >= ? AND paidAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'paidAt DESC'),
       // 7: Supplier payments
-      db.query('supplier_payments', where: 'paidAt >= ? AND paidAt < ? AND deleted != 1', whereArgs: [startMs, endMs], orderBy: 'paidAt DESC'),
+      db.query('supplier_payments', where: 'paidAt >= ? AND paidAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'paidAt DESC'),
       // 8: Supplier imports
-      db.query('supplier_import_history', where: '(importDate >= ? AND importDate < ?) OR (createdAt >= ? AND createdAt < ?)', whereArgs: [startMs, endMs, startMs, endMs], orderBy: 'createdAt DESC'),
+      db.query('supplier_import_history', where: '((importDate >= ? AND importDate < ?) OR (createdAt >= ? AND createdAt < ?))$shopFilter', whereArgs: [startMs, endMs, startMs, endMs, ...shopArg], orderBy: 'createdAt DESC'),
       // 9: Repair parts cost fund
-      db.query('repairs', where: 'costRecordedInFund = 1 AND costRecordedAt >= ? AND costRecordedAt < ? AND deleted != 1', whereArgs: [startMs, endMs]),
+      db.query('repairs', where: 'costRecordedInFund = 1 AND costRecordedAt >= ? AND costRecordedAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg]),
       // 10: Sales returns
-      db.query('sales_returns', where: 'returnDate >= ? AND returnDate < ? AND status = ?', whereArgs: [startMs, endMs, 'APPROVED'], orderBy: 'returnDate DESC'),
+      db.query('sales_returns', where: 'returnDate >= ? AND returnDate < ? AND status = ?$shopFilter', whereArgs: [startMs, endMs, 'APPROVED', ...shopArg], orderBy: 'returnDate DESC'),
       // 11: Pending repairs count
-      db.rawQuery('SELECT COUNT(*) as cnt FROM repairs WHERE status IN (1, 2) AND deleted != 1'),
+      db.rawQuery('SELECT COUNT(*) as cnt FROM repairs WHERE status IN (1, 2) AND deleted != 1${hasShop ? " AND (shopId = ? OR shopId IS NULL)" : ""}', hasShop ? [shopId] : []),
       // 12: Pending approvals count
-      db.rawQuery('SELECT COUNT(*) as cnt FROM repairs WHERE status = 3 AND pendingDeliveryApproval = 1 AND deleted != 1'),
+      db.rawQuery('SELECT COUNT(*) as cnt FROM repairs WHERE status = 3 AND pendingDeliveryApproval = 1 AND deleted != 1${hasShop ? " AND (shopId = ? OR shopId IS NULL)" : ""}', hasShop ? [shopId] : []),
     ]);
 
     // Separate queries with different return types
