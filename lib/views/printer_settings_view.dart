@@ -10,6 +10,8 @@ import '../services/bluetooth_printer_service.dart';
 import '../services/thermal_printer_service.dart';
 import '../services/wifi_printer_service.dart';
 import '../services/network_printer_scanner.dart';
+import '../services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../theme/app_text_styles.dart';
 import 'label_designer_view.dart';
 import 'imei_qr_printer_view.dart';
@@ -62,6 +64,30 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
     final localIp = await NetworkPrinterScanner.getLocalIp();
     
     if (!mounted) return;
+    
+    // If policies are empty, try loading from Firestore (new device)
+    String warranty = prefs.getString('warranty_policy') ?? '';
+    String returnP = prefs.getString('return_policy') ?? '';
+    if (warranty.isEmpty && returnP.isEmpty) {
+      try {
+        final shopId = await UserService.getCurrentShopId();
+        if (shopId != null && shopId.isNotEmpty) {
+          final shopDoc = await FirebaseFirestore.instance
+              .collection('shops')
+              .doc(shopId)
+              .get();
+          final data = shopDoc.data();
+          warranty = (data?['warrantyPolicy'] ?? '').toString();
+          returnP = (data?['returnPolicy'] ?? '').toString();
+          if (warranty.isNotEmpty || returnP.isNotEmpty) {
+            await prefs.setString('warranty_policy', warranty);
+            await prefs.setString('return_policy', returnP);
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
     setState(() {
       _ipCtrl.text = prefs.getString('printer_ip') ?? '';
       _backupIpCtrl.text = prefs.getString('backup_printer_ip') ?? '';
@@ -70,8 +96,8 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
       _showRcPhone = prefs.getBool('receipt_show_phone') ?? true;
       _showRcQR = prefs.getBool('receipt_show_qr') ?? true;
       _rcNoteCtrl.text = prefs.getString('receipt_note') ?? 'Cảm ơn quý khách!';
-      _warrantyPolicyCtrl.text = prefs.getString('warranty_policy') ?? '';
-      _returnPolicyCtrl.text = prefs.getString('return_policy') ?? '';
+      _warrantyPolicyCtrl.text = warranty;
+      _returnPolicyCtrl.text = returnP;
       _savedPrinterName = prefs.getString('printer_name');
       _localIp = localIp;
     });
@@ -90,6 +116,25 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
     await prefs.setString('receipt_note', _rcNoteCtrl.text);
     await prefs.setString('warranty_policy', _warrantyPolicyCtrl.text);
     await prefs.setString('return_policy', _returnPolicyCtrl.text);
+
+    // Sync policies to Firestore shop doc so all devices in the same shop
+    // share the same warranty/return policy text.
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId != null && shopId.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('shops')
+            .doc(shopId)
+            .set({
+          'warrantyPolicy': _warrantyPolicyCtrl.text,
+          'returnPolicy': _returnPolicyCtrl.text,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Error syncing policies to Firestore: $e');
+    }
+
+    if (!mounted) return;
     NotificationService.showSnackBar(AppLocalizations.of(context)!.printerSettingsSaved, color: Colors.green);
   }
 

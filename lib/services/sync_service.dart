@@ -872,6 +872,13 @@ class SyncService {
         await prefs.setString('shop_address', shopAddress);
         await prefs.setString('shop_phone', shopPhone);
 
+        // Sync policies to SharedPreferences so all devices in the same shop
+        // share the same warranty/return policy text.
+        final warrantyPolicy = data['warrantyPolicy']?.toString() ?? '';
+        final returnPolicy = data['returnPolicy']?.toString() ?? '';
+        await prefs.setString('warranty_policy', warrantyPolicy);
+        await prefs.setString('return_policy', returnPolicy);
+
         debugPrint(
           "✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone",
         );

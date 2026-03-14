@@ -69,33 +69,32 @@ class _LabelElementConfig {
 class UnifiedPrinterService {
   static Future<Map<String, String>> _loadReceiptPolicies() async {
     final prefs = await SharedPreferences.getInstance();
+    // Policies are synced from Firestore shop doc to SharedPreferences
+    // by SyncService's real-time shop listener. Just read local cache.
     String warrantyPolicy = (prefs.getString('warranty_policy') ?? '').trim();
     String returnPolicy = (prefs.getString('return_policy') ?? '').trim();
 
-    if (warrantyPolicy.isNotEmpty || returnPolicy.isNotEmpty) {
-      return {
-        'warranty': warrantyPolicy,
-        'return': returnPolicy,
-      };
-    }
+    // Fallback: fetch directly from Firestore if local cache is empty
+    // (first launch before sync_service has run)
+    if (warrantyPolicy.isEmpty && returnPolicy.isEmpty) {
+      try {
+        final shopId = await UserService.getCurrentShopId();
+        if (shopId != null && shopId.isNotEmpty) {
+          final shopDoc = await FirebaseFirestore.instance
+              .collection('shops')
+              .doc(shopId)
+              .get();
+          final data = shopDoc.data();
+          warrantyPolicy = (data?['warrantyPolicy'] ?? '').toString().trim();
+          returnPolicy = (data?['returnPolicy'] ?? '').toString().trim();
 
-    try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId != null && shopId.isNotEmpty) {
-        final shopDoc = await FirebaseFirestore.instance
-            .collection('shops')
-            .doc(shopId)
-            .get();
-        final data = shopDoc.data();
-        warrantyPolicy = (data?['warrantyPolicy'] ?? '').toString().trim();
-        returnPolicy = (data?['returnPolicy'] ?? '').toString().trim();
-
-        if (warrantyPolicy.isNotEmpty || returnPolicy.isNotEmpty) {
-          await prefs.setString('warranty_policy', warrantyPolicy);
-          await prefs.setString('return_policy', returnPolicy);
+          if (warrantyPolicy.isNotEmpty || returnPolicy.isNotEmpty) {
+            await prefs.setString('warranty_policy', warrantyPolicy);
+            await prefs.setString('return_policy', returnPolicy);
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     return {
       'warranty': warrantyPolicy,
