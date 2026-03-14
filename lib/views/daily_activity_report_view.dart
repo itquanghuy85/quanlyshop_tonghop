@@ -482,8 +482,8 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final amount = totalPrice - discount;
     final cost = (s['totalCost'] as int?) ?? 0;
     final profit = amount - cost;
-    final code = s['code'] ?? '';
     final customerName = s['customerName'] ?? 'Khách lẻ';
+    final productNames = s['productNames'] ?? '';
     final time = _fmtTime(s['soldAt'] as int?);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
@@ -504,6 +504,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 14),
                 ),
+                if (productNames.isNotEmpty)
+                  Text(
+                    productNames,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 if (profit != 0)
                   Text(
                     'Lãi: ${MoneyUtils.formatCurrency(profit)}đ',
@@ -515,13 +523,6 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               ],
             ),
           ),
-          if (code.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text('#$code',
-                  style:
-                      TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-            ),
           Text('${MoneyUtils.formatCurrency(amount)}đ',
               style: const TextStyle(
                   fontSize: 14,
@@ -594,7 +595,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           : null,
       child: Column(
         children: [
-          if (deliveredCount > 0) ..[
+          if (deliveredCount > 0) ...[
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
@@ -659,7 +660,8 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final statusLabel = _repairStatusLabel(status);
     final statusColor = _repairStatusColor(status);
     final customer = re['customerName'] ?? 'N/A';
-    final device = re['deviceName'] ?? '';
+    final device = re['model'] ?? '';
+    final issue = re['issue'] ?? '';
     final price = (re['price'] as int?) ?? 0;
     final cost = (re['cost'] as int?) ?? 0;
     final profit = price - cost;
@@ -703,6 +705,12 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 12, color: Colors.grey.shade600)),
+                if (issue.isNotEmpty)
+                  Text(issue,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11, color: Colors.grey.shade500)),
                 if (status == 4 && profit != 0)
                   Text(
                     'Lãi: ${MoneyUtils.formatCurrency(profit)}đ',
@@ -835,6 +843,8 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           else
             ...imports.take(20).map((im) {
               final supplier = im['supplierName'] ?? 'N/A';
+              final productName = im['productName'] ?? '';
+              final qty = (im['quantity'] as int?) ?? 0;
               final total = (im['totalAmount'] as int?) ?? 0;
               final time = _fmtTime(
                   (im['importDate'] as int?) ?? (im['createdAt'] as int?));
@@ -849,10 +859,23 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                                 fontSize: 12,
                                 color: Colors.grey.shade600))),
                     Expanded(
-                      child: Text(supplier,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 14)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(supplier,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 14)),
+                          if (productName.isNotEmpty)
+                            Text(
+                              qty > 1 ? '$productName x$qty' : productName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 12, color: Colors.grey.shade600),
+                            ),
+                        ],
+                      ),
                     ),
                     Text('${MoneyUtils.formatCurrency(total)}đ',
                         style: const TextStyle(
@@ -929,7 +952,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               const SizedBox(height: 4),
               ...payments.take(15).map((p) {
                 final amount = (p['amount'] as int?) ?? 0;
-                final name = p['customerName'] ?? p['debtorName'] ?? 'N/A';
+                final name = p['customerName'] ?? p['debtPersonName'] ?? p['personName'] ?? 'N/A';
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(

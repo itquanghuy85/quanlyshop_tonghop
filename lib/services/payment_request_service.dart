@@ -266,10 +266,30 @@ class PaymentRequestService {
         await _logFinancialOnCompleted(requestId, 'CHUYỂN KHOẢN');
       }
 
+      // Khi từ chối: xóa bản ghi THU đã tạo lúc gửi yêu cầu
+      if (newStatus == PaymentRequestStatus.rejected) {
+        await _reverseIncomeOnRejected(requestId);
+      }
+
       return true;
     } catch (e) {
       debugPrint('❌ PaymentRequest updateStatus error: $e');
       return false;
+    }
+  }
+
+  /// Xóa bản ghi THU khi yêu cầu đóng tiền bị từ chối
+  static Future<void> _reverseIncomeOnRejected(String requestId) async {
+    try {
+      final incFirestoreId = 'inc_pr_$requestId';
+      // Soft delete in Firestore
+      await FirestoreService.deleteExpenseCloud(incFirestoreId);
+      // Delete from local SQLite
+      await DBHelper().deleteExpenseByFirestoreId(incFirestoreId);
+      debugPrint('✅ PaymentRequest $requestId: THU record reversed (rejected)');
+      EventBus().emit('expenses_changed');
+    } catch (e) {
+      debugPrint('⚠️ PaymentRequest _reverseIncomeOnRejected error: $e');
     }
   }
 
