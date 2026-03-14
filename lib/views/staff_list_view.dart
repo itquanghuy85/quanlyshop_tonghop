@@ -1767,35 +1767,47 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       print('Updating user info for ${widget.uid}');
       // Only send role if owner/superAdmin changed it (managers can't change roles per Firestore rules)
       final roleToSave = _canChangeRole ? _selectedRole : widget.role;
-      await UserService.updateUserInfo(
-        uid: widget.uid,
-        name: nameCtrl.text,
-        phone: phoneCtrl.text,
-        address: addressCtrl.text,
-        role: roleToSave,
-        loc: AppLocalizations.of(context)!,
-        photoUrl: photoUrl,
-      );
+      try {
+        await UserService.updateUserInfo(
+          uid: widget.uid,
+          name: nameCtrl.text,
+          phone: phoneCtrl.text,
+          address: addressCtrl.text,
+          role: roleToSave,
+          loc: AppLocalizations.of(context)!,
+          photoUrl: photoUrl,
+        );
+        debugPrint('✅ updateUserInfo success for ${widget.uid}');
+      } catch (e) {
+        debugPrint('❌ updateUserInfo failed: $e');
+        rethrow;
+      }
 
       print('Updating user permissions for ${widget.uid}');
       // Lưu cấu hình phân quyền hiển thị nội dung
-      await UserService.updateUserPermissions(
-        uid: widget.uid,
-        allowViewSales: _canViewSales,
-        allowViewRepairs: _canViewRepairs,
-        allowViewInventory: _canViewInventory,
-        allowViewParts: _canViewParts,
-        allowViewSuppliers: _canViewSuppliers,
-        allowViewCustomers: _canViewCustomers,
-        allowViewWarranty: _canViewWarranty,
-        allowViewChat: _canViewChat,
-        allowViewAttendance: _canViewAttendance,
-        allowViewPrinter: _canViewPrinter,
-        allowViewRevenue: _canViewRevenue,
-        allowViewExpenses: _canViewExpenses,
-        allowViewDebts: _canViewDebts,
-        allowViewCostPrice: _canViewCostPrice,
-      );
+      try {
+        await UserService.updateUserPermissions(
+          uid: widget.uid,
+          allowViewSales: _canViewSales,
+          allowViewRepairs: _canViewRepairs,
+          allowViewInventory: _canViewInventory,
+          allowViewParts: _canViewParts,
+          allowViewSuppliers: _canViewSuppliers,
+          allowViewCustomers: _canViewCustomers,
+          allowViewWarranty: _canViewWarranty,
+          allowViewChat: _canViewChat,
+          allowViewAttendance: _canViewAttendance,
+          allowViewPrinter: _canViewPrinter,
+          allowViewRevenue: _canViewRevenue,
+          allowViewExpenses: _canViewExpenses,
+          allowViewDebts: _canViewDebts,
+          allowViewCostPrice: _canViewCostPrice,
+        );
+        debugPrint('✅ updateUserPermissions success for ${widget.uid}');
+      } catch (e) {
+        debugPrint('❌ updateUserPermissions failed: $e');
+        rethrow;
+      }
 
       if (!mounted) return;
       setState(() => _isEditing = false);
@@ -1803,9 +1815,20 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         const SnackBar(content: Text("ĐÃ CẬP NHẬT HỒ SƠ NHÂN VIÊN!")),
       );
     } catch (e) {
-      print('Error saving staff info: $e');
+      debugPrint('Error saving staff info: $e');
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text("Lỗi khi cập nhật: $e")));
+      String errorMsg = 'Lỗi khi cập nhật: ';
+      if (e.toString().contains('PERMISSION_DENIED')) {
+        errorMsg += 'Bạn không có quyền thực hiện thao tác này. '
+            'Chỉ chủ shop mới được đổi chức vụ nhân viên.';
+      } else {
+        errorMsg += '$e';
+      }
+      messenger.showSnackBar(SnackBar(
+        content: Text(errorMsg),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ));
     }
   }
 

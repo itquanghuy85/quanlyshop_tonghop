@@ -157,10 +157,11 @@ service cloud.firestore {
              request.resource.data[field] != resource.data[field];
     }
     
-    // Protected fields - nhưng owner có thể thay đổi role của nhân viên trong shop
+    // Protected fields - nhưng owner có thể thay đổi role và shopId của nhân viên trong shop
     function protectedOK() {
       return isSuperAdmin() || (
-        !changed('shopId') &&
+        // shopId: owner có thể gán/đổi shopId cho nhân viên
+        (!changed('shopId') || isOwner()) &&
         !changed('isAdmin') &&
         !changed('isSuperAdmin') &&
         !changed('balance') &&

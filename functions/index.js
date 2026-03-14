@@ -602,8 +602,12 @@ exports.createStaffAccount = onCall(async (request) => {
   }
 
   // Chỉ cho phép nâng lên admin khi chính caller là admin/super admin
-  if (role !== "admin" || (!isSuperAdmin && requesterRole !== "admin")) {
-    role = "user";
+  // Cho phép owner tạo nhân viên với role: employee, manager, technician
+  const allowedRoles = ["employee", "manager", "technician", "owner"];
+  if (role === "admin" && !isSuperAdmin && requesterRole !== "admin") {
+    role = "employee"; // Không phải admin/superAdmin → fallback to employee
+  } else if (!allowedRoles.includes(role) && role !== "admin") {
+    role = "employee"; // Role không hợp lệ → fallback to employee
   }
 
   try {
@@ -613,6 +617,7 @@ exports.createStaffAccount = onCall(async (request) => {
       displayName,
     });
 
+    const isManagerOrAbove = ["admin", "owner", "manager"].includes(role);
     const basePermissions = {
       allowViewSales: true,
       allowViewRepairs: true,
@@ -623,9 +628,9 @@ exports.createStaffAccount = onCall(async (request) => {
       allowViewWarranty: true,
       allowViewChat: true,
       allowViewPrinter: true,
-      allowViewRevenue: role === "admin",
-      allowViewExpenses: role === "admin",
-      allowViewDebts: role === "admin",
+      allowViewRevenue: isManagerOrAbove,
+      allowViewExpenses: isManagerOrAbove,
+      allowViewDebts: isManagerOrAbove,
     };
 
     await admin.firestore().collection("users").doc(userRecord.uid).set({
