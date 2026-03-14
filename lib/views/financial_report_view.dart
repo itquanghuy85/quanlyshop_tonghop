@@ -10,6 +10,7 @@ import '../services/event_bus.dart';
 import '../services/user_service.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/responsive_wrapper.dart';
+import 'daily_activity_report_view.dart';
 
 /// Trang báo cáo tài chính tổng hợp
 /// Hiển thị TẤT CẢ giao dịch liên quan đến tiền:
@@ -590,6 +591,14 @@ class _FinancialReportViewState extends State<FinancialReportView>
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.summarize),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DailyActivityReportView()),
+            ),
+            tooltip: 'Báo cáo cuối ngày',
+          ),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterDialog,

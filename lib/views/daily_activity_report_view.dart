@@ -818,16 +818,21 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               spacing: 12,
               runSpacing: 4,
               children: [
-                if ((r.debtOverview['totalCustomerDebt'] ?? 0) > 0)
+                if ((r.debtOverview['customerRemain'] ?? 0) > 0)
                   _debtChip(
                       'KH nợ',
-                      r.debtOverview['totalCustomerDebt']!,
+                      r.debtOverview['customerRemain']!,
                       AppColors.error),
-                if ((r.debtOverview['totalSupplierDebt'] ?? 0) > 0)
+                if ((r.debtOverview['supplierRemain'] ?? 0) > 0)
                   _debtChip(
                       'Nợ NCC',
-                      r.debtOverview['totalSupplierDebt']!,
+                      r.debtOverview['supplierRemain']!,
                       Colors.orange),
+                if ((r.debtOverview['partnerRemain'] ?? 0) > 0)
+                  _debtChip(
+                      'Nợ ĐT',
+                      r.debtOverview['partnerRemain']!,
+                      Colors.indigo),
               ],
             ),
             const SizedBox(height: 8),
