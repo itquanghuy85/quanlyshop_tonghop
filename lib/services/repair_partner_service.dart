@@ -172,8 +172,15 @@ class RepairPartnerService {
   // Partner Repair History
   Future<PartnerRepairHistory?> addPartnerRepairHistory(PartnerRepairHistory history) async {
     final historyMap = history.toMap();
+    final now = DateTime.now().millisecondsSinceEpoch;
     historyMap['shopId'] = await UserService.getCurrentShopId();
-    historyMap['sentAt'] = DateTime.now().millisecondsSinceEpoch;
+    historyMap['sentAt'] = now;
+
+    // Pre-generate firestoreId BEFORE local insert to prevent
+    // UNIQUE constraint race condition with real-time sync
+    final firestoreId = 'partner_history_$now';
+    historyMap['firestoreId'] = firestoreId;
+    historyMap['isSynced'] = 0;
 
     // Look up partner's firestoreId for stable cross-device sync
     if (history.partnerId > 0) {
@@ -189,11 +196,11 @@ class RepairPartnerService {
 
     final id = await db.insertPartnerRepairHistory(historyMap);
     if (id > 0) {
-      final firestoreId = await FirestoreService.addPartnerRepairHistory(historyMap);
-      if (firestoreId != null) {
-        await db.updatePartnerRepairHistory(id, {'firestoreId': firestoreId});
-        return history.copyWith(id: id);
+      final cloudId = await FirestoreService.addPartnerRepairHistory(historyMap);
+      if (cloudId != null) {
+        await db.updatePartnerRepairHistory(id, {'isSynced': 1});
       }
+      return history.copyWith(id: id, firestoreId: firestoreId);
     }
     return null;
   }
