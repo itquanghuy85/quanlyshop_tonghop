@@ -1321,6 +1321,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       // Sales
       lines.writeln('[C][B]--- BAN HANG (${r.sales.length}) ---');
       lines.writeln('Tong: ${MoneyUtils.formatCurrency(r.totalSaleRevenue)}d');
+      lines.writeln('Lai:  ${MoneyUtils.formatCurrency(f.saleProfit)}d');
       for (final s in r.sales.take(15)) {
         final total = ((s['totalPrice'] as int?) ?? 0) - ((s['discount'] as int?) ?? 0);
         final cost = (s['totalCost'] as int?) ?? 0;
@@ -1340,6 +1341,8 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       if (r.shopSettings.enableRepair) {
         lines.writeln(
             '[C][B]--- SUA CHUA (${r.repairsCreated.length} moi) ---');
+        lines.writeln('Tong thu: ${MoneyUtils.formatCurrency(f.repairIncome)}d');
+        lines.writeln('Lai:      ${MoneyUtils.formatCurrency(f.repairProfit)}d');
         for (final re in r.allRepairsToday.take(15)) {
           final status = (re['status'] as int?) ?? 1;
           final statusLabel = _repairStatusLabel(status);
@@ -1363,9 +1366,13 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         lines.writeln('[C][B]--- CHI PHI (${expOnly.length}) ---');
         lines.writeln('Tong chi: ${MoneyUtils.formatCurrency(totalExp)}d');
         for (final e in expOnly.take(10)) {
-          final desc = e['title'] ?? e['description'] ?? e['note'] ?? 'Chi';
+          final cat = e['category'] ?? 'Chi phi';
+          final detail = e['title'] ?? e['description'] ?? e['note'] ?? '';
           final amt = (e['amount'] as int?) ?? 0;
-          lines.writeln('  $desc: ${MoneyUtils.formatCurrency(amt)}d');
+          lines.writeln('  $cat: ${MoneyUtils.formatCurrency(amt)}d');
+          if (detail.isNotEmpty) {
+            lines.writeln('    $detail');
+          }
         }
         lines.writeln('');
       }
@@ -1378,9 +1385,76 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         lines.writeln('[C][B]--- THU KHAC (${incOnly.length}) ---');
         lines.writeln('Tong thu: ${MoneyUtils.formatCurrency(totalInc)}d');
         for (final e in incOnly.take(10)) {
-          final desc = e['title'] ?? e['description'] ?? e['note'] ?? 'Thu';
+          final cat = e['category'] ?? 'Thu';
+          final detail = e['title'] ?? e['description'] ?? e['note'] ?? '';
           final amt = (e['amount'] as int?) ?? 0;
-          lines.writeln('  $desc: ${MoneyUtils.formatCurrency(amt)}d');
+          lines.writeln('  $cat: ${MoneyUtils.formatCurrency(amt)}d');
+          if (detail.isNotEmpty) {
+            lines.writeln('    $detail');
+          }
+        }
+        lines.writeln('');
+      }
+
+      // Debt payments (CONG NO)
+      final debtPay = r.debtPayments;
+      final suppPay = r.supplierPayments;
+      final partPay = r.partnerPayments;
+      if (debtPay.isNotEmpty || suppPay.isNotEmpty || partPay.isNotEmpty) {
+        lines.writeln('[C][B]--- CONG NO ---');
+        for (final p in debtPay.take(10)) {
+          final name = p['customerName'] ?? p['debtPersonName'] ?? p['personName'] ?? '';
+          final amt = (p['amount'] as int?) ?? 0;
+          lines.writeln('  Thu no KH: ${MoneyUtils.formatCurrency(amt)}d');
+          if (name.isNotEmpty) lines.writeln('    $name');
+        }
+        for (final p in suppPay.take(10)) {
+          final amt = (p['amount'] as int?) ?? 0;
+          lines.writeln('  Tra NCC: ${MoneyUtils.formatCurrency(amt)}d');
+          final name = p['supplierName'] ?? '';
+          if (name.isNotEmpty) lines.writeln('    $name');
+        }
+        for (final p in partPay.take(10)) {
+          final amt = (p['amount'] as int?) ?? 0;
+          lines.writeln('  Tra doi tac: ${MoneyUtils.formatCurrency(amt)}d');
+          final name = p['partnerName'] ?? '';
+          if (name.isNotEmpty) lines.writeln('    $name');
+        }
+        lines.writeln('');
+      }
+
+      // Imports (NHAP HANG)
+      final imports = r.supplierImports;
+      if (imports.isNotEmpty) {
+        lines.writeln('[C][B]--- NHAP HANG (${imports.length}) ---');
+        lines.writeln('Tong: ${MoneyUtils.formatCurrency(r.totalImportValue)}d');
+        for (final im in imports.take(10)) {
+          final total = (im['totalAmount'] as int?) ?? 0;
+          final supplier = im['supplierName'] ?? 'N/A';
+          final product = im['productName'] ?? '';
+          final qty = (im['quantity'] as int?) ?? 0;
+          lines.writeln('  $supplier: ${MoneyUtils.formatCurrency(total)}d');
+          if (product.isNotEmpty) {
+            lines.writeln('    ${qty > 1 ? '$product x$qty' : product}');
+          }
+        }
+        lines.writeln('');
+      }
+
+      // Staff (NHAN VIEN)
+      final att = r.attendance;
+      if (att.isNotEmpty) {
+        lines.writeln('[C][B]--- NHAN VIEN (${att.length}) ---');
+        for (final a in att) {
+          final name = a.name ?? '';
+          final inTime = a.checkInAt != null
+              ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(a.checkInAt!))
+              : '--:--';
+          final outTime = a.checkOutAt != null
+              ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(a.checkOutAt!))
+              : '--:--';
+          final late = a.isLate == 1 ? ' (Tre)' : '';
+          lines.writeln('  $name: $inTime-$outTime$late');
         }
         lines.writeln('');
       }

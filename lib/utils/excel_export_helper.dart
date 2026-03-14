@@ -1704,7 +1704,7 @@ class ExcelExportHelper {
 
   // ==================== DAILY ACTIVITY REPORT ====================
 
-  /// Export a comprehensive daily activity report in a single vertical sheet.
+  /// Export a comprehensive daily activity report with multiple sheets.
   static Future<void> exportDailyActivityReport({
     required BuildContext context,
     required dynamic report, // DailyActivityReport
@@ -1713,77 +1713,85 @@ class ExcelExportHelper {
     final dateStr = DateFormat('dd/MM/yyyy').format(report.date as DateTime);
     final enableRepair = report.shopSettings.enableRepair as bool;
 
-    final sheet = excel['Báo cáo ngày'];
+    // --- Sheet 1: Summary ---
+    final summary = excel['Tổng quan'];
+    summary.appendRow([
+      TextCellValue('BÁO CÁO HOẠT ĐỘNG NGÀY $dateStr'),
+    ]);
+    summary.appendRow([TextCellValue('')]);
 
-    // === HEADER ===
-    sheet.appendRow([TextCellValue('BÁO CÁO HOẠT ĐỘNG NGÀY $dateStr')]);
-    sheet.appendRow([TextCellValue('')]);
-
-    // === TỔNG QUAN ===
-    sheet.appendRow([TextCellValue('TỔNG QUAN')]);
     final f = report.financial;
-    sheet.appendRow([TextCellValue('Tổng thu'), IntCellValue(f.totalIn as int)]);
-    sheet.appendRow([TextCellValue('Tổng chi'), IntCellValue(f.totalOut as int)]);
-    sheet.appendRow([TextCellValue('Lợi nhuận'), IntCellValue(f.netProfit as int)]);
-    sheet.appendRow([TextCellValue('')]);
-    sheet.appendRow([TextCellValue('Thu bán hàng'), IntCellValue(f.saleIncome as int)]);
-    sheet.appendRow([TextCellValue('Lãi bán hàng'), IntCellValue(f.saleProfit as int)]);
+    final summaryRows = <List<CellValue>>[
+      [TextCellValue('Chỉ tiêu'), TextCellValue('Giá trị (đ)')],
+      [TextCellValue('Tổng thu'), IntCellValue(f.totalIn as int)],
+      [TextCellValue('Tổng chi'), IntCellValue(f.totalOut as int)],
+      [TextCellValue('Lợi nhuận'), IntCellValue(f.netProfit as int)],
+      [TextCellValue(''), TextCellValue('')],
+      [TextCellValue('Thu bán hàng'), IntCellValue(f.saleIncome as int)],
+      [TextCellValue('Lãi bán hàng'), IntCellValue(f.saleProfit as int)],
+    ];
     if (enableRepair) {
-      sheet.appendRow([TextCellValue('Thu sửa chữa'), IntCellValue(f.repairIncome as int)]);
-      sheet.appendRow([TextCellValue('Lãi sửa chữa'), IntCellValue(f.repairProfit as int)]);
+      summaryRows.addAll([
+        [TextCellValue('Thu sửa chữa'), IntCellValue(f.repairIncome as int)],
+        [TextCellValue('Lãi sửa chữa'), IntCellValue(f.repairProfit as int)],
+      ]);
     }
-    sheet.appendRow([TextCellValue('Thu nợ'), IntCellValue(f.debtCollected as int)]);
-    sheet.appendRow([TextCellValue('Thu khác'), IntCellValue(f.miscIncome as int)]);
-    sheet.appendRow([TextCellValue('Chi phí'), IntCellValue(f.expenseOut as int)]);
-    sheet.appendRow([TextCellValue('Nhập hàng'), IntCellValue(f.importOut as int)]);
-    sheet.appendRow([TextCellValue('Trả NCC'), IntCellValue(f.supplierPaid as int)]);
-    sheet.appendRow([TextCellValue('Giá vốn bán'), IntCellValue(f.saleCost as int)]);
+    summaryRows.addAll([
+      [TextCellValue('Thu nợ'), IntCellValue(f.debtCollected as int)],
+      [TextCellValue('Thu khác'), IntCellValue(f.miscIncome as int)],
+      [TextCellValue(''), TextCellValue('')],
+      [TextCellValue('Chi phí'), IntCellValue(f.expenseOut as int)],
+      [TextCellValue('Nhập hàng'), IntCellValue(f.importOut as int)],
+      [TextCellValue('Trả NCC'), IntCellValue(f.supplierPaid as int)],
+      [TextCellValue('Giá vốn bán'), IntCellValue(f.saleCost as int)],
+    ]);
     if (enableRepair) {
-      sheet.appendRow([TextCellValue('Trả ĐT sửa chữa'), IntCellValue(f.partnerPaid as int)]);
-      sheet.appendRow([TextCellValue('Giá vốn sửa'), IntCellValue(f.repairCost as int)]);
+      summaryRows.addAll([
+        [TextCellValue('Trả ĐT sửa chữa'), IntCellValue(f.partnerPaid as int)],
+        [TextCellValue('Giá vốn sửa'), IntCellValue(f.repairCost as int)],
+      ]);
     }
     if ((f.refundOut as int) > 0) {
-      sheet.appendRow([TextCellValue('Hoàn trả'), IntCellValue(f.refundOut as int)]);
+      summaryRows.add([TextCellValue('Hoàn trả'), IntCellValue(f.refundOut as int)]);
     }
-    sheet.appendRow([TextCellValue('')]);
+    for (final row in summaryRows) {
+      summary.appendRow(row);
+    }
 
-    // === BÁN HÀNG ===
+    // --- Sheet 2: Sales ---
     final sales = report.sales as List<Map<String, dynamic>>;
     if (sales.isNotEmpty) {
-      sheet.appendRow([TextCellValue('BÁN HÀNG (${sales.length} đơn)')]);
-      sheet.appendRow([
-        TextCellValue('STT'), TextCellValue('Thời gian'),
-        TextCellValue('Khách hàng'), TextCellValue('Sản phẩm'),
-        TextCellValue('Thực thu'), TextCellValue('Giá vốn'), TextCellValue('Lãi'),
+      final sSheet = excel['Bán hàng'];
+      _writeHeaders(sSheet, [
+        'STT', 'Thời gian', 'Khách hàng', 'Sản phẩm', 'Tổng tiền',
+        'Giảm giá', 'Thực thu', 'Giá vốn', 'Lãi',
       ]);
       for (var i = 0; i < sales.length; i++) {
         final s = sales[i];
         final total = (s['totalPrice'] as int?) ?? 0;
         final discount = (s['discount'] as int?) ?? 0;
         final cost = (s['totalCost'] as int?) ?? 0;
-        final net = total - discount;
-        sheet.appendRow([
-          IntCellValue(i + 1),
-          TextCellValue(_fmtDateTime(s['soldAt'] as int?)),
-          TextCellValue(s['customerName'] ?? 'Khách lẻ'),
-          TextCellValue(s['productNames'] ?? ''),
-          IntCellValue(net),
-          IntCellValue(cost),
-          IntCellValue(net - cost),
+        _writeRow(sSheet, i + 1, [
+          '${i + 1}',
+          _fmtDateTime(s['soldAt'] as int?),
+          s['customerName'] ?? 'Khách lẻ',
+          s['productNames'] ?? '',
+          _fmtMoney(total),
+          _fmtMoney(discount),
+          _fmtMoney(total - discount),
+          _fmtMoney(cost),
+          _fmtMoney(total - discount - cost),
         ]);
       }
-      sheet.appendRow([TextCellValue('')]);
     }
 
-    // === SỬA CHỮA ===
+    // --- Sheet 3: Repairs ---
     final repairs = report.allRepairsToday as List<Map<String, dynamic>>;
     if (enableRepair && repairs.isNotEmpty) {
-      sheet.appendRow([TextCellValue('SỬA CHỮA (${repairs.length} đơn)')]);
-      sheet.appendRow([
-        TextCellValue('STT'), TextCellValue('Thời gian'),
-        TextCellValue('Trạng thái'), TextCellValue('Khách hàng'),
-        TextCellValue('Thiết bị'), TextCellValue('Lỗi'),
-        TextCellValue('Giá'), TextCellValue('Giá vốn'), TextCellValue('Lãi'),
+      final rSheet = excel['Sửa chữa'];
+      _writeHeaders(rSheet, [
+        'STT', 'Thời gian', 'Trạng thái', 'Khách hàng', 'Thiết bị',
+        'Lỗi', 'Giá', 'Giá vốn', 'Lãi',
       ]);
       for (var i = 0; i < repairs.length; i++) {
         final r = repairs[i];
@@ -1791,104 +1799,99 @@ class ExcelExportHelper {
         final ts = status == 4 ? (r['deliveredAt'] as int?) : (r['createdAt'] as int?);
         final price = (r['price'] as int?) ?? 0;
         final cost = (r['cost'] as int?) ?? 0;
-        sheet.appendRow([
-          IntCellValue(i + 1),
-          TextCellValue(_fmtDateTime(ts)),
-          TextCellValue(_repairStatus(status)),
-          TextCellValue(r['customerName'] ?? ''),
-          TextCellValue(r['model'] ?? ''),
-          TextCellValue(r['issue'] ?? ''),
-          IntCellValue(price),
-          IntCellValue(cost),
-          status == 4 ? IntCellValue(price - cost) as CellValue : TextCellValue(''),
+        _writeRow(rSheet, i + 1, [
+          '${i + 1}',
+          _fmtDateTime(ts),
+          _repairStatus(status),
+          r['customerName'] ?? '',
+          r['model'] ?? '',
+          r['issue'] ?? '',
+          _fmtMoney(price),
+          _fmtMoney(cost),
+          status == 4 ? _fmtMoney(price - cost) : '',
         ]);
       }
-      sheet.appendRow([TextCellValue('')]);
     }
 
-    // === CHI PHÍ & THU KHÁC ===
+    // --- Sheet 4: Expenses ---
     final expenses = report.expenses as List<Map<String, dynamic>>;
     if (expenses.isNotEmpty) {
-      sheet.appendRow([TextCellValue('CHI PHÍ & THU KHÁC (${expenses.length})')]);
-      sheet.appendRow([
-        TextCellValue('STT'), TextCellValue('Thời gian'),
-        TextCellValue('Loại'), TextCellValue('Danh mục'),
-        TextCellValue('Mô tả'), TextCellValue('Số tiền'),
+      final eSheet = excel['Chi phí'];
+      _writeHeaders(eSheet, [
+        'STT', 'Thời gian', 'Loại', 'Danh mục', 'Mô tả', 'Số tiền',
       ]);
       for (var i = 0; i < expenses.length; i++) {
         final e = expenses[i];
         final type = (e['type'] ?? 'CHI') == 'CHI' ? 'Chi' : 'Thu';
-        sheet.appendRow([
-          IntCellValue(i + 1),
-          TextCellValue(_fmtDateTime(e['date'] as int?)),
-          TextCellValue(type),
-          TextCellValue(e['category'] ?? ''),
-          TextCellValue(e['title'] ?? e['description'] ?? e['note'] ?? ''),
-          IntCellValue((e['amount'] as int?) ?? 0),
+        _writeRow(eSheet, i + 1, [
+          '${i + 1}',
+          _fmtDateTime(e['date'] as int?),
+          type,
+          e['category'] ?? '',
+          e['title'] ?? e['description'] ?? e['note'] ?? '',
+          _fmtMoney((e['amount'] as int?) ?? 0),
         ]);
       }
-      sheet.appendRow([TextCellValue('')]);
     }
 
-    // === CÔNG NỢ ===
+    // --- Sheet 5: Debts ---
     final debtPayments = report.debtPayments as List<Map<String, dynamic>>;
-    final supplierPayments = report.supplierPayments as List<Map<String, dynamic>>;
-    final partnerPayments = report.partnerPayments as List<Map<String, dynamic>>;
-    if (debtPayments.isNotEmpty || supplierPayments.isNotEmpty || partnerPayments.isNotEmpty) {
-      sheet.appendRow([TextCellValue('CÔNG NỢ')]);
-      sheet.appendRow([
-        TextCellValue('STT'), TextCellValue('Loại'),
-        TextCellValue('Đối tượng'), TextCellValue('Số tiền'),
+    final supplierPayments =
+        report.supplierPayments as List<Map<String, dynamic>>;
+    final partnerPayments =
+        report.partnerPayments as List<Map<String, dynamic>>;
+    if (debtPayments.isNotEmpty || supplierPayments.isNotEmpty ||
+        partnerPayments.isNotEmpty) {
+      final dSheet = excel['Công nợ'];
+      _writeHeaders(dSheet, [
+        'STT', 'Loại', 'Đối tượng', 'Số tiền',
       ]);
       var idx = 0;
       for (final p in debtPayments) {
         idx++;
-        sheet.appendRow([
-          IntCellValue(idx),
-          TextCellValue('Thu nợ KH'),
-          TextCellValue(p['customerName'] ?? p['debtPersonName'] ?? p['personName'] ?? ''),
-          IntCellValue((p['amount'] as int?) ?? 0),
+        _writeRow(dSheet, idx, [
+          '$idx',
+          'Thu nợ KH',
+          p['customerName'] ?? p['debtPersonName'] ?? p['personName'] ?? '',
+          _fmtMoney((p['amount'] as int?) ?? 0),
         ]);
       }
       for (final p in supplierPayments) {
         idx++;
-        sheet.appendRow([
-          IntCellValue(idx),
-          TextCellValue('Trả nợ NCC'),
-          TextCellValue(p['supplierName'] ?? ''),
-          IntCellValue((p['amount'] as int?) ?? 0),
+        _writeRow(dSheet, idx, [
+          '$idx',
+          'Trả nợ NCC',
+          p['supplierName'] ?? '',
+          _fmtMoney((p['amount'] as int?) ?? 0),
         ]);
       }
       for (final p in partnerPayments) {
         idx++;
-        sheet.appendRow([
-          IntCellValue(idx),
-          TextCellValue('Trả đối tác'),
-          TextCellValue(p['partnerName'] ?? ''),
-          IntCellValue((p['amount'] as int?) ?? 0),
+        _writeRow(dSheet, idx, [
+          '$idx',
+          'Trả đối tác',
+          p['partnerName'] ?? '',
+          _fmtMoney((p['amount'] as int?) ?? 0),
         ]);
       }
-      sheet.appendRow([TextCellValue('')]);
     }
 
-    // === NHÂN VIÊN ===
+    // --- Sheet 6: Staff ---
     final attendance = report.attendance as List;
     if (attendance.isNotEmpty) {
-      sheet.appendRow([TextCellValue('NHÂN VIÊN (${attendance.length})')]);
-      sheet.appendRow([
-        TextCellValue('STT'), TextCellValue('Tên'),
-        TextCellValue('Giờ vào'), TextCellValue('Giờ ra'),
-        TextCellValue('Trễ'), TextCellValue('Về sớm'),
+      final aSheet = excel['Nhân viên'];
+      _writeHeaders(aSheet, [
+        'STT', 'Tên', 'Giờ vào', 'Giờ ra', 'Trễ', 'Về sớm',
       ]);
       for (var i = 0; i < attendance.length; i++) {
         final a = attendance[i];
-        sheet.appendRow([
-          IntCellValue(i + 1),
-          TextCellValue(a.name ?? ''),
-          TextCellValue(a.checkInAt != null ? _fmtDateTime(a.checkInAt as int?) : ''),
-          TextCellValue(a.checkOutAt != null ? _fmtDateTime(a.checkOutAt as int?) : ''),
-          TextCellValue(a.isLate == 1 ? 'Có' : ''),
-          TextCellValue(a.isEarlyLeave == 1 ? 'Có' : ''),
+        _writeRow(aSheet, i + 1, [
+          '${i + 1}',
+          a.name ?? '',
+          a.checkInAt != null ? _fmtDateTime(a.checkInAt as int?) : '',
+          a.checkOutAt != null ? _fmtDateTime(a.checkOutAt as int?) : '',
+          a.isLate == 1 ? 'Có' : '',
+          a.isEarlyLeave == 1 ? 'Có' : '',
         ]);
       }
     }
