@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/import_order_model.dart';
 import '../services/import_order_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/excel_export_helper.dart';
 import '../utils/money_utils.dart';
 import 'import_order_detail_view.dart';
 
@@ -59,6 +60,35 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
     }
   }
 
+  Future<void> _exportExcel() async {
+    final startMs = DateTime(
+      _startDate.year,
+      _startDate.month,
+      _startDate.day,
+    ).millisecondsSinceEpoch;
+    final endMs = DateTime(
+      _endDate.year,
+      _endDate.month,
+      _endDate.day,
+      23,
+      59,
+      59,
+    ).millisecondsSinceEpoch;
+    try {
+      await ExcelExportHelper.exportImportOrders(
+        context,
+        startMs: startMs,
+        endMs: endMs,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi xuất Excel: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _pickDateRange() async {
     final picked = await showDateRangePicker(
       context: context,
@@ -107,6 +137,11 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            onPressed: _exportExcel,
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Xuất Excel',
+          ),
           IconButton(
             onPressed: _loadOrders,
             icon: const Icon(Icons.refresh),

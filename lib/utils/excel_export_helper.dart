@@ -18,7 +18,9 @@ import '../models/expense_model.dart';
 import '../models/attendance_model.dart';
 import '../models/attendance_monthly_summary_model.dart';
 import '../models/product_model.dart';
+import '../models/import_order_model.dart';
 import '../models/inventory_check_model.dart';
+import '../services/import_order_service.dart';
 import '../services/user_service.dart';
 import 'money_utils.dart';
 
@@ -1902,6 +1904,139 @@ class ExcelExportHelper {
 
     final dateFile = DateFormat('ddMMyyyy').format(report.date as DateTime);
     final fileName = 'bao_cao_ngay_$dateFile.xlsx';
+    await _saveAndShare(excel, fileName, context);
+  }
+
+  // ──────────────────────────────────────────────
+  //  EXPORT IMPORT ORDERS (LỊCH SỬ NHẬP KHO)
+  // ──────────────────────────────────────────────
+
+  static Future<void> exportImportOrders(
+    BuildContext context, {
+    int? startMs,
+    int? endMs,
+  }) async {
+    final orders = await ImportOrderService.getImportOrders(
+      startDate: startMs,
+      endDate: endMs,
+    );
+
+    final excel = Excel.createExcel();
+
+    // --- Sheet 1: Danh sách phiếu nhập ---
+    final sheet = excel['Phiếu nhập kho'];
+    _writeHeaders(sheet, [
+      'STT',
+      'Mã phiếu',
+      'Ngày nhập',
+      'Nhà cung cấp',
+      'Số lượng SP',
+      'Tổng tiền',
+      'PT thanh toán',
+      'Trạng thái TT',
+      'Đã trả',
+      'Còn nợ',
+      'Người nhập',
+      'Ghi chú',
+    ]);
+
+    int grandTotal = 0;
+    int grandQty = 0;
+
+    for (int i = 0; i < orders.length; i++) {
+      final o = orders[i];
+      grandTotal += o.totalAmount;
+      grandQty += o.totalQuantity;
+      final paid = o.paidAmount ?? (o.paymentStatus == 'PAID' ? o.totalAmount : 0);
+      final debt = o.totalAmount - paid;
+      _writeRow(sheet, i + 1, [
+        i + 1,
+        o.orderCode,
+        _fmtDateTime(o.importDate),
+        o.supplierName ?? '',
+        o.totalQuantity,
+        _fmtMoney(o.totalAmount),
+        o.paymentMethod ?? '',
+        o.paymentStatus == 'DEBT' ? 'Công nợ' : 'Đã thanh toán',
+        _fmtMoney(paid),
+        _fmtMoney(debt),
+        o.importedBy ?? '',
+        o.notes ?? '',
+      ]);
+    }
+
+    // Summary row
+    final summaryRow = orders.length + 2;
+    _writeRow(sheet, summaryRow, [
+      '',
+      'TỔNG CỘNG',
+      '',
+      '',
+      grandQty,
+      _fmtMoney(grandTotal),
+    ]);
+    // Bold summary
+    for (int c = 0; c < 6; c++) {
+      final cell = sheet.cell(
+        CellIndex.indexByColumnRow(columnIndex: c, rowIndex: summaryRow),
+      );
+      cell.cellStyle = CellStyle(bold: true);
+    }
+
+    // --- Sheet 2: Chi tiết sản phẩm ---
+    final detailSheet = excel['Chi tiết SP nhập'];
+    _writeHeaders(detailSheet, [
+      'STT',
+      'Mã phiếu',
+      'Nhà cung cấp',
+      'Loại SP',
+      'Tên sản phẩm',
+      'Thương hiệu',
+      'Model',
+      'IMEI/Serial',
+      'SKU',
+      'SL',
+      'ĐVT',
+      'Đơn giá',
+      'Thành tiền',
+      'Màu',
+      'Dung lượng',
+      'Tình trạng',
+    ]);
+
+    int detailRow = 1;
+    for (final o in orders) {
+      final items = await ImportOrderService.getImportOrderItems(
+        o.firestoreId ?? '',
+      );
+      for (final item in items) {
+        _writeRow(detailSheet, detailRow, [
+          detailRow,
+          o.orderCode,
+          o.supplierName ?? '',
+          item.typeLabel,
+          item.productName,
+          item.productBrand ?? '',
+          item.productModel ?? '',
+          item.imei ?? '',
+          item.sku ?? '',
+          item.quantity,
+          item.unit ?? '',
+          _fmtMoney(item.costPrice),
+          _fmtMoney(item.totalAmount),
+          item.color ?? '',
+          item.capacity ?? '',
+          item.condition ?? '',
+        ]);
+        detailRow++;
+      }
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final fileName = _buildFileName('nhap_kho', startMs, endMs);
     await _saveAndShare(excel, fileName, context);
   }
 }
