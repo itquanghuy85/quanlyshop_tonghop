@@ -422,6 +422,9 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
         }
       }
 
+      // Hide super admin from staff list
+      allStaff.removeWhere((s) => s['email'] == 'admin@huluca.com');
+
       debugPrint('📋 Total staff loaded: ${allStaff.length}');
 
       staffList = allStaff;

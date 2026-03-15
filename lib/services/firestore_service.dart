@@ -1871,6 +1871,8 @@ class FirestoreService {
       for (final doc in snapshot.docs) {
         final data = doc.data();
         data['uid'] = doc.id;
+        // Hide super admin from staff lists
+        if (data['email'] == 'admin@huluca.com') continue;
         staffList.add(data);
       }
 

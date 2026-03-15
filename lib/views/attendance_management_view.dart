@@ -93,6 +93,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
           'role': data['role'] ?? 'employee',
         };
       }).toList();
+      // Hide super admin from staff list
+      _staffList.removeWhere((s) => s['email'] == 'admin@huluca.com');
       _staffList.sort((a, b) {
         const order = {
           'owner': 0,
