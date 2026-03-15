@@ -17,6 +17,23 @@ class SocialAuthService {
   /// Đăng nhập bằng Google (hoặc link nếu email đã có tài khoản)
   static Future<UserCredential?> signInWithGoogle() async {
     try {
+      if (kIsWeb) {
+        // Web: Use signInWithPopup (simpler, no extra config needed)
+        final provider = GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+        try {
+          return await _auth.signInWithPopup(provider);
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'account-exists-with-different-credential' &&
+              e.credential != null) {
+            return await _signInOrLink(e.credential!);
+          }
+          rethrow;
+        }
+      }
+
+      // Mobile/Desktop: Use google_sign_in plugin
       final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
       if (gUser == null) return null; // user cancelled
 
@@ -38,6 +55,23 @@ class SocialAuthService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Chưa đăng nhập');
 
+    if (kIsWeb) {
+      // Web: Use linkWithPopup
+      final provider = GoogleAuthProvider();
+      provider.addScope('email');
+      try {
+        return await user.linkWithPopup(provider);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'credential-already-in-use' ||
+            e.code == 'provider-already-linked') {
+          debugPrint('⚠️ Google already linked');
+          return null;
+        }
+        rethrow;
+      }
+    }
+
+    // Mobile/Desktop
     final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
     if (gUser == null) return null;
 
