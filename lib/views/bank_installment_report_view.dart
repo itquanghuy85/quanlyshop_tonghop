@@ -28,7 +28,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
 
   // Filters
   String _selectedBank = 'all'; // 'all' or bank name
-  String _timeFilter = 'all'; // all, today, week, month, custom
+  String _timeFilter = 'month'; // all, today, week, month, custom
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 

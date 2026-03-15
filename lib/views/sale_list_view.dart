@@ -43,7 +43,7 @@ class _SaleListViewState extends State<SaleListView> {
   String _search = "";
 
   // Filter states
-  String _timeFilter = 'all'; // all, today, week, month, custom
+  String _timeFilter = 'today'; // all, today, week, month, custom
   String _paymentStatusFilter = 'all'; // all, paid, debt
   DateTime? _customStartDate;
   DateTime? _customEndDate;
@@ -145,8 +145,42 @@ class _SaleListViewState extends State<SaleListView> {
     } catch (_) {}
     
     if (_needsFullData || widget.todayOnly) {
-      // Load all data for filtering
-      final data = await db.getAllSales();
+      // Optimize: use date-range query when time filter is set
+      final List<SaleOrder> data;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      switch (_timeFilter) {
+        case 'today':
+          data = await db.getSalesByDateRange(
+            today.millisecondsSinceEpoch,
+            today.add(const Duration(days: 1)).millisecondsSinceEpoch - 1,
+          );
+          break;
+        case 'week':
+          data = await db.getSalesByDateRange(
+            today.subtract(const Duration(days: 7)).millisecondsSinceEpoch,
+            now.millisecondsSinceEpoch,
+          );
+          break;
+        case 'month':
+          data = await db.getSalesByDateRange(
+            DateTime(now.year, now.month, 1).millisecondsSinceEpoch,
+            now.millisecondsSinceEpoch,
+          );
+          break;
+        case 'custom':
+          if (_customStartDate != null && _customEndDate != null) {
+            data = await db.getSalesByDateRange(
+              _customStartDate!.millisecondsSinceEpoch,
+              _customEndDate!.add(const Duration(days: 1)).millisecondsSinceEpoch - 1,
+            );
+          } else {
+            data = await db.getAllSales();
+          }
+          break;
+        default:
+          data = await db.getAllSales();
+      }
       if (!mounted) return;
       setState(() {
         _allLoadedSales = data;
@@ -412,7 +446,7 @@ class _SaleListViewState extends State<SaleListView> {
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(ctx);
-                    setState(() {}); // Refresh main view
+                    _refresh(); // Reload data for new filter range
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -606,7 +640,7 @@ class _SaleListViewState extends State<SaleListView> {
                           if (_timeFilter != 'all' && !widget.todayOnly)
                             _activeFilterChip(
                               _getTimeFilterLabel(),
-                              () => setState(() => _timeFilter = 'all'),
+                              () { _timeFilter = 'all'; _refresh(); },
                             ),
                           if (_paymentStatusFilter != 'all')
                             _activeFilterChip(
@@ -640,12 +674,13 @@ class _SaleListViewState extends State<SaleListView> {
                               ),
                               if (_activeFilterCount > 0)
                                 TextButton(
-                                  onPressed: () => setState(() {
+                                  onPressed: () {
                                     _timeFilter = widget.todayOnly
                                         ? 'today'
                                         : 'all';
                                     _paymentStatusFilter = 'all';
-                                  }),
+                                    _refresh();
+                                  },
                                   child: const Text('Xóa bộ lọc'),
                                 ),
                             ],

@@ -23,7 +23,7 @@ class _SalesReturnListViewState extends State<SalesReturnListView> {
   bool _isLoading = true;
   StreamSubscription<String>? _eventSub;
   final _searchController = TextEditingController();
-  String _timeFilter = 'all'; // all, today, week, month
+  String _timeFilter = 'month'; // all, today, week, month
 
   @override
   void initState() {
