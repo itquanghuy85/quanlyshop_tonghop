@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
+import '../services/social_auth_service.dart';
 import '../services/user_service.dart';
 import '../services/current_shop_service.dart';
 import '../theme/app_text_styles.dart';
@@ -534,6 +537,10 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 const SizedBox(height: 8),
 
+                // LIÊN KẾT TÀI KHOẢN GOOGLE / APPLE
+                _buildLinkedAccountsCard(),
+                const SizedBox(height: 8),
+
                 // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
                 if (UserService.isCurrentUserSuperAdmin()) ...[
                   Card(
@@ -1021,6 +1028,227 @@ class _SettingsViewState extends State<SettingsView> {
             ),
       ),
     );
+  }
+
+  Widget _buildLinkedAccountsCard() {
+    final googleLinked = SocialAuthService.isGoogleLinked();
+    final appleLinked = SocialAuthService.isAppleLinked();
+    final passwordLinked = SocialAuthService.isPasswordLinked();
+    final showApple = kIsWeb || (!kIsWeb && Platform.isIOS) || (!kIsWeb && Platform.isMacOS);
+
+    return Card(
+      color: Colors.indigo.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.indigo.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.link, color: Colors.indigo, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Liên kết tài khoản',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.indigo,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Liên kết để đăng nhập nhanh hơn',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const Divider(height: 16),
+            // Email/Password
+            _buildProviderRow(
+              icon: Icons.email,
+              color: Colors.blue,
+              label: 'Email/Mật khẩu',
+              linked: passwordLinked,
+              onLink: null, // Always linked by default
+              onUnlink: null, // Cannot unlink if it's the only method
+            ),
+            const SizedBox(height: 8),
+            // Google
+            _buildProviderRow(
+              icon: Icons.g_mobiledata,
+              color: Colors.red,
+              label: 'Google',
+              linked: googleLinked,
+              onLink: () => _linkProvider('google'),
+              onUnlink: googleLinked && SocialAuthService.getLinkedProviders().length > 1
+                  ? () => _unlinkProvider('google')
+                  : null,
+            ),
+            // Apple (only on iOS/macOS/web)
+            if (showApple) ...[
+              const SizedBox(height: 8),
+              _buildProviderRow(
+                icon: Icons.apple,
+                color: Colors.black,
+                label: 'Apple',
+                linked: appleLinked,
+                onLink: () => _linkProvider('apple'),
+                onUnlink: appleLinked && SocialAuthService.getLinkedProviders().length > 1
+                    ? () => _unlinkProvider('apple')
+                    : null,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProviderRow({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required bool linked,
+    VoidCallback? onLink,
+    VoidCallback? onUnlink,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(label, style: const TextStyle(fontSize: 14)),
+        ),
+        if (linked)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 18),
+              const SizedBox(width: 4),
+              Text(
+                'Đã liên kết',
+                style: TextStyle(fontSize: 12, color: Colors.green.shade700),
+              ),
+              if (onUnlink != null) ...[
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: onUnlink,
+                  child: Text(
+                    'Hủy',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.red.shade400,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          )
+        else if (onLink != null)
+          TextButton.icon(
+            onPressed: onLink,
+            icon: Icon(Icons.add_link, size: 16, color: color),
+            label: Text(
+              'Liên kết',
+              style: TextStyle(fontSize: 13, color: color),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _linkProvider(String provider) async {
+    try {
+      if (provider == 'google') {
+        await SocialAuthService.linkGoogle();
+      } else if (provider == 'apple') {
+        await SocialAuthService.linkApple();
+      }
+      if (mounted) {
+        setState(() {}); // Refresh UI
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Đã liên kết $provider thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Lỗi liên kết $provider'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi liên kết $provider: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _unlinkProvider(String provider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hủy liên kết'),
+        content: Text(
+          'Bạn có chắc muốn hủy liên kết $provider? '
+          'Bạn sẽ không thể đăng nhập bằng $provider nữa.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('XÁC NHẬN', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      if (provider == 'google') {
+        await SocialAuthService.unlinkGoogle();
+      } else if (provider == 'apple') {
+        await SocialAuthService.unlinkApple();
+      }
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã hủy liên kết $provider'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi hủy liên kết: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildSection(String title) => Padding(

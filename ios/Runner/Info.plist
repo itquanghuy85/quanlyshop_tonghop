@@ -51,6 +51,19 @@
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
+	<!-- Google Sign-In URL scheme (REVERSED_CLIENT_ID from GoogleService-Info.plist) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- TODO: Replace with actual REVERSED_CLIENT_ID after enabling Google Sign-In in Firebase Console -->
+				<string>com.googleusercontent.apps.PLACEHOLDER</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 	<key>UIStatusBarHidden</key>

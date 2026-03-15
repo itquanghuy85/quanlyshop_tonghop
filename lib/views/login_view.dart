@@ -1,7 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
+import '../services/social_auth_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -101,6 +104,57 @@ class _LoginViewState extends State<LoginView> {
         return 'Cấu hình Firebase cho nền tảng này chưa đúng. Vui lòng kiểm tra Authorized domains và firebase_options.dart.';
       default:
         return e.message ?? loc.loginError;
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    if (!mounted) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      final result = await SocialAuthService.signInWithGoogle();
+      if (result == null && mounted) {
+        setState(() => _loading = false);
+      }
+      // AuthGate will handle navigation after successful sign-in
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message ?? 'Lỗi đăng nhập Google';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Lỗi đăng nhập Google. Vui lòng thử lại.';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    if (!mounted) return;
+    setState(() { _loading = true; _error = null; });
+    try {
+      final result = await SocialAuthService.signInWithApple();
+      if (result == null && mounted) {
+        setState(() => _loading = false);
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message ?? 'Lỗi đăng nhập Apple';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Lỗi đăng nhập Apple. Vui lòng thử lại.';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -391,6 +445,85 @@ class _LoginViewState extends State<LoginView> {
                         ),
                 ),
               ),
+              const SizedBox(height: 15),
+              // ── OR divider ──
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'HOẶC',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
+              ),
+              const SizedBox(height: 15),
+              // ── Google Sign-In ──
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _loading ? null : _signInWithGoogle,
+                  icon: Image.network(
+                    'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                    height: 20,
+                    width: 20,
+                    errorBuilder: (_, __, ___) => const Icon(
+                      Icons.g_mobiledata,
+                      size: 24,
+                      color: Colors.red,
+                    ),
+                  ),
+                  label: const Text(
+                    'Đăng nhập bằng Google',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              // ── Apple Sign-In (only iOS/macOS/web) ──
+              if (kIsWeb || (!kIsWeb && Platform.isIOS) || (!kIsWeb && Platform.isMacOS)) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _loading ? null : _signInWithApple,
+                    icon: const Icon(Icons.apple, size: 22),
+                    label: const Text(
+                      'Đăng nhập bằng Apple',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 15),
               TextButton(
                 onPressed: () async {
