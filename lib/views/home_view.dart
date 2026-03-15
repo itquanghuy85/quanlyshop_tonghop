@@ -7802,18 +7802,30 @@ class _HomeViewState extends State<HomeView>
 
   Future<void> _linkSocialProvider(String provider) async {
     try {
+      UserCredential? result;
       if (provider == 'google') {
-        await SocialAuthService.linkGoogle();
+        result = await SocialAuthService.linkGoogle();
       } else if (provider == 'apple') {
-        await SocialAuthService.linkApple();
+        result = await SocialAuthService.linkApple();
       }
       // Force refresh to get updated providerData
       await FirebaseAuth.instance.currentUser?.reload();
       await FirebaseAuth.instance.currentUser?.getIdToken(true);
       if (mounted) {
         setState(() {});
+        if (result != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('✅ Đã liên kết $provider thành công!'), backgroundColor: Colors.green),
+          );
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Đã liên kết $provider thành công!'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text(e.message ?? 'Lỗi liên kết $provider'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {

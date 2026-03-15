@@ -1505,22 +1505,26 @@ class _SettingsViewState extends State<SettingsView> {
 
   Future<void> _linkProvider(String provider) async {
     try {
+      UserCredential? result;
       if (provider == 'google') {
-        await SocialAuthService.linkGoogle();
+        result = await SocialAuthService.linkGoogle();
       } else if (provider == 'apple') {
-        await SocialAuthService.linkApple();
+        result = await SocialAuthService.linkApple();
       }
       // Force refresh to get updated providerData
       await FirebaseAuth.instance.currentUser?.reload();
       await FirebaseAuth.instance.currentUser?.getIdToken(true);
       if (mounted) {
         setState(() {}); // Refresh UI
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Đã liên kết $provider thành công!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (result != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Đã liên kết $provider thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        // null = user cancelled, no snackbar needed
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
