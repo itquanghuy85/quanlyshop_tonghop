@@ -524,6 +524,28 @@ class _LoginViewState extends State<LoginView> {
                   ),
                 ),
               ],
+              const SizedBox(height: 12),
+              // ── Link account hint ──
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue.shade400, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Đã có tài khoản Email? Đăng nhập Email trước, liên kết Google/Apple trong Cài đặt',
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade700, height: 1.3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 15),
               TextButton(
                 onPressed: () async {

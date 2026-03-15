@@ -98,6 +98,7 @@ import 'payment_request_chat_view.dart';
 import 'daily_activity_report_view.dart';
 import 'reminders_view.dart';
 import '../services/test_data_service.dart';
+import '../services/social_auth_service.dart';
 import '../services/reminder_service.dart';
 import '../services/dashboard_config_service.dart';
 import '../widgets/dashboard_cards.dart';
@@ -573,7 +574,7 @@ class _HomeViewState extends State<HomeView>
       },
       {
         'id': 'settings',
-        'permission': 'allowViewSettings',
+        // Settings always visible: users need access to account, logout, linked accounts
         'item': BottomNavigationBarItem(
           icon: const Icon(Icons.settings_outlined),
           activeIcon: const Icon(Icons.settings_rounded),
@@ -7462,6 +7463,10 @@ class _HomeViewState extends State<HomeView>
               },
             ),
 
+            // ====== TÀI KHOẢN ======
+            _buildHomeAccountCard(),
+            const SizedBox(height: 12),
+
             Card(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -7554,9 +7559,7 @@ class _HomeViewState extends State<HomeView>
               ],
             ),
 
-            // Đăng xuất ở cuối
-            const SizedBox(height: 20),
-            _buildLogoutCard(),
+            // Đăng xuất nằm trong account card ở trên
           ],
         ),
       ),
@@ -7635,6 +7638,239 @@ class _HomeViewState extends State<HomeView>
         },
       ),
     );
+  }
+
+  Widget _buildHomeAccountCard() {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email ?? 'N/A';
+    final displayName = user?.displayName ?? email.split('@').first;
+    final photoUrl = user?.photoURL;
+    final googleLinked = SocialAuthService.isGoogleLinked();
+    final appleLinked = SocialAuthService.isAppleLinked();
+    final passwordLinked = SocialAuthService.isPasswordLinked();
+    final showApple = kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User info
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                  backgroundColor: Colors.blue.shade100,
+                  child: photoUrl == null
+                      ? Text(
+                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis),
+                      Text(email, style: TextStyle(fontSize: 12, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    _getRoleLabel(widget.role),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.blue.shade700),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+
+            // Linked accounts
+            Row(
+              children: [
+                Icon(Icons.link, color: Colors.indigo.shade400, size: 18),
+                const SizedBox(width: 6),
+                Text('Liên kết tài khoản', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo.shade400)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Email
+            _buildProviderTile(Icons.email, Colors.blue, 'Email', passwordLinked, null, null),
+            // Google
+            _buildProviderTile(Icons.g_mobiledata, Colors.red, 'Google', googleLinked,
+              () => _linkSocialProvider('google'), googleLinked ? () => _unlinkSocialProvider('google') : null),
+            // Apple
+            if (showApple)
+              _buildProviderTile(Icons.apple, Colors.black, 'Apple', appleLinked,
+                () => _linkSocialProvider('apple'), appleLinked ? () => _unlinkSocialProvider('apple') : null),
+
+            const Divider(height: 20),
+            // Logout
+            InkWell(
+              onTap: () => _confirmAndLogout(),
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout, color: Colors.red, size: 20),
+                    const SizedBox(width: 10),
+                    Text(loc.logout, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProviderTile(IconData icon, Color color, String label, bool linked,
+      VoidCallback? onLink, VoidCallback? onUnlink) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
+          if (linked)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                const SizedBox(width: 4),
+                Text('Đã liên kết', style: TextStyle(fontSize: 11, color: Colors.green.shade700)),
+                if (onUnlink != null && SocialAuthService.getLinkedProviders().length > 1) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: onUnlink,
+                    child: Text('Hủy', style: TextStyle(fontSize: 11, color: Colors.red.shade400, decoration: TextDecoration.underline)),
+                  ),
+                ],
+              ],
+            )
+          else if (onLink != null)
+            TextButton(
+              onPressed: onLink,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text('Liên kết', style: TextStyle(fontSize: 12, color: color)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _getRoleLabel(String role) {
+    switch (role) {
+      case 'owner': return 'Chủ shop';
+      case 'manager': return 'Quản lý';
+      case 'employee': return 'Nhân viên';
+      case 'technician': return 'Kỹ thuật';
+      case 'admin': return 'Admin';
+      default: return 'User';
+    }
+  }
+
+  Future<void> _linkSocialProvider(String provider) async {
+    try {
+      if (provider == 'google') {
+        await SocialAuthService.linkGoogle();
+      } else if (provider == 'apple') {
+        await SocialAuthService.linkApple();
+      }
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ Đã liên kết $provider thành công!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi liên kết $provider: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _unlinkSocialProvider(String provider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hủy liên kết'),
+        content: Text('Bạn có chắc muốn hủy liên kết $provider?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('XÁC NHẬN', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    try {
+      if (provider == 'google') {
+        await SocialAuthService.unlinkGoogle();
+      } else if (provider == 'apple') {
+        await SocialAuthService.unlinkApple();
+      }
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã hủy liên kết $provider'), backgroundColor: Colors.orange),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+      }
+    }
+  }
+
+  Future<void> _confirmAndLogout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.logoutConfirmTitle),
+        content: Text(loc.logoutConfirmMessage),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.cancel)),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(loc.logout, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
+      try { EncryptionService.reset(); } catch (_) {}
+      try { UserService.clearCache(); } catch (_) {}
+      try { CurrentShopService().clear(); } catch (_) {}
+      try { UserService.setAdminSelectedShop(null); } catch (_) {}
+      try { await DBHelper().clearAllData(); } catch (_) {}
+      try { await FirebaseAuth.instance.signOut(); } catch (e) { debugPrint('Logout error: $e'); }
+    }
   }
 
   Widget _buildLogoutCard() {

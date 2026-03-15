@@ -864,7 +864,7 @@ class UserService {
     );
 
     // Lưu vào SharedPreferences để lần đăng nhập sau khôi phục ngay
-    saveAuthCache();
+    // Note: role will be saved after userData is computed below
 
     // Khởi tạo EncryptionService với shopId để mã hóa/giải mã dữ liệu
     if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {
@@ -907,6 +907,11 @@ class UserService {
       userData.addAll(extra);
     }
     await userRef.set(userData, SetOptions(merge: true));
+
+    // Cache role ngay sau khi write để _getRoleAfterSync có thể dùng
+    final resolvedRole = userData['role'] as String;
+    saveAuthCache(role: resolvedRole);
+    debugPrint('💾 syncUserInfo: cached role=$resolvedRole for uid=$uid');
 
     // Đợi Cloud Function syncUserClaims trigger và set claims
     // Cho shop mới, cần đợi lâu hơn vì Cloud Function trigger từ onCreate

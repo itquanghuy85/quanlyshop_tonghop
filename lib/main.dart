@@ -619,18 +619,23 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     });
 
     // ═══════════ STEP 5: Lấy role ═══════════
+    // Ưu tiên cached role từ syncUserInfo (vừa set chính xác ở trên)
     String role = 'user';
-    try {
-      role = await UserService.getUserRole(
-        uid,
-      ).timeout(const Duration(seconds: 8));
-    } catch (e) {
-      debugPrint('⚠️ getUserRole failed: $e');
-      // Fallback: dùng role đã lưu từ lần đăng nhập trước
-      final cachedRole = await UserService.getCachedRole();
-      if (cachedRole != null && cachedRole.isNotEmpty) {
-        role = cachedRole;
-        debugPrint('♻️ Using cached role from prefs: $role');
+    final cachedRole = await UserService.getCachedRole();
+    if (cachedRole != null && cachedRole.isNotEmpty && cachedRole != 'user') {
+      role = cachedRole;
+      debugPrint('⚡ Step 5: Using cached role from syncUserInfo: $role');
+    } else {
+      try {
+        role = await UserService.getUserRole(
+          uid,
+        ).timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('⚠️ getUserRole failed: $e');
+        if (cachedRole != null && cachedRole.isNotEmpty) {
+          role = cachedRole;
+          debugPrint('♻️ Using cached role from prefs: $role');
+        }
       }
     }
 
