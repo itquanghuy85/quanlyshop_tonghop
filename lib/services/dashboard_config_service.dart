@@ -281,7 +281,7 @@ class DashboardConfigService {
       ),
       DashboardCardConfig(
         type: DashboardCardType.activityFeed,
-        visible: false,
+        visible: true,
         order: 5,
       ),
       DashboardCardConfig(

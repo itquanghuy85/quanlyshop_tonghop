@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/db_helper.dart';
 import '../../core/utils/money_utils.dart';
+import '../../models/repair_model.dart';
+import '../../models/sale_order_model.dart';
 import '../../services/user_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../../views/repair_detail_view.dart';
+import '../../views/sale_detail_view.dart';
 
 /// "Cần xử lý" card - shows actionable items with counts
 class ActionRequiredCard extends StatefulWidget {
@@ -398,7 +402,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent sales (last 5)
         db.query(
           'sales',
-          columns: ['customerName', 'totalPrice', 'soldAt', 'paymentMethod'],
+          columns: ['firestoreId', 'customerName', 'totalPrice', 'soldAt', 'paymentMethod'],
           where: 'soldAt >= ?',
           whereArgs: [startMs],
           orderBy: 'soldAt DESC',
@@ -409,6 +413,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           db.query(
             'repairs',
             columns: [
+              'firestoreId',
               'customerName',
               'model',
               'price',
@@ -427,7 +432,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent expenses (last 5)
         db.query(
           'expenses',
-          columns: ['title', 'amount', 'date', 'type', 'category'],
+          columns: ['firestoreId', 'title', 'amount', 'date', 'type', 'category'],
           where: 'date >= ?',
           whereArgs: [startMs],
           orderBy: 'date DESC',
@@ -436,7 +441,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent debt payments (last 5)
         db.query(
           'debt_payments',
-          columns: ['amount', 'paidAt', 'paymentMethod', 'debtType', 'note'],
+          columns: ['firestoreId', 'amount', 'paidAt', 'paymentMethod', 'debtType', 'note'],
           where: 'paidAt >= ?',
           whereArgs: [startMs],
           orderBy: 'paidAt DESC',
@@ -445,7 +450,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent supplier payments (last 5)
         db.query(
           'supplier_payments',
-          columns: ['amount', 'paidAt', 'paymentMethod', 'supplierId', 'note'],
+          columns: ['firestoreId', 'amount', 'paidAt', 'paymentMethod', 'supplierId', 'note'],
           where: 'paidAt >= ?',
           whereArgs: [startMs],
           orderBy: 'paidAt DESC',
@@ -456,6 +461,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             .query(
               'repair_partner_payments',
               columns: [
+                'firestoreId',
                 'amount',
                 'paidAt',
                 'paymentMethod',
@@ -477,6 +483,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final name = s['customerName'] ?? 'Khách lẻ';
         final price = (s['totalPrice'] as num?)?.toInt() ?? 0;
         final at = (s['soldAt'] as num?)?.toInt() ?? 0;
+        final fid = s['firestoreId'] as String?;
         activities.add(
           _ActivityItem(
             icon: Icons.shopping_cart,
@@ -485,6 +492,8 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             amount: '+${MoneyUtils.formatVND(price)}',
             amountColor: Colors.green,
             timestamp: at,
+            referenceType: 'sale',
+            referenceId: fid,
           ),
         );
       }
@@ -500,6 +509,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             0;
         final price = (r['price'] as num?)?.toInt() ?? 0;
         final isDelivered = status == 4;
+        final fid = r['firestoreId'] as String?;
         activities.add(
           _ActivityItem(
             icon: isDelivered ? Icons.check_circle : Icons.build_circle,
@@ -510,6 +520,8 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             amount: isDelivered ? '+${MoneyUtils.formatVND(price)}' : '',
             amountColor: Colors.blue,
             timestamp: at,
+            referenceType: 'repair',
+            referenceId: fid,
           ),
         );
       }
@@ -521,6 +533,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         final at = (e['date'] as num?)?.toInt() ?? 0;
         final eType = (e['type'] as String? ?? '').toUpperCase();
         final isIncome = eType == 'THU';
+        final fid = e['firestoreId'] as String?;
         activities.add(
           _ActivityItem(
             icon: isIncome ? Icons.add_circle : Icons.remove_circle,
@@ -531,6 +544,8 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
                 : '-${MoneyUtils.formatVND(amount)}',
             amountColor: isIncome ? Colors.teal : Colors.red,
             timestamp: at,
+            referenceType: 'expense',
+            referenceId: fid,
           ),
         );
       }
@@ -557,6 +572,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
                 : '+${MoneyUtils.formatVND(amount)}',
             amountColor: isShopOwes ? Colors.deepOrange : Colors.cyan,
             timestamp: at,
+            referenceType: 'debt_payment',
           ),
         );
       }
@@ -574,6 +590,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             amount: '-${MoneyUtils.formatVND(amount)}',
             amountColor: Colors.brown,
             timestamp: at,
+            referenceType: 'supplier_payment',
           ),
         );
       }
@@ -591,6 +608,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             amount: '-${MoneyUtils.formatVND(amount)}',
             amountColor: Colors.indigo,
             timestamp: at,
+            referenceType: 'partner_payment',
           ),
         );
       }
@@ -707,6 +725,41 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
     );
   }
 
+  Future<void> _navigateToDetail(_ActivityItem item) async {
+    if (item.referenceId == null || item.referenceId!.isEmpty) return;
+    final db = DBHelper();
+    try {
+      switch (item.referenceType) {
+        case 'sale':
+          final sale = await db.getSaleByFirestoreId(item.referenceId!);
+          if (sale != null && mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SaleDetailView(sale: sale),
+              ),
+            );
+          }
+          break;
+        case 'repair':
+          final repair = await db.getRepairByFirestoreId(item.referenceId!);
+          if (repair != null && mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => RepairDetailView(repair: repair),
+              ),
+            );
+          }
+          break;
+        default:
+          break;
+      }
+    } catch (e) {
+      debugPrint('ActivityFeedCard: Navigation error: $e');
+    }
+  }
+
   Widget _buildActivityRow(_ActivityItem item) {
     final time = item.timestamp > 0
         ? DateFormat(
@@ -714,52 +767,68 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           ).format(DateTime.fromMillisecondsSinceEpoch(item.timestamp))
         : '';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      child: Row(
-        children: [
-          // Time column
-          SizedBox(
-            width: 40,
-            child: Text(
-              time,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade500,
-                fontWeight: FontWeight.w500,
+    final canNavigate = item.referenceId != null &&
+        item.referenceId!.isNotEmpty &&
+        (item.referenceType == 'sale' || item.referenceType == 'repair');
+
+    return InkWell(
+      onTap: canNavigate ? () => _navigateToDetail(item) : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Row(
+          children: [
+            // Time column
+            SizedBox(
+              width: 40,
+              child: Text(
+                time,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-          // Icon
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: item.color.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(6),
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: item.color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(item.icon, color: item.color, size: 14),
             ),
-            child: Icon(item.icon, color: item.color, size: 14),
-          ),
-          const SizedBox(width: 8),
-          // Title
-          Expanded(
-            child: Text(
-              item.title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          // Amount
-          if (item.amount.isNotEmpty)
-            Text(
-              item.amount,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: item.amountColor,
+            const SizedBox(width: 8),
+            // Title
+            Expanded(
+              child: Text(
+                item.title,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-        ],
+            // Amount
+            if (item.amount.isNotEmpty)
+              Text(
+                item.amount,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: item.amountColor,
+                ),
+              ),
+            if (canNavigate)
+              Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: Colors.grey.shade400,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -772,6 +841,8 @@ class _ActivityItem {
   final String amount;
   final Color amountColor;
   final int timestamp;
+  final String? referenceType;
+  final String? referenceId;
 
   const _ActivityItem({
     required this.icon,
@@ -780,5 +851,7 @@ class _ActivityItem {
     required this.amount,
     required this.amountColor,
     required this.timestamp,
+    this.referenceType,
+    this.referenceId,
   });
 }
