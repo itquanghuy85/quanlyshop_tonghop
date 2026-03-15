@@ -479,12 +479,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           data: r.toMap(),
         );
 
-        // Best-effort: push ngay để thiết bị quản lý nhận được trạng thái "CHỜ DUYỆT" ổn định hơn
-        // ignore: unawaited_futures
-        SyncOrchestrator().syncAll();
-        // FIX: Also trigger targeted repair sync for reliability
-        // ignore: unawaited_futures
-        SyncService.syncRepairData();
+        // Await sync so indicator turns green after status change
+        try {
+          await SyncOrchestrator().syncAll();
+        } catch (_) {}
       }
 
       debugPrint('Repair status updated successfully');
@@ -1186,12 +1184,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           data: r.toMap(),
         );
 
-        // Đẩy sync ngay để trạng thái/lệnh lưu phản chiếu lên thiết bị khác
-        // ignore: unawaited_futures
-        SyncOrchestrator().syncAll();
-        // FIX: Also trigger targeted repair sync for reliability
-        // ignore: unawaited_futures
-        SyncService.syncRepairData();
+        // Await sync so indicator turns green after save
+        try {
+          await SyncOrchestrator().syncAll();
+        } catch (_) {}
       }
 
       // Update debt if payment method is debt and repair is delivered

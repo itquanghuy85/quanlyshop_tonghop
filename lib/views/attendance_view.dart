@@ -68,31 +68,39 @@ class _AttendanceViewState extends State<AttendanceView>
   }
 
   Future<void> _loadInitialData() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
 
-    final r = await UserService.getUserRole(uid);
-    int tabCount = (r == 'owner' || r == 'manager') ? 3 : 2;
-    _tabController = TabController(length: tabCount, vsync: this);
+      final r = await UserService.getUserRole(uid);
+      int tabCount = (r == 'owner' || r == 'manager') ? 3 : 2;
+      _tabController = TabController(length: tabCount, vsync: this);
 
-    // Load user display name
-    final name = await UserService.getCurrentUserName();
+      // Load user display name
+      final name = await UserService.getCurrentUserName();
 
-    // Load shop location
-    await _loadShopLocation();
+      // Load shop location (non-blocking — don't let it stall init)
+      await _loadShopLocation();
 
-    if (!mounted) return;
-    setState(() {
-      _role = r;
-      _userName = name.isNotEmpty
-          ? name
-          : (FirebaseAuth.instance.currentUser?.email
-                    ?.split('@')
-                    .first
-                    .toUpperCase() ??
-                'NV');
-    });
-    _refreshAttendanceData();
+      if (!mounted) return;
+      setState(() {
+        _role = r;
+        _userName = name.isNotEmpty
+            ? name
+            : (FirebaseAuth.instance.currentUser?.email
+                      ?.split('@')
+                      .first
+                      .toUpperCase() ??
+                  'NV');
+      });
+      await _refreshAttendanceData();
+    } catch (e) {
+      debugPrint('❌ Error loading attendance data: $e');
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _loadShopLocation() async {
@@ -117,27 +125,39 @@ class _AttendanceViewState extends State<AttendanceView>
 
   Future<void> _refreshAttendanceData() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
 
-    setState(() => _loading = true);
-    final shopId = await UserService.getCurrentShopId();
-    await _pullOwnCloudData(uid: uid, shopId: shopId);
-    final rec = await db.getAttendance(
-      DateFormat('yyyy-MM-dd').format(DateTime.now()),
-      uid,
-    );
-    final schedule = await db.getWorkSchedule(uid);
-    final history = await db.getAttendanceByUser(uid);
-    final leaveRequests = await db.getLeaveRequestsByUser(uid);
+    if (mounted) setState(() => _loading = true);
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      // Pull cloud data with timeout to prevent infinite spinner on iOS
+      await _pullOwnCloudData(uid: uid, shopId: shopId)
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+        debugPrint('⚠️ Pull attendance cloud data timed out, using local data');
+      });
+      final rec = await db.getAttendance(
+        DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        uid,
+      );
+      final schedule = await db.getWorkSchedule(uid);
+      final history = await db.getAttendanceByUser(uid);
+      final leaveRequests = await db.getLeaveRequestsByUser(uid);
 
-    if (!mounted) return;
-    setState(() {
-      _today = rec;
-      _workSchedule = schedule ?? {};
-      _history = history;
-      _leaveRequests = leaveRequests;
-      _loading = false;
-    });
+      if (!mounted) return;
+      setState(() {
+        _today = rec;
+        _workSchedule = schedule ?? {};
+        _history = history;
+        _leaveRequests = leaveRequests;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('❌ Error refreshing attendance: $e');
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _pullOwnCloudData({
