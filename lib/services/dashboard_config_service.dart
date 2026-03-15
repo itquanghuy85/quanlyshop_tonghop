@@ -174,7 +174,7 @@ class DashboardConfigService {
   static const String _prefsVersionKey = 'dashboard_config_version_v1';
   static const String _cloudField = 'dashboardConfigV3';
   static const String _cloudVersionField = 'dashboardConfigVersionV1';
-  static const int _schemaVersion = 2;
+  static const int _schemaVersion = 3;
 
   static DocumentReference<Map<String, dynamic>>? _userDocRef() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -190,6 +190,72 @@ class DashboardConfigService {
     final isOwnerOrAdmin = role == 'owner' || role == 'admin' || isSuperAdmin;
     final canViewFinanceByDefault = isOwnerOrAdmin;
 
+    // Default order: greeting → actionRequired → chat → activityFeed → quickActions
+    return [
+      DashboardCardConfig(
+        type: DashboardCardType.greeting,
+        visible: true,
+        order: 0,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.actionRequired,
+        visible: true,
+        order: 1,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.chat,
+        visible: true,
+        order: 2,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.activityFeed,
+        visible: true,
+        order: 3,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.quickActions,
+        visible: true,
+        order: 4,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.todayActivity,
+        visible: false,
+        order: 5,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.financeSummary,
+        visible: false,
+        order: 6,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.financeDetail,
+        visible: canViewFinanceByDefault,
+        order: 7,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.financeShortcuts,
+        visible: canViewFinanceByDefault,
+        order: 8,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.alerts,
+        visible: true,
+        order: 9,
+      ),
+      DashboardCardConfig(
+        type: DashboardCardType.userGuide,
+        visible: false,
+        order: 10,
+      ),
+    ];
+  }
+
+  static List<DashboardCardConfig> _getLegacyDefaultLayout({
+    required String role,
+    required bool isSuperAdmin,
+  }) {
+    // v2 defaults — used for migration detection
+    final canViewFinanceByDefault = role == 'owner' || role == 'admin' || isSuperAdmin;
     return [
       DashboardCardConfig(
         type: DashboardCardType.actionRequired,
@@ -245,64 +311,6 @@ class DashboardConfigService {
         type: DashboardCardType.greeting,
         visible: false,
         order: 10,
-      ),
-    ];
-  }
-
-  static List<DashboardCardConfig> _getLegacyDefaultLayout({
-    required String role,
-    required bool isSuperAdmin,
-  }) {
-    return [
-      DashboardCardConfig(
-        type: DashboardCardType.greeting,
-        visible: false,
-        order: 0,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.actionRequired,
-        visible: false,
-        order: 1,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.quickActions,
-        visible: true,
-        order: 2,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.financeSummary,
-        visible: false,
-        order: 3,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.financeDetail,
-        visible: false,
-        order: 4,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.activityFeed,
-        visible: true,
-        order: 5,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.chat,
-        visible: true,
-        order: 6,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.alerts,
-        visible: false,
-        order: 7,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.userGuide,
-        visible: true,
-        order: 8,
-      ),
-      DashboardCardConfig(
-        type: DashboardCardType.financeShortcuts,
-        visible: true,
-        order: 9,
       ),
     ];
   }
@@ -882,10 +890,34 @@ class ShortcutConfigService {
   static const String _prefsVersionKey = 'shortcut_config_version_v1';
   static const String _cloudField = 'shortcutConfigV1';
   static const String _cloudVersionField = 'shortcutConfigVersionV1';
-  static const int _schemaVersion = 2;
+  static const int _schemaVersion = 3;
 
-  /// Get default shortcuts - first 12 visible, rest hidden
+  /// Get default shortcuts - 4 visible by default in user-requested order
   static List<ShortcutConfig> getDefaultShortcuts() {
+    // Default visible: ds bán, bán hàng, ds sửa, đơn sửa
+    const priorityOrder = [
+      ShortcutType.saleList,
+      ShortcutType.sellCreate,
+      ShortcutType.repairList,
+      ShortcutType.repairCreate,
+    ];
+    final visibleDefaults = priorityOrder.toSet();
+    final defaults = <ShortcutConfig>[];
+    int order = 0;
+    // Add priority items first (visible)
+    for (final type in priorityOrder) {
+      defaults.add(ShortcutConfig(type: type, visible: true, order: order++));
+    }
+    // Add remaining items (hidden) in enum order
+    for (final type in ShortcutType.values) {
+      if (visibleDefaults.contains(type)) continue;
+      defaults.add(ShortcutConfig(type: type, visible: false, order: order++));
+    }
+    return defaults;
+  }
+
+  static List<ShortcutConfig> _getLegacyDefaultShortcuts() {
+    // v2 defaults — 12 visible shortcuts for migration detection
     const visibleDefaults = {
       ShortcutType.sellCreate,
       ShortcutType.repairCreate,
@@ -909,16 +941,6 @@ class ShortcutConfigService {
           visible: visibleDefaults.contains(type),
           order: i,
         ),
-      );
-    }
-    return defaults;
-  }
-
-  static List<ShortcutConfig> _getLegacyDefaultShortcuts() {
-    final defaults = <ShortcutConfig>[];
-    for (int i = 0; i < ShortcutType.values.length; i++) {
-      defaults.add(
-        ShortcutConfig(type: ShortcutType.values[i], visible: i < 12, order: i),
       );
     }
     return defaults;

@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
@@ -1635,6 +1636,9 @@ class _SettingsViewState extends State<SettingsView> {
       } else if (provider == 'apple') {
         await SocialAuthService.linkApple();
       }
+      // Force refresh to get updated providerData
+      await FirebaseAuth.instance.currentUser?.reload();
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
       if (mounted) {
         setState(() {}); // Refresh UI
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1696,6 +1700,8 @@ class _SettingsViewState extends State<SettingsView> {
       } else if (provider == 'apple') {
         await SocialAuthService.unlinkApple();
       }
+      await FirebaseAuth.instance.currentUser?.reload();
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(

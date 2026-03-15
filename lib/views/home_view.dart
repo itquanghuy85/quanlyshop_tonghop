@@ -7807,6 +7807,9 @@ class _HomeViewState extends State<HomeView>
       } else if (provider == 'apple') {
         await SocialAuthService.linkApple();
       }
+      // Force refresh to get updated providerData
+      await FirebaseAuth.instance.currentUser?.reload();
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
@@ -7850,6 +7853,8 @@ class _HomeViewState extends State<HomeView>
       } else if (provider == 'apple') {
         await SocialAuthService.unlinkApple();
       }
+      await FirebaseAuth.instance.currentUser?.reload();
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(

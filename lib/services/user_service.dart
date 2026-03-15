@@ -1260,10 +1260,9 @@ class UserService {
       // Người thường không được xem, trả về stream rỗng
       return _db.collection('shops').limit(0).snapshots();
     }
-    return _db
-        .collection('shops')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    // Don't use orderBy — docs without createdAt field are excluded by Firestore
+    // includeMetadataChanges ensures we get updates when data comes from server
+    return _db.collection('shops').snapshots(includeMetadataChanges: true);
   }
 
   /// Temporary function to update existing shops with shopId field

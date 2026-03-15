@@ -139,20 +139,52 @@ class _ShopsTabState extends State<ShopsTab> {
           return const Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(
-            child: Text(
-              'Chưa có shop nào được tạo',
-              style: TextStyle(color: Colors.grey),
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Chưa có shop nào được tạo', style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () => setState(() {}),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Tải lại'),
+                ),
+              ],
             ),
           );
         }
 
-        final shops = snapshot.data!.docs;
+        // Filter out metadata-only events with no actual docs
+        final allDocs = snapshot.data!.docs;
+        final shops = allDocs.toList()
+          ..sort((a, b) {
+            final aTime = (a.data() as Map<String, dynamic>)['createdAt'];
+            final bTime = (b.data() as Map<String, dynamic>)['createdAt'];
+            if (aTime is Timestamp && bTime is Timestamp)
+              return bTime.compareTo(aTime);
+            if (aTime is Timestamp) return -1;
+            if (bTime is Timestamp) return 1;
+            return 0;
+          });
+        final isFromCache = snapshot.data!.metadata.isFromCache;
         return ListView(
           padding: const EdgeInsets.all(15),
           children: [
             _buildIntroCard(context),
             const SizedBox(height: 12),
+            if (isFromCache)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_off, size: 14, color: Colors.orange.shade700),
+                    const SizedBox(width: 6),
+                    Text('Dữ liệu từ cache — kéo xuống để tải lại',
+                      style: TextStyle(fontSize: 12, color: Colors.orange.shade700)),
+                  ],
+                ),
+              ),
             _buildClaimsSyncCard(),
             const SizedBox(height: 12),
             _buildStatsCard(shops.length),
