@@ -113,13 +113,13 @@ post_install do |installer|
     puts "✅ Patched FirebaseDataEncoder.swift to remove Swift 6 'sending' keyword"
   end
 
-  # FIX: Missing dSYM for sqlite3.framework (App Store warning)
-  # sqflite bundles a pre-built sqlite3.framework without dSYM — disable dSYM
-  # generation for that vendored framework to silence the archive warning.
+  # FIX: Missing dSYM for sqflite_darwin & sqlite3 (App Store Connect warning)
+  # Must use 'dwarf-with-dsym' so Xcode generates separate .dSYM bundles
+  # that get included in the archive for crash symbolication.
   installer.pods_project.targets.each do |target|
-    if target.name == 'sqflite_darwin'
+    if ['sqflite_darwin', 'sqlite3'].include?(target.name)
       target.build_configurations.each do |config|
-        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
       end
     end
   end
