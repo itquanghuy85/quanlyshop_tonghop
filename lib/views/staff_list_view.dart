@@ -1028,7 +1028,15 @@ class _StaffListViewState extends State<StaffListView> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final users = snapshot.data!.docs;
+                final allDocs = snapshot.data!.docs;
+                // Hide super admin from non-super-admin users
+                final users = _isSuperAdmin
+                    ? allDocs
+                    : allDocs.where((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final email = (data['email'] ?? '').toString().toLowerCase();
+                        return email != 'admin@huluca.com';
+                      }).toList();
                 if (users.isEmpty) {
                   return Center(
                     child: Text(
