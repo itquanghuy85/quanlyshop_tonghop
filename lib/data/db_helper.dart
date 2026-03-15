@@ -186,7 +186,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 92,
+      version: 93,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -511,6 +511,81 @@ class DBHelper {
         );
         await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_salvage_phones_createdAt ON salvage_phones(createdAt)',
+        );
+
+        // Import orders (Phiếu nhập kho)
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS import_orders(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            shopId TEXT,
+            orderCode TEXT,
+            supplierId TEXT,
+            supplierName TEXT,
+            totalQuantity INTEGER DEFAULT 0,
+            totalAmount INTEGER DEFAULT 0,
+            paymentMethod TEXT,
+            paymentStatus TEXT DEFAULT 'PAID',
+            paidAmount INTEGER,
+            status TEXT DEFAULT 'CONFIRMED',
+            importDate INTEGER,
+            importedBy TEXT,
+            importedByUid TEXT,
+            stockEntryId TEXT,
+            notes TEXT,
+            createdAt INTEGER,
+            updatedAt INTEGER,
+            isSynced INTEGER DEFAULT 0,
+            deleted INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_import_orders_shopId ON import_orders(shopId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_import_orders_importDate ON import_orders(importDate)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_import_orders_status ON import_orders(status)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_import_orders_stockEntryId ON import_orders(stockEntryId)',
+        );
+
+        // Import order items (Chi tiết phiếu nhập)
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS import_order_items(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            firestoreId TEXT UNIQUE,
+            importOrderFirestoreId TEXT,
+            productType TEXT DEFAULT 'OTHER',
+            categoryId TEXT,
+            productName TEXT,
+            productBrand TEXT,
+            productModel TEXT,
+            imei TEXT,
+            sku TEXT,
+            quantity INTEGER DEFAULT 1,
+            unit TEXT,
+            costPrice INTEGER DEFAULT 0,
+            totalAmount INTEGER DEFAULT 0,
+            color TEXT,
+            size TEXT,
+            capacity TEXT,
+            condition TEXT,
+            warranty INTEGER,
+            compatibleModels TEXT,
+            notes TEXT,
+            shopId TEXT,
+            isSynced INTEGER DEFAULT 0,
+            deleted INTEGER DEFAULT 0
+          )
+        ''');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_import_order_items_orderFsId ON import_order_items(importOrderFirestoreId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_import_order_items_shopId ON import_order_items(shopId)',
         );
 
         // === Performance indexes for frequently queried columns ===
@@ -1362,6 +1437,26 @@ class DBHelper {
             );
           } catch (e) {
             debugPrint('v92 error (salvage_phones): $e');
+          }
+        }
+        if (oldV < 93) {
+          // v93: Import orders (Phiếu nhập kho) + items
+          try {
+            await db.execute(
+              "CREATE TABLE IF NOT EXISTS import_orders(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, orderCode TEXT, supplierId TEXT, supplierName TEXT, totalQuantity INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, paymentMethod TEXT, paymentStatus TEXT DEFAULT 'PAID', paidAmount INTEGER, status TEXT DEFAULT 'CONFIRMED', importDate INTEGER, importedBy TEXT, importedByUid TEXT, stockEntryId TEXT, notes TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)",
+            );
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_shopId ON import_orders(shopId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_importDate ON import_orders(importDate)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_status ON import_orders(status)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_stockEntryId ON import_orders(stockEntryId)');
+
+            await db.execute(
+              "CREATE TABLE IF NOT EXISTS import_order_items(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, importOrderFirestoreId TEXT, productType TEXT DEFAULT 'OTHER', categoryId TEXT, productName TEXT, productBrand TEXT, productModel TEXT, imei TEXT, sku TEXT, quantity INTEGER DEFAULT 1, unit TEXT, costPrice INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, color TEXT, size TEXT, capacity TEXT, condition TEXT, warranty INTEGER, compatibleModels TEXT, notes TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)",
+            );
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_order_items_orderFsId ON import_order_items(importOrderFirestoreId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_order_items_shopId ON import_order_items(shopId)');
+          } catch (e) {
+            debugPrint('v93 error (import_orders): $e');
           }
         }
         if (oldV < 26) {
@@ -6979,6 +7074,196 @@ class DBHelper {
     await db.rawUpdate(
       'UPDATE suppliers SET importCount = importCount + ?, totalAmount = totalAmount + ? WHERE id = ?',
       [addCount, addAmount, supplierId],
+    );
+  }
+
+  // ==================== Import Order methods ====================
+
+  Future<String> generateNextImportOrderCode() async {
+    final db = await database;
+    final res = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM import_orders',
+    );
+    int count = Sqflite.firstIntValue(res) ?? 0;
+    return "NK-${(count + 1).toString().padLeft(4, '0')}";
+  }
+
+  Future<int> insertImportOrder(Map<String, dynamic> data) async {
+    final db = await database;
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    cleanData.remove('id');
+    await _filterToTableColumns('import_orders', cleanData);
+    return await db.insert(
+      'import_orders',
+      cleanData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> insertImportOrderItem(Map<String, dynamic> data) async {
+    final db = await database;
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    cleanData.remove('id');
+    await _filterToTableColumns('import_order_items', cleanData);
+    return await db.insert(
+      'import_order_items',
+      cleanData,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getImportOrders({
+    String? shopId,
+    int? startDate,
+    int? endDate,
+    String? status,
+  }) async {
+    final db = await database;
+    String where = 'deleted = 0';
+    List<dynamic> whereArgs = [];
+
+    if (shopId != null) {
+      where += ' AND shopId = ?';
+      whereArgs.add(shopId);
+    }
+    if (startDate != null) {
+      where += ' AND importDate >= ?';
+      whereArgs.add(startDate);
+    }
+    if (endDate != null) {
+      where += ' AND importDate <= ?';
+      whereArgs.add(endDate);
+    }
+    if (status != null) {
+      where += ' AND status = ?';
+      whereArgs.add(status);
+    }
+
+    return await db.query(
+      'import_orders',
+      where: where,
+      whereArgs: whereArgs,
+      orderBy: 'importDate DESC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getImportOrderItems(
+    String importOrderFirestoreId,
+  ) async {
+    final db = await database;
+    return await db.query(
+      'import_order_items',
+      where: 'importOrderFirestoreId = ? AND deleted = 0',
+      whereArgs: [importOrderFirestoreId],
+    );
+  }
+
+  Future<Map<String, dynamic>?> getImportOrderByStockEntryId(
+    String stockEntryId,
+  ) async {
+    final db = await database;
+    final results = await db.query(
+      'import_orders',
+      where: 'stockEntryId = ? AND deleted = 0',
+      whereArgs: [stockEntryId],
+      limit: 1,
+    );
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  Future<void> upsertImportOrder(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'] as String?;
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    cleanData.remove('id');
+    await _filterToTableColumns('import_orders', cleanData);
+
+    if (firestoreId == null) {
+      await db.insert(
+        'import_orders',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      return;
+    }
+
+    final existing = await db.query(
+      'import_orders',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        'import_orders',
+        cleanData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } else {
+      await db.insert(
+        'import_orders',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  Future<void> upsertImportOrderItem(Map<String, dynamic> data) async {
+    final db = await database;
+    final firestoreId = data['firestoreId'] as String?;
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    cleanData.remove('id');
+    await _filterToTableColumns('import_order_items', cleanData);
+
+    if (firestoreId == null) {
+      await db.insert(
+        'import_order_items',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      return;
+    }
+
+    final existing = await db.query(
+      'import_order_items',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+      limit: 1,
+    );
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        'import_order_items',
+        cleanData,
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+      );
+    } else {
+      await db.insert(
+        'import_order_items',
+        cleanData,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
+
+  Future<int> deleteImportOrderByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return await db.delete(
+      'import_orders',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
+
+  Future<int> deleteImportOrderItemByFirestoreId(String firestoreId) async {
+    final db = await database;
+    return await db.delete(
+      'import_order_items',
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
     );
   }
 

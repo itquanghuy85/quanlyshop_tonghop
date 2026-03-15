@@ -75,6 +75,8 @@ class SyncService {
       case 'quick_input_codes':
       case 'supplier_import_history':
       case 'supplier_product_prices':
+      case 'import_orders':
+      case 'import_order_items':
         return _hasPermission(permissions, 'allowViewInventory');
       case 'suppliers':
         return _hasPermission(permissions, 'allowViewSuppliers');
@@ -1363,6 +1365,64 @@ class SyncService {
       debugPrint("Lỗi khởi tạo supplier_product_prices sync: $e");
     }
 
+    // 18b. Đồng bộ IMPORT ORDERS (Phiếu nhập kho)
+    try {
+      _subscribeToCollection(
+        collection: 'import_orders',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteImportOrderByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertImportOrder(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync import_orders $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo import_orders sync: $e");
+    }
+
+    // 18c. Đồng bộ IMPORT ORDER ITEMS (Chi tiết phiếu nhập)
+    try {
+      _subscribeToCollection(
+        collection: 'import_order_items',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteImportOrderItemByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertImportOrderItem(data);
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync import_order_items $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo import_order_items sync: $e");
+    }
+
     // 19. FIX BUG-CC-002: Đồng bộ CASH CLOSINGS (Chốt quỹ)
     // Để đảm bảo khi máy A chốt quỹ, máy B sẽ nhận được update ngay lập tức
     try {
@@ -1953,6 +2013,12 @@ class SyncService {
           break;
         case 'leave_requests':
           await db.deleteLeaveRequestByFirestoreId(firestoreId);
+          break;
+        case 'import_orders':
+          await db.deleteImportOrderByFirestoreId(firestoreId);
+          break;
+        case 'import_order_items':
+          await db.deleteImportOrderItemByFirestoreId(firestoreId);
           break;
       }
       debugPrint(
@@ -3506,6 +3572,8 @@ class SyncService {
         'financial_activity_log', // FIX: Đồng bộ nhật ký tài chính
         'payment_requests', // FIX: Đồng bộ yêu cầu đóng tiền giữa các máy
         'leave_requests', // FIX: Đồng bộ đơn xin nghỉ giữa các máy
+        'import_orders', // Đồng bộ phiếu nhập kho
+        'import_order_items', // Đồng bộ chi tiết phiếu nhập
       ];
       final allowedCollections = collections.where((col) {
         return _canSubscribeCollection(
@@ -3654,6 +3722,10 @@ class SyncService {
                 await db.upsertFinancialActivity(data);
               } else if (col == 'payment_requests') {
                 await db.upsertPaymentRequest(data);
+              } else if (col == 'import_orders') {
+                await db.upsertImportOrder(data);
+              } else if (col == 'import_order_items') {
+                await db.upsertImportOrderItem(data);
               }
               successCount++;
             } catch (e) {

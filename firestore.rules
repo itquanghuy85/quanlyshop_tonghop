@@ -497,6 +497,21 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ═══════════ 3.3b IMPORT ORDERS (Phiếu nhập kho) ═══════════
+    match /import_orders/{orderId} {
+      allow read: if isAuth() && docInMyShop();
+      allow create: if isAuth() && isEmployee() && newDocInMyShop();
+      allow update: if isAuth() && docInMyShop() && shopIdLocked();
+      allow delete: if false;
+    }
+
+    match /import_order_items/{itemId} {
+      allow read: if isAuth() && docInMyShop();
+      allow create: if isAuth() && isEmployee() && newDocInMyShop();
+      allow update: if isAuth() && docInMyShop() && shopIdLocked();
+      allow delete: if false;
+    }
+
     // ═══════════ 3.4 CUSTOMERS ═══════════
     match /customers/{customerId} {
       allow read: if isAuth() && docInMyShop();

@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/financial_activity_service.dart';
+import '../services/import_order_service.dart';
 import '../data/db_helper.dart';
 
 /// Service quản lý phiếu nhập kho (Staging Inventory)
@@ -858,6 +859,19 @@ class StockEntryService {
         } catch (e) {
           debugPrint('⚠️ confirmEntry: Failed to save local data: $e');
           // Không fail cả flow, chỉ log warning
+        }
+      }
+
+      // === TẠO PHIẾU NHẬP KHO (Import Order) ===
+      if (result['success'] == true) {
+        try {
+          final entry = result['entry'] as StockEntry;
+          await ImportOrderService.createFromStockEntry(
+            entry: entry,
+            entryId: entryId,
+          );
+        } catch (e) {
+          debugPrint('⚠️ confirmEntry: Failed to create import order: $e');
         }
       }
 

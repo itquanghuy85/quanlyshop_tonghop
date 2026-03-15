@@ -54,6 +54,7 @@ import 'audit_log_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
+import 'import_history_view.dart';
 import 'user_guide_view.dart';
 import '../data/db_helper.dart';
 import '../widgets/pending_stock_widget.dart';
@@ -5302,6 +5303,114 @@ class _HomeViewState extends State<HomeView>
                         ),
                         Text(
                           loc.scanToCheck,
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_can('allowViewInventory'))
+        const SizedBox(height: 6),
+
+        // Row: Chờ nhập & Lịch sử nhập kho
+        if (_can('allowViewInventory'))
+        Row(
+          children: [
+            Expanded(
+              child: Card(
+                color: Colors.orange.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Colors.orange.shade200),
+                ),
+                child: InkWell(
+                  onTap: () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PendingStockListView()),
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.pending_actions,
+                            color: Colors.orange,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Chờ nhập',
+                          style: AppTextStyles.subtitle1.copyWith(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Phiếu đang chờ',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Card(
+                color: Colors.teal.shade50,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Colors.teal.shade200),
+                ),
+                child: InkWell(
+                  onTap: () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ImportHistoryView()),
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.history,
+                            color: Colors.teal,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Lịch sử nhập',
+                          style: AppTextStyles.subtitle1.copyWith(
+                            color: Colors.teal,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Xem phiếu nhập kho',
                           style: AppTextStyles.caption.copyWith(
                             color: Colors.grey,
                           ),
