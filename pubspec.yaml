@@ -107,3 +107,14 @@ l10n:
   template-arb-file: app_vi.arb
   output-localization-file: app_localizations.dart
   output-class: AppLocalizations
+
+# Tell sqlite3 native hook to use OS-provided sqlite3 instead of bundling
+# a prebuilt binary. Fixes missing dSYM for sqlite3.framework on iOS.
+# iOS/macOS/Linux have system sqlite3; Windows has winsqlite3.dll.
+# The app only uses FFI-based sqlite on web (wasm), so native platforms
+# never call the FFI path - sqflite_darwin handles iOS/macOS natively.
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
+      name_windows: winsqlite3
