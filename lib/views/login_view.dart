@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../l10n/app_localizations.dart';
 import '../services/social_auth_service.dart';
 import '../theme/app_colors.dart';
@@ -148,10 +149,21 @@ class _LoginViewState extends State<LoginView> {
           _loading = false;
         });
       }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.code == AuthorizationErrorCode.canceled
+              ? null
+              : 'Lỗi Apple: ${e.message}';
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Lỗi đăng nhập Apple. Vui lòng thử lại.';
+          _error = e is Exception
+              ? e.toString().replaceFirst('Exception: ', '')
+              : 'Lỗi đăng nhập Apple. Vui lòng thử lại.';
           _loading = false;
         });
       }

@@ -151,6 +151,34 @@ class SocialAuthService {
   /// Đăng nhập bằng Apple (hoặc link nếu email đã có tài khoản)
   static Future<UserCredential?> signInWithApple() async {
     try {
+      if (kIsWeb) {
+        // Web: Use signInWithPopup (same pattern as Google web)
+        final provider = OAuthProvider('apple.com');
+        provider.addScope('email');
+        provider.addScope('name');
+        try {
+          return await _auth.signInWithPopup(provider);
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'account-exists-with-different-credential' &&
+              e.credential != null) {
+            return await _signInOrLink(e.credential!);
+          }
+          rethrow;
+        }
+      }
+
+      // Mobile/Desktop: Use native Apple Sign-In
+      // Check availability first (fails on simulators / devices without Apple ID)
+      final isAvailable = await SignInWithApple.isAvailable();
+      if (!isAvailable) {
+        throw Exception(
+          'Đăng nhập Apple không khả dụng trên thiết bị này. '
+          'Vui lòng kiểm tra:\n'
+          '• Thiết bị chạy iOS 13+ hoặc macOS 10.15+\n'
+          '• Đã đăng nhập Apple ID trong Cài đặt'
+        );
+      }
+
       // Generate nonce for security
       final rawNonce = _generateNonce();
       final nonce = _sha256ofString(rawNonce);
@@ -185,6 +213,12 @@ class SocialAuthService {
       }
 
       return result;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        return null; // user cancelled — not an error
+      }
+      debugPrint('❌ SocialAuth: Apple authorization error: ${e.code} ${e.message}');
+      rethrow;
     } catch (e) {
       debugPrint('❌ SocialAuth: Apple sign-in error: $e');
       rethrow;
