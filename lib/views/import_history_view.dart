@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../data/db_helper.dart';
 import '../models/import_order_model.dart';
 import '../services/import_order_service.dart';
 import '../theme/app_colors.dart';
@@ -16,6 +17,7 @@ class ImportHistoryView extends StatefulWidget {
 
 class _ImportHistoryViewState extends State<ImportHistoryView> {
   List<ImportOrder> _orders = [];
+  Map<String, List<String>> _orderItemNames = {};
   bool _isLoading = true;
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
@@ -52,12 +54,57 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
         startDate: startMs,
         endDate: endMs,
       );
-      if (mounted) setState(() => _orders = orders);
+      // Load product names for all orders in one query
+      final itemNames = await _loadItemNames(orders);
+      if (mounted) setState(() {
+        _orders = orders;
+        _orderItemNames = itemNames;
+      });
     } catch (e) {
       debugPrint('Error loading import orders: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<Map<String, List<String>>> _loadItemNames(List<ImportOrder> orders) async {
+    final result = <String, List<String>>{};
+    final ids = orders
+        .where((o) => o.firestoreId != null && o.firestoreId!.isNotEmpty)
+        .map((o) => o.firestoreId!)
+        .toList();
+    if (ids.isEmpty) return result;
+    try {
+      final db = await DBHelper().database;
+      // Query in batches of 500 to avoid SQL variable limits
+      for (var i = 0; i < ids.length; i += 500) {
+        final batch = ids.skip(i).take(500).toList();
+        final placeholders = List.filled(batch.length, '?').join(',');
+        final rows = await db.rawQuery(
+          'SELECT importOrderFirestoreId, productName, quantity, capacity, color, size '
+          'FROM import_order_items '
+          'WHERE importOrderFirestoreId IN ($placeholders) AND deleted = 0',
+          batch,
+        );
+        for (final row in rows) {
+          final orderId = row['importOrderFirestoreId'] as String;
+          final name = row['productName'] as String? ?? '';
+          final qty = (row['quantity'] as num?)?.toInt() ?? 1;
+          final cap = row['capacity'] as String? ?? '';
+          final clr = row['color'] as String? ?? '';
+          final sz = row['size'] as String? ?? '';
+          final parts = <String>[name];
+          if (cap.isNotEmpty) parts.add(cap);
+          if (clr.isNotEmpty) parts.add(clr);
+          if (sz.isNotEmpty) parts.add('Size $sz');
+          final display = qty > 1 ? '${parts.join(' - ')} x$qty' : parts.join(' - ');
+          result.putIfAbsent(orderId, () => []).add(display);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading item names: $e');
+    }
+    return result;
   }
 
   Future<void> _exportExcel() async {
@@ -443,6 +490,30 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // Product names
+                  if (order.firestoreId != null &&
+                      _orderItemNames.containsKey(order.firestoreId) &&
+                      _orderItemNames[order.firestoreId]!.isNotEmpty) ...[                    
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _orderItemNames[order.firestoreId]!.join(', '),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade800,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   // Row 2: Amount + Debt info
                   Row(
                     children: [
