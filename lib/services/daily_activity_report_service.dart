@@ -170,22 +170,11 @@ class DailyActivityReportService {
     final attendance = await attendanceFuture;
     final prevClosing = await prevClosingFuture;
 
-    // Merge all repairs for listing (union created + delivered, deduplicated)
-    final allRepairsMap = <int, Map<String, dynamic>>{};
-    for (final r in createdRepairs) {
-      allRepairsMap[r['id'] as int] = r;
-    }
-    for (final r in deliveredRepairs) {
-      allRepairsMap[r['id'] as int] = r;
-    }
-    // Sort: status DESC (4=delivered first), then by newest timestamp
-    final allRepairsToday = allRepairsMap.values.toList()
+    // Only show delivered repairs (status 4) in daily report
+    final allRepairsToday = List<Map<String, dynamic>>.from(deliveredRepairs)
       ..sort((a, b) {
-        final sa = (a['status'] as int?) ?? 0;
-        final sb = (b['status'] as int?) ?? 0;
-        if (sa != sb) return sb.compareTo(sa); // higher status first
-        final ta = (a['deliveredAt'] as int?) ?? (a['createdAt'] as int?) ?? 0;
-        final tb = (b['deliveredAt'] as int?) ?? (b['createdAt'] as int?) ?? 0;
+        final ta = (a['deliveredAt'] as int?) ?? 0;
+        final tb = (b['deliveredAt'] as int?) ?? 0;
         return tb.compareTo(ta); // newest first
       });
 

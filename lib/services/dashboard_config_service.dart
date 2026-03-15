@@ -17,6 +17,7 @@ enum DashboardCardType {
   alerts, // Cảnh báo (bảo hành, HSD)
   userGuide, // Hướng dẫn sử dụng
   financeShortcuts, // Truy cập nhanh tài chính (Sổ quỹ/Công nợ/Thu chi)
+  dailyReport, // Báo cáo hoạt động hôm nay (DailyActivityReportView)
 }
 
 /// Config for a single dashboard card
@@ -73,6 +74,8 @@ class DashboardCardConfig {
         return 'Hướng dẫn sử dụng';
       case DashboardCardType.financeShortcuts:
         return 'Truy cập nhanh tài chính';
+      case DashboardCardType.dailyReport:
+        return 'Báo cáo hoạt động hôm nay';
     }
   }
 
@@ -101,6 +104,8 @@ class DashboardCardConfig {
         return 'Lối tắt đến hướng dẫn';
       case DashboardCardType.financeShortcuts:
         return 'Sổ quỹ, Công nợ, Thu chi';
+      case DashboardCardType.dailyReport:
+        return 'Tổng hợp bán hàng, sửa chữa, thu chi trong ngày';
     }
   }
 
@@ -129,6 +134,8 @@ class DashboardCardConfig {
         return Icons.menu_book;
       case DashboardCardType.financeShortcuts:
         return Icons.account_balance;
+      case DashboardCardType.dailyReport:
+        return Icons.summarize;
     }
   }
 
@@ -157,6 +164,8 @@ class DashboardCardConfig {
         return Colors.blue;
       case DashboardCardType.financeShortcuts:
         return Colors.indigo;
+      case DashboardCardType.dailyReport:
+        return const Color(0xFF1565C0);
     }
   }
 
@@ -164,7 +173,8 @@ class DashboardCardConfig {
   bool get requiresFinanceAccess {
     return type == DashboardCardType.financeSummary ||
         type == DashboardCardType.financeDetail ||
-        type == DashboardCardType.financeShortcuts;
+        type == DashboardCardType.financeShortcuts ||
+        type == DashboardCardType.dailyReport;
   }
 }
 
@@ -198,54 +208,59 @@ class DashboardConfigService {
         order: 0,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.actionRequired,
-        visible: true,
+        type: DashboardCardType.dailyReport,
+        visible: canViewFinanceByDefault,
         order: 1,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.chat,
+        type: DashboardCardType.actionRequired,
         visible: true,
         order: 2,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.activityFeed,
+        type: DashboardCardType.chat,
         visible: true,
         order: 3,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.quickActions,
+        type: DashboardCardType.activityFeed,
         visible: true,
         order: 4,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.todayActivity,
-        visible: false,
+        type: DashboardCardType.quickActions,
+        visible: true,
         order: 5,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.financeSummary,
+        type: DashboardCardType.todayActivity,
         visible: false,
         order: 6,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.financeDetail,
-        visible: canViewFinanceByDefault,
+        type: DashboardCardType.financeSummary,
+        visible: false,
         order: 7,
       ),
       DashboardCardConfig(
-        type: DashboardCardType.financeShortcuts,
+        type: DashboardCardType.financeDetail,
         visible: canViewFinanceByDefault,
         order: 8,
       ),
       DashboardCardConfig(
+        type: DashboardCardType.financeShortcuts,
+        visible: canViewFinanceByDefault,
+        order: 9,
+      ),
+      DashboardCardConfig(
         type: DashboardCardType.alerts,
         visible: true,
-        order: 9,
+        order: 10,
       ),
       DashboardCardConfig(
         type: DashboardCardType.userGuide,
         visible: false,
-        order: 10,
+        order: 11,
       ),
     ];
   }

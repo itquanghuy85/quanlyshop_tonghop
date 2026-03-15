@@ -566,9 +566,8 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
 
   // ==================== REPAIRS ====================
   Widget _buildRepairsSection(DailyActivityReport r) {
-    final repairs = r.allRepairsToday;
+    final repairs = r.repairsDelivered;
     final deliveredCount = r.repairsDelivered.length;
-    final createdCount = r.repairsCreated.length;
     // Compute delivered repair totals
     final deliveredRevenue = r.repairsDelivered.fold<int>(
         0, (s, e) => s + ((e['price'] as int?) ?? 0));
@@ -576,7 +575,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         0, (s, e) => s + ((e['cost'] as int?) ?? 0));
     final deliveredProfit = deliveredRevenue - deliveredCost;
     return _sectionCard(
-      title: 'Sửa chữa ($createdCount mới · $deliveredCount giao)',
+      title: 'Sửa chữa đã giao ($deliveredCount)',
       icon: Icons.build,
       color: AppColors.secondary,
       trailing: r.pendingRepairs > 0
@@ -1337,21 +1336,18 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       }
       lines.writeln('');
 
-      // Repairs
+      // Repairs (only delivered)
       if (r.shopSettings.enableRepair) {
         lines.writeln(
-            '[C][B]--- SUA CHUA (${r.repairsCreated.length} moi) ---');
+            '[C][B]--- SUA CHUA DA GIAO (${r.repairsDelivered.length}) ---');
         lines.writeln('Tong thu: ${MoneyUtils.formatCurrency(f.repairIncome)}d');
         lines.writeln('Lai:      ${MoneyUtils.formatCurrency(f.repairProfit)}d');
-        for (final re in r.allRepairsToday.take(15)) {
-          final status = (re['status'] as int?) ?? 1;
-          final statusLabel = _repairStatusLabel(status);
+        for (final re in r.repairsDelivered.take(15)) {
           final cust = re['customerName'] ?? 'N/A';
           final price = (re['price'] as int?) ?? 0;
           final cost = (re['cost'] as int?) ?? 0;
-          lines.writeln('  [$statusLabel] $cust: ${MoneyUtils.formatCurrency(price)}d');
-          // Only show profit for delivered repairs (status 4)
-          if (status == 4 && (price - cost) != 0) {
+          lines.writeln('  $cust: ${MoneyUtils.formatCurrency(price)}d');
+          if ((price - cost) != 0) {
             lines.writeln('    Lai: ${MoneyUtils.formatCurrency(price - cost)}d');
           }
         }
