@@ -59,8 +59,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<!-- TODO: Replace with actual REVERSED_CLIENT_ID after enabling Google Sign-In in Firebase Console -->
-				<string>com.googleusercontent.apps.PLACEHOLDER</string>
+				<string>com.googleusercontent.apps.51200928212-v6bcslvgnh3jabvull2krb6up3lkanvl</string>
 			</array>
 		</dict>
 	</array>
