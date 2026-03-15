@@ -26,6 +26,7 @@ import 'services/cash_closing_notifier.dart'; // Realtime notify chốt quỹ
 import 'services/claims_service.dart'; // Custom claims management
 import 'services/payment_intent_service.dart'; // Payment intents management
 import 'services/current_shop_service.dart'; // Multi-shop support
+import 'services/super_admin_security_service.dart'; // Super admin PIN & audit
 import 'data/db_helper.dart'; // Local database helper
 import 'utils/perf_monitor.dart'; // Performance monitoring
 import 'utils/seed_test_data.dart'; // Test data seeder
@@ -459,6 +460,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       } catch (e) {
         debugPrint('⚠️ Super admin sync error (non-fatal): $e');
       }
+      // Log super admin login for audit trail
+      await SuperAdminSecurityService.logLogin();
       debugPrint('🔑 Super admin đăng nhập - chờ chọn shop');
       PerfMonitor.stop('_getRoleAfterSync');
       return {'role': 'admin', 'isSuperAdmin': true};
@@ -758,6 +761,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                           onPressed: () {
                             UserService.clearCache();
                             CurrentShopService().clear();
+                            SuperAdminSecurityService.clearSession();
                             _resetCache();
                             FirebaseAuth.instance.signOut();
                           },

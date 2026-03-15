@@ -309,8 +309,11 @@ class UserService {
       return [];
     }
     try {
-      final snap = await _db.collection('shops').get();
-      debugPrint('getAllShops: fetched ${snap.docs.length} shops');
+      // Force server fetch to always get latest data (incl. newly created shops)
+      final snap = await _db.collection('shops').get(
+        const GetOptions(source: Source.server),
+      );
+      debugPrint('getAllShops: fetched ${snap.docs.length} shops from server');
       final shops = <Map<String, dynamic>>[];
       for (final doc in snap.docs) {
         final data = Map<String, dynamic>.from(doc.data());

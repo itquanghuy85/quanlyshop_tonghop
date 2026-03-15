@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
 import '../services/claims_service.dart';
+import '../services/super_admin_security_service.dart';
 import '../data/db_helper.dart';
 import 'home_view.dart';
 
@@ -23,6 +24,8 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
   List<Map<String, dynamic>> _shops = [];
   bool _loading = true;
   bool _switching = false;
+  bool _pinVerified = false;
+  bool _checkingPin = true;
   String? _selectedShopId;
   String? _error;
   final _searchC = TextEditingController();
@@ -34,7 +37,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
     _searchC.addListener(() {
       if (mounted) setState(() => _searchQuery = _searchC.text.trim().toLowerCase());
     });
-    _loadShops();
+    _checkPinAndLoad();
   }
 
   @override
@@ -55,6 +58,95 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           id.contains(_searchQuery) ||
           biz.contains(_searchQuery);
     }).toList();
+  }
+
+  /// Check PIN requirement then load shops
+  Future<void> _checkPinAndLoad() async {
+    final hasPinSetup = await SuperAdminSecurityService.isPinSetup();
+    if (hasPinSetup && !SuperAdminSecurityService.isSessionValid()) {
+      // Need PIN verification
+      if (mounted) setState(() => _checkingPin = false);
+      _showPinDialog();
+    } else {
+      // No PIN set up or session still valid
+      if (mounted) setState(() { _checkingPin = false; _pinVerified = true; });
+      _loadShops();
+    }
+  }
+
+  void _showPinDialog() {
+    final pinController = TextEditingController();
+    String? errorText;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.lock, color: Colors.deepPurple),
+              SizedBox(width: 8),
+              Text('Xác thực Super Admin'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Nhập mã PIN bảo mật để tiếp tục:'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pinController,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 6,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Mã PIN (4-6 số)',
+                  border: const OutlineInputBorder(),
+                  errorText: errorText,
+                  prefixIcon: const Icon(Icons.pin),
+                ),
+                onSubmitted: (_) async {
+                  final ok = await SuperAdminSecurityService.verifyPin(pinController.text);
+                  if (ok) {
+                    Navigator.pop(ctx);
+                    if (mounted) setState(() => _pinVerified = true);
+                    _loadShops();
+                  } else {
+                    setDialogState(() => errorText = 'Mã PIN không đúng');
+                  }
+                },
+              ),
+              if (errorText != null) const SizedBox(height: 4),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                SuperAdminSecurityService.clearSession();
+                UserService.clearCache();
+                FirebaseAuth.instance.signOut();
+              },
+              child: const Text('Đăng xuất'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final ok = await SuperAdminSecurityService.verifyPin(pinController.text);
+                if (ok) {
+                  Navigator.pop(ctx);
+                  if (mounted) setState(() => _pinVerified = true);
+                  _loadShops();
+                } else {
+                  setDialogState(() => errorText = 'Mã PIN không đúng');
+                }
+              },
+              child: const Text('Xác nhận'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadShops() async {
@@ -83,6 +175,8 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
     try {
       // 1. Set shop cho super admin (local)
       UserService.setAdminSelectedShop(shopId);
+      // Log shop access for audit
+      await SuperAdminSecurityService.logShopAccess(shopId, shopName);
       debugPrint('✅ Super admin đã chọn shop (local): $shopId ($shopName)');
 
       // 2. Update shopId trong Firestore user document để claims được sync đúng
@@ -174,6 +268,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
+              SuperAdminSecurityService.clearSession();
               UserService.clearCache();
               FirebaseAuth.instance.signOut();
             },

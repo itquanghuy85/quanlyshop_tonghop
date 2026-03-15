@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../services/social_auth_service.dart';
+import '../services/super_admin_security_service.dart';
 import '../services/user_service.dart';
 import '../services/current_shop_service.dart';
 import '../theme/app_text_styles.dart';
@@ -635,6 +636,7 @@ class _SettingsViewState extends State<SettingsView> {
                         try { EncryptionService.reset(); } catch (_) {}
                         try { UserService.clearCache(); } catch (_) {}
                         try { UserService.setAdminSelectedShop(null); } catch (_) {}
+                        try { SuperAdminSecurityService.clearSession(); } catch (_) {}
                         try { await DBHelper().clearAllData(); } catch (_) {}
                         try {
                           await FirebaseAuth.instance.signOut();
@@ -907,6 +909,10 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   const SizedBox(height: 8),
 
+                  // BẢO MẬT SUPER ADMIN - PIN & Audit
+                  _buildSuperAdminSecurityCard(),
+                  const SizedBox(height: 8),
+
                   Card(
                     color: Colors.orange.shade50,
                     shape: RoundedRectangleBorder(
@@ -1028,6 +1034,355 @@ class _SettingsViewState extends State<SettingsView> {
             ),
       ),
     );
+  }
+
+  Widget _buildSuperAdminSecurityCard() {
+    return Card(
+      color: Colors.red.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: Colors.red.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shield, color: Colors.red.shade700, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  'Bảo mật Super Admin',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Mã PIN bảo vệ khi đăng nhập & nhật ký truy cập',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+            const Divider(height: 16),
+            // PIN Setup/Change
+            FutureBuilder<bool>(
+              future: SuperAdminSecurityService.isPinSetup(),
+              builder: (context, snap) {
+                final hasPin = snap.data ?? false;
+                return Column(
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        hasPin ? Icons.lock : Icons.lock_open,
+                        color: hasPin ? Colors.green : Colors.orange,
+                      ),
+                      title: Text(
+                        hasPin ? 'Mã PIN đã bật' : 'Mã PIN chưa thiết lập',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        hasPin
+                            ? 'Mỗi lần đăng nhập sẽ yêu cầu nhập PIN'
+                            : 'Bật PIN để bảo vệ tài khoản super admin',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: hasPin
+                          ? PopupMenuButton<String>(
+                              onSelected: (val) {
+                                if (val == 'change') _showSetupPinDialog(isChange: true);
+                                if (val == 'remove') _showRemovePinDialog();
+                              },
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(value: 'change', child: Text('Đổi PIN')),
+                                const PopupMenuItem(value: 'remove', child: Text('Tắt PIN')),
+                              ],
+                            )
+                          : TextButton(
+                              onPressed: () => _showSetupPinDialog(),
+                              child: const Text('Thiết lập'),
+                            ),
+                    ),
+                    const Divider(height: 8),
+                    // Audit Log
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.history, color: Colors.deepPurple),
+                      title: const Text(
+                        'Nhật ký truy cập',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text(
+                        'Xem lịch sử đăng nhập & thao tác',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                      onTap: _showAuditLogDialog,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSetupPinDialog({bool isChange = false}) {
+    final pinC = TextEditingController();
+    final confirmC = TextEditingController();
+    String? error;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.pin, color: Colors.deepPurple),
+              const SizedBox(width: 8),
+              Text(isChange ? 'Đổi mã PIN' : 'Thiết lập mã PIN'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: pinC,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 6,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Mã PIN mới (4-6 số)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock),
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmC,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 6,
+                decoration: InputDecoration(
+                  labelText: 'Nhập lại mã PIN',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  errorText: error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('HỦY'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (pinC.text != confirmC.text) {
+                  setDialogState(() => error = 'Mã PIN không khớp');
+                  return;
+                }
+                if (pinC.text.length < 4) {
+                  setDialogState(() => error = 'PIN phải từ 4-6 số');
+                  return;
+                }
+                final ok = await SuperAdminSecurityService.setupPin(pinC.text);
+                if (ok && mounted) {
+                  Navigator.pop(ctx);
+                  setState(() {}); // Refresh card
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Đã thiết lập mã PIN thành công!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  setDialogState(() => error = 'Lỗi thiết lập PIN');
+                }
+              },
+              child: const Text('XÁC NHẬN'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showRemovePinDialog() {
+    final pinC = TextEditingController();
+    String? error;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.lock_open, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Tắt mã PIN'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Nhập mã PIN hiện tại để xác nhận tắt:'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pinC,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 6,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Mã PIN hiện tại',
+                  border: const OutlineInputBorder(),
+                  errorText: error,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('HỦY'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                final verified = await SuperAdminSecurityService.verifyPin(pinC.text);
+                if (!verified) {
+                  setDialogState(() => error = 'Mã PIN không đúng');
+                  return;
+                }
+                await SuperAdminSecurityService.removePin();
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Đã tắt mã PIN'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              },
+              child: const Text('TẮT PIN', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAuditLogDialog() async {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.history, color: Colors.deepPurple),
+            SizedBox(width: 8),
+            Text('Nhật ký truy cập'),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: SuperAdminSecurityService.getRecentAuditLogs(limit: 30),
+            builder: (context, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final logs = snap.data ?? [];
+              if (logs.isEmpty) {
+                return const Center(
+                  child: Text('Chưa có nhật ký', style: TextStyle(color: Colors.grey)),
+                );
+              }
+              return ListView.separated(
+                itemCount: logs.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  final log = logs[i];
+                  final action = log['action'] as String? ?? '';
+                  final success = log['success'] as bool? ?? true;
+                  final ts = log['timestamp'];
+                  final platform = log['platform'] as String? ?? '';
+                  String timeStr = '—';
+                  if (ts is Timestamp) {
+                    timeStr = _formatAuditTime(ts.toDate());
+                  }
+                  IconData icon;
+                  Color color;
+                  if (action.contains('login')) {
+                    icon = Icons.login;
+                    color = Colors.blue;
+                  } else if (action.contains('shop_access')) {
+                    icon = Icons.store;
+                    color = Colors.green;
+                  } else if (action.contains('pin_verified')) {
+                    icon = Icons.check_circle;
+                    color = Colors.green;
+                  } else if (action.contains('failed')) {
+                    icon = Icons.warning;
+                    color = Colors.red;
+                  } else {
+                    icon = Icons.info;
+                    color = Colors.grey;
+                  }
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(icon, color: success ? color : Colors.red, size: 20),
+                    title: Text(
+                      _formatAuditAction(action),
+                      style: TextStyle(fontSize: 13, color: success ? Colors.black87 : Colors.red),
+                    ),
+                    subtitle: Text(
+                      '$timeStr · $platform',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('ĐÓNG'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAuditTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'Vừa xong';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+    if (diff.inDays < 7) return '${diff.inDays} ngày trước';
+    return '${dt.day}/${dt.month}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _formatAuditAction(String action) {
+    if (action == 'super_admin_login') return 'Đăng nhập Super Admin';
+    if (action == 'pin_verified') return 'Xác thực PIN thành công';
+    if (action == 'pin_verify_failed') return '⚠ Nhập PIN sai';
+    if (action.startsWith('shop_access:')) {
+      return 'Truy cập shop: ${action.replaceFirst('shop_access: ', '')}';
+    }
+    return action;
   }
 
   Widget _buildLinkedAccountsCard() {

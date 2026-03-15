@@ -1191,7 +1191,34 @@ service cloud.firestore {
     }
 
     // ┌──────────────────────────────────────────────────────────────────┐
-    // │                   SECTION 12: CATCH-ALL DENY                     │
+    // │                   SECTION 12: SUPER ADMIN SECURITY               │
+    // │     Collections: admin_security, admin_audit_log                 │
+    // │     admin_security: PIN hash storage (super admin only)          │
+    // │     admin_audit_log: Immutable login/action audit trail          │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 12.1 ADMIN_SECURITY (super admin PIN & settings) ═══════════
+    match /admin_security/{docId} {
+      // Only super admin can read/write their own security doc
+      allow read: if isSuperAdmin() && uid() == docId;
+      allow create, update: if isSuperAdmin() && uid() == docId;
+      allow delete: if false;
+    }
+
+    // ═══════════ 12.2 ADMIN_AUDIT_LOG (immutable audit trail) ═══════════
+    match /admin_audit_log/{logId} {
+      // Only super admin can read audit logs
+      allow read: if isSuperAdmin();
+      // Only super admin can create (write-once)
+      allow create: if isSuperAdmin() &&
+                       has(['uid', 'action', 'timestamp']);
+      // Immutable: no update or delete
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │                   SECTION 13: CATCH-ALL DENY                     │
     // │         CRITICAL: Any undefined collection is DENIED             │
     // └──────────────────────────────────────────────────────────────────┘
     
