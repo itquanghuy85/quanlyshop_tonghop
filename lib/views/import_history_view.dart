@@ -404,46 +404,140 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
             // Body
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
+              child: Column(
                 children: [
-                  // Supplier
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.store,
-                          size: 16,
-                          color: Colors.grey.shade500,
+                  // Row 1: Supplier + Quantity
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.store,
+                        size: 16,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          order.supplierName ?? 'Không rõ NCC',
+                          style: const TextStyle(fontSize: 13),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            order.supplierName ?? 'Không rõ NCC',
-                            style: const TextStyle(fontSize: 13),
-                            overflow: TextOverflow.ellipsis,
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${order.totalQuantity} SP',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.info,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // Row 2: Amount + Debt info
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.payments_outlined,
+                        size: 16,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        MoneyUtils.formatCurrency(order.totalAmount),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      if (isDebt) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '(Nợ: ${MoneyUtils.formatCurrency(order.totalAmount - (order.paidAmount ?? 0))})',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.warning,
                           ),
                         ),
                       ],
-                    ),
+                      const Spacer(),
+                      // Payment method icon
+                      Icon(
+                        order.paymentMethod == 'CHUYỂN KHOẢN'
+                            ? Icons.account_balance
+                            : order.paymentMethod == 'CÔNG NỢ'
+                                ? Icons.schedule
+                                : Icons.payments,
+                        size: 14,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        paymentLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
-                  // Quantity
-                  Text(
-                    '${order.totalQuantity} SP',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade600,
+                  // Row 3: Imported by + Notes
+                  if (order.importedBy != null || (order.notes != null && order.notes!.isNotEmpty)) ...[
+                    const SizedBox(height: 6),
+                    const Divider(height: 1),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        if (order.importedBy != null) ...[
+                          Icon(
+                            Icons.person_outline,
+                            size: 14,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            order.importedBy!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                        if (order.notes != null && order.notes!.isNotEmpty) ...[
+                          if (order.importedBy != null)
+                            const SizedBox(width: 12),
+                          Icon(
+                            Icons.notes,
+                            size: 14,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              order.notes!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                                fontStyle: FontStyle.italic,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Amount
-                  Text(
-                    MoneyUtils.formatCurrency(order.totalAmount),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),
