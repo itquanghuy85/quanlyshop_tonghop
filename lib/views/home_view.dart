@@ -2908,6 +2908,16 @@ class _HomeViewState extends State<HomeView>
                       MaterialPageRoute(builder: (_) => const WarrantyView()),
                     )
                   : null,
+              reminderCount: _totalReminderCount,
+              onReminderTap: () => _pushRoute(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RemindersView(
+                    role: widget.role,
+                    permissions: _permissions,
+                  ),
+                ),
+              ).then((_) => _loadReminderCount()),
             ),
           );
           break;
@@ -6944,7 +6954,19 @@ class _HomeViewState extends State<HomeView>
                       ),
                     ),
                   ),
-
+                  if (hasFullAccess ||
+                      _permissions['allowViewRevenue'] == true)
+                    _financeQuickCard(
+                      'Báo cáo hoạt động',
+                      Icons.summarize,
+                      const Color(0xFF1565C0),
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DailyActivityReportView(),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ],

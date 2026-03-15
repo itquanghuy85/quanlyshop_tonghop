@@ -19,6 +19,8 @@ class ActionRequiredCard extends StatefulWidget {
   final VoidCallback? onPendingStockTap;
   final VoidCallback? onWarrantyTap;
   final VoidCallback? onExpiryTap;
+  final int reminderCount;
+  final VoidCallback? onReminderTap;
 
   const ActionRequiredCard({
     super.key,
@@ -29,6 +31,8 @@ class ActionRequiredCard extends StatefulWidget {
     this.onPendingStockTap,
     this.onWarrantyTap,
     this.onExpiryTap,
+    this.reminderCount = 0,
+    this.onReminderTap,
   });
 
   @override
@@ -139,6 +143,16 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
           label: '$_expiringProducts sản phẩm sắp hết HSD',
           color: Colors.red,
           onTap: widget.onExpiryTap,
+        ),
+      );
+    }
+    if (widget.reminderCount > 0) {
+      items.add(
+        _ActionItem(
+          icon: Icons.notifications_active_rounded,
+          label: '${widget.reminderCount} việc cần xử lý',
+          color: const Color(0xFFE65100),
+          onTap: widget.onReminderTap,
         ),
       );
     }
