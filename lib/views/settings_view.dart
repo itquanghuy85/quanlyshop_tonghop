@@ -417,6 +417,57 @@ class _SettingsViewState extends State<SettingsView> {
                 
                 const SizedBox(height: 16),
                 
+                // ====== TÀI KHOẢN & BẢO MẬT - ĐẶT LÊN ĐẦU ĐỂ DỄ TÌM ======
+                _buildSection(localizations.accountAndSecurity),
+                // Card tài khoản gọn: avatar + tên + email + role + liên kết + đăng xuất
+                _buildAccountCard(localizations),
+                const SizedBox(height: 8),
+
+                // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
+                if (UserService.isCurrentUserSuperAdmin()) ...[
+                  Card(
+                    color: Colors.deepPurple.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: BorderSide(color: Colors.deepPurple.shade200),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.swap_horiz,
+                        color: Colors.deepPurple,
+                      ),
+                      title: Text(
+                        localizations.selectOtherShop,
+                        style: const TextStyle(
+                          color: Colors.deepPurple,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        "${localizations.currentShop}: ${UserService.getAdminSelectedShop()?.substring(0, 8) ?? 'N/A'}...",
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
+                      ),
+                      onTap: () async {
+                        await SyncService.cancelAllSubscriptions();
+                        await DBHelper().clearAllData();
+                        UserService.setAdminSelectedShop(null);
+                        if (mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ShopSelectorView(setLocale: widget.setLocale),
+                            ),
+                            (route) => false,
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
                 // ====== SHOP SWITCHER (Owner với nhiều shop) ======
                 ShopSwitcherWidget(
                   onShopChanged: () {
@@ -507,154 +558,6 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ),
                     onTap: _openUserGuide,
-                  ),
-                ),
-                
-                const SizedBox(height: 16),
-                
-                const Divider(),
-                _buildSection(localizations.accountAndSecurity),
-                ListTile(
-                  leading: const Icon(Icons.person_pin, color: Colors.teal),
-                  title: Text(localizations.yourRole),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _getRoleDisplayName(_role, localizations),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: AppTextStyles.caption.fontSize,
-                        color: Colors.blue,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // LIÊN KẾT TÀI KHOẢN GOOGLE / APPLE
-                _buildLinkedAccountsCard(),
-                const SizedBox(height: 8),
-
-                // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
-                if (UserService.isCurrentUserSuperAdmin()) ...[
-                  Card(
-                    color: Colors.deepPurple.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.deepPurple.shade200),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.swap_horiz,
-                        color: Colors.deepPurple,
-                      ),
-                      title: Text(
-                        localizations.selectOtherShop,
-                        style: const TextStyle(
-                          color: Colors.deepPurple,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        "${localizations.currentShop}: ${UserService.getAdminSelectedShop()?.substring(0, 8) ?? 'N/A'}...",
-                        style: TextStyle(
-                          fontSize: AppTextStyles.body1.fontSize,
-                        ),
-                      ),
-                      onTap: () async {
-                        await SyncService.cancelAllSubscriptions();
-                        await DBHelper().clearAllData();
-                        UserService.setAdminSelectedShop(null);
-                        if (mounted) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ShopSelectorView(setLocale: widget.setLocale),
-                            ),
-                            (route) => false,
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-
-                Card(
-                  color: Colors.red.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    side: BorderSide(color: Colors.red.shade200),
-                  ),
-                  child: ListTile(
-                    leading: const Icon(Icons.logout, color: Colors.red),
-                    title: Text(
-                      localizations.logoutAccount,
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      localizations.logoutFromApp,
-                      style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
-                    ),
-                    onTap: () async {
-                      final confirm = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: Text(localizations.logoutQuestion),
-                          content: Text(localizations.confirmLogout),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: Text(localizations.cancel.toUpperCase()),
-                            ),
-                            ElevatedButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                              ),
-                              child: Text(
-                                localizations.logout.toUpperCase(),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirm == true) {
-                        // Always sign out — cleanup failures must not block logout
-                        try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
-                        try { EncryptionService.reset(); } catch (_) {}
-                        try { UserService.clearCache(); } catch (_) {}
-                        try { UserService.setAdminSelectedShop(null); } catch (_) {}
-                        try { SuperAdminSecurityService.clearSession(); } catch (_) {}
-                        try { await DBHelper().clearAllData(); } catch (_) {}
-                        try {
-                          await FirebaseAuth.instance.signOut();
-                          // AuthGate sẽ tự động chuyển về LoginView
-                        } catch (e) {
-                          debugPrint('Logout error: $e');
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  localizations.logoutError(e.toString()),
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    },
                   ),
                 ),
 
@@ -1383,6 +1286,195 @@ class _SettingsViewState extends State<SettingsView> {
       return 'Truy cập shop: ${action.replaceFirst('shop_access: ', '')}';
     }
     return action;
+  }
+
+  /// Card tài khoản tổng hợp: user info + liên kết + đăng xuất
+  Widget _buildAccountCard(AppLocalizations localizations) {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email ?? 'N/A';
+    final displayName = user?.displayName ?? email.split('@').first;
+    final photoUrl = user?.photoURL;
+    final googleLinked = SocialAuthService.isGoogleLinked();
+    final appleLinked = SocialAuthService.isAppleLinked();
+    final passwordLinked = SocialAuthService.isPasswordLinked();
+    final showApple = kIsWeb || (!kIsWeb && Platform.isIOS) || (!kIsWeb && Platform.isMacOS);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User info row
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                  backgroundColor: Colors.blue.shade100,
+                  child: photoUrl == null
+                      ? Text(
+                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        email,
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    _getRoleDisplayName(_role, localizations),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 20),
+
+            // Linked accounts section
+            Row(
+              children: [
+                const Icon(Icons.link, color: Colors.indigo, size: 18),
+                const SizedBox(width: 6),
+                const Text(
+                  'Liên kết tài khoản',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.indigo),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _buildProviderRow(
+              icon: Icons.email,
+              color: Colors.blue,
+              label: 'Email/Mật khẩu',
+              linked: passwordLinked,
+              onLink: null,
+              onUnlink: null,
+            ),
+            const SizedBox(height: 6),
+            _buildProviderRow(
+              icon: Icons.g_mobiledata,
+              color: Colors.red,
+              label: 'Google',
+              linked: googleLinked,
+              onLink: () => _linkProvider('google'),
+              onUnlink: googleLinked && SocialAuthService.getLinkedProviders().length > 1
+                  ? () => _unlinkProvider('google')
+                  : null,
+            ),
+            if (showApple) ...[
+              const SizedBox(height: 6),
+              _buildProviderRow(
+                icon: Icons.apple,
+                color: Colors.black,
+                label: 'Apple',
+                linked: appleLinked,
+                onLink: () => _linkProvider('apple'),
+                onUnlink: appleLinked && SocialAuthService.getLinkedProviders().length > 1
+                    ? () => _unlinkProvider('apple')
+                    : null,
+              ),
+            ],
+            const Divider(height: 20),
+
+            // Logout button
+            InkWell(
+              onTap: () => _confirmLogout(localizations),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Icon(Icons.logout, color: Colors.red, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      localizations.logoutAccount,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout(AppLocalizations localizations) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(localizations.logoutQuestion),
+        content: Text(localizations.confirmLogout),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(localizations.cancel.toUpperCase()),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              localizations.logout.toUpperCase(),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
+      try { EncryptionService.reset(); } catch (_) {}
+      try { UserService.clearCache(); } catch (_) {}
+      try { UserService.setAdminSelectedShop(null); } catch (_) {}
+      try { SuperAdminSecurityService.clearSession(); } catch (_) {}
+      try { await DBHelper().clearAllData(); } catch (_) {}
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (e) {
+        debugPrint('Logout error: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(localizations.logoutError(e.toString()))),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildLinkedAccountsCard() {
