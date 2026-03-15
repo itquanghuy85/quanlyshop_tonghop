@@ -1380,6 +1380,7 @@ class _SettingsViewState extends State<SettingsView> {
               linked: passwordLinked,
               onLink: null,
               onUnlink: null,
+              providerEmail: SocialAuthService.passwordEmail,
             ),
             const SizedBox(height: 6),
             _buildProviderRow(
@@ -1391,6 +1392,7 @@ class _SettingsViewState extends State<SettingsView> {
               onUnlink: googleLinked && SocialAuthService.getLinkedProviders().length > 1
                   ? () => _unlinkProvider('google')
                   : null,
+              providerEmail: SocialAuthService.googleEmail,
             ),
             if (showApple) ...[
               const SizedBox(height: 6),
@@ -1403,6 +1405,7 @@ class _SettingsViewState extends State<SettingsView> {
                 onUnlink: appleLinked && SocialAuthService.getLinkedProviders().length > 1
                     ? () => _unlinkProvider('apple')
                     : null,
+                providerEmail: SocialAuthService.appleEmail,
               ),
             ],
             const Divider(height: 20),
@@ -1522,6 +1525,7 @@ class _SettingsViewState extends State<SettingsView> {
               linked: passwordLinked,
               onLink: null, // Always linked by default
               onUnlink: null, // Cannot unlink if it's the only method
+              providerEmail: SocialAuthService.passwordEmail,
             ),
             const SizedBox(height: 8),
             // Google
@@ -1534,6 +1538,7 @@ class _SettingsViewState extends State<SettingsView> {
               onUnlink: googleLinked && SocialAuthService.getLinkedProviders().length > 1
                   ? () => _unlinkProvider('google')
                   : null,
+              providerEmail: SocialAuthService.googleEmail,
             ),
             // Apple (only on iOS/macOS/web)
             if (showApple) ...[
@@ -1547,6 +1552,7 @@ class _SettingsViewState extends State<SettingsView> {
                 onUnlink: appleLinked && SocialAuthService.getLinkedProviders().length > 1
                     ? () => _unlinkProvider('apple')
                     : null,
+                providerEmail: SocialAuthService.appleEmail,
               ),
             ],
           ],
@@ -1562,13 +1568,21 @@ class _SettingsViewState extends State<SettingsView> {
     required bool linked,
     VoidCallback? onLink,
     VoidCallback? onUnlink,
+    String? providerEmail,
   }) {
     return Row(
       children: [
         Icon(icon, color: color, size: 22),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(label, style: const TextStyle(fontSize: 14)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 14)),
+              if (linked && providerEmail != null && providerEmail.isNotEmpty)
+                Text(providerEmail, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), overflow: TextOverflow.ellipsis),
+            ],
+          ),
         ),
         if (linked)
           Row(
@@ -1641,10 +1655,12 @@ class _SettingsViewState extends State<SettingsView> {
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi liên kết $provider: $e'),
+            content: Text(msg, maxLines: 4),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
           ),
         );
       }

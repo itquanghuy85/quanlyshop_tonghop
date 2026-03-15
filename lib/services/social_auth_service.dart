@@ -12,6 +12,11 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 class SocialAuthService {
   static final _auth = FirebaseAuth.instance;
 
+  // Singleton GoogleSignIn — tránh tạo nhiều instance gây channel-error
+  static final _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
+
   // ─── GOOGLE ────────────────────────────────────
 
   /// Đăng nhập bằng Google (hoặc link nếu email đã có tài khoản)
@@ -33,8 +38,10 @@ class SocialAuthService {
         }
       }
 
-      // Mobile/Desktop: Use google_sign_in plugin
-      final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+      // Mobile/Desktop: Use google_sign_in plugin (singleton)
+      // Disconnect trước để đảm bảo hiển thị account picker
+      try { await _googleSignIn.signOut(); } catch (_) {}
+      final GoogleSignInAccount? gUser = await _googleSignIn.signIn();
       if (gUser == null) return null; // user cancelled
 
       final gAuth = await gUser.authentication;
@@ -46,6 +53,15 @@ class SocialAuthService {
       return await _signInOrLink(credential);
     } catch (e) {
       debugPrint('❌ SocialAuth: Google sign-in error: $e');
+      if (e.toString().contains('channel-error') ||
+          e.toString().contains('PlatformException')) {
+        throw Exception(
+          'Không thể kết nối Google Sign-In. Vui lòng kiểm tra:\n'
+          '• Google Play Services đã cập nhật\n'
+          '• Đã thêm SHA-1 fingerprint vào Firebase Console\n'
+          '• Đã tải lại google-services.json',
+        );
+      }
       rethrow;
     }
   }
@@ -71,8 +87,9 @@ class SocialAuthService {
       }
     }
 
-    // Mobile/Desktop
-    final GoogleSignInAccount? gUser = await GoogleSignIn().signIn();
+    // Mobile/Desktop (singleton)
+    try { await _googleSignIn.signOut(); } catch (_) {}
+    final GoogleSignInAccount? gUser = await _googleSignIn.signIn();
     if (gUser == null) return null;
 
     final gAuth = await gUser.authentication;
@@ -88,6 +105,18 @@ class SocialAuthService {
           e.code == 'provider-already-linked') {
         debugPrint('⚠️ Google already linked');
         return null;
+      }
+      rethrow;
+    } catch (e) {
+      debugPrint('❌ SocialAuth: Google link error: $e');
+      if (e.toString().contains('channel-error') ||
+          e.toString().contains('PlatformException')) {
+        throw Exception(
+          'Không thể kết nối Google Sign-In. Vui lòng kiểm tra:\n'
+          '• Google Play Services đã cập nhật\n'
+          '• Đã thêm SHA-1 fingerprint vào Firebase Console\n'
+          '• Đã tải lại google-services.json',
+        );
       }
       rethrow;
     }
@@ -202,6 +231,29 @@ class SocialAuthService {
 
   static bool isPasswordLinked() =>
       getLinkedProviders().contains(EmailAuthProvider.PROVIDER_ID);
+
+  /// Lấy email của từng provider đang liên kết
+  static String? getProviderEmail(String providerId) {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    for (final info in user.providerData) {
+      if (info.providerId == providerId) {
+        return info.email;
+      }
+    }
+    return null;
+  }
+
+  /// Email đăng nhập Google
+  static String? get googleEmail =>
+      getProviderEmail(GoogleAuthProvider.PROVIDER_ID);
+
+  /// Email đăng nhập Apple
+  static String? get appleEmail => getProviderEmail('apple.com');
+
+  /// Email đăng nhập Email/Password
+  static String? get passwordEmail =>
+      getProviderEmail(EmailAuthProvider.PROVIDER_ID);
 
   /// Sign-in or auto-link if account-exists-with-different-credential
   static Future<UserCredential?> _signInOrLink(

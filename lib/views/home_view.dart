@@ -7706,14 +7706,17 @@ class _HomeViewState extends State<HomeView>
             ),
             const SizedBox(height: 8),
             // Email
-            _buildProviderTile(Icons.email, Colors.blue, 'Email', passwordLinked, null, null),
+            _buildProviderTile(Icons.email, Colors.blue, 'Email', passwordLinked, null, null,
+              providerEmail: SocialAuthService.passwordEmail),
             // Google
             _buildProviderTile(Icons.g_mobiledata, Colors.red, 'Google', googleLinked,
-              () => _linkSocialProvider('google'), googleLinked ? () => _unlinkSocialProvider('google') : null),
+              () => _linkSocialProvider('google'), googleLinked ? () => _unlinkSocialProvider('google') : null,
+              providerEmail: SocialAuthService.googleEmail),
             // Apple
             if (showApple)
               _buildProviderTile(Icons.apple, Colors.black, 'Apple', appleLinked,
-                () => _linkSocialProvider('apple'), appleLinked ? () => _unlinkSocialProvider('apple') : null),
+                () => _linkSocialProvider('apple'), appleLinked ? () => _unlinkSocialProvider('apple') : null,
+                providerEmail: SocialAuthService.appleEmail),
 
             const Divider(height: 20),
             // Logout
@@ -7738,14 +7741,23 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildProviderTile(IconData icon, Color color, String label, bool linked,
-      VoidCallback? onLink, VoidCallback? onUnlink) {
+      VoidCallback? onLink, VoidCallback? onUnlink, {String? providerEmail}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 13)),
+                if (linked && providerEmail != null && providerEmail.isNotEmpty)
+                  Text(providerEmail, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
           if (linked)
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -7803,8 +7815,13 @@ class _HomeViewState extends State<HomeView>
       }
     } catch (e) {
       if (mounted) {
+        final msg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi liên kết $provider: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(msg, maxLines: 4),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
+          ),
         );
       }
     }
