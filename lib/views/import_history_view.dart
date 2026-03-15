@@ -28,6 +28,12 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
   Future<void> _loadOrders() async {
     setState(() => _isLoading = true);
     try {
+      // Backfill import orders from existing confirmed stock entries
+      final backfilled = await ImportOrderService.backfillFromFirestore();
+      if (backfilled > 0) {
+        debugPrint('Backfilled $backfilled import orders');
+      }
+
       final startMs = DateTime(
         _startDate.year,
         _startDate.month,

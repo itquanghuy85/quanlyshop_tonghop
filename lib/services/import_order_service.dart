@@ -21,7 +21,10 @@ class ImportOrderService {
       final shopId = entry.shopId;
       final userName = await UserService.getCurrentUserName();
       final userId = FirebaseAuth.instance.currentUser?.uid;
-      final now = DateTime.now().millisecondsSinceEpoch;
+      // Use confirmedAt if available (backfill), otherwise now
+      final importDateMs = entry.confirmedAt?.millisecondsSinceEpoch
+          ?? entry.createdAt?.millisecondsSinceEpoch
+          ?? DateTime.now().millisecondsSinceEpoch;
 
       // Generate order code
       final orderCode = await _db.generateNextImportOrderCode();
@@ -53,7 +56,7 @@ class ImportOrderService {
         'paymentStatus': paymentStatus,
         'paidAmount': paymentStatus == 'PAID' ? totalAmount : 0,
         'status': 'CONFIRMED',
-        'importDate': now,
+        'importDate': importDateMs,
         'importedBy': userName,
         'importedByUid': userId,
         'stockEntryId': entryId,
@@ -111,13 +114,13 @@ class ImportOrderService {
         'paymentStatus': paymentStatus,
         'paidAmount': paymentStatus == 'PAID' ? totalAmount : 0,
         'status': 'CONFIRMED',
-        'importDate': now,
+        'importDate': importDateMs,
         'importedBy': userName,
         'importedByUid': userId,
         'stockEntryId': entryId,
         'notes': entry.notes ?? '',
-        'createdAt': now,
-        'updatedAt': now,
+        'createdAt': importDateMs,
+        'updatedAt': importDateMs,
         'isSynced': 1,
         'deleted': 0,
       };
@@ -190,5 +193,60 @@ class ImportOrderService {
   static Future<bool> hasImportOrderForEntry(String stockEntryId) async {
     final existing = await _db.getImportOrderByStockEntryId(stockEntryId);
     return existing != null;
+  }
+
+  /// Backfill import orders từ các stock_entries đã confirmed trước đó
+  /// Chạy 1 lần khi mở trang lịch sử nhập kho lần đầu
+  static bool _backfillDone = false;
+  static Future<int> backfillFromFirestore() async {
+    if (_backfillDone) return 0;
+    _backfillDone = true;
+
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return 0;
+
+      // Query confirmed stock entries for this shop
+      final snap = await _firestore.collection('stock_entries')
+          .where('shopId', isEqualTo: shopId)
+          .where('status', whereIn: ['confirmed', 'CONFIRMED'])
+          .orderBy('confirmedAt', descending: true)
+          .limit(200)
+          .get();
+
+      if (snap.docs.isEmpty) return 0;
+
+      // Check which ones already have import orders (in Firestore)
+      final existingOrders = await _firestore.collection('import_orders')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+      final existingEntryIds = <String>{};
+      for (final doc in existingOrders.docs) {
+        final sid = doc.data()['stockEntryId'] as String?;
+        if (sid != null) existingEntryIds.add(sid);
+      }
+
+      int created = 0;
+      for (final doc in snap.docs) {
+        final entryId = doc.id;
+        if (existingEntryIds.contains(entryId)) continue;
+
+        try {
+          final entry = StockEntry.fromMap(doc.data(), docId: entryId);
+          if (entry.items.isEmpty) continue;
+
+          await createFromStockEntry(entry: entry, entryId: entryId);
+          created++;
+        } catch (e) {
+          debugPrint('⚠️ Backfill error for entry $entryId: $e');
+        }
+      }
+
+      debugPrint('✅ ImportOrderService: Backfilled $created import orders from ${snap.docs.length} confirmed entries');
+      return created;
+    } catch (e) {
+      debugPrint('❌ ImportOrderService: Backfill failed: $e');
+      return 0;
+    }
   }
 }
