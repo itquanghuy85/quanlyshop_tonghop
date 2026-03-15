@@ -593,6 +593,7 @@ enum ShortcutType {
   expiryManage, // Hạn sử dụng
   paymentRequest, // Yêu cầu đóng tiền
   dailyReport, // BC hoạt động ngày
+  importHistory, // Lịch sử nhập kho
 }
 
 /// Config for a single shortcut item
@@ -683,6 +684,8 @@ class ShortcutConfig {
         return 'Đóng tiền';
       case ShortcutType.dailyReport:
         return 'BC ngày';
+      case ShortcutType.importHistory:
+        return 'LS nhập kho';
     }
   }
 
@@ -745,6 +748,8 @@ class ShortcutConfig {
         return Icons.request_page;
       case ShortcutType.dailyReport:
         return Icons.summarize;
+      case ShortcutType.importHistory:
+        return Icons.history_edu;
     }
   }
 
@@ -807,6 +812,8 @@ class ShortcutConfig {
         return const Color(0xFF075E54);
       case ShortcutType.dailyReport:
         return const Color(0xFF1565C0);
+      case ShortcutType.importHistory:
+        return const Color(0xFF00897B); // Colors.teal.shade600
     }
   }
 
@@ -834,6 +841,7 @@ class ShortcutConfig {
       case ShortcutType.pendingStock:
       case ShortcutType.inventoryCheck:
       case ShortcutType.expiryManage:
+      case ShortcutType.importHistory:
         return 'allowViewInventory';
       case ShortcutType.addExpense:
       case ShortcutType.expenses:

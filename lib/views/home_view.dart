@@ -4344,6 +4344,11 @@ class _HomeViewState extends State<HomeView>
             context,
             MaterialPageRoute(builder: (_) => const DailyActivityReportView()),
           );
+        case ShortcutType.importHistory:
+          return () => _pushRoute(
+            context,
+            MaterialPageRoute(builder: (_) => const ImportHistoryView()),
+          );
       }
     }
 
@@ -4488,6 +4493,16 @@ class _HomeViewState extends State<HomeView>
             () => _pushRoute(
               context,
               MaterialPageRoute(builder: (_) => const WarrantyView()),
+            ),
+          ),
+        if (_ok('allowViewInventory'))
+          _ShortcutItem(
+            Icons.history_edu,
+            'LS nhập kho',
+            const Color(0xFF00897B),
+            () => _pushRoute(
+              context,
+              MaterialPageRoute(builder: (_) => const ImportHistoryView()),
             ),
           ),
       ];
@@ -6362,6 +6377,18 @@ class _HomeViewState extends State<HomeView>
                     ),
                   ),
                   subtitle: loc.viewManageQuickInputCodes,
+                ),
+                _tabMenuItem(
+                  'Lịch sử nhập kho',
+                  Icons.history_edu,
+                  Colors.teal,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ImportHistoryView(),
+                    ),
+                  ),
+                  subtitle: 'Xem phiếu nhập kho đã xác nhận',
                 ),
               ],
             ),
