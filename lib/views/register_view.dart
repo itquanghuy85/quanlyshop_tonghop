@@ -236,12 +236,72 @@ class _RegisterViewState extends State<RegisterView> {
       children: [
         _roleOption(false, AppLocalizations.of(context)!.storeOwner, AppLocalizations.of(context)!.createNewShop, Icons.storefront),
         const SizedBox(height: 16),
-        _roleOption(true, AppLocalizations.of(context)!.employee, AppLocalizations.of(context)!.joinExistingShop, Icons.badge),
+        // Employee option: show guidance instead of self-registration
+        GestureDetector(
+          onTap: () {},
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white, borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: Colors.grey.shade200, width: 2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.badge, color: Colors.grey, size: 30),
+                    const SizedBox(width: 16),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(AppLocalizations.of(context)!.employee, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(AppLocalizations.of(context)!.joinExistingShop, style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade600)),
+                    ])),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange.shade700, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Hướng dẫn tham gia cửa hàng',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange.shade700, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Nhân viên không tự đăng ký tài khoản.\n'
+                        'Chủ shop sẽ tạo tài khoản cho bạn:\n\n'
+                        '1. Chủ shop đăng nhập ứng dụng\n'
+                        '2. Vào tab Cài đặt → Quản lý nhân viên\n'
+                        '3. Nhấn nút \"Tạo tài khoản nhân viên\"\n'
+                        '4. Nhập thông tin và tạo tài khoản\n'
+                        '5. Bạn đăng nhập bằng email & mật khẩu được cấp',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 40),
         SizedBox(
           width: double.infinity, height: 50,
           child: ElevatedButton(
-            onPressed: () => setState(() => _currentStep = 1),
+            onPressed: _isJoinShop ? null : () => setState(() => _currentStep = 1),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: Text(AppLocalizations.of(context)!.next, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),

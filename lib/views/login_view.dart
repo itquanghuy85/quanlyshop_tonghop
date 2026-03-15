@@ -258,7 +258,6 @@ class _LoginViewState extends State<LoginView> {
     emailController.dispose();
   }
 
-  Locale _selectedLocale = const Locale('vi');
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
@@ -282,95 +281,6 @@ class _LoginViewState extends State<LoginView> {
                 localizations.shopManagement,
                 style: AppTextStyles.headline4.copyWith(
                   color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Language switcher
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.primary.withOpacity(0.3),
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.language,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      localizations.selectLanguage,
-                      style: AppTextStyles.body2.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      height: 24,
-                      width: 1,
-                      color: AppColors.primary.withOpacity(0.5),
-                    ),
-                    const SizedBox(width: 12),
-                    DropdownButton<Locale>(
-                      value: _selectedLocale,
-                      underline: const SizedBox(),
-                      icon: const Icon(
-                        Icons.arrow_drop_down,
-                        color: AppColors.primary,
-                      ),
-                      style: AppTextStyles.body2.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: const Locale('vi'),
-                          child: Row(
-                            children: [
-                              Text(
-                                '🇻🇳 ',
-                                style: TextStyle(
-                                  fontSize: AppTextStyles.headline3.fontSize,
-                                ),
-                              ),
-                              Text(localizations.vietnamese),
-                            ],
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: const Locale('en'),
-                          child: Row(
-                            children: [
-                              Text(
-                                '🇺🇸 ',
-                                style: TextStyle(
-                                  fontSize: AppTextStyles.headline3.fontSize,
-                                ),
-                              ),
-                              Text(localizations.english),
-                            ],
-                          ),
-                        ),
-                      ],
-                      onChanged: (locale) {
-                        if (locale != null) {
-                          setState(() => _selectedLocale = locale);
-                          widget.setLocale?.call(locale);
-                        }
-                      },
-                    ),
-                  ],
                 ),
               ),
               const SizedBox(height: 20),
