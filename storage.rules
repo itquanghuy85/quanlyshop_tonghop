@@ -1,8 +1,66 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // ── Helper functions ──
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isSuperAdmin() {
+      return isAuth() && (
+        request.auth.token.isSuperAdmin == true ||
+        request.auth.token.email == 'admin@huluca.com'
+      );
+    }
+    function myShopId() {
+      return request.auth.token.shopId;
+    }
+    // Max 10 MB per upload
+    function withinSizeLimit() {
+      return request.resource.size <= 10 * 1024 * 1024;
+    }
+    // Only image content types
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // ── Shop-isolated paths (chat_images/{shopId}/*, payment_requests/{shopId}/*) ──
+    match /chat_images/{shopId}/{fileName} {
+      allow read:   if isAuth() && (isSuperAdmin() || myShopId() == shopId);
+      allow write:  if isAuth() && (isSuperAdmin() || myShopId() == shopId)
+                       && withinSizeLimit() && isImage();
+    }
+    match /payment_requests/{shopId}/{fileName} {
+      allow read:   if isAuth() && (isSuperAdmin() || myShopId() == shopId);
+      allow write:  if isAuth() && (isSuperAdmin() || myShopId() == shopId)
+                       && withinSizeLimit() && isImage();
+    }
+
+    // ── Shared folders (no shopId in path — auth + size + type guard) ──
+    match /repairs/{fileName} {
+      allow read:   if isAuth();
+      allow write:  if isAuth() && withinSizeLimit() && isImage();
+    }
+    match /attendance/{fileName} {
+      allow read:   if isAuth();
+      allow write:  if isAuth() && withinSizeLimit() && isImage();
+    }
+    match /shop_logos/{fileName} {
+      allow read:   if isAuth();
+      allow write:  if isAuth() && withinSizeLimit() && isImage();
+    }
+    match /user_photos/{fileName} {
+      allow read:   if isAuth();
+      allow write:  if isAuth() && withinSizeLimit() && isImage();
+    }
+    match /products/{fileName} {
+      allow read:   if isAuth();
+      allow write:  if isAuth() && withinSizeLimit() && isImage();
+    }
+
+    // ── Deny everything else ──
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

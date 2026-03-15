@@ -1150,12 +1150,8 @@ service cloud.firestore {
     // ═══════════ 11.1 SHOP_DEDUCTION_SETTINGS ═══════════
     // Stores shop-level salary deduction, insurance, and tax settings
     // Document ID is shopId — per-shop isolation via doc path
-    // Rule simplified to isAuth() because belongsTo() can fail when:
-    //   - shops/{shopId} doc absent or ownerUid mismatch
-    //   - custom claims shopId not yet propagated
-    //   - users/{uid}.shopId not yet written
     match /shop_deduction_settings/{shopId} {
-      allow read, create, update: if isAuth();
+      allow read, create, update: if isAuth() && belongsTo(shopId);
       allow delete: if false;
     }
 
