@@ -18,6 +18,7 @@ import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/app_cached_image.dart';
+import 'shift_swap_tab.dart';
 
 /// Trang theo dõi chấm công nhân viên cho quản lý/chủ shop
 /// 3 Tab: Tổng quan | Duyệt chấm công | Xin nghỉ
@@ -49,7 +50,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
     _tabCtrl.addListener(() {
       if (!_tabCtrl.indexIsChanging && mounted) setState(() {});
     });
@@ -266,6 +267,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
             const Tab(text: 'TỔNG QUAN'),
             Tab(child: _tabWithBadge('DUYỆT', pendingCount)),
             Tab(child: _tabWithBadge('XIN NGHỈ', leaveCount)),
+            const Tab(text: 'ĐỔI CA'),
           ],
         ),
       ),
@@ -278,6 +280,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                   _buildOverviewTab(),
                   _buildApprovalTab(),
                   _buildLeaveTab(),
+                  ShiftSwapTab(
+                    isManager: true,
+                    staffList: _staffList,
+                    onChanged: _loadData,
+                  ),
                 ],
               ),
       ),

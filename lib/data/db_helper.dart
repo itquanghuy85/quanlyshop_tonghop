@@ -13,6 +13,7 @@ import '../models/debt_model.dart';
 import '../models/purchase_order_model.dart';
 import '../models/attendance_model.dart';
 import '../models/leave_request_model.dart';
+import '../models/shift_swap_model.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 
@@ -186,7 +187,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 94,
+      version: 96,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -195,7 +196,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, sellerUid TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, productCosts TEXT DEFAULT \'\', isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, sellerUid TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, productCosts TEXT DEFAULT \'\', phoneRevenue INTEGER DEFAULT 0, phoneCost INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
@@ -214,6 +215,9 @@ class DBHelper {
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS leave_requests(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, leaveType TEXT, startDate TEXT, endDate TEXT, totalDays REAL, reason TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
+        );
+        await db.execute(
+          'CREATE TABLE IF NOT EXISTS shift_swaps(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, requesterId TEXT, requesterName TEXT, requesterEmail TEXT, targetId TEXT, targetName TEXT, targetEmail TEXT, swapDate TEXT, returnDate TEXT, reason TEXT, status TEXT DEFAULT "pending_target", targetRespondedAt INTEGER, approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, rejectedBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, summary TEXT, role TEXT, email TEXT, payload TEXT, entityType TEXT, entityId TEXT)',
@@ -655,6 +659,16 @@ class DBHelper {
         );
         await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)',
+        );
+        // shift_swaps
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_shift_swaps_requesterId ON shift_swaps(requesterId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_shift_swaps_targetId ON shift_swaps(targetId)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_shift_swaps_status ON shift_swaps(status)',
         );
         // debt_payments
         await db.execute(
@@ -1465,6 +1479,32 @@ class DBHelper {
             await db.execute("ALTER TABLE sales ADD COLUMN productCosts TEXT DEFAULT ''");
           } catch (e) {
             debugPrint('v94 error (sales productCosts): $e');
+          }
+        }
+        if (oldV < 95) {
+          // v95: Add phoneRevenue + phoneCost columns to sales (doanh thu riêng điện thoại cho tính lương NV)
+          try {
+            await db.execute('ALTER TABLE sales ADD COLUMN phoneRevenue INTEGER DEFAULT 0');
+          } catch (e) {
+            debugPrint('v95 error (sales phoneRevenue): $e');
+          }
+          try {
+            await db.execute('ALTER TABLE sales ADD COLUMN phoneCost INTEGER DEFAULT 0');
+          } catch (e) {
+            debugPrint('v95 error (sales phoneCost): $e');
+          }
+        }
+        if (oldV < 96) {
+          // v96: shift_swaps table for employee shift exchange
+          try {
+            await db.execute(
+              'CREATE TABLE IF NOT EXISTS shift_swaps(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, requesterId TEXT, requesterName TEXT, requesterEmail TEXT, targetId TEXT, targetName TEXT, targetEmail TEXT, swapDate TEXT, returnDate TEXT, reason TEXT, status TEXT DEFAULT "pending_target", targetRespondedAt INTEGER, approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, rejectedBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+            );
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_shift_swaps_requesterId ON shift_swaps(requesterId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_shift_swaps_targetId ON shift_swaps(targetId)');
+            await db.execute('CREATE INDEX IF NOT EXISTS idx_shift_swaps_status ON shift_swaps(status)');
+          } catch (e) {
+            debugPrint('v96 error (shift_swaps): $e');
           }
         }
         if (oldV < 26) {
@@ -5254,6 +5294,120 @@ class DBHelper {
       orderBy: 'startDate ASC',
     );
     return maps.map((m) => LeaveRequest.fromMap(m)).toList();
+  }
+
+  // --- SHIFT SWAPS ---
+  Future<void> upsertShiftSwap(ShiftSwap swap) async => _upsert(
+    'shift_swaps',
+    swap.toMap(),
+    swap.firestoreId ?? "ss_${swap.requesterId}_${swap.swapDate}_${swap.targetId}",
+  );
+
+  Future<int> updateShiftSwap(ShiftSwap swap) async =>
+      (await database).update(
+        'shift_swaps',
+        swap.toMap(),
+        where: 'id = ?',
+        whereArgs: [swap.id],
+      );
+
+  Future<int> deleteShiftSwapByFirestoreId(String fId) async =>
+      (await database).delete(
+        'shift_swaps',
+        where: 'firestoreId = ?',
+        whereArgs: [fId],
+      );
+
+  Future<List<ShiftSwap>> getAllShiftSwaps() async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'deleted = 0';
+    List<dynamic> args = [];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
+    final maps = await (await database).query(
+      'shift_swaps',
+      where: where,
+      whereArgs: args,
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
+  }
+
+  Future<List<ShiftSwap>> getShiftSwapsForUser(String userId) async {
+    final shopId = UserService.getShopIdSync();
+    String where = '(requesterId = ? OR targetId = ?) AND deleted = 0';
+    List<dynamic> args = [userId, userId];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
+    final maps = await (await database).query(
+      'shift_swaps',
+      where: where,
+      whereArgs: args,
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
+  }
+
+  Future<List<ShiftSwap>> getPendingShiftSwapsForTarget(String userId) async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'targetId = ? AND status = ? AND deleted = 0';
+    List<dynamic> args = [userId, 'pending_target'];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
+    final maps = await (await database).query(
+      'shift_swaps',
+      where: where,
+      whereArgs: args,
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
+  }
+
+  Future<List<ShiftSwap>> getPendingShiftSwapsForManager() async {
+    final shopId = UserService.getShopIdSync();
+    String where = 'status = ? AND deleted = 0';
+    List<dynamic> args = ['pending_manager'];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
+    final maps = await (await database).query(
+      'shift_swaps',
+      where: where,
+      whereArgs: args,
+      orderBy: 'createdAt DESC',
+    );
+    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
+  }
+
+  Future<List<ShiftSwap>> getApprovedSwapsForDate(String dateKey) async {
+    final shopId = UserService.getShopIdSync();
+    String where = '(swapDate = ? OR returnDate = ?) AND status = ? AND deleted = 0';
+    List<dynamic> args = [dateKey, dateKey, 'approved'];
+    if (shopId != null && shopId.isNotEmpty) {
+      where += ' AND shopId = ?';
+      args.add(shopId);
+    }
+    final maps = await (await database).query(
+      'shift_swaps',
+      where: where,
+      whereArgs: args,
+    );
+    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
+  }
+
+  Future<List<ShiftSwap>> getUnsyncedShiftSwaps() async {
+    final maps = await (await database).query(
+      'shift_swaps',
+      where: 'isSynced = 0',
+    );
+    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
   }
 
   Future<List<Attendance>> getPendingAttendanceRequests() async {

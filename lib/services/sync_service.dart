@@ -12,6 +12,7 @@ import '../models/expense_model.dart';
 import '../models/debt_model.dart';
 import '../models/attendance_model.dart';
 import '../models/leave_request_model.dart';
+import '../models/shift_swap_model.dart';
 import '../models/customer_model.dart';
 import '../models/quick_input_code_model.dart';
 import 'storage_service.dart';
@@ -91,6 +92,7 @@ class SyncService {
         return _isStaffLike(role, isSuperAdmin);
       case 'attendance':
       case 'leave_requests':
+      case 'shift_swaps':
       case 'audit_logs':
       case 'supplier_payments':
       case 'repair_partner_payments':
@@ -1014,6 +1016,40 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo leave_requests sync: $e");
+    }
+
+    // 8c. Đồng bộ SHIFT SWAPS (Đổi ca)
+    try {
+      _subscribeToCollection(
+        collection: 'shift_swaps',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteShiftSwapByFirestoreId(docId);
+            } else {
+              data['firestoreId'] = docId;
+              data['isSynced'] = 1;
+              // Convert Timestamp fields
+              for (final key in ['createdAt', 'updatedAt', 'approvedAt', 'targetRespondedAt']) {
+                if (data[key] is Timestamp) {
+                  data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
+                }
+              }
+              await db.upsertShiftSwap(ShiftSwap.fromMap(data));
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync shift_swap $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
+    } catch (e) {
+      debugPrint("Lỗi khởi tạo shift_swaps sync: $e");
     }
 
     // 9. Đồng bộ QUICK INPUT CODES
@@ -2013,6 +2049,9 @@ class SyncService {
           break;
         case 'leave_requests':
           await db.deleteLeaveRequestByFirestoreId(firestoreId);
+          break;
+        case 'shift_swaps':
+          await db.deleteShiftSwapByFirestoreId(firestoreId);
           break;
         case 'import_orders':
           await db.deleteImportOrderByFirestoreId(firestoreId);
@@ -3456,6 +3495,42 @@ class SyncService {
         debugPrint("Lỗi sync payment intents collection: $e");
       }
 
+      // Đồng bộ Shift Swaps (Yêu cầu đổi ca)
+      try {
+        final shiftSwaps = await dbHelper.getUnsyncedShiftSwaps();
+        debugPrint(
+          "syncAllToCloud: có ${shiftSwaps.length} shift swaps cần sync",
+        );
+        if (shiftSwaps.isNotEmpty) {
+          for (var swap in shiftSwaps) {
+            try {
+              final docId = swap.firestoreId ??
+                  'ss_${swap.requesterId}_${swap.swapDate}_${swap.createdAt}';
+              Map<String, dynamic> data = swap.toMap();
+              data['shopId'] = shopId;
+              data['firestoreId'] = docId;
+              data.remove('id');
+              data.remove('isSynced');
+              data['updatedAt'] = FieldValue.serverTimestamp();
+              final encData = EncryptionService.encryptMap(data);
+              await _db.collection('shift_swaps').doc(docId).set(
+                    encData,
+                    SetOptions(merge: true),
+                  );
+              // Mark synced locally
+              swap.isSynced = true;
+              swap.firestoreId = docId;
+              await dbHelper.upsertShiftSwap(swap);
+            } catch (e) {
+              debugPrint("Lỗi sync shift swap ${swap.firestoreId}: $e");
+            }
+          }
+          debugPrint("✅ Synced ${shiftSwaps.length} shift swaps to cloud");
+        }
+      } catch (e) {
+        debugPrint("Lỗi sync shift swaps collection: $e");
+      }
+
       debugPrint("Đã hoàn thành đồng bộ toàn bộ dữ liệu lên Cloud.");
     } catch (e) {
       debugPrint("Lỗi syncAllToCloud: $e");
@@ -3572,6 +3647,7 @@ class SyncService {
         'financial_activity_log', // FIX: Đồng bộ nhật ký tài chính
         'payment_requests', // FIX: Đồng bộ yêu cầu đóng tiền giữa các máy
         'leave_requests', // FIX: Đồng bộ đơn xin nghỉ giữa các máy
+        'shift_swaps', // Đồng bộ yêu cầu đổi ca giữa các máy
         'import_orders', // Đồng bộ phiếu nhập kho
         'import_order_items', // Đồng bộ chi tiết phiếu nhập
       ];
@@ -3680,6 +3756,8 @@ class SyncService {
                 await db.upsertAttendance(Attendance.fromMap(data));
               } else if (col == 'leave_requests') {
                 await db.upsertLeaveRequest(LeaveRequest.fromMap(data));
+              } else if (col == 'shift_swaps') {
+                await db.upsertShiftSwap(ShiftSwap.fromMap(data));
               } else if (col == 'quick_input_codes') {
                 await db.upsertQuickInputCode(QuickInputCode.fromMap(data));
               } else if (col == 'supplier_payments') {

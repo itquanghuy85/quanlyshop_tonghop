@@ -1179,6 +1179,19 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             .map((e) =>
                 '${(e['product'] as Product).cost * (e['quantity'] as int)}')
             .join(', '),
+        phoneRevenue: _selectedItems
+            .where((e) => (e['product'] as Product).type == 'DIEN_THOAI')
+            .fold(0, (sum, e) {
+              final qty = e['quantity'] as int;
+              final sellPrice = e['sellPrice'] as int? ?? (e['product'] as Product).price;
+              return sum + (sellPrice * qty);
+            }),
+        phoneCost: _selectedItems
+            .where((e) => (e['product'] as Product).type == 'DIEN_THOAI')
+            .fold(0, (sum, e) {
+              final qty = e['quantity'] as int;
+              return sum + ((e['product'] as Product).cost * qty);
+            }),
       );
 
       // Validate IMEI trước khi thực hiện transaction

@@ -87,6 +87,14 @@ Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
       final binding = WidgetsFlutterBinding.ensureInitialized();
+
+      // Catch Flutter framework errors (build, layout, paint) to prevent silent crashes
+      FlutterError.onError = (FlutterErrorDetails details) {
+        debugPrint('FLUTTER ERROR: ${details.exception}');
+        debugPrint('STACK: ${details.stack}');
+        // Không rethrow — chỉ log và swallow để tránh crash app
+      };
+
       if (!kIsWeb) {
         FlutterNativeSplash.preserve(widgetsBinding: binding);
       }

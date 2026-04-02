@@ -896,6 +896,32 @@ service cloud.firestore {
             allow delete: if false;
           }
 
+          // ═══════════ 7.1c SHIFT_SWAPS ═══════════
+          match /shift_swaps/{swapId} {
+            // READ: Requester, target, or manager sees swap in shop
+            allow read: if isAuth() &&
+                           docInMyShop() &&
+                           (isManager() ||
+                            resource.data.requesterId == uid() ||
+                            resource.data.targetId == uid());
+
+            // CREATE: Employee creates swap request (must be the requester)
+            allow create: if isAuth() &&
+                             newDocInMyShop() &&
+                             has(['requesterId', 'targetId', 'swapDate', 'createdAt', 'shopId']) &&
+                             request.resource.data.requesterId == uid();
+
+            // UPDATE: Manager (approve/reject), target (accept/decline), requester (cancel)
+            allow update: if isAuth() &&
+                             docInMyShop() &&
+                             shopIdLocked() &&
+                             (isManager() ||
+                              resource.data.targetId == uid() ||
+                              resource.data.requesterId == uid());
+
+            allow delete: if false;
+          }
+
     // ═══════════ 7.2 WORK_SCHEDULES ═══════════
     // Stores work schedule settings (general shop settings and per-staff schedules)
     // Document IDs: "shop_general_{shopId}" for general, "staff_{userId}_{shopId}" for staff
@@ -1210,6 +1236,27 @@ service cloud.firestore {
                        has(['uid', 'action', 'timestamp']);
       // Immutable: no update or delete
       allow update: if false;
+      allow delete: if false;
+    }
+
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │               SECTION 12.5: SALVAGE PHONES (KHO MÁY XÁC)        │
+    // │     Collection: salvage_phones                                    │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ═══════════ 12.5 SALVAGE_PHONES ═══════════
+    match /salvage_phones/{phoneId} {
+      allow read: if isAuth() && docInMyShop();
+
+      allow create: if isAuth() &&
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['deviceName', 'shopId']);
+
+      allow update: if isAuth() &&
+                       docInMyShop() &&
+                       shopIdLocked();
+
       allow delete: if false;
     }
 

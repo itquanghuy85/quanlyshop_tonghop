@@ -44,6 +44,10 @@ class SaleOrder {
   // --- GIÁ VỐN TỪNG MÓN (comma-separated, tương ứng productNames) ---
   String productCosts; // "150000,200000,..."
 
+  // --- DOANH THU RIÊNG ĐIỆN THOẠI (dùng tính lương NV) ---
+  int phoneRevenue; // Tổng doanh thu từ sản phẩm loại DIEN_THOAI
+  int phoneCost; // Tổng giá vốn từ sản phẩm loại DIEN_THOAI
+
   SaleOrder({
     this.id,
     this.firestoreId,
@@ -82,6 +86,8 @@ class SaleOrder {
     this.cashAmount = 0,
     this.transferAmount = 0,
     this.productCosts = '',
+    this.phoneRevenue = 0,
+    this.phoneCost = 0,
     this.isSynced = false,
   });
 
@@ -137,6 +143,8 @@ class SaleOrder {
       'cashAmount': cashAmount,
       'transferAmount': transferAmount,
       'productCosts': productCosts,
+      'phoneRevenue': phoneRevenue,
+      'phoneCost': phoneCost,
       'isSynced': isSynced ? 1 : 0,
     };
   }
@@ -208,6 +216,8 @@ class SaleOrder {
       cashAmount: cashAmount,
       transferAmount: transferAmount,
       productCosts: map['productCosts']?.toString() ?? '',
+      phoneRevenue: map['phoneRevenue'] is int ? map['phoneRevenue'] : 0,
+      phoneCost: map['phoneCost'] is int ? map['phoneCost'] : 0,
       isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
     );
   }

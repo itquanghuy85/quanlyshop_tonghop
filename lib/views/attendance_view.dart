@@ -24,6 +24,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
+import 'shift_swap_tab.dart';
 
 class AttendanceView extends StatefulWidget {
   const AttendanceView({super.key});
@@ -44,6 +45,7 @@ class _AttendanceViewState extends State<AttendanceView>
 
   Map<String, dynamic> _workSchedule = {};
   List<Attendance> _history = [];
+  List<Map<String, dynamic>> _staffList = [];
   List<LeaveRequest> _leaveRequests = [];
 
   // Shop location for attendance verification
@@ -76,7 +78,7 @@ class _AttendanceViewState extends State<AttendanceView>
       }
 
       final r = await UserService.getUserRole(uid);
-      int tabCount = (r == 'owner' || r == 'manager') ? 3 : 2;
+      int tabCount = (r == 'owner' || r == 'manager') ? 4 : 3;
       _tabController = TabController(length: tabCount, vsync: this);
 
       // Load user display name
@@ -145,6 +147,28 @@ class _AttendanceViewState extends State<AttendanceView>
       final schedule = await db.getWorkSchedule(uid);
       final history = await db.getAttendanceByUser(uid);
       final leaveRequests = await db.getLeaveRequestsByUser(uid);
+
+      // Load staff list for shift swap tab
+      if (_staffList.isEmpty && shopId != null) {
+        try {
+          final staffSnap = await FirebaseFirestore.instance
+              .collection('users')
+              .where('shopId', isEqualTo: shopId)
+              .get()
+              .timeout(const Duration(seconds: 10));
+          _staffList = staffSnap.docs.map((doc) {
+            final d = doc.data();
+            return {
+              'uid': doc.id,
+              'displayName': d['name'] ?? d['email']?.toString().split('@').first ?? '',
+              'email': d['email'] ?? '',
+            };
+          }).toList();
+          _staffList.removeWhere((s) => s['email'] == 'admin@huluca.com');
+        } catch (e) {
+          debugPrint('Error loading staff list: $e');
+        }
+      }
 
       if (!mounted) return;
       setState(() {
@@ -469,6 +493,7 @@ class _AttendanceViewState extends State<AttendanceView>
           tabs: [
             Tab(text: AppLocalizations.of(context)?.today ?? "HÔM NAY"),
             Tab(text: AppLocalizations.of(context)?.history ?? "LỊCH SỪ"),
+            const Tab(text: 'ĐỔI CA'),
             if (_role == 'owner' || _role == 'manager')
               Tab(text: AppLocalizations.of(context)?.stats ?? "THỐNG KÊ"),
           ],
@@ -480,6 +505,10 @@ class _AttendanceViewState extends State<AttendanceView>
           children: [
             _buildTodayTab(),
             _buildHistoryTab(),
+            ShiftSwapTab(
+              isManager: _role == 'owner' || _role == 'manager',
+              staffList: _staffList,
+            ),
             if (_role == 'owner' || _role == 'manager') _buildStatsTab(),
           ],
         ),
