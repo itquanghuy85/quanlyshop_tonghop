@@ -807,7 +807,12 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               ),
               keyboardType: TextInputType.text,
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  return newValue.copyWith(
+                    text: newValue.text.replaceAll(',', '.'),
+                  );
+                }),
               ],
             ),
             const SizedBox(height: 12),
@@ -821,7 +826,12 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
               ),
               keyboardType: TextInputType.text,
               inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                TextInputFormatter.withFunction((oldValue, newValue) {
+                  return newValue.copyWith(
+                    text: newValue.text.replaceAll(',', '.'),
+                  );
+                }),
               ],
             ),
             const SizedBox(height: 14),
