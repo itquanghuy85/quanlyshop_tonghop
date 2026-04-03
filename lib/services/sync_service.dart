@@ -383,7 +383,18 @@ class SyncService {
       return true;
     }
 
-    // Local có thay đổi chưa sync (isSynced=false) → LUÔN giữ local
+    // Local có thay đổi chưa sync (isSynced=false)
+    // Nếu quá 5 phút chưa sync được → accept cloud (tránh kẹt vĩnh viễn)
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final staleThreshold = 5 * 60 * 1000; // 5 phút
+    if (localUpdatedAt > 0 && (now - localUpdatedAt) > staleThreshold) {
+      debugPrint(
+        '⚠️ SYNC: $collection/$firestoreId - Local chưa sync >5min (local: $localUpdatedAt, now: $now), accept cloud để tránh kẹt',
+      );
+      return true;
+    }
+
+    // Trong vòng 5 phút: giữ local, enqueue để push lên cloud
     // Đây là fix cho race condition: khi vừa cập nhật status, cloud listener
     // có thể trả về data cũ (echo) và ghi đè local changes
     debugPrint(

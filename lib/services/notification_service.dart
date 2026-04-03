@@ -1445,15 +1445,9 @@ class NotificationService {
     String type,
     String? targetUserId,
   ) async {
-    // Nếu là broadcast, kiểm tra settings của từng user
-    if (targetUserId == null) {
-      // Cho broadcast, chỉ gửi nếu type được bật mặc định
-      return _getDefaultNotificationSetting(type);
-    }
-
-    // Nếu target specific user, kiểm tra settings của họ
-    // Note: Trong implementation thực tế, cần lưu settings trên server
-    // Hiện tại dùng local settings của current user
+    // Kiểm tra settings của current user (cả broadcast lẫn targeted)
+    // Broadcast: gửi nếu user đã bật loại thông báo này
+    // Targeted: gửi nếu user đã bật loại thông báo này
     final prefs = await SharedPreferences.getInstance();
     final key = _getNotificationSettingKey(type);
     return prefs.getBool(key) ?? _getDefaultNotificationSetting(type);

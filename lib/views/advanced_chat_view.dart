@@ -177,24 +177,23 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       await UserService.markChatAsRead(uid);
     }
 
-    // Subscribe to messages
-    _messagesSubscription = ChatService.messagesStream(limit: 100).listen((
+    // Subscribe to messages (load 30 most recent for fast startup)
+    _messagesSubscription = ChatService.messagesStream(limit: 30).listen((
       messages,
     ) {
       if (mounted) {
-        // Guard: Don't overwrite valid cache with empty cold-start emission
-        if (messages.isEmpty && _cachedMessages.isNotEmpty) {
-          return;
-        }
         final uid = FirebaseAuth.instance.currentUser?.uid;
-        _cachedMessages = messages;
         setState(() {
           _messages = messages;
           _isLoading = false;
         });
-        // Mark as read
-        for (final msg in messages.take(5)) {
-          if (msg.id != null) ChatService.markAsRead(msg.id!);
+        // Batch mark as read - only unread messages from others
+        if (uid != null) {
+          for (final msg in messages.take(5)) {
+            if (msg.id != null && !msg.readBy.contains(uid)) {
+              ChatService.markAsRead(msg.id!);
+            }
+          }
         }
       }
     });
@@ -207,14 +206,18 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       }
     });
 
-    // Subscribe to typing
-    _typingSubscription = ChatService.typingUsersStream().listen((users) {
-      if (mounted) setState(() => _typingUsers = users);
-    });
+    // Delay secondary listeners to avoid initial load spike
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      // Subscribe to typing
+      _typingSubscription = ChatService.typingUsersStream().listen((users) {
+        if (mounted) setState(() => _typingUsers = users);
+      });
 
-    // Subscribe to online users
-    _onlineSubscription = ChatService.onlineUsersStream().listen((users) {
-      if (mounted) setState(() => _onlineUsers = users);
+      // Subscribe to online users
+      _onlineSubscription = ChatService.onlineUsersStream().listen((users) {
+        if (mounted) setState(() => _onlineUsers = users);
+      });
     });
   }
 

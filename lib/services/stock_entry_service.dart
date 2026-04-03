@@ -163,7 +163,7 @@ class StockEntryService {
           .where('shopId', isEqualTo: shopId)
           .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
           .orderBy('createdAt', descending: true)
-          .get();
+          .limit(50));
 
       debugPrint('📋 getPendingEntries: found ${query.docs.length} docs');
       for (final doc in query.docs) {

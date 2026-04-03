@@ -6853,7 +6853,7 @@ class _HomeViewState extends State<HomeView>
 
               const SizedBox(height: 16),
 
-              // THAO TÁC NHANH - Sổ quỹ + Thu Chi
+              // THAO TÁC NHANH - Sổ quỹ + Thu Chi + Chi phí
               _buildSectionHeader(loc.quickActions),
               Row(
                 children: [
@@ -6888,6 +6888,23 @@ class _HomeViewState extends State<HomeView>
                         ),
                         subtitle:
                             '+${MoneyUtils.formatVND(_todayTotalIn)} / -${MoneyUtils.formatVND(_todayTotalOut)}',
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  if (hasFullAccess ||
+                      _permissions['allowViewExpenses'] == true)
+                    Expanded(
+                      child: _financeQuickCard(
+                        'Chi phí',
+                        Icons.receipt_long_outlined,
+                        Colors.deepOrange,
+                        () => _pushRoute(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ExpenseView(),
+                          ),
+                        ),
+                        subtitle: '-${MoneyUtils.formatVND(_todayTotalOut)}',
                       ),
                     ),
                 ],
