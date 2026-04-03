@@ -464,6 +464,7 @@ exports.notifyNewRepair = onDocumentCreated("repairs/{repairId}", async (event) 
       body: body,
     },
     data: {
+      type: 'repair',
       repairId: event.params.repairId,
     },
   };
@@ -473,6 +474,39 @@ exports.notifyNewRepair = onDocumentCreated("repairs/{repairId}", async (event) 
     console.log("Đã gửi thông báo đơn mới");
   } catch (e) {
     console.error("Lỗi gửi thông báo:", e);
+  }
+});
+
+// 🔔 Thông báo khi CÓ ĐƠN BÁN MỚI
+exports.notifyNewSale = onDocumentCreated("sales/{saleId}", async (event) => {
+  const data = event.data?.data();
+  if (!data) return;
+
+  const total = data.total ? Number(data.total).toLocaleString('vi-VN') : '0';
+  const customerName = data.customerName || 'Khách lẻ';
+  const productNames = data.productNames || '';
+  const time = data.soldAt ? new Date(data.soldAt.toDate()).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}) : '';
+  let body = `👤 ${customerName}`;
+  if (productNames) body += `\n📦 ${productNames.substring(0, 80)}`;
+  body += `\n💰 ${total}đ`;
+  if (time) body += ` • 🕐 ${time}`;
+
+  const payload = {
+    notification: {
+      title: "🛒 ĐƠN BÁN MỚI",
+      body: body,
+    },
+    data: {
+      type: 'sale',
+      saleId: event.params.saleId,
+    },
+  };
+
+  try {
+    await admin.messaging().sendToTopic("staff", payload);
+    console.log("Đã gửi thông báo đơn bán mới");
+  } catch (e) {
+    console.error("Lỗi gửi thông báo đơn bán:", e);
   }
 });
 
@@ -562,6 +596,10 @@ exports.notifyStatusChange = onDocumentUpdated("repairs/{repairId}", async (even
     notification: {
       title: statusText,
       body: body,
+    },
+    data: {
+      type: 'repair_status',
+      repairId: event.params.repairId,
     },
   };
 
@@ -799,6 +837,7 @@ exports.sendShopNotification = onCall(async (request) => {
   const body = (data.body || "").toString();
   const type = (data.type || "system").toString();
   const targetUserId = data.targetUserId; // optional, if null then broadcast to all shop users
+  const notifId = data.id; // optional entity ID for navigation (repairId, saleId)
 
   // Get shopId from authenticated user's Firestore doc, fallback to data.shopId
   let shopId = data.shopId;
@@ -844,16 +883,19 @@ exports.sendShopNotification = onCall(async (request) => {
     }
 
     // Send FCM messages
+    const fcmData = {
+      type: type,
+      shopId: shopId,
+      senderId: auth.uid,
+    };
+    if (notifId) fcmData.id = notifId.toString();
+
     const payload = {
       notification: {
         title: title,
         body: body,
       },
-      data: {
-        type: type,
-        shopId: shopId,
-        senderId: auth.uid,
-      },
+      data: fcmData,
       android: {
         priority: getAndroidPriority(type),
         notification: {

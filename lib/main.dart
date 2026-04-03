@@ -188,6 +188,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Quan Ly Shop',
       debugShowCheckedModeBanner: false,
+      navigatorKey: NotificationService.navigatorKey,
       scaffoldMessengerKey: NotificationService.messengerKey,
       theme: AppTheme.lightTheme,
       locale: _locale,

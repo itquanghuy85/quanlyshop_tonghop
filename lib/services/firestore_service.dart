@@ -29,6 +29,7 @@ class FirestoreService {
         title: title,
         body: body,
         type: 'system',
+        id: id,
       );
       final shopId = await UserService.getCurrentShopId();
       await _db.collection('chats').add({

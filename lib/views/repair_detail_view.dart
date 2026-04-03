@@ -531,7 +531,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             title: '$emoji $statusMsg',
             body: '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
             type: 'new_order',
-          );
+            id: r.firestoreId,
+          ).catchError((e) {
+            debugPrint('Failed to send status notification: $e');
+          });
 
           // Ghim vào chat nội bộ
           await FirestoreService.sendChat(
@@ -780,7 +783,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         body:
             '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ\n👷 $userName',
         type: 'approval_needed',
-      );
+        id: r.firestoreId,
+      ).catchError((e) {
+        debugPrint('Failed to send approval notification: $e');
+      });
 
       // Log và chat
       await db.logAction(

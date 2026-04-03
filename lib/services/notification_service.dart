@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,11 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/money_utils.dart';
+import '../data/db_helper.dart';
+import '../models/repair_model.dart';
+import '../models/sale_order_model.dart';
+import '../views/repair_detail_view.dart';
+import '../views/sale_detail_view.dart';
 import 'user_service.dart';
 
 class NotificationService {
@@ -16,6 +22,8 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static final GlobalKey<ScaffoldMessengerState> messengerKey =
       GlobalKey<ScaffoldMessengerState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
   static final _db = FirebaseFirestore.instance;
   static final FirebaseMessaging _firebaseMessaging =
       FirebaseMessaging.instance;
@@ -628,7 +636,7 @@ class NotificationService {
           title,
           body,
           channelId: _getChannelId(message.data['type']),
-          payload: message.data.toString(),
+          payload: jsonEncode(message.data),
         );
       }
     });
@@ -651,13 +659,20 @@ class NotificationService {
 
   static Map<String, dynamic> _parsePayload(String payload) {
     try {
-      // Simple parsing - in production, use proper JSON parsing
+      // Try JSON first (new format)
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {}
+    try {
+      // Fallback: legacy toString() format {key: value, key2: value2}
       final Map<String, dynamic> data = {};
       final pairs = payload.replaceAll('{', '').replaceAll('}', '').split(', ');
       for (final pair in pairs) {
         final keyValue = pair.split(': ');
         if (keyValue.length == 2) {
-          data[keyValue[0]] = keyValue[1];
+          data[keyValue[0].trim()] = keyValue[1].trim();
         }
       }
       return data;
@@ -667,31 +682,114 @@ class NotificationService {
   }
 
   static void _handleNotificationNavigation(Map<String, dynamic> data) {
-    final type = data['type'];
-    final id = data['id'];
+    final type = data['type']?.toString() ?? '';
+    final repairId = data['repairId']?.toString();
+    final saleId = data['saleId']?.toString();
+    final id = data['id']?.toString();
 
-    // Navigate based on notification type
-    switch (type) {
-      case 'new_order':
-        // Navigate to order details
-        debugPrint('Navigate to order: $id');
-        break;
-      case 'payment':
-        // Navigate to payment details
-        debugPrint('Navigate to payment: $id');
-        break;
-      case 'inventory':
-        // Navigate to inventory
-        debugPrint('Navigate to inventory');
-        break;
-      default:
-        debugPrint('Unknown notification type: $type');
+    debugPrint('Notification navigation: type=$type, repairId=$repairId, saleId=$saleId, id=$id');
+
+    // Determine which entity to open
+    final effectiveRepairId = repairId ?? (type.contains('repair') ? id : null);
+    final effectiveSaleId = saleId ?? (type.contains('sale') ? id : null);
+
+    if (effectiveRepairId != null && effectiveRepairId.isNotEmpty) {
+      _navigateToRepair(effectiveRepairId);
+    } else if (effectiveSaleId != null && effectiveSaleId.isNotEmpty) {
+      _navigateToSale(effectiveSaleId);
+    } else if (type == 'new_order' || type == 'approval_needed') {
+      // Legacy new_order type with id field
+      if (id != null && id.isNotEmpty) {
+        _navigateToRepair(id);
+      }
+    } else {
+      debugPrint('No navigation target for notification type: $type');
+    }
+  }
+
+  static Future<void> _navigateToRepair(String firestoreId) async {
+    try {
+      final navigator = navigatorKey.currentState;
+      if (navigator == null) {
+        debugPrint('Navigator not available for repair navigation');
+        return;
+      }
+
+      // Try local DB first
+      Repair? repair = await DBHelper().getRepairByFirestoreId(firestoreId);
+
+      // Fallback: fetch from Firestore
+      if (repair == null) {
+        try {
+          final doc = await _db.collection('repairs').doc(firestoreId).get();
+          if (doc.exists && doc.data() != null) {
+            final data = Map<String, dynamic>.from(doc.data()!);
+            data['firestoreId'] = doc.id;
+            repair = Repair.fromMap(data);
+          }
+        } catch (e) {
+          debugPrint('Firestore repair fetch failed: $e');
+        }
+      }
+
+      if (repair != null) {
+        navigator.push(
+          MaterialPageRoute(builder: (_) => RepairDetailView(repair: repair!)),
+        );
+      } else {
+        debugPrint('Repair not found: $firestoreId');
+        showSnackBar('Không tìm thấy đơn sửa', color: Colors.orange);
+      }
+    } catch (e) {
+      debugPrint('Error navigating to repair: $e');
+    }
+  }
+
+  static Future<void> _navigateToSale(String firestoreId) async {
+    try {
+      final navigator = navigatorKey.currentState;
+      if (navigator == null) {
+        debugPrint('Navigator not available for sale navigation');
+        return;
+      }
+
+      // Try local DB first
+      SaleOrder? sale = await DBHelper().getSaleByFirestoreId(firestoreId);
+
+      // Fallback: fetch from Firestore
+      if (sale == null) {
+        try {
+          final doc = await _db.collection('sales').doc(firestoreId).get();
+          if (doc.exists && doc.data() != null) {
+            final data = Map<String, dynamic>.from(doc.data()!);
+            data['firestoreId'] = doc.id;
+            sale = SaleOrder.fromMap(data);
+          }
+        } catch (e) {
+          debugPrint('Firestore sale fetch failed: $e');
+        }
+      }
+
+      if (sale != null) {
+        navigator.push(
+          MaterialPageRoute(builder: (_) => SaleDetailView(sale: sale!)),
+        );
+      } else {
+        debugPrint('Sale not found: $firestoreId');
+        showSnackBar('Không tìm thấy đơn bán', color: Colors.orange);
+      }
+    } catch (e) {
+      debugPrint('Error navigating to sale: $e');
     }
   }
 
   static String _getChannelId(String? type) {
     switch (type) {
       case 'new_order':
+      case 'repair':
+      case 'repair_status':
+      case 'approval_needed':
+      case 'sale':
         return 'new_order_channel';
       case 'payment':
         return 'payment_channel';
@@ -757,6 +855,9 @@ class NotificationService {
                   String title = data['title'] ?? "THÔNG BÁO MỚI";
                   String body = data['body'] ?? "";
                   String type = data['type'] ?? 'system';
+                  // Build navigation payload for tap handling
+                  final navPayload = <String, dynamic>{'type': type};
+                  if (data['id'] != null) navPayload['id'] = data['id'];
 
                   // Check if notification should be shown
                   _shouldShowNotification(type).then((shouldShow) {
@@ -772,6 +873,7 @@ class NotificationService {
                           title,
                           body,
                           channelId: _getChannelId(type),
+                          payload: jsonEncode(navPayload),
                         );
                         onMessageReceived(title, body);
                       }
@@ -791,6 +893,7 @@ class NotificationService {
     required String body,
     required String type,
     String? targetUserId,
+    String? id,
   }) async {
     try {
       // Kiểm tra settings trước khi gửi
@@ -813,6 +916,7 @@ class NotificationService {
         'senderName': user?.email?.split('@').first.toUpperCase() ?? "NV",
         'createdAt': FieldValue.serverTimestamp(),
         'targetUserId': targetUserId, // null = broadcast to all shop users
+        if (id != null) 'id': id,
       };
 
       debugPrint('Creating shop notification: $notificationData');
@@ -851,6 +955,7 @@ class NotificationService {
               'type': notificationData['type'],
               'targetUserId': notificationData['targetUserId'],
               'shopId': shopId,
+              if (notificationData['id'] != null) 'id': notificationData['id'],
             })
             .timeout(const Duration(seconds: 30)); // Add timeout
 
@@ -1229,7 +1334,7 @@ class NotificationService {
     ];
     final body = lines.join('\n');
 
-    await sendCloudNotification(title: title, body: body, type: 'new_order');
+    await sendCloudNotification(title: title, body: body, type: 'new_order', id: orderId);
   }
 
   // System maintenance notifications
