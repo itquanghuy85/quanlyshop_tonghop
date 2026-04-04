@@ -40,6 +40,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   final FocusNode _focusNode = FocusNode();
   final DBHelper _db = DBHelper();
 
+  // Static cache to persist messages across widget rebuilds
+  static List<ChatMessage> _cachedMessages = [];
+  static List<ChatMessage> _cachedPinnedMessages = [];
+
   // State
   bool _isLoading = true;
   bool _isSending = false;
@@ -94,7 +98,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       // 1. Cancel all existing subscriptions
       _cancelSubscriptions();
       
-      // 2. Clear current data and show loading
+      // 2. Clear current data, cache, and show loading
+      _cachedMessages = [];
+      _cachedPinnedMessages = [];
       if (mounted) {
         setState(() {
           _messages = [];
@@ -145,7 +151,16 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   }
 
   void _initChat() async {
-    setState(() => _isLoading = true);
+    // Show cached messages instantly to avoid spinner/empty state on re-open
+    if (_cachedMessages.isNotEmpty) {
+      setState(() {
+        _messages = _cachedMessages;
+        _pinnedMessages = _cachedPinnedMessages;
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = true);
+    }
 
     // Load shop settings for multi-industry support
     final settings = await CategoryService().getShopSettings();
@@ -167,6 +182,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       messages,
     ) {
       if (mounted) {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        _cachedMessages = messages;
         setState(() {
           _messages = messages;
           _isLoading = false;
@@ -180,7 +197,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
     // Subscribe to pinned
     _pinnedSubscription = ChatService.pinnedMessagesStream().listen((pinned) {
-      if (mounted) setState(() => _pinnedMessages = pinned);
+      if (mounted) {
+        _cachedPinnedMessages = pinned;
+        setState(() => _pinnedMessages = pinned);
+      }
     });
 
     // Subscribe to typing

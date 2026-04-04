@@ -54,6 +54,7 @@ class _ExpenseViewState extends State<ExpenseView> {
   // Filter options
   String _filterType = 'THÁNG'; // NGÀY, TUẦN, THÁNG
   DateTime _selectedDate = DateTime.now();
+  String? _selectedCategory; // null = all categories
 
   StreamSubscription<String>? _eventSubscription;
 
@@ -170,10 +171,24 @@ class _ExpenseViewState extends State<ExpenseView> {
     List<Map<String, dynamic>> filtered = [];
 
     // First filter by THU/CHI type
-    final typeFiltered = _expenses.where((e) {
+    var typeFiltered = _expenses.where((e) {
       final eType = (e['type'] ?? 'CHI').toString();
       return eType == _viewMode;
     }).toList();
+
+    // Then filter by category if selected
+    if (_selectedCategory != null) {
+      typeFiltered = typeFiltered.where((e) {
+        final cat = (e['category'] ?? '').toString();
+        if (_selectedCategory == 'CỐ ĐỊNH') {
+          return cat == 'CỐ ĐỊNH' || cat == 'LƯƠNG' || cat == 'MẶT BẰNG' || cat == 'ĐIỆN NƯỚC';
+        } else if (_selectedCategory == 'NHẬP HÀNG') {
+          return cat == 'NHẬP HÀNG' || cat == 'PURCHASE' || cat == 'ĐƠN NHẬP HÀNG';
+        } else {
+          return cat == _selectedCategory;
+        }
+      }).toList();
+    }
 
     switch (_filterType) {
       case 'NGÀY':
@@ -640,6 +655,7 @@ class _ExpenseViewState extends State<ExpenseView> {
         // THU/CHI toggle
         _buildViewModeToggle(),
         _buildFilterBar(),
+        _buildCategoryChips(),
         _viewMode == 'CHI'
             ? _buildProfessionalHeader(totalAmount, _filteredExpenses)
             : _buildIncomeHeader(totalAmount, _filteredExpenses),
@@ -769,7 +785,10 @@ class _ExpenseViewState extends State<ExpenseView> {
       child: GestureDetector(
         onTap: () {
           if (_viewMode != mode) {
-            setState(() => _viewMode = mode);
+            setState(() {
+              _viewMode = mode;
+              _selectedCategory = null;
+            });
             _filterExpenses();
           }
         },
@@ -1091,6 +1110,72 @@ class _ExpenseViewState extends State<ExpenseView> {
         },
       ),
     );
+  }
+
+  Widget _buildCategoryChips() {
+    final categories = _viewMode == 'CHI'
+        ? ['CỐ ĐỊNH', 'PHÁT SINH', 'NHẬP HÀNG', 'KHÁC']
+        : ['PHÁT SINH', 'DỊCH VỤ', 'HOÀN TIỀN', 'KHÁC'];
+
+    final accentColor = _viewMode == 'CHI'
+        ? const Color(0xFFE53935)
+        : const Color(0xFF2E7D32);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      height: 34,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _categoryChip('Tất cả', null, accentColor),
+          const SizedBox(width: 4),
+          ...categories.map((cat) => Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: _categoryChip(_categoryLabel(cat), cat, accentColor),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryChip(String label, String? value, Color accentColor) {
+    final active = _selectedCategory == value;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedCategory = value);
+        _filterExpenses();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? accentColor : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: active ? accentColor : Colors.grey.shade200,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : Colors.grey.shade600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _categoryLabel(String cat) {
+    switch (cat) {
+      case 'CỐ ĐỊNH': return 'Cố định';
+      case 'PHÁT SINH': return 'Phát sinh';
+      case 'NHẬP HÀNG': return 'Nhập hàng';
+      case 'DỊCH VỤ': return 'Dịch vụ';
+      case 'HOÀN TIỀN': return 'Hoàn tiền';
+      case 'KHÁC': return 'Khác';
+      default: return cat;
+    }
   }
 
   Widget _buildFilterBar() {
