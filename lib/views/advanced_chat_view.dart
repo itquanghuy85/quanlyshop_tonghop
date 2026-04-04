@@ -182,6 +182,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       messages,
     ) {
       if (mounted) {
+        // Guard: Don't overwrite valid cache with empty cold-start emission
+        if (messages.isEmpty && _cachedMessages.isNotEmpty) {
+          return;
+        }
         final uid = FirebaseAuth.instance.currentUser?.uid;
         _cachedMessages = messages;
         setState(() {
