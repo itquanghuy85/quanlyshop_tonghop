@@ -512,6 +512,7 @@ class ExcelExportHelper {
       'Số tiền',
       'Danh mục',
       'PT thanh toán',
+      'Phạm vi',
       'Ghi chú',
     ]);
 
@@ -525,8 +526,38 @@ class ExcelExportHelper {
         _fmtMoney(e.amount),
         e.category,
         e.paymentMethod,
+        e.scope == 'PERSONAL' ? 'Cá nhân' : 'Shop',
         e.note ?? '',
       ]);
+    }
+
+    // ── SHEET 3: THU PHỤ (if any) ──
+    if (thuList.isNotEmpty) {
+      final thuSheet = excel['Thu phu'];
+      _writeHeaders(thuSheet, [
+        'STT',
+        'Ngày',
+        'Nội dung',
+        'Danh mục',
+        'Số tiền',
+        'PT thanh toán',
+        'Phạm vi',
+        'Ghi chú',
+      ]);
+      thuList.sort((a, b) => b.date.compareTo(a.date));
+      for (int i = 0; i < thuList.length; i++) {
+        final e = thuList[i];
+        _writeRow(thuSheet, i + 1, [
+          i + 1,
+          _fmtDateTime(e.date),
+          e.title,
+          e.category,
+          _fmtMoney(e.amount),
+          e.paymentMethod,
+          e.scope == 'PERSONAL' ? 'Cá nhân' : 'Shop',
+          e.note ?? '',
+        ]);
+      }
     }
 
     if (excel.sheets.containsKey('Sheet1')) {

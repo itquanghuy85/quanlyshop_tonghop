@@ -736,6 +736,7 @@ class PaymentIntentService {
           'date': now,
           'createdAt': now,
           'category': intent.metadata?['category'] ?? 'KHÁC',
+          'scope': intent.metadata?['scope'] ?? 'SHOP',
           'shopId': shopId,
           'isSynced': 0,
         });
@@ -755,6 +756,7 @@ class PaymentIntentService {
           'date': now,
           'createdAt': now,
           'category': 'LƯƠNG',
+          'scope': 'SHOP',
           'shopId': shopIdSalary,
           'isSynced': 0,
         });
@@ -820,6 +822,7 @@ class PaymentIntentService {
           'createdAt': now,
           'category': intent.metadata?['category'] ?? 'PHÁT SINH',
           'type': 'THU',
+          'scope': intent.metadata?['scope'] ?? 'SHOP',
           'shopId': shopIdIncome,
           'isSynced': 0,
         });

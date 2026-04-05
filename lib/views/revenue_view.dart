@@ -703,13 +703,16 @@ class _RevenueViewState extends State<RevenueView>
     }
 
     int miscIncome = fExpenses
-        .where((e) => (e['type'] ?? 'CHI').toString().toUpperCase() == 'THU')
+        .where((e) =>
+            (e['type'] ?? 'CHI').toString().toUpperCase() == 'THU' &&
+            (e['scope'] ?? 'SHOP').toString() != 'PERSONAL')
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int? ?? 0));
 
     int expenseOut = fExpenses
         .where((e) {
           final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
           if (eType == 'THU') return false;
+          if ((e['scope'] ?? 'SHOP').toString() == 'PERSONAL') return false;
           final category = (e['category'] as String? ?? '').toUpperCase();
           return !category.contains('NHẬP HÀNG') &&
               !category.contains('PURCHASE') &&

@@ -55,6 +55,7 @@ class _ExpenseViewState extends State<ExpenseView> {
   String _filterType = 'THÁNG'; // NGÀY, TUẦN, THÁNG
   DateTime _selectedDate = DateTime.now();
   String? _selectedCategory; // null = all categories
+  String? _selectedScope; // null = all, 'SHOP', 'PERSONAL'
 
   StreamSubscription<String>? _eventSubscription;
 
@@ -175,6 +176,14 @@ class _ExpenseViewState extends State<ExpenseView> {
       final eType = (e['type'] ?? 'CHI').toString();
       return eType == _viewMode;
     }).toList();
+
+    // Filter by scope if selected
+    if (_selectedScope != null) {
+      typeFiltered = typeFiltered.where((e) {
+        final scope = (e['scope'] ?? 'SHOP').toString();
+        return scope == _selectedScope;
+      }).toList();
+    }
 
     // Then filter by category if selected
     if (_selectedCategory != null) {
@@ -422,6 +431,7 @@ class _ExpenseViewState extends State<ExpenseView> {
     final noteC = TextEditingController();
     String category = "PHÁT SINH";
     String payMethod = "TIỀN MẶT";
+    String scope = "SHOP";
 
     showDialog(
       context: context,
@@ -448,6 +458,29 @@ class _ExpenseViewState extends State<ExpenseView> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      "PHẠM VI",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        ChoiceChip(
+                          label: Text('🏪 Shop', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
+                          selected: scope == 'SHOP',
+                          onSelected: (_) => setS(() => scope = 'SHOP'),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: Text('🏠 Cá nhân', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
+                          selected: scope == 'PERSONAL',
+                          onSelected: (_) => setS(() => scope = 'PERSONAL'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     Text(
                       "PHÂN LOẠI",
                       style: AppTextStyles.overline.copyWith(
@@ -573,6 +606,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
                             'note': noteC.text,
+                            'scope': scope,
                           },
                         );
 
@@ -654,6 +688,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       children: [
         // THU/CHI toggle
         _buildViewModeToggle(),
+        _buildScopeFilter(),
         _buildFilterBar(),
         _buildCategoryChips(),
         _viewMode == 'CHI'
@@ -815,6 +850,53 @@ class _ExpenseViewState extends State<ExpenseView> {
     );
   }
 
+  Widget _buildScopeFilter() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      height: 30,
+      child: Row(
+        children: [
+          _scopeChip('Tất cả', null),
+          const SizedBox(width: 6),
+          _scopeChip('🏪 Shop', 'SHOP'),
+          const SizedBox(width: 6),
+          _scopeChip('🏠 Cá nhân', 'PERSONAL'),
+        ],
+      ),
+    );
+  }
+
+  Widget _scopeChip(String label, String? value) {
+    final active = _selectedScope == value;
+    final accentColor = value == 'PERSONAL'
+        ? const Color(0xFF6A1B9A)
+        : const Color(0xFF1565C0);
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedScope = value);
+        _filterExpenses();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: active ? accentColor : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: active ? accentColor : Colors.grey.shade200,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : Colors.grey.shade600,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildIncomeHeader(int total, List<Map<String, dynamic>> list) {
     int phatSinh = list.where((e) => e['category'] == 'PHÁT SINH').fold(0, (sum, e) => sum + (e['amount'] as int));
     int dichVu = list.where((e) => e['category'] == 'DỊCH VỤ').fold(0, (sum, e) => sum + (e['amount'] as int));
@@ -936,6 +1018,7 @@ class _ExpenseViewState extends State<ExpenseView> {
     final noteC = TextEditingController();
     String category = "PHÁT SINH";
     String payMethod = "TIỀN MẶT";
+    String scope = "SHOP";
 
     showDialog(
       context: context,
@@ -962,6 +1045,31 @@ class _ExpenseViewState extends State<ExpenseView> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      "PHẠM VI",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        ChoiceChip(
+                          label: Text('🏪 Shop', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
+                          selected: scope == 'SHOP',
+                          selectedColor: const Color(0xFF66BB6A),
+                          onSelected: (_) => setS(() => scope = 'SHOP'),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: Text('🏠 Cá nhân', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
+                          selected: scope == 'PERSONAL',
+                          selectedColor: const Color(0xFF66BB6A),
+                          onSelected: (_) => setS(() => scope = 'PERSONAL'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     Text(
                       "PHÂN LOẠI",
                       style: AppTextStyles.overline.copyWith(
@@ -1081,6 +1189,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
                             'note': noteC.text,
+                            'scope': scope,
                           },
                         );
 
@@ -1383,6 +1492,8 @@ class _ExpenseViewState extends State<ExpenseView> {
   Widget _expenseProfessionalCard(Map<String, dynamic> e) {
     final cat = (e['category'] ?? 'KHÁC').toString();
     final isIncome = (e['type'] ?? 'CHI') == 'THU';
+    final scope = (e['scope'] ?? 'SHOP').toString();
+    final isPersonal = scope == 'PERSONAL';
     Color color;
     IconData icon;
 
@@ -1430,8 +1541,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  "$cat • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  "$cat${isPersonal ? ' • 🏠' : ''} • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
+                  style: TextStyle(fontSize: 12, color: isPersonal ? const Color(0xFF6A1B9A) : Colors.grey.shade500),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
               ],

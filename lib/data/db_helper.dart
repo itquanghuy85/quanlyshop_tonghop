@@ -205,7 +205,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, type TEXT, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI")',
+          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI", scope TEXT DEFAULT "SHOP")',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, debtType TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, linkedType TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT, deleted INTEGER DEFAULT 0, updatedAt INTEGER)',
@@ -3374,6 +3374,12 @@ class DBHelper {
               'ALTER TABLE expenses ADD COLUMN deleted INTEGER DEFAULT 0',
             );
             debugPrint('DB onOpen: added deleted to expenses');
+          }
+          if (!colNames.contains('scope')) {
+            await db.execute(
+              "ALTER TABLE expenses ADD COLUMN scope TEXT DEFAULT 'SHOP'",
+            );
+            debugPrint('DB onOpen: added scope to expenses');
           }
         } catch (e) {
           debugPrint('DB onOpen check error (expenses columns): $e');
