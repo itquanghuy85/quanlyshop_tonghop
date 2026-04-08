@@ -23,6 +23,7 @@ import 'fast_inventory_input_view.dart';
 import 'fast_inventory_check_view.dart';
 import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
+import 'recent_activity_view.dart';
 import 'sale_list_view.dart';
 import 'sales_return_list_view.dart';
 import 'expense_view.dart';
@@ -2955,15 +2956,27 @@ class _HomeViewState extends State<HomeView>
           widgets.add(const SizedBox(height: 10));
           break;
         case DashboardCardType.activityFeed:
-          widgets.add(
-            ActivityFeedCard(
-              key: const ValueKey('activity_feed'),
-              enableRepair: _enableRepair,
-              onViewAll: () => _pushRoute(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const CashClosingView(showOnlyTransactions: true),
+          final canViewFinancialActivity =
+              hasFullAccess ||
+              _permissions['allowViewRevenue'] == true ||
+              _permissions['allowViewExpenses'] == true ||
+              _permissions['allowViewDebts'] == true;
+          if (canViewFinancialActivity) {
+            widgets.add(
+              ActivityFeedCard(
+                key: const ValueKey('activity_feed'),
+                enableRepair: _enableRepair,
+                permissions: _permissions,
+                hasFullAccess: hasFullAccess,
+                onViewAll: () => _pushRoute(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecentActivityView(
+                      permissions: _permissions,
+                      hasFullAccess: hasFullAccess,
+                      enableRepair: _enableRepair,
+                    ),
+                  ),
                 ),
               ),
             ),
