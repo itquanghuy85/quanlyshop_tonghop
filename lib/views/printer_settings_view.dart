@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
@@ -804,17 +805,10 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.router),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (v) {
-                // Fix: some keyboards use comma instead of period for IP
-                if (v.contains(',')) {
-                  final fixed = v.replaceAll(',', '.');
-                  _ipCtrl.value = TextEditingValue(
-                    text: fixed,
-                    selection: TextSelection.collapsed(offset: fixed.length),
-                  );
-                }
-              },
+              keyboardType: TextInputType.text,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
             ),
             const SizedBox(height: 12),
             TextField(
@@ -825,17 +819,10 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.router_outlined),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (v) {
-                // Fix: some keyboards use comma instead of period for IP
-                if (v.contains(',')) {
-                  final fixed = v.replaceAll(',', '.');
-                  _backupIpCtrl.value = TextEditingValue(
-                    text: fixed,
-                    selection: TextSelection.collapsed(offset: fixed.length),
-                  );
-                }
-              },
+              keyboardType: TextInputType.text,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
             ),
             const SizedBox(height: 14),
 
