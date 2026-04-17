@@ -1548,6 +1548,22 @@ class OrderListViewState extends State<OrderListView> {
                         textColor: Colors.green.shade800,
                         fontWeight: FontWeight.w600,
                       ),
+                    // Giá vốn (chỉ admin/có quyền xem giá vốn)
+                    if (_canViewCostPrice && r.cost > 0)
+                      _repairInfoChip(
+                        '📊 Vốn: ${NumberFormat.compact(locale: 'vi').format(r.cost)}đ',
+                        Colors.purple.shade50,
+                        textColor: Colors.purple.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    // Lợi nhuận (chỉ admin/có quyền xem giá vốn, khi có cả giá và vốn)
+                    if (_canViewCostPrice && r.price > 0 && r.cost > 0)
+                      _repairInfoChip(
+                        '📈 Lãi: ${NumberFormat.compact(locale: 'vi').format(r.price - r.cost)}đ',
+                        (r.price - r.cost) >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                        textColor: (r.price - r.cost) >= 0 ? Colors.green.shade800 : Colors.red.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
                     // Ghi chú KTV (nếu có) - giới hạn 2 dòng tránh overflow
                     if (r.notes != null && r.notes!.isNotEmpty)
                       _repairInfoChip(

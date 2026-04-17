@@ -805,6 +805,16 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) {
+                // Fix: some keyboards use comma instead of period for IP
+                if (v.contains(',')) {
+                  final fixed = v.replaceAll(',', '.');
+                  _ipCtrl.value = TextEditingValue(
+                    text: fixed,
+                    selection: TextSelection.collapsed(offset: fixed.length),
+                  );
+                }
+              },
             ),
             const SizedBox(height: 12),
             TextField(
@@ -816,6 +826,16 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (v) {
+                // Fix: some keyboards use comma instead of period for IP
+                if (v.contains(',')) {
+                  final fixed = v.replaceAll(',', '.');
+                  _backupIpCtrl.value = TextEditingValue(
+                    text: fixed,
+                    selection: TextSelection.collapsed(offset: fixed.length),
+                  );
+                }
+              },
             ),
             const SizedBox(height: 14),
 

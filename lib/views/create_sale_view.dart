@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
@@ -350,6 +352,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
     if (widget.editSale != null) {
       _loadEditData();
     }
+    _checkAndRestoreDraft();
   }
 
   void _loadEditData() {
@@ -411,6 +414,161 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       );
 
       _addProductToSale(product);
+    }
+  }
+
+  // ── DRAFT SAVE / RESTORE ──
+
+  static const _saleDraftKey = 'sale_draft';
+
+  Future<void> _saveDraft() async {
+    if (_selectedItems.isEmpty) {
+      NotificationService.showSnackBar('Chưa có sản phẩm để lưu tạm', color: Colors.orange);
+      return;
+    }
+    final draft = {
+      'customerName': nameCtrl.text,
+      'phone': phoneCtrl.text,
+      'address': addressCtrl.text,
+      'isWalkIn': _isWalkIn,
+      'paymentMethod': _paymentMethod,
+      'warranty': _saleWarranty,
+      'discount': discountCtrl.text,
+      'notes': noteCtrl.text,
+      'isInstallment': _isInstallment,
+      'downPayment': downPaymentCtrl.text,
+      'downPaymentMethod': _downPaymentMethod,
+      'loanAmount': loanAmountCtrl.text,
+      'bankName': bankCtrl.text,
+      'hasSecondBank': _hasSecondBank,
+      'bankName2': bankCtrl2.text,
+      'loanAmount2': loanAmountCtrl2.text,
+      'isCombined': _isCombined,
+      'cashAmount': cashAmountCtrl.text,
+      'transferAmount': transferAmountCtrl.text,
+      'totalPrice': priceCtrl.text,
+      'items': _selectedItems.map((e) {
+        final p = e['product'] as Product;
+        return {
+          'productId': p.id,
+          'firestoreId': p.firestoreId,
+          'quantity': e['quantity'],
+          'sellPrice': e['sellPrice'],
+          'isGift': e['isGift'] ?? false,
+          'imei': e['imei'] ?? '',
+          'variantName': e['variantName'],
+        };
+      }).toList(),
+      'savedAt': DateTime.now().millisecondsSinceEpoch,
+    };
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_saleDraftKey, jsonEncode(draft));
+    if (mounted) {
+      NotificationService.showSnackBar('💾 Đã lưu tạm đơn bán', color: Colors.blue);
+    }
+  }
+
+  Future<bool> _hasDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_saleDraftKey);
+  }
+
+  Future<void> _restoreDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_saleDraftKey);
+    if (raw == null) return;
+    try {
+      final draft = jsonDecode(raw) as Map<String, dynamic>;
+      nameCtrl.text = draft['customerName'] ?? '';
+      phoneCtrl.text = draft['phone'] ?? '';
+      addressCtrl.text = draft['address'] ?? '';
+      _isWalkIn = draft['isWalkIn'] ?? false;
+      _paymentMethod = draft['paymentMethod'] ?? 'TIỀN MẶT';
+      _saleWarranty = draft['warranty'] ?? '12 THÁNG';
+      discountCtrl.text = draft['discount'] ?? '0';
+      noteCtrl.text = draft['notes'] ?? '';
+      _isInstallment = draft['isInstallment'] ?? false;
+      downPaymentCtrl.text = draft['downPayment'] ?? '0';
+      _downPaymentMethod = draft['downPaymentMethod'] ?? 'TIỀN MẶT';
+      loanAmountCtrl.text = draft['loanAmount'] ?? '0';
+      bankCtrl.text = draft['bankName'] ?? '';
+      _hasSecondBank = draft['hasSecondBank'] ?? false;
+      bankCtrl2.text = draft['bankName2'] ?? '';
+      loanAmountCtrl2.text = draft['loanAmount2'] ?? '0';
+      _isCombined = draft['isCombined'] ?? false;
+      cashAmountCtrl.text = draft['cashAmount'] ?? '0';
+      transferAmountCtrl.text = draft['transferAmount'] ?? '0';
+      priceCtrl.text = draft['totalPrice'] ?? '0';
+
+      final items = (draft['items'] as List?) ?? [];
+      for (final itemData in items) {
+        final productId = itemData['productId'];
+        final firestoreId = itemData['firestoreId'];
+        Product? product;
+        if (productId != null) {
+          product = _allInStock.firstWhere(
+            (p) => p.id == productId,
+            orElse: () => _allInStock.firstWhere(
+              (p) => p.firestoreId == firestoreId,
+              orElse: () => Product(name: 'Đã xoá', cost: 0, price: 0, condition: '', type: '', createdAt: 0),
+            ),
+          );
+        }
+        if (product != null && product.name != 'Đã xoá') {
+          _selectedItems.add({
+            'product': product,
+            'variant': null,
+            'isGift': itemData['isGift'] ?? false,
+            'sellPrice': itemData['sellPrice'] ?? product.price,
+            'originalPrice': product.price,
+            'quantity': itemData['quantity'] ?? 1,
+            'imei': itemData['imei'] ?? '',
+            'variantName': itemData['variantName'],
+          });
+        }
+      }
+      setState(() {});
+      await _clearDraft();
+      if (mounted) {
+        NotificationService.showSnackBar('✅ Đã khôi phục đơn tạm', color: Colors.green);
+      }
+    } catch (e) {
+      debugPrint('Error restoring sale draft: $e');
+      await _clearDraft();
+    }
+  }
+
+  Future<void> _clearDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_saleDraftKey);
+  }
+
+  Future<void> _checkAndRestoreDraft() async {
+    if (widget.editSale != null || widget.preSelectedProduct != null) return;
+    if (!await _hasDraft()) return;
+    if (!mounted) return;
+    final restore = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Khôi phục đơn tạm?'),
+        content: const Text('Bạn có đơn bán chưa hoàn tất. Khôi phục lại?'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await _clearDraft();
+              Navigator.pop(ctx, false);
+            },
+            child: const Text('XOÁ'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('KHÔI PHỤC'),
+          ),
+        ],
+      ),
+    );
+    if (restore == true) {
+      await _restoreDraft();
     }
   }
 
@@ -1017,6 +1175,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         transferAmount: _isCombined
             ? _parseCurrency(transferAmountCtrl.text)
             : 0,
+        productCosts: _selectedItems
+            .map((e) =>
+                '${(e['product'] as Product).cost * (e['quantity'] as int)}')
+            .join(', '),
       );
 
       // Validate IMEI trước khi thực hiện transaction
@@ -1561,6 +1723,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             : "ĐÃ BÁN HÀNG THÀNH CÔNG!",
         color: isLocalOnly ? Colors.orange : Colors.green,
       );
+      _clearDraft();
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       setState(() => _isSaving = false);
@@ -1882,7 +2045,25 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       ),
                     ),
 
-                    // === NÚT HOÀN TẤT ===
+                    // === NÚT LƯU TẠM + HOÀN TẤT ===
+                    if (widget.editSale == null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: OutlinedButton.icon(
+                            onPressed: _isSaving ? null : _saveDraft,
+                            icon: const Icon(Icons.save_outlined, size: 18),
+                            label: const Text('LƯU TẠM', style: TextStyle(fontWeight: FontWeight.bold)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue.shade700,
+                              side: BorderSide(color: Colors.blue.shade300),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ),
                     SizedBox(
                       width: double.infinity,
                       height: 48,

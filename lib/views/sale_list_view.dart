@@ -6,6 +6,7 @@ import '../models/sale_order_model.dart';
 import '../services/event_bus.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/user_service.dart';
 import '../models/shop_settings_model.dart';
 import 'sale_detail_view.dart';
 import 'create_sale_view.dart';
@@ -50,6 +51,9 @@ class _SaleListViewState extends State<SaleListView> {
   
   // Return tracking: saleId -> return summary
   Map<int, _SaleReturnInfo> _returnInfoMap = {};
+
+  // Permission: cost price visibility
+  bool _canViewCostPrice = false;
 
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
@@ -129,6 +133,9 @@ class _SaleListViewState extends State<SaleListView> {
     // Load shop settings for terminology
     final settings = await CategoryService().getShopSettings();
     if (mounted) _shopSettings = settings;
+
+    // Load cost price permission
+    _canViewCostPrice = await UserService.canViewCostPrice();
 
     // Load return info per sale
     try {
@@ -878,6 +885,17 @@ class _SaleListViewState extends State<SaleListView> {
                                             '👤 ${s.sellerName}',
                                             Colors.blue.shade100,
                                           ),
+                                          // Giá vốn (phân quyền)
+                                          if (_canViewCostPrice && s.totalCost > 0)
+                                            _saleInfoChip(
+                                              '📊 Vốn ${fmt.format(s.totalCost)}đ',
+                                              Colors.purple.shade50,
+                                            ),
+                                          if (_canViewCostPrice && s.totalCost > 0)
+                                            _saleInfoChip(
+                                              '📈 Lãi ${fmt.format(s.finalPrice - s.totalCost)}đ',
+                                              (s.finalPrice - s.totalCost) >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                                            ),
                                           // Trả hàng
                                           if (s.id != null && _returnInfoMap.containsKey(s.id)) ..._buildReturnChips(s),
                                         ],

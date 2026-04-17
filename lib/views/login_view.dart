@@ -110,6 +110,8 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _signInWithGoogle() async {
     if (!mounted) return;
+    // Dismiss keyboard before starting Google Sign-In flow
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() { _loading = true; _error = null; });
     try {
       final result = await SocialAuthService.signInWithGoogle();
@@ -136,6 +138,8 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _signInWithApple() async {
     if (!mounted) return;
+    // Dismiss keyboard before starting Apple Sign-In flow
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() { _loading = true; _error = null; });
     try {
       final result = await SocialAuthService.signInWithApple();

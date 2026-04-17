@@ -1221,10 +1221,7 @@ class _DebtViewState extends State<DebtView>
     final int remain = (total - paid).clamp(0, total);
     final createdAt = d['createdAt'] as int? ?? 0;
     final date = DateFormat(
-      'dd/MM/yyyy',
-    ).format(DateTime.fromMillisecondsSinceEpoch(createdAt));
-    final time = DateFormat(
-      'HH:mm',
+      'dd/MM HH:mm',
     ).format(DateTime.fromMillisecondsSinceEpoch(createdAt));
     final personName = (d['personName'] ?? 'N/A').toString();
     final phone = d['phone']?.toString() ?? '';
@@ -1250,12 +1247,12 @@ class _DebtViewState extends State<DebtView>
     final isVeryUrgent = daysSince > 60;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       color: isVeryUrgent
           ? Colors.red.shade100
           : (isUrgent ? Colors.orange.shade50 : bgColor),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(
           color: isVeryUrgent
               ? Colors.red.shade400
@@ -1265,24 +1262,23 @@ class _DebtViewState extends State<DebtView>
       ),
       child: InkWell(
         onTap: () => _showDebtHistory(d),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header row
+              // Header row: index + name + phone + date
               Row(
                 children: [
-                  // Index badge
                   if (index != null)
                     Container(
-                      width: 28,
-                      height: 28,
-                      margin: const EdgeInsets.only(right: 10),
+                      width: 24,
+                      height: 24,
+                      margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
                         color: mainColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Center(
                         child: Text(
@@ -1290,82 +1286,44 @@ class _DebtViewState extends State<DebtView>
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: mainColor,
-                            fontSize: AppTextStyles.subtitle1.fontSize,
+                            fontSize: 11,
                           ),
                         ),
                       ),
                     ),
-                  // Type icon
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: mainColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      isCustomerDebt
-                          ? Icons.arrow_downward
-                          : Icons.arrow_upward,
-                      color: mainColor,
-                      size: 18,
-                    ),
+                  Icon(
+                    isCustomerDebt ? Icons.arrow_downward : Icons.arrow_upward,
+                    color: mainColor,
+                    size: 16,
                   ),
-                  const SizedBox(width: 10),
-                  // Name and phone
+                  const SizedBox(width: 6),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          personName.toUpperCase(),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: AppTextStyles.headline4.fontSize,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (phone.isNotEmpty)
-                          Text(
-                            '📞 $phone',
-                            style: TextStyle(
-                              fontSize: AppTextStyles.body1.fontSize,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                      ],
+                    child: Text(
+                      '${personName.toUpperCase()}${phone.isNotEmpty ? ' • $phone' : ''}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // Date and time
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        date,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.body1.fontSize,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      Text(
-                        time,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.caption.fontSize,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    date,
+                    style: TextStyle(
+                      fontSize: AppTextStyles.caption.fontSize,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
 
-              // Info chips row
+              // Chips row: type + note + urgency
               Wrap(
                 spacing: 6,
-                runSpacing: 4,
+                runSpacing: 3,
                 children: [
                   _debtInfoChip(
                     isCustomerDebt ? 'Phải thu' : 'Phải trả',
@@ -1374,13 +1332,13 @@ class _DebtViewState extends State<DebtView>
                   ),
                   if (note.isNotEmpty)
                     _debtInfoChip(
-                      '📝 ${note.length > 25 ? "${note.substring(0, 25)}..." : note}',
+                      '📝 ${note.length > 30 ? "${note.substring(0, 30)}..." : note}',
                       Colors.grey.shade200,
                       Colors.grey.shade700,
                     ),
                   if (isVeryUrgent)
                     _debtInfoChip(
-                      '⚠️ Quá $daysSince ngày',
+                      '⚠️ $daysSince ngày',
                       Colors.red.shade200,
                       Colors.red.shade800,
                     )
@@ -1393,89 +1351,61 @@ class _DebtViewState extends State<DebtView>
                 ],
               ),
 
-              const Divider(height: 16),
+              const SizedBox(height: 6),
 
-              // Amount row
+              // Amount row + actions
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildDebtAmount('Tổng nợ', total, Colors.grey.shade700),
-                  _buildDebtAmount('Đã trả', paid, Colors.green),
+                  _miniValue('Nợ', total, Colors.grey.shade700),
+                  const SizedBox(width: 12),
+                  _miniValue('Trả', paid, Colors.green),
+                  const SizedBox(width: 12),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     decoration: BoxDecoration(
                       color: mainColor,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'CÒN NỢ',
-                          style: TextStyle(
-                            fontSize: AppTextStyles.overlineSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        Text(
-                          MoneyUtils.formatCurrency(remain),
-                          style: TextStyle(
-                            fontSize: AppTextStyles.headline5.fontSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      'Còn: ${MoneyUtils.formatCurrency(remain)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
-                ],
-              ),
-
-              // Action button
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _showDebtHistory(d),
-                    icon: const Icon(Icons.history, size: 16),
-                    label: Text(
-                      'Lịch sử',
-                      style: TextStyle(
-                        fontSize: AppTextStyles.subtitle1.fontSize,
+                  const Spacer(),
+                  // Delete button (admin only)
+                  if (_hasPermission && paid == 0)
+                    SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: IconButton(
+                        onPressed: () => _confirmDeleteDebt(d),
+                        icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
+                        padding: EdgeInsets.zero,
+                        tooltip: 'Xóa công nợ',
                       ),
                     ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () => _payDebt(d),
-                    icon: Icon(
-                      isCustomerDebt ? Icons.call_received : Icons.call_made,
-                      size: 16,
-                    ),
-                    label: Text(
-                      isCustomerDebt ? 'Thu nợ' : 'Trả nợ',
-                      style: TextStyle(
-                        fontSize: AppTextStyles.subtitle1.fontSize,
+                  SizedBox(
+                    height: 30,
+                    child: ElevatedButton(
+                      onPressed: () => _payDebt(d),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: mainColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: mainColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                      child: Text(
+                        isCustomerDebt ? 'Thu nợ' : 'Trả nợ',
+                        style: const TextStyle(fontSize: 12),
                       ),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                 ],
@@ -1550,6 +1480,65 @@ class _DebtViewState extends State<DebtView>
       ),
     ],
   );
+
+  void _confirmDeleteDebt(Map<String, dynamic> d) async {
+    final personName = d['personName']?.toString() ?? 'N/A';
+    final total = d['totalAmount'] as int? ?? 0;
+    final paid = d['paidAmount'] as int? ?? 0;
+    if (paid > 0) {
+      NotificationService.showSnackBar(
+        '❌ Không thể xóa công nợ đã có thanh toán',
+        color: Colors.red,
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('XÁC NHẬN XÓA'),
+        content: Text(
+          'Xóa công nợ của "$personName" - ${MoneyUtils.formatCurrency(total)}?\n\n'
+          'Thao tác này không thể hoàn tác.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('XÓA', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final id = d['id'] as int?;
+    final firestoreId = d['firestoreId']?.toString() ?? '';
+    if (id == null) return;
+
+    await db.softDeleteDebt(id);
+    if (firestoreId.isNotEmpty) {
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.debt,
+        entityId: id,
+        firestoreId: firestoreId,
+        operation: SyncOperation.delete,
+        data: d,
+      );
+    }
+    EventBus().emit('debts_changed');
+    if (mounted) {
+      NotificationService.showSnackBar(
+        '✅ Đã xóa công nợ',
+        color: Colors.green,
+      );
+      await _refresh();
+    }
+  }
 
   void _createOtherDebt() async {
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa

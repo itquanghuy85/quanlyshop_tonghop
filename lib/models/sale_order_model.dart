@@ -41,6 +41,9 @@ class SaleOrder {
   int cashAmount; // Phần tiền mặt (khi paymentMethod = KẾT HỢP)
   int transferAmount; // Phần chuyển khoản (khi paymentMethod = KẾT HỢP)
 
+  // --- GIÁ VỐN TỪNG MÓN (comma-separated, tương ứng productNames) ---
+  String productCosts; // "150000,200000,..."
+
   SaleOrder({
     this.id,
     this.firestoreId,
@@ -78,6 +81,7 @@ class SaleOrder {
     this.settlementCode,
     this.cashAmount = 0,
     this.transferAmount = 0,
+    this.productCosts = '',
     this.isSynced = false,
   });
 
@@ -132,6 +136,7 @@ class SaleOrder {
       'settlementCode': settlementCode?.toUpperCase(),
       'cashAmount': cashAmount,
       'transferAmount': transferAmount,
+      'productCosts': productCosts,
       'isSynced': isSynced ? 1 : 0,
     };
   }
@@ -202,6 +207,7 @@ class SaleOrder {
       settlementCode: map['settlementCode']?.toString(),
       cashAmount: cashAmount,
       transferAmount: transferAmount,
+      productCosts: map['productCosts']?.toString() ?? '',
       isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
     );
   }
