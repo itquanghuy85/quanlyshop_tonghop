@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -2966,8 +2966,6 @@ class _HomeViewState extends State<HomeView>
               ActivityFeedCard(
                 key: const ValueKey('activity_feed'),
                 enableRepair: _enableRepair,
-                permissions: _permissions,
-                hasFullAccess: hasFullAccess,
                 onViewAll: () => _pushRoute(
                   context,
                   MaterialPageRoute(
@@ -2979,8 +2977,8 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               ),
-            ),
-          );
+            );
+          }
           break;
         case DashboardCardType.chat:
           widgets.add(_buildChatCard());

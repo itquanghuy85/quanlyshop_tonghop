@@ -2279,126 +2279,20 @@ class _InventoryViewState extends State<InventoryView>
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()));
                   }),
                   _bottomBarItem(Icons.file_download_outlined, 'Excel', Colors.blueGrey, () async {
-                    final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
-                    if (result == null) return;
-                    if (!mounted) return;
-                    await ExcelExportHelper.exportProducts(context, startMs: result['startMs'], endMs: result['endMs']);
+                    if (_filterType == 'LINH_KIEN') {
+                      final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho linh kiện');
+                      if (result == null || !mounted) return;
+                      await ExcelExportHelper.exportRepairParts(context, startMs: result['startMs'], endMs: result['endMs']);
+                    } else {
+                      final result = await ExportDateFilterDialog.show(context, title: 'Xuất kho hàng');
+                      if (result == null || !mounted) return;
+                      await ExcelExportHelper.exportProducts(context, startMs: result['startMs'], endMs: result['endMs']);
+                    }
                   }),
                 ],
               ),
-              padding: const EdgeInsets.only(
-                top: 6,
-                bottom: 6,
-                left: 4,
-                right: 4,
-              ),
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _bottomBarItem(
-                      Icons.add_box_rounded,
-                      'Nhập kho',
-                      Colors.green,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SmartStockInView(),
-                          ),
-                        ).then((_) => _refresh());
-                      },
-                    ),
-                    if (_businessType == 'electronics')
-                      _bottomBarItem(
-                        Icons.flash_on,
-                        'Nhanh',
-                        Colors.orange,
-                        () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const FastStockInView(),
-                            ),
-                          ).then((_) => _refresh());
-                        },
-                      ),
-
-                    _bottomBarItem(
-                      Icons.shopping_cart_checkout_rounded,
-                      'Bán hàng',
-                      Colors.teal,
-                      () {
-                        HapticFeedback.mediumImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CreateSaleView(),
-                          ),
-                        ).then((_) => _refresh());
-                      },
-                    ),
-                    _bottomBarItem(
-                      Icons.business_center,
-                      'NCC',
-                      Colors.indigo,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SupplierListView(),
-                          ),
-                        );
-                      },
-                    ),
-                    _bottomBarItem(
-                      Icons.qr_code_2_rounded,
-                      'In tem',
-                      Colors.purple,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const PtyPrintDesignerView(),
-                          ),
-                        );
-                      },
-                    ),
-                    _bottomBarItem(
-                      Icons.file_download_outlined,
-                      'Excel',
-                      Colors.blueGrey,
-                      () async {
-                        if (_filterType == 'LINH_KIEN') {
-                          final result = await ExportDateFilterDialog.show(
-                            context,
-                            title: 'Xuất kho linh kiện',
-                          );
-                          if (result == null || !mounted) return;
-                          await ExcelExportHelper.exportRepairParts(
-                            context,
-                            startMs: result['startMs'],
-                            endMs: result['endMs'],
-                          );
-                        } else {
-                          final result = await ExportDateFilterDialog.show(
-                            context,
-                            title: 'Xuất kho hàng',
-                          );
-                          if (result == null || !mounted) return;
-                          await ExcelExportHelper.exportProducts(
-                            context,
-                            startMs: result['startMs'],
-                            endMs: result['endMs'],
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
             ),
+          ),
           ],
         ),
       ),

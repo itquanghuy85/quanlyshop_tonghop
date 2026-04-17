@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../core/utils/money_utils.dart';
 import '../data/db_helper.dart';
-import '../models/sale_model.dart';
+import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';

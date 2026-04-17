@@ -155,11 +155,11 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     // Single batch Firestore query for ALL missing staff
     if (missingUserIds.isNotEmpty && _currentShopId != null) {
       try {
-        final snap = await firestoreQueryWithTimeout(
-            FirebaseFirestore.instance
+        final snap = await FirebaseFirestore.instance
                 .collection('attendance')
                 .where('shopId', isEqualTo: _currentShopId)
-                .where('dateKey', isEqualTo: dateKey));
+                .where('dateKey', isEqualTo: dateKey)
+                .get();
         for (final doc in snap.docs) {
           final record = Attendance.fromMap(doc.data());
           if (missingUserIds.contains(record.userId)) {
@@ -201,12 +201,12 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     // Single batch Firestore query for ALL missing staff
     if (missingUserIds.isNotEmpty && _currentShopId != null) {
       try {
-        final snap = await firestoreQueryWithTimeout(
-            FirebaseFirestore.instance
+        final snap = await FirebaseFirestore.instance
                 .collection('attendance')
                 .where('shopId', isEqualTo: _currentShopId)
                 .where('dateKey', isGreaterThanOrEqualTo: startKey)
-                .where('dateKey', isLessThanOrEqualTo: endKey));
+                .where('dateKey', isLessThanOrEqualTo: endKey)
+                .get();
         for (final doc in snap.docs) {
           final record = Attendance.fromMap(doc.data());
           if (missingUserIds.contains(record.userId)) {

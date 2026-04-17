@@ -356,8 +356,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       'isWalkIn': _isWalkIn,
       'selectedAccs': _selectedAccs.toList(),
       'services': _services.map((s) => {
-        'name': s.name,
-        'price': s.price,
+        'name': s.serviceName,
         'cost': s.cost,
         'partnerId': s.partnerId,
         'partnerName': s.partnerName,
@@ -400,8 +399,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       _services.clear();
       for (final s in svcs) {
         _services.add(RepairService(
-          name: s['name'] ?? '',
-          price: s['price'] ?? 0,
+          serviceName: s['name'] ?? '',
           cost: s['cost'] ?? 0,
           partnerId: s['partnerId'],
           partnerName: s['partnerName'],
