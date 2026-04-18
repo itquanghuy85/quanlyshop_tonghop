@@ -487,6 +487,15 @@ class SyncService {
 
   /// Khởi tạo đồng bộ thời gian thực
   static Future<void> initRealTimeSync(VoidCallback onDataChanged) async {
+    try {
+      await _initRealTimeSyncImpl(onDataChanged);
+    } catch (e, stack) {
+      debugPrint("❌ initRealTimeSync UNCAUGHT error: $e");
+      debugPrint("❌ initRealTimeSync STACK: $stack");
+    }
+  }
+
+  static Future<void> _initRealTimeSyncImpl(VoidCallback onDataChanged) async {
     PerfMonitor.start('initRealTimeSync');
     debugPrint("Khởi tạo real-time sync...");
     // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện

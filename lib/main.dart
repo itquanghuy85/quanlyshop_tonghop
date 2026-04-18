@@ -144,6 +144,7 @@ Future<void> main() async {
     },
     (error, stack) {
       debugPrint('GLOBAL ERROR: $error');
+      debugPrint('GLOBAL STACK: $stack');
     },
   );
 }
@@ -716,7 +717,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
         _loggedOutFallbackTimer?.cancel();
         final uid = currentUser.uid;
-        final email = currentUser.email!;
+        final email = currentUser.email ?? ''; // safe for phone-auth / anonymous users
 
         return FutureBuilder<Map<String, dynamic>>(
           future: _getOrCreateRoleFuture(uid, email),
@@ -817,9 +818,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                         prefs.setBool('claims_refreshed', true);
                         debugPrint('🔑 Claims refreshed for test account');
                       })
-                      .catchError(
-                        (e) => debugPrint('⚠️ Claims refresh failed: $e'),
-                      );
+                      .catchError((e) {
+                        debugPrint('⚠️ Claims refresh failed: $e');
+                      });
                 }
               });
             }
