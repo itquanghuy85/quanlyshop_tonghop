@@ -98,6 +98,7 @@ import 'dashboard_settings_view.dart';
 import 'payment_request_chat_view.dart';
 import 'daily_activity_report_view.dart';
 import 'reminders_view.dart';
+import 'firebase_stats_view.dart';
 import '../services/test_data_service.dart';
 import '../services/social_auth_service.dart';
 import '../services/reminder_service.dart';
@@ -7572,6 +7573,19 @@ class _HomeViewState extends State<HomeView>
                     ),
                   ),
                   subtitle: loc.printerSettingsDescription,
+                ),
+                _tabMenuItem(
+                  'Thống kê Firebase Read/Write',
+                  Icons.analytics_outlined,
+                  Colors.indigo,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FirebaseStatsView(),
+                    ),
+                  ),
+                  subtitle:
+                      'Đếm read/write theo collection, listeners và cloud docs',
                 ),
                 if (_isSuperAdmin)
                   _tabMenuItem(

@@ -34,6 +34,11 @@ class SyncService {
   static VoidCallback? _onDataChangedCallback;
   static String? _currentShopId;
   static bool _isInitialized = false;
+  static bool _isInitializingRealtime = false;
+  static Completer<void>? _realtimeInitCompleter;
+  static Completer<void>? _downloadCompleter;
+  static final Map<String, Future<void>> _collectionProcessingQueue = {};
+  static final Map<String, Timer> _batchDoneDebounceTimers = {};
 
   static bool _hasPermission(Map<String, dynamic> permissions, String key) {
     return permissions[key] == true;
@@ -166,9 +171,47 @@ class SyncService {
   static bool get isRealTimeSyncActive =>
       _isInitialized && _subscriptions.isNotEmpty;
 
+  static bool get isDownloadInProgress => _isDownloading;
+
   /// Get subscription status for debugging
   static Map<String, bool> get subscriptionStatus =>
       Map.unmodifiable(_subscriptionStatus);
+
+  static Future<void> _waitForRealtimeInitIfRunning({
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final initFuture = _realtimeInitCompleter;
+    if (!_isInitializingRealtime || initFuture == null) return;
+    try {
+      await initFuture.future.timeout(timeout);
+    } catch (_) {
+      debugPrint('⚠️ waitForRealtimeInit timeout after ${timeout.inSeconds}s');
+    }
+  }
+
+  static Future<void> _waitForDownloadIfRunning({
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    final downloadFuture = _downloadCompleter;
+    if (!_isDownloading || downloadFuture == null) return;
+    try {
+      await downloadFuture.future.timeout(timeout);
+    } catch (_) {
+      debugPrint('⚠️ waitForDownload timeout after ${timeout.inSeconds}s');
+    }
+  }
+
+  static void _scheduleBatchDone(String collection, VoidCallback onBatchDone) {
+    _batchDoneDebounceTimers[collection]?.cancel();
+    _batchDoneDebounceTimers[collection] = Timer(
+      const Duration(milliseconds: 250),
+      () {
+        if (_subscriptionStatus[collection] != false) {
+          onBatchDone();
+        }
+      },
+    );
+  }
 
   /// Helper: Lấy timestamp từ data (hỗ trợ cả Timestamp và int)
   static int _getTimestamp(dynamic value) {
@@ -497,19 +540,32 @@ class SyncService {
   }
 
   static Future<void> _initRealTimeSyncImpl(VoidCallback onDataChanged) async {
-    PerfMonitor.start('initRealTimeSync');
-    debugPrint("Khởi tạo real-time sync...");
-    // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
-    await cancelAllSubscriptions();
-
-    // Store callback for potential reinitialization
-    _onDataChangedCallback = onDataChanged;
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      debugPrint("initRealTimeSync: Không có user, bỏ qua");
+    if (_isInitializingRealtime) {
+      debugPrint('⏳ initRealTimeSync: another init is running, waiting...');
+      await _waitForRealtimeInitIfRunning();
       return;
     }
+
+    // Avoid running real-time setup while a full cloud download is in-flight.
+    await _waitForDownloadIfRunning();
+
+    _isInitializingRealtime = true;
+    _realtimeInitCompleter = Completer<void>();
+    PerfMonitor.start('initRealTimeSync');
+
+    try {
+      debugPrint("Khởi tạo real-time sync...");
+      // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
+      await cancelAllSubscriptions();
+
+      // Store callback for potential reinitialization
+      _onDataChangedCallback = onDataChanged;
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint("initRealTimeSync: Không có user, bỏ qua");
+        return;
+      }
 
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
     final permissions = await UserService.getCurrentUserPermissions();
@@ -925,7 +981,6 @@ class SyncService {
     // CRITICAL subscriptions done — mark as initialized so UI can proceed
     // ═══════════════════════════════════════════════════════════════════════
     _isInitialized = true;
-    PerfMonitor.stop('initRealTimeSync');
     debugPrint(
       "✅ Critical sync ready (${_subscriptions.length} subs) — "
       "deferred collections will load in 3s...",
@@ -947,6 +1002,14 @@ class SyncService {
     });
 
     debugPrint("📊 Subscription status: $_subscriptionStatus");
+    } finally {
+      _isInitializingRealtime = false;
+      if (_realtimeInitCompleter != null &&
+          !_realtimeInitCompleter!.isCompleted) {
+        _realtimeInitCompleter!.complete();
+      }
+      PerfMonitor.stop('initRealTimeSync');
+    }
   }
 
   /// Khởi tạo các subscription KHÔNG CẤP BÁCH sau 3 giây delay
@@ -1962,40 +2025,46 @@ class SyncService {
     _subscriptionStatus[collection] = true;
 
     final sub = query.snapshots().listen(
-      (snapshot) async {
-        // Double check shop không bị xóa trong lúc đang xử lý
-        if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
+      (snapshot) {
+        final previous = _collectionProcessingQueue[collection] ??
+            Future<void>.value();
+        _collectionProcessingQueue[collection] = previous.then((_) async {
+          // Double check shop không bị xóa trong lúc đang xử lý
+          if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
+            debugPrint(
+              "⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted",
+            );
+            return;
+          }
+
+          // Log initial sync or updates
           debugPrint(
-            "⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted",
+            "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
           );
-          return;
-        }
 
-        // Log initial sync or updates
-        debugPrint(
-          "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
-        );
+          if (!snapshot.metadata.isFromCache && snapshot.docChanges.isNotEmpty) {
+            FirebaseStatsService.trackRead(
+              collection,
+              snapshot.docChanges.length,
+            );
+          }
 
-        if (!snapshot.metadata.isFromCache && snapshot.docChanges.isNotEmpty) {
-          FirebaseStatsService.trackRead(
-            collection,
-            snapshot.docChanges.length,
-          );
-        }
+          for (var change in snapshot.docChanges) {
+            var data = change.doc.data();
+            if (data == null) continue;
 
-        for (var change in snapshot.docChanges) {
-          var data = change.doc.data();
-          if (data == null) continue;
+            // Giải mã dữ liệu nếu được mã hóa
+            data = EncryptionService.decryptMap(data);
 
-          // Giải mã dữ liệu nếu được mã hóa
-          data = EncryptionService.decryptMap(data);
-
-          debugPrint(
-            "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
-          );
-          await onChanged(data, change.doc.id);
-        }
-        onBatchDone();
+            debugPrint(
+              "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
+            );
+            await onChanged(data, change.doc.id);
+          }
+          _scheduleBatchDone(collection, onBatchDone);
+        }).catchError((error, stack) {
+          debugPrint('❌ Snapshot queue error in $collection: $error');
+        });
       },
       onError: (e) {
         final errorStr = e.toString();
@@ -2121,6 +2190,11 @@ class SyncService {
     for (var sub in _subscriptions) {
       await sub.cancel();
     }
+    for (final timer in _batchDoneDebounceTimers.values) {
+      timer.cancel();
+    }
+    _batchDoneDebounceTimers.clear();
+    _collectionProcessingQueue.clear();
     _subscriptions.clear();
     _subscriptionStatus.clear();
     _isInitialized = false;
@@ -3597,6 +3671,18 @@ class SyncService {
       debugPrint("⏸️ downloadAllFromCloud: Đang download, bỏ qua");
       return;
     }
+
+    // Tránh chạy song song với quá trình khởi tạo listener realtime.
+    await _waitForRealtimeInitIfRunning();
+
+    // Khi realtime đã active, không cần full pull lặp lại ở background.
+    if (!force && isRealTimeSyncActive) {
+      debugPrint(
+        '⏸️ downloadAllFromCloud: realtime sync active, skip background full pull',
+      );
+      return;
+    }
+
     if (!force && _lastDownloadTime != null) {
       final elapsed = DateTime.now().difference(_lastDownloadTime!);
       if (elapsed < _downloadCooldown) {
@@ -3607,6 +3693,7 @@ class SyncService {
       }
     }
     _isDownloading = true;
+    _downloadCompleter = Completer<void>();
     _lastDownloadTime = DateTime.now();
 
     debugPrint("Bắt đầu downloadAllFromCloud (force=$force)...");
@@ -3897,6 +3984,10 @@ class SyncService {
       debugPrint("Lỗi downloadAllFromCloud: $e");
     } finally {
       _isDownloading = false;
+      if (_downloadCompleter != null && !_downloadCompleter!.isCompleted) {
+        _downloadCompleter!.complete();
+      }
+      _downloadCompleter = null;
     }
   }
 

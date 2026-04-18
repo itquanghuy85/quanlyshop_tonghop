@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -17,6 +18,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   String _status = "";
   bool _isNavigating = false;
   bool _isDisposed = false;
+  final List<Timer> _sequenceTimers = [];
 
   // Animation controllers
   late AnimationController _bgController;
@@ -143,16 +145,25 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     _startInit();
   }
 
-  Future<void> _startAnimationSequence() async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    if (!_canRunAnimations()) return;
-    _safeForward(_logoController, 'logo');
-    await Future.delayed(const Duration(milliseconds: 500));
-    if (!_canRunAnimations()) return;
-    _safeForward(_textController, 'text');
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!_canRunAnimations()) return;
-    _safeForward(_progressController, 'progress');
+  void _startAnimationSequence() {
+    _sequenceTimers.add(
+      Timer(const Duration(milliseconds: 100), () {
+        if (!_canRunAnimations()) return;
+        _safeForward(_logoController, 'logo');
+      }),
+    );
+    _sequenceTimers.add(
+      Timer(const Duration(milliseconds: 600), () {
+        if (!_canRunAnimations()) return;
+        _safeForward(_textController, 'text');
+      }),
+    );
+    _sequenceTimers.add(
+      Timer(const Duration(milliseconds: 1000), () {
+        if (!_canRunAnimations()) return;
+        _safeForward(_progressController, 'progress');
+      }),
+    );
   }
 
   bool _canRunAnimations() {
@@ -173,6 +184,10 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   @override
   void dispose() {
     _isDisposed = true;
+    for (final timer in _sequenceTimers) {
+      timer.cancel();
+    }
+    _sequenceTimers.clear();
     _bgController.dispose();
     _logoController.dispose();
     _textController.dispose();

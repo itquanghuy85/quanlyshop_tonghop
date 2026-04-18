@@ -868,8 +868,12 @@ class UserService {
 
     // Khởi tạo EncryptionService với shopId để mã hóa/giải mã dữ liệu
     if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {
-      EncryptionService.init(_cachedShopId!);
-      debugPrint('EncryptionService initialized for shop: $_cachedShopId');
+      try {
+        await EncryptionService.init(_cachedShopId!);
+        debugPrint('EncryptionService initialized for shop: $_cachedShopId');
+      } catch (e) {
+        debugPrint('EncryptionService init failed for $_cachedShopId: $e');
+      }
     }
 
     // Determine displayName with multiple fallbacks

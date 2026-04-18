@@ -14,8 +14,13 @@ class EncryptionService {
   
   static encrypt_lib.Encrypter? _encrypter;
   static encrypt_lib.IV? _iv;
+  static encrypt_lib.Encrypter? _fallbackEncrypter;
+  static encrypt_lib.IV? _fallbackIv;
+  static String? _currentShopId;
   static bool _initialized = false;
   static bool _enabled = true;
+  static DateTime? _decryptErrorWindowStart;
+  static int _decryptErrorCountInWindow = 0;
   
   /// Các trường cần mã hóa (dữ liệu nhạy cảm)
   static const List<String> sensitiveFields = [
@@ -45,31 +50,74 @@ class EncryptionService {
 
   /// Khởi tạo service với shopId
   static Future<void> init(String shopId) async {
-    if (_initialized && _encrypter != null) return;
+    final normalizedShopId = shopId.trim();
+    if (normalizedShopId.isEmpty) {
+      debugPrint('EncryptionService init skipped: empty shopId');
+      return;
+    }
+
+    if (_initialized && _encrypter != null && _currentShopId == normalizedShopId) {
+      return;
+    }
     
     try {
+      // Keep the previous key/iv as fallback for transitional decrypts.
+      if (_encrypter != null &&
+          _iv != null &&
+          _currentShopId != null &&
+          _currentShopId != normalizedShopId) {
+        _fallbackEncrypter = _encrypter;
+        _fallbackIv = _iv;
+      }
+
       // Tạo key từ shopId + master secret
-      final keySource = '$shopId$_masterSecret';
+      final keySource = '$normalizedShopId$_masterSecret';
       final keyBytes = sha256.convert(utf8.encode(keySource)).bytes;
       final key = encrypt_lib.Key(Uint8List.fromList(keyBytes));
       
       // IV cố định từ shopId (16 bytes)
-      final ivSource = 'IV_$shopId';
+      final ivSource = 'IV_$normalizedShopId';
       final ivBytes = md5.convert(utf8.encode(ivSource)).bytes;
       _iv = encrypt_lib.IV(Uint8List.fromList(ivBytes));
       
       _encrypter = encrypt_lib.Encrypter(encrypt_lib.AES(key, mode: encrypt_lib.AESMode.cbc));
+      _currentShopId = normalizedShopId;
       _initialized = true;
       
       // Load trạng thái enabled
       final prefs = await SharedPreferences.getInstance();
       _enabled = prefs.getBool(_enabledKey) ?? true;
       
-      debugPrint('EncryptionService: Initialized for shop $shopId, enabled=$_enabled');
+      debugPrint('EncryptionService: Initialized for shop $normalizedShopId, enabled=$_enabled');
     } catch (e) {
       debugPrint('EncryptionService init error: $e');
       _initialized = false;
     }
+  }
+
+  static void _logDecryptError(Object error) {
+    final now = DateTime.now();
+    final windowStart = _decryptErrorWindowStart;
+    if (windowStart == null || now.difference(windowStart).inSeconds >= 10) {
+      _decryptErrorWindowStart = now;
+      _decryptErrorCountInWindow = 0;
+    }
+
+    if (_decryptErrorCountInWindow < 5) {
+      debugPrint('Decryption error: $error');
+    } else if (_decryptErrorCountInWindow == 5) {
+      debugPrint('Decryption error: too many failures, suppressing logs for 10s');
+    }
+    _decryptErrorCountInWindow++;
+  }
+
+  static String _tryDecryptWith(
+    encrypt_lib.Encrypter encrypter,
+    encrypt_lib.IV iv,
+    String base64Text,
+  ) {
+    final encrypted = encrypt_lib.Encrypted.fromBase64(base64Text);
+    return encrypter.decrypt(encrypted, iv: iv);
   }
 
   /// Bật/tắt mã hóa
@@ -112,10 +160,18 @@ class EncryptionService {
     
     try {
       final base64Text = encryptedText.substring(4); // Bỏ prefix 'ENC:'
-      final encrypted = encrypt_lib.Encrypted.fromBase64(base64Text);
-      return _encrypter!.decrypt(encrypted, iv: _iv);
+      return _tryDecryptWith(_encrypter!, _iv!, base64Text);
     } catch (e) {
-      debugPrint('Decryption error: $e');
+      // Fallback: try previous shop key during switch-shop transitions.
+      if (_fallbackEncrypter != null && _fallbackIv != null) {
+        try {
+          final base64Text = encryptedText.substring(4);
+          return _tryDecryptWith(_fallbackEncrypter!, _fallbackIv!, base64Text);
+        } catch (_) {
+          // fall through to original text
+        }
+      }
+      _logDecryptError(e);
       return encryptedText; // Trả về nguyên bản nếu lỗi
     }
   }
@@ -178,8 +234,11 @@ class EncryptionService {
 
   /// Reset service (khi logout)
   static void reset() {
+    _fallbackEncrypter = null;
+    _fallbackIv = null;
     _encrypter = null;
     _iv = null;
+    _currentShopId = null;
     _initialized = false;
     debugPrint('EncryptionService: Reset');
   }

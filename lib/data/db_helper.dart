@@ -1602,35 +1602,56 @@ class DBHelper {
         }
         if (oldV < 30) {
           try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+            final importCols = await db.rawQuery(
+              'PRAGMA table_info(supplier_import_history)',
             );
-          } catch (e) {
-            debugPrint('DB upgrade error (supplier_import_history shopId): $e');
-          }
-          try {
+            final importColNames = importCols
+                .map((c) => c['name'] as String)
+                .toSet();
+
+            if (!importColNames.contains('shopId')) {
+              await db.execute(
+                'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+              );
+            }
+            if (!importColNames.contains('firestoreId')) {
+              await db.execute(
+                'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT',
+              );
+            }
             await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-            );
-          } catch (e) {
-            debugPrint('DB upgrade error (supplier_product_prices shopId): $e');
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
-            );
-          } catch (e) {
-            debugPrint(
-              'DB upgrade error (supplier_import_history firestoreId): $e',
-            );
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_import_history_firestoreId_unique ON supplier_import_history(firestoreId)',
             );
           } catch (e) {
             debugPrint(
-              'DB upgrade error (supplier_product_prices firestoreId): $e',
+              'DB upgrade error (supplier_import_history columns v30): $e',
+            );
+          }
+
+          try {
+            final priceCols = await db.rawQuery(
+              'PRAGMA table_info(supplier_product_prices)',
+            );
+            final priceColNames = priceCols
+                .map((c) => c['name'] as String)
+                .toSet();
+
+            if (!priceColNames.contains('shopId')) {
+              await db.execute(
+                'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
+              );
+            }
+            if (!priceColNames.contains('firestoreId')) {
+              await db.execute(
+                'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT',
+              );
+            }
+            await db.execute(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_product_prices_firestoreId_unique ON supplier_product_prices(firestoreId)',
+            );
+          } catch (e) {
+            debugPrint(
+              'DB upgrade error (supplier_product_prices columns v30): $e',
             );
           }
         }
@@ -1724,44 +1745,62 @@ class DBHelper {
         if (oldV < 37) {
           // Ensure supplier tables have required columns
           try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
+            final importCols = await db.rawQuery(
+              'PRAGMA table_info(supplier_import_history)',
             );
-            debugPrint(
-              'DB upgrade: added firestoreId to supplier_import_history',
+            final importColNames = importCols
+                .map((c) => c['name'] as String)
+                .toSet();
+            if (!importColNames.contains('firestoreId')) {
+              await db.execute(
+                'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT',
+              );
+              debugPrint(
+                'DB upgrade: added firestoreId to supplier_import_history',
+              );
+            }
+            if (!importColNames.contains('shopId')) {
+              await db.execute(
+                'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+              );
+              debugPrint('DB upgrade: added shopId to supplier_import_history');
+            }
+            await db.execute(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_import_history_firestoreId_unique ON supplier_import_history(firestoreId)',
             );
           } catch (e) {
             debugPrint(
-              'DB upgrade error (supplier_import_history firestoreId): $e',
+              'DB upgrade error (supplier_import_history columns v37): $e',
             );
           }
           try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+            final priceCols = await db.rawQuery(
+              'PRAGMA table_info(supplier_product_prices)',
             );
-            debugPrint('DB upgrade: added shopId to supplier_import_history');
+            final priceColNames = priceCols
+                .map((c) => c['name'] as String)
+                .toSet();
+            if (!priceColNames.contains('firestoreId')) {
+              await db.execute(
+                'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT',
+              );
+              debugPrint(
+                'DB upgrade: added firestoreId to supplier_product_prices',
+              );
+            }
+            if (!priceColNames.contains('shopId')) {
+              await db.execute(
+                'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
+              );
+              debugPrint('DB upgrade: added shopId to supplier_product_prices');
+            }
+            await db.execute(
+              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_product_prices_firestoreId_unique ON supplier_product_prices(firestoreId)',
+            );
           } catch (e) {
-            debugPrint('DB upgrade error (supplier_import_history shopId): $e');
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
-            );
             debugPrint(
-              'DB upgrade: added firestoreId to supplier_product_prices',
+              'DB upgrade error (supplier_product_prices columns v37): $e',
             );
-          } catch (e) {
-            debugPrint(
-              'DB upgrade error (supplier_product_prices firestoreId): $e',
-            );
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-            );
-            debugPrint('DB upgrade: added shopId to supplier_product_prices');
-          } catch (e) {
-            debugPrint('DB upgrade error (supplier_product_prices shopId): $e');
           }
         }
         if (oldV < 39) {

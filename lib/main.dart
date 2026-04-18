@@ -182,7 +182,7 @@ class _MyAppState extends State<MyApp> {
     final supportedCodes = ['vi', 'en'];
     final code = supportedCodes.contains(languageCode) ? languageCode : 'vi';
     setState(() {
-      _locale = Locale(code!);
+      _locale = Locale(code ?? 'vi');
     });
   }
 

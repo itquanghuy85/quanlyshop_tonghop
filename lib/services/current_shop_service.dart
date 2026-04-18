@@ -266,7 +266,7 @@ class CurrentShopService {
       LabelSettingsService().clearCache();
 
       // 6. Re-initialize encryption for new shop
-      EncryptionService.init(newShopId);
+      await EncryptionService.init(newShopId);
       debugPrint(
         'CurrentShopService: Re-initialized encryption for $newShopId',
       );
