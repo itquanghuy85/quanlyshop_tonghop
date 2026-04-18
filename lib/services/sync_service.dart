@@ -22,6 +22,7 @@ import 'sync_orchestrator.dart';
 import 'event_bus.dart';
 import 'claims_service.dart';
 import 'shop_deletion_service.dart';
+import 'firebase_stats_service.dart';
 import '../utils/perf_monitor.dart';
 
 class SyncService {
@@ -883,6 +884,10 @@ class SyncService {
       final data = snapshot.data();
       if (data == null) return;
 
+      if (!snapshot.metadata.isFromCache) {
+        FirebaseStatsService.trackRead('shops', 1);
+      }
+
       try {
         debugPrint("📡 Shop data changed for shopId: $shopId");
 
@@ -914,6 +919,7 @@ class SyncService {
       }
     }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
     _subscriptions.add(shopSub);
+    FirebaseStatsService.updateListenerCount(_subscriptions.length);
 
     // ═══════════════════════════════════════════════════════════════════════
     // CRITICAL subscriptions done — mark as initialized so UI can proceed
@@ -1055,7 +1061,12 @@ class SyncService {
               data['firestoreId'] = docId;
               data['isSynced'] = 1;
               // Convert Timestamp fields
-              for (final key in ['createdAt', 'updatedAt', 'approvedAt', 'targetRespondedAt']) {
+              for (final key in [
+                'createdAt',
+                'updatedAt',
+                'approvedAt',
+                'targetRespondedAt',
+              ]) {
                 if (data[key] is Timestamp) {
                   data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
                 }
@@ -1733,6 +1744,14 @@ class SyncService {
             .snapshots()
             .listen(
               (snapshot) async {
+                if (!snapshot.metadata.isFromCache &&
+                    snapshot.docChanges.isNotEmpty) {
+                  FirebaseStatsService.trackRead(
+                    'product_categories',
+                    snapshot.docChanges.length,
+                  );
+                }
+
                 for (final change in snapshot.docChanges) {
                   try {
                     final docId = change.doc.id;
@@ -1765,6 +1784,7 @@ class SyncService {
                   debugPrint("Sync error in product_categories: $e"),
             );
         _subscriptions.add(categoriesSub);
+        FirebaseStatsService.updateListenerCount(_subscriptions.length);
       }
     } catch (e) {
       debugPrint("Lỗi khởi tạo product_categories sync: $e");
@@ -1956,6 +1976,13 @@ class SyncService {
           "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
         );
 
+        if (!snapshot.metadata.isFromCache && snapshot.docChanges.isNotEmpty) {
+          FirebaseStatsService.trackRead(
+            collection,
+            snapshot.docChanges.length,
+          );
+        }
+
         for (var change in snapshot.docChanges) {
           var data = change.doc.data();
           if (data == null) continue;
@@ -2009,6 +2036,7 @@ class SyncService {
     );
 
     _subscriptions.add(sub);
+    FirebaseStatsService.updateListenerCount(_subscriptions.length);
   }
 
   /// Helper để xóa record local theo firestoreId khi cloud record đã bị soft-delete
@@ -2097,6 +2125,7 @@ class SyncService {
     _subscriptionStatus.clear();
     _isInitialized = false;
     _currentShopId = null;
+    FirebaseStatsService.updateListenerCount(0);
     debugPrint('✅ All subscriptions cancelled');
   }
 
@@ -3524,7 +3553,8 @@ class SyncService {
         if (shiftSwaps.isNotEmpty) {
           for (var swap in shiftSwaps) {
             try {
-              final docId = swap.firestoreId ??
+              final docId =
+                  swap.firestoreId ??
                   'ss_${swap.requesterId}_${swap.swapDate}_${swap.createdAt}';
               Map<String, dynamic> data = swap.toMap();
               data['shopId'] = shopId;
@@ -3533,10 +3563,10 @@ class SyncService {
               data.remove('isSynced');
               data['updatedAt'] = FieldValue.serverTimestamp();
               final encData = EncryptionService.encryptMap(data);
-              await _db.collection('shift_swaps').doc(docId).set(
-                    encData,
-                    SetOptions(merge: true),
-                  );
+              await _db
+                  .collection('shift_swaps')
+                  .doc(docId)
+                  .set(encData, SetOptions(merge: true));
               // Mark synced locally
               swap.isSynced = true;
               swap.firestoreId = docId;
@@ -3719,6 +3749,10 @@ class SyncService {
 
           final snap = await query.get();
           debugPrint("  -> Found ${snap.docs.length} documents in $col");
+
+          if (!snap.metadata.isFromCache && snap.docs.isNotEmpty) {
+            FirebaseStatsService.trackRead(col, snap.docs.length);
+          }
 
           int successCount = 0;
           int skipCount = 0;
@@ -3966,6 +4000,11 @@ class SyncService {
       debugPrint(
         "syncCustomersFromCloud: Tìm thấy ${querySnapshot.docs.length} customers từ cloud",
       );
+
+      if (!querySnapshot.metadata.isFromCache &&
+          querySnapshot.docs.isNotEmpty) {
+        FirebaseStatsService.trackRead('customers', querySnapshot.docs.length);
+      }
 
       // Upsert từng customer vào local DB
       for (var doc in querySnapshot.docs) {

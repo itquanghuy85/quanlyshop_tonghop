@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../services/social_auth_service.dart';
 import '../services/super_admin_security_service.dart';
@@ -25,6 +24,7 @@ import 'user_guide_view.dart';
 import 'shop_selector_view.dart';
 import 'staff_permissions_view.dart';
 import 'category_management_view.dart';
+import 'firebase_stats_view.dart';
 import '../widgets/responsive_wrapper.dart';
 
 class SettingsView extends StatefulWidget {
@@ -38,7 +38,7 @@ class SettingsView extends StatefulWidget {
 class _SettingsViewState extends State<SettingsView> {
   // Localization getter
   AppLocalizations get loc => AppLocalizations.of(context)!;
-  
+
   String _role = 'user';
   bool _loading = true;
   late final Future<String> _versionFuture;
@@ -47,7 +47,7 @@ class _SettingsViewState extends State<SettingsView> {
   List<Map<String, dynamic>> _allShops = [];
   String? _selectedShopId;
   bool _loadingShops = false;
-  
+
   // Current selected locale
   // Language selection hidden — Vietnamese only
 
@@ -59,7 +59,7 @@ class _SettingsViewState extends State<SettingsView> {
     _loadShopsForAdmin();
     // Language selection hidden
   }
-  
+
   /// Load danh sách shops cho super admin
   Future<void> _loadShopsForAdmin() async {
     if (!UserService.isCurrentUserSuperAdmin()) return;
@@ -69,8 +69,8 @@ class _SettingsViewState extends State<SettingsView> {
       if (mounted) {
         final savedShopId = UserService.getAdminSelectedShop();
         // Validate that savedShopId exists in shops list
-        final shopExists = savedShopId != null &&
-            shops.any((s) => s['id'] == savedShopId);
+        final shopExists =
+            savedShopId != null && shops.any((s) => s['id'] == savedShopId);
         setState(() {
           _allShops = shops;
           _selectedShopId = shopExists ? savedShopId : null;
@@ -96,10 +96,7 @@ class _SettingsViewState extends State<SettingsView> {
     setState(() => _selectedShopId = shopId);
 
     // Hiển thị loading
-    NotificationService.showSnackBar(
-      loc.loadingShopData,
-      color: Colors.blue,
-    );
+    NotificationService.showSnackBar(loc.loadingShopData, color: Colors.blue);
 
     try {
       // Hủy subscriptions cũ trước
@@ -179,18 +176,14 @@ class _SettingsViewState extends State<SettingsView> {
   void _openHelpCenter() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => HelpCenterView(userRole: _role),
-      ),
+      MaterialPageRoute(builder: (_) => HelpCenterView(userRole: _role)),
     );
   }
 
   void _openUserGuide() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => UserGuideView(userRole: _role),
-      ),
+      MaterialPageRoute(builder: (_) => UserGuideView(userRole: _role)),
     );
   }
 
@@ -211,7 +204,10 @@ class _SettingsViewState extends State<SettingsView> {
       builder: (ctx) => AlertDialog(
         title: Text(
           loc.dangerWarning,
-          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.red,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -282,216 +278,221 @@ class _SettingsViewState extends State<SettingsView> {
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: CustomAppBar.build(
-        title: localizations.systemSettings,
-      ),
+      appBar: CustomAppBar.build(title: localizations.systemSettings),
       body: ResponsiveCenter(
         maxWidth: 800,
         child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(10),
-              children: [
-                // ====== TÀI KHOẢN & BẢO MẬT - ĐẶT LÊN ĐẦU ĐỂ DỄ TÌM ======
-                _buildSection(localizations.accountAndSecurity),
-                // Card tài khoản gọn: avatar + tên + email + role + liên kết + đăng xuất
-                _buildAccountCard(localizations),
-                const SizedBox(height: 8),
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(10),
+                children: [
+                  // ====== TÀI KHOẢN & BẢO MẬT - ĐẶT LÊN ĐẦU ĐỂ DỄ TÌM ======
+                  _buildSection(localizations.accountAndSecurity),
+                  // Card tài khoản gọn: avatar + tên + email + role + liên kết + đăng xuất
+                  _buildAccountCard(localizations),
+                  const SizedBox(height: 8),
 
-                // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
-                if (UserService.isCurrentUserSuperAdmin()) ...[
+                  // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
+                  if (UserService.isCurrentUserSuperAdmin()) ...[
+                    Card(
+                      color: Colors.deepPurple.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: BorderSide(color: Colors.deepPurple.shade200),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.swap_horiz,
+                          color: Colors.deepPurple,
+                        ),
+                        title: Text(
+                          localizations.selectOtherShop,
+                          style: const TextStyle(
+                            color: Colors.deepPurple,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          "${localizations.currentShop}: ${UserService.getAdminSelectedShop()?.substring(0, 8) ?? 'N/A'}...",
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
+                          ),
+                        ),
+                        onTap: () async {
+                          await SyncService.cancelAllSubscriptions();
+                          await DBHelper().clearAllData();
+                          UserService.setAdminSelectedShop(null);
+                          if (mounted) {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(
+                                builder: (context) => ShopSelectorView(
+                                  setLocale: widget.setLocale,
+                                ),
+                              ),
+                              (route) => false,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // ====== SHOP SWITCHER (Owner với nhiều shop) ======
+                  ShopSwitcherWidget(
+                    onShopChanged: () {
+                      // Reload settings when shop changes
+                      _loadRole();
+                      _loadShopsForAdmin();
+                    },
+                  ),
+
+                  // ====== HƯỚNG DẪN SỬ DỤNG - MOVE LÊN ĐẦU ĐỂ DỄ TÌM ======
+                  _buildSection(loc.userGuideSection),
+
+                  // Card chính: Hướng dẫn sử dụng đầy đủ
                   Card(
-                    color: Colors.deepPurple.shade50,
+                    color: Colors.blue.shade50,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.deepPurple.shade200),
+                      borderRadius: BorderRadius.circular(18),
+                      side: BorderSide(color: Colors.blue.shade100),
                     ),
                     child: ListTile(
-                      leading: const Icon(
-                        Icons.swap_horiz,
-                        color: Colors.deepPurple,
+                      contentPadding: const EdgeInsets.all(10),
+                      dense: true,
+                      leading: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.blue.shade400,
+                              Colors.blue.shade600,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.menu_book_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                       ),
                       title: Text(
-                        localizations.selectOtherShop,
+                        loc.userGuideTitle,
                         style: const TextStyle(
-                          color: Colors.deepPurple,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 6),
+                          Text(
+                            loc.userGuideDesc,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.body1.fontSize,
+                              color: Colors.blue.shade800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _buildFeatureChip(
+                                loc.inventoryFeature,
+                                Colors.blue,
+                              ),
+                              _buildFeatureChip(
+                                loc.salesFeature,
+                                Colors.orange,
+                              ),
+                              _buildFeatureChip(loc.repairFeature, Colors.blue),
+                              _buildFeatureChip(loc.reportFeature, Colors.pink),
+                            ],
+                          ),
+                        ],
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      onTap: _openUserGuide,
+                    ),
+                  ),
+
+                  // ĐỒNG BỘ DỮ LIỆU - Chỉ còn 1 entry point duy nhất
+                  const SizedBox(height: 10),
+                  _buildSection(localizations.syncManagement),
+                  // Card đơn giản mở Trung tâm đồng bộ
+                  Card(
+                    color: Colors.teal.shade50,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                      side: BorderSide(color: Colors.teal.shade200),
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.cloud_sync,
+                          color: Colors.teal,
+                          size: 28,
+                        ),
+                      ),
+                      title: Text(
+                        localizations.syncCenter,
+                        style: const TextStyle(
+                          color: Colors.teal,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        "${localizations.currentShop}: ${UserService.getAdminSelectedShop()?.substring(0, 8) ?? 'N/A'}...",
+                        localizations.syncCenterDesc,
                         style: TextStyle(
                           fontSize: AppTextStyles.body1.fontSize,
                         ),
                       ),
-                      onTap: () async {
-                        await SyncService.cancelAllSubscriptions();
-                        await DBHelper().clearAllData();
-                        UserService.setAdminSelectedShop(null);
-                        if (mounted) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ShopSelectorView(setLocale: widget.setLocale),
-                            ),
-                            (route) => false,
-                          );
-                        }
+                      trailing: const Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: Colors.teal,
+                      ),
+                      onTap: () {
+                        showAppBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => const SyncCenterSheet(),
+                        );
                       },
                     ),
                   ),
+
                   const SizedBox(height: 8),
-                ],
-
-                // ====== SHOP SWITCHER (Owner với nhiều shop) ======
-                ShopSwitcherWidget(
-                  onShopChanged: () {
-                    // Reload settings when shop changes
-                    _loadRole();
-                    _loadShopsForAdmin();
-                  },
-                ),
-                
-                // ====== HƯỚNG DẪN SỬ DỤNG - MOVE LÊN ĐẦU ĐỂ DỄ TÌM ======
-                _buildSection(loc.userGuideSection),
-                
-                // Card chính: Hướng dẫn sử dụng đầy đủ
-                Card(
-                  color: Colors.blue.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    side: BorderSide(color: Colors.blue.shade100),
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(10),
-                    dense: true,
-                    leading: Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.blue.shade400, Colors.blue.shade600],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.blue.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.menu_book_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                    title: Text(
-                      loc.userGuideTitle,
-                      style: const TextStyle(
-                        color: Colors.blue,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 6),
-                        Text(
-                          loc.userGuideDesc,
-                          style: TextStyle(
-                            fontSize: AppTextStyles.body1.fontSize,
-                            color: Colors.blue.shade800,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            _buildFeatureChip(loc.inventoryFeature, Colors.blue),
-                            _buildFeatureChip(loc.salesFeature, Colors.orange),
-                            _buildFeatureChip(loc.repairFeature, Colors.blue),
-                            _buildFeatureChip(loc.reportFeature, Colors.pink),
-                          ],
-                        ),
-                      ],
-                    ),
-                    trailing: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_forward_ios,
-                        size: 16,
-                        color: Colors.blue,
-                      ),
-                    ),
-                    onTap: _openUserGuide,
-                  ),
-                ),
-
-                // ĐỒNG BỘ DỮ LIỆU - Chỉ còn 1 entry point duy nhất
-                const SizedBox(height: 10),
-                _buildSection(localizations.syncManagement),
-                // Card đơn giản mở Trung tâm đồng bộ
-                Card(
-                  color: Colors.teal.shade50,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    side: BorderSide(color: Colors.teal.shade200),
-                  ),
-                  child: ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.teal.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.cloud_sync,
-                        color: Colors.teal,
-                        size: 28,
-                      ),
-                    ),
-                    title: Text(
-                      localizations.syncCenter,
-                      style: const TextStyle(
-                        color: Colors.teal,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      localizations.syncCenterDesc,
-                      style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
-                    ),
-                    trailing: const Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: Colors.teal,
-                    ),
-                    onTap: () {
-                      showAppBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => const SyncCenterSheet(),
-                      );
-                    },
-                  ),
-                ),
-
-                // ====== QUẢN LÝ CỬA HÀNG ======
-                const SizedBox(height: 10),
-                _buildSection('Quản lý cửa hàng'),
-                
-                // Quản lý danh mục sản phẩm
-                if (_role == 'owner' || UserService.isCurrentUserSuperAdmin())
                   Card(
                     color: Colors.indigo.shade50,
                     shape: RoundedRectangleBorder(
@@ -506,310 +507,360 @@ class _SettingsViewState extends State<SettingsView> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
-                          Icons.category,
+                          Icons.analytics_outlined,
                           color: Colors.indigo,
                           size: 28,
                         ),
                       ),
                       title: const Text(
-                        'Quản lý danh mục',
+                        'Thống kê Firebase Read/Write',
                         style: TextStyle(
                           color: Colors.indigo,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: const Text(
-                        'Thêm, sửa, xóa danh mục sản phẩm',
+                        'Đếm read/write theo collection, listeners, cloud docs và log realtime',
                       ),
                       trailing: const Icon(
                         Icons.arrow_forward_ios,
                         size: 16,
                         color: Colors.indigo,
                       ),
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FirebaseStatsView(),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ====== QUẢN LÝ CỬA HÀNG ======
+                  const SizedBox(height: 10),
+                  _buildSection('Quản lý cửa hàng'),
+
+                  // Quản lý danh mục sản phẩm
+                  if (_role == 'owner' || UserService.isCurrentUserSuperAdmin())
+                    Card(
+                      color: Colors.indigo.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: BorderSide(color: Colors.indigo.shade200),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.category,
+                            color: Colors.indigo,
+                            size: 28,
+                          ),
+                        ),
+                        title: const Text(
+                          'Quản lý danh mục',
+                          style: TextStyle(
+                            color: Colors.indigo,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Thêm, sửa, xóa danh mục sản phẩm',
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 16,
+                          color: Colors.indigo,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const CategoryManagementView(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                  // NÚT XÓA TRẮNG CHỈ HIỆN CHO SUPER ADMIN
+                  if (UserService.isCurrentUserSuperAdmin()) ...[
+                    const SizedBox(height: 10),
+                    _buildSection(localizations.advancedAdmin),
+
+                    // DROPDOWN CHỌN SHOP
+                    Card(
+                      color: Colors.blue.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: BorderSide(color: Colors.blue.shade200),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.store, color: Colors.blue.shade700),
+                                const SizedBox(width: 10),
+                                Text(
+                                  localizations.selectShopToViewData,
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: AppTextStyles.headline3.fontSize,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+
+                            Text(
+                              localizations.viewShopAsAdmin,
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_loadingShops)
+                              const Center(child: CircularProgressIndicator())
+                            else if (_allShops.isEmpty)
+                              Text(
+                                localizations.noShops,
+                                style: const TextStyle(color: Colors.grey),
+                              )
+                            else
+                              DropdownButtonFormField<String>(
+                                // Safety: ensure value exists in items to prevent assertion error
+                                value:
+                                    _selectedShopId != null &&
+                                        _allShops.any(
+                                          (s) => s['id'] == _selectedShopId,
+                                        )
+                                    ? _selectedShopId
+                                    : null,
+                                decoration: InputDecoration(
+                                  labelText: localizations.selectShopLabel,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                ),
+                                hint: Text(localizations.selectShopPlaceholder),
+                                items: _allShops.map((shop) {
+                                  final shopName =
+                                      shop['name'] ?? 'Shop ${shop['id']}';
+                                  final ownerEmail = shop['ownerEmail'] ?? '';
+                                  return DropdownMenuItem<String>(
+                                    value: shop['id'],
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          shopName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          ownerEmail,
+                                          style: TextStyle(
+                                            fontSize:
+                                                AppTextStyles.body1.fontSize,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: _onShopSelected,
+                                isExpanded: true,
+                                selectedItemBuilder: (context) {
+                                  return _allShops.map((shop) {
+                                    return Text(
+                                      shop['name'] ?? 'Shop ${shop['id']}',
+                                    );
+                                  }).toList();
+                                },
+                              ),
+                            if (_selectedShopId != null) ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.green.shade200,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        localizations.currentlyViewing(
+                                          _allShops.firstWhere(
+                                                (s) =>
+                                                    s['id'] == _selectedShopId,
+                                                orElse: () => {
+                                                  'name': _selectedShopId,
+                                                },
+                                              )['name'] ??
+                                              _selectedShopId,
+                                        ),
+                                        style: const TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // BẢO MẬT SUPER ADMIN - PIN & Audit
+                    _buildSuperAdminSecurityCard(),
+                    const SizedBox(height: 8),
+
+                    Card(
+                      color: Colors.orange.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: BorderSide(color: Colors.orange.shade200),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.admin_panel_settings,
+                          color: Colors.orange,
+                        ),
+                        title: Text(
+                          localizations.staffPermissions,
+                          style: const TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          localizations.viewAndEditStaffPermissions,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
+                          ),
+                        ),
+                        onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const CategoryManagementView(),
+                            builder: (_) => const StaffPermissionsView(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Nút reset hướng dẫn sử dụng
+                    Card(
+                      color: Colors.blue.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: BorderSide(color: Colors.blue.shade200),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.replay, color: Colors.blue),
+                        title: Text(
+                          loc.reviewUserGuide,
+                          style: const TextStyle(
+                            color: Colors.blue,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          loc.resetGuidesDesc,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
+                          ),
+                        ),
+                        onTap: () async {
+                          await FirstTimeGuideService.resetAllGuides();
+                          if (mounted) {
+                            NotificationService.showSnackBar(
+                              loc.guidesReset,
+                              color: Colors.green,
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      color: Colors.red.shade50,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: BorderSide(color: Colors.red.shade200),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.delete_forever,
+                          color: Colors.red,
+                        ),
+                        title: Text(
+                          localizations.resetShopData,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          localizations.resetShopAdminOnly,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.body1.fontSize,
+                          ),
+                        ),
+                        onTap: _handleResetShop,
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+                  Center(
+                    child: FutureBuilder<String>(
+                      future: _versionFuture,
+                      builder: (context, snapshot) {
+                        final versionText = snapshot.data != null
+                            ? localizations.versionFormat(snapshot.data!)
+                            : '${localizations.versionFormat('...')}';
+                        return Text(
+                          versionText,
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: AppTextStyles.caption.fontSize,
                           ),
                         );
                       },
                     ),
                   ),
-
-                // NÚT XÓA TRẮNG CHỈ HIỆN CHO SUPER ADMIN
-                if (UserService.isCurrentUserSuperAdmin()) ...[
-                  const SizedBox(height: 10),
-                  _buildSection(localizations.advancedAdmin),
-
-                  // DROPDOWN CHỌN SHOP
-                  Card(
-                    color: Colors.blue.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.blue.shade200),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.store, color: Colors.blue.shade700),
-                              const SizedBox(width: 10),
-                              Text(
-                                localizations.selectShopToViewData,
-                                style: TextStyle(
-                                  color: Colors.blue.shade700,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: AppTextStyles.headline3.fontSize,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-
-
-                          Text(
-                            localizations.viewShopAsAdmin,
-                            style: TextStyle(
-                              fontSize: AppTextStyles.subtitle1.fontSize,
-                              color: Colors.grey,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          if (_loadingShops)
-                            const Center(child: CircularProgressIndicator())
-                          else if (_allShops.isEmpty)
-                            Text(
-                              localizations.noShops,
-                              style: const TextStyle(color: Colors.grey),
-                            )
-                          else
-                            DropdownButtonFormField<String>(
-                              // Safety: ensure value exists in items to prevent assertion error
-                              value: _selectedShopId != null &&
-                                      _allShops.any((s) => s['id'] == _selectedShopId)
-                                  ? _selectedShopId
-                                  : null,
-                              decoration: InputDecoration(
-                                labelText: localizations.selectShopLabel,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                              ),
-                              hint: Text(localizations.selectShopPlaceholder),
-                              items: _allShops.map((shop) {
-                                final shopName =
-                                    shop['name'] ?? 'Shop ${shop['id']}';
-                                final ownerEmail = shop['ownerEmail'] ?? '';
-                                return DropdownMenuItem<String>(
-                                  value: shop['id'],
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        shopName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        ownerEmail,
-                                        style: TextStyle(
-                                          fontSize:
-                                              AppTextStyles.body1.fontSize,
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: _onShopSelected,
-                              isExpanded: true,
-                              selectedItemBuilder: (context) {
-                                return _allShops.map((shop) {
-                                  return Text(
-                                    shop['name'] ?? 'Shop ${shop['id']}',
-                                  );
-                                }).toList();
-                              },
-                            ),
-                          if (_selectedShopId != null) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Colors.green.shade200,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.green,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      localizations.currentlyViewing(
-                                        _allShops.firstWhere(
-                                              (s) => s['id'] == _selectedShopId,
-                                              orElse: () => {
-                                                'name': _selectedShopId,
-                                              },
-                                            )['name'] ??
-                                            _selectedShopId,
-                                      ),
-                                      style: const TextStyle(
-                                        color: Colors.green,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // BẢO MẬT SUPER ADMIN - PIN & Audit
-                  _buildSuperAdminSecurityCard(),
-                  const SizedBox(height: 8),
-
-                  Card(
-                    color: Colors.orange.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.orange.shade200),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.admin_panel_settings,
-                        color: Colors.orange,
-                      ),
-                      title: Text(
-                        localizations.staffPermissions,
-                        style: const TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        localizations.viewAndEditStaffPermissions,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.body1.fontSize,
-                        ),
-                      ),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const StaffPermissionsView(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Nút reset hướng dẫn sử dụng
-                  Card(
-                    color: Colors.blue.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.blue.shade200),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.replay,
-                        color: Colors.blue,
-                      ),
-                      title: Text(
-                        loc.reviewUserGuide,
-                        style: const TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        loc.resetGuidesDesc,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.body1.fontSize,
-                        ),
-                      ),
-                      onTap: () async {
-                        await FirstTimeGuideService.resetAllGuides();
-                        if (mounted) {
-                          NotificationService.showSnackBar(
-                            loc.guidesReset,
-                            color: Colors.green,
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    color: Colors.red.shade50,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      side: BorderSide(color: Colors.red.shade200),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.delete_forever,
-                        color: Colors.red,
-                      ),
-                      title: Text(
-                        localizations.resetShopData,
-                        style: const TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      subtitle: Text(
-                        localizations.resetShopAdminOnly,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.body1.fontSize,
-                        ),
-                      ),
-                      onTap: _handleResetShop,
-                    ),
-                  ),
                 ],
-
-                const SizedBox(height: 16),
-                Center(
-                  child: FutureBuilder<String>(
-                    future: _versionFuture,
-                    builder: (context, snapshot) {
-                      final versionText = snapshot.data != null
-                          ? localizations.versionFormat(snapshot.data!)
-                          : '${localizations.versionFormat('...')}';
-                      return Text(
-                        versionText,
-                        style: TextStyle(
-                          color: Colors.grey.shade400,
-                          fontSize: AppTextStyles.caption.fontSize,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+              ),
       ),
     );
   }
@@ -861,7 +912,10 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                       title: Text(
                         hasPin ? 'Mã PIN đã bật' : 'Mã PIN chưa thiết lập',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       subtitle: Text(
                         hasPin
@@ -872,12 +926,19 @@ class _SettingsViewState extends State<SettingsView> {
                       trailing: hasPin
                           ? PopupMenuButton<String>(
                               onSelected: (val) {
-                                if (val == 'change') _showSetupPinDialog(isChange: true);
+                                if (val == 'change')
+                                  _showSetupPinDialog(isChange: true);
                                 if (val == 'remove') _showRemovePinDialog();
                               },
                               itemBuilder: (_) => [
-                                const PopupMenuItem(value: 'change', child: Text('Đổi PIN')),
-                                const PopupMenuItem(value: 'remove', child: Text('Tắt PIN')),
+                                const PopupMenuItem(
+                                  value: 'change',
+                                  child: Text('Đổi PIN'),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'remove',
+                                  child: Text('Tắt PIN'),
+                                ),
                               ],
                             )
                           : TextButton(
@@ -889,10 +950,16 @@ class _SettingsViewState extends State<SettingsView> {
                     // Audit Log
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.history, color: Colors.deepPurple),
+                      leading: const Icon(
+                        Icons.history,
+                        color: Colors.deepPurple,
+                      ),
                       title: const Text(
                         'Nhật ký truy cập',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       subtitle: const Text(
                         'Xem lịch sử đăng nhập & thao tác',
@@ -1034,7 +1101,9 @@ class _SettingsViewState extends State<SettingsView> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
-                final verified = await SuperAdminSecurityService.verifyPin(pinC.text);
+                final verified = await SuperAdminSecurityService.verifyPin(
+                  pinC.text,
+                );
                 if (!verified) {
                   setDialogState(() => error = 'Mã PIN không đúng');
                   return;
@@ -1051,7 +1120,10 @@ class _SettingsViewState extends State<SettingsView> {
                   );
                 }
               },
-              child: const Text('TẮT PIN', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'TẮT PIN',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -1082,7 +1154,10 @@ class _SettingsViewState extends State<SettingsView> {
               final logs = snap.data ?? [];
               if (logs.isEmpty) {
                 return const Center(
-                  child: Text('Chưa có nhật ký', style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'Chưa có nhật ký',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 );
               }
               return ListView.separated(
@@ -1118,10 +1193,17 @@ class _SettingsViewState extends State<SettingsView> {
                   }
                   return ListTile(
                     dense: true,
-                    leading: Icon(icon, color: success ? color : Colors.red, size: 20),
+                    leading: Icon(
+                      icon,
+                      color: success ? color : Colors.red,
+                      size: 20,
+                    ),
                     title: Text(
                       _formatAuditAction(action),
-                      style: TextStyle(fontSize: 13, color: success ? Colors.black87 : Colors.red),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: success ? Colors.black87 : Colors.red,
+                      ),
                     ),
                     subtitle: Text(
                       '$timeStr · $platform',
@@ -1172,13 +1254,12 @@ class _SettingsViewState extends State<SettingsView> {
     final googleLinked = SocialAuthService.isGoogleLinked();
     final appleLinked = SocialAuthService.isAppleLinked();
     final passwordLinked = SocialAuthService.isPasswordLinked();
-    final showApple = kIsWeb || (!kIsWeb && Platform.isIOS) || (!kIsWeb && Platform.isMacOS);
+    final showApple =
+        kIsWeb || (!kIsWeb && Platform.isIOS) || (!kIsWeb && Platform.isMacOS);
 
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1189,12 +1270,20 @@ class _SettingsViewState extends State<SettingsView> {
               children: [
                 CircleAvatar(
                   radius: 24,
-                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                  backgroundImage: photoUrl != null
+                      ? NetworkImage(photoUrl)
+                      : null,
                   backgroundColor: Colors.blue.shade100,
                   child: photoUrl == null
                       ? Text(
-                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                          displayName.isNotEmpty
+                              ? displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
                         )
                       : null,
                 ),
@@ -1205,20 +1294,29 @@ class _SettingsViewState extends State<SettingsView> {
                     children: [
                       Text(
                         displayName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         email,
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(10),
@@ -1243,7 +1341,11 @@ class _SettingsViewState extends State<SettingsView> {
                 const SizedBox(width: 6),
                 const Text(
                   'Liên kết tài khoản',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.indigo),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.indigo,
+                  ),
                 ),
               ],
             ),
@@ -1264,7 +1366,9 @@ class _SettingsViewState extends State<SettingsView> {
               label: 'Google',
               linked: googleLinked,
               onLink: () => _linkProvider('google'),
-              onUnlink: googleLinked && SocialAuthService.getLinkedProviders().length > 1
+              onUnlink:
+                  googleLinked &&
+                      SocialAuthService.getLinkedProviders().length > 1
                   ? () => _unlinkProvider('google')
                   : null,
               providerEmail: SocialAuthService.googleEmail,
@@ -1277,7 +1381,9 @@ class _SettingsViewState extends State<SettingsView> {
                 label: 'Apple',
                 linked: appleLinked,
                 onLink: () => _linkProvider('apple'),
-                onUnlink: appleLinked && SocialAuthService.getLinkedProviders().length > 1
+                onUnlink:
+                    appleLinked &&
+                        SocialAuthService.getLinkedProviders().length > 1
                     ? () => _unlinkProvider('apple')
                     : null,
                 providerEmail: SocialAuthService.appleEmail,
@@ -1336,12 +1442,24 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     );
     if (confirm == true) {
-      try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
-      try { EncryptionService.reset(); } catch (_) {}
-      try { UserService.clearCache(); } catch (_) {}
-      try { UserService.setAdminSelectedShop(null); } catch (_) {}
-      try { SuperAdminSecurityService.clearSession(); } catch (_) {}
-      try { await DBHelper().clearAllData(); } catch (_) {}
+      try {
+        await SyncService.cancelAllSubscriptions();
+      } catch (_) {}
+      try {
+        EncryptionService.reset();
+      } catch (_) {}
+      try {
+        UserService.clearCache();
+      } catch (_) {}
+      try {
+        UserService.setAdminSelectedShop(null);
+      } catch (_) {}
+      try {
+        SuperAdminSecurityService.clearSession();
+      } catch (_) {}
+      try {
+        await DBHelper().clearAllData();
+      } catch (_) {}
       try {
         await FirebaseAuth.instance.signOut();
       } catch (e) {
@@ -1359,7 +1477,8 @@ class _SettingsViewState extends State<SettingsView> {
     final googleLinked = SocialAuthService.isGoogleLinked();
     final appleLinked = SocialAuthService.isAppleLinked();
     final passwordLinked = SocialAuthService.isPasswordLinked();
-    final showApple = kIsWeb || (!kIsWeb && Platform.isIOS) || (!kIsWeb && Platform.isMacOS);
+    final showApple =
+        kIsWeb || (!kIsWeb && Platform.isIOS) || (!kIsWeb && Platform.isMacOS);
 
     return Card(
       color: Colors.indigo.shade50,
@@ -1410,7 +1529,9 @@ class _SettingsViewState extends State<SettingsView> {
               label: 'Google',
               linked: googleLinked,
               onLink: () => _linkProvider('google'),
-              onUnlink: googleLinked && SocialAuthService.getLinkedProviders().length > 1
+              onUnlink:
+                  googleLinked &&
+                      SocialAuthService.getLinkedProviders().length > 1
                   ? () => _unlinkProvider('google')
                   : null,
               providerEmail: SocialAuthService.googleEmail,
@@ -1424,7 +1545,9 @@ class _SettingsViewState extends State<SettingsView> {
                 label: 'Apple',
                 linked: appleLinked,
                 onLink: () => _linkProvider('apple'),
-                onUnlink: appleLinked && SocialAuthService.getLinkedProviders().length > 1
+                onUnlink:
+                    appleLinked &&
+                        SocialAuthService.getLinkedProviders().length > 1
                     ? () => _unlinkProvider('apple')
                     : null,
                 providerEmail: SocialAuthService.appleEmail,
@@ -1455,7 +1578,11 @@ class _SettingsViewState extends State<SettingsView> {
             children: [
               Text(label, style: const TextStyle(fontSize: 14)),
               if (linked && providerEmail != null && providerEmail.isNotEmpty)
-                Text(providerEmail, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), overflow: TextOverflow.ellipsis),
+                Text(
+                  providerEmail,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  overflow: TextOverflow.ellipsis,
+                ),
             ],
           ),
         ),
@@ -1566,7 +1693,10 @@ class _SettingsViewState extends State<SettingsView> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('XÁC NHẬN', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'XÁC NHẬN',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -1591,9 +1721,9 @@ class _SettingsViewState extends State<SettingsView> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi hủy liên kết: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi hủy liên kết: $e')));
       }
     }
   }

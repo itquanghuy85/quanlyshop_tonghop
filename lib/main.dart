@@ -27,6 +27,7 @@ import 'services/claims_service.dart'; // Custom claims management
 import 'services/payment_intent_service.dart'; // Payment intents management
 import 'services/current_shop_service.dart'; // Multi-shop support
 import 'services/super_admin_security_service.dart'; // Super admin PIN & audit
+import 'services/firebase_stats_service.dart'; // Firebase read/write stats
 import 'data/db_helper.dart'; // Local database helper
 import 'utils/perf_monitor.dart'; // Performance monitoring
 import 'utils/seed_test_data.dart'; // Test data seeder
@@ -70,6 +71,11 @@ Future<void> _initializeDeferredAppServices() async {
     await ConnectivityService.instance.initialize();
   } catch (e) {
     debugPrint('ConnectivityService initialization failed: $e');
+  }
+  try {
+    await FirebaseStatsService.init();
+  } catch (e) {
+    debugPrint('FirebaseStatsService initialization failed: $e');
   }
 }
 
@@ -136,6 +142,11 @@ Future<void> main() async {
             await ConnectivityService.instance.initialize();
           } catch (e) {
             debugPrint('ConnectivityService initialization failed: $e');
+          }
+          try {
+            await FirebaseStatsService.init();
+          } catch (e) {
+            debugPrint('FirebaseStatsService initialization failed: $e');
           }
         });
 
@@ -717,7 +728,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
         _loggedOutFallbackTimer?.cancel();
         final uid = currentUser.uid;
-        final email = currentUser.email ?? ''; // safe for phone-auth / anonymous users
+        final email =
+            currentUser.email ?? ''; // safe for phone-auth / anonymous users
 
         return FutureBuilder<Map<String, dynamic>>(
           future: _getOrCreateRoleFuture(uid, email),
