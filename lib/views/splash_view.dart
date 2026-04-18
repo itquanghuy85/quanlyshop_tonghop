@@ -16,6 +16,7 @@ class SplashView extends StatefulWidget {
 class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   String _status = "";
   bool _isNavigating = false;
+  bool _isDisposed = false;
 
   // Animation controllers
   late AnimationController _bgController;
@@ -144,15 +145,34 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
   Future<void> _startAnimationSequence() async {
     await Future.delayed(const Duration(milliseconds: 100));
-    _logoController.forward();
+    if (!_canRunAnimations()) return;
+    _safeForward(_logoController, 'logo');
     await Future.delayed(const Duration(milliseconds: 500));
-    _textController.forward();
+    if (!_canRunAnimations()) return;
+    _safeForward(_textController, 'text');
     await Future.delayed(const Duration(milliseconds: 400));
-    _progressController.forward();
+    if (!_canRunAnimations()) return;
+    _safeForward(_progressController, 'progress');
+  }
+
+  bool _canRunAnimations() {
+    return mounted && !_isDisposed && !_isNavigating;
+  }
+
+  void _safeForward(AnimationController controller, String name) {
+    try {
+      if (_canRunAnimations()) {
+        controller.forward();
+      }
+    } catch (e, stack) {
+      debugPrint('⚠️ Splash animation $name forward skipped: $e');
+      debugPrint('⚠️ Splash animation $name stack: $stack');
+    }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
     _bgController.dispose();
     _logoController.dispose();
     _textController.dispose();

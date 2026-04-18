@@ -189,6 +189,17 @@ class DBHelper {
       path,
       version: 96,
       singleInstance: true,
+      onConfigure: (db) async {
+        // iOS stability: use rawQuery for PRAGMA to avoid "not an error"
+        // exception from execute() and ensure WAL is applied.
+        try {
+          await db.rawQuery('PRAGMA journal_mode = WAL');
+          await db.rawQuery('PRAGMA synchronous = NORMAL');
+          await db.rawQuery('PRAGMA busy_timeout = 5000');
+        } catch (e) {
+          debugPrint('DB onConfigure: WAL setup error (non-fatal): $e');
+        }
+      },
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -2819,14 +2830,6 @@ class DBHelper {
         debugPrint('DB upgrade completed');
       },
       onOpen: (db) async {
-        // WAL mode: critical for iOS — prevents nano allocator crash from
-        // concurrent reads+writes on the default DELETE journal mode.
-        try {
-          await db.execute('PRAGMA journal_mode=WAL');
-          await db.execute('PRAGMA synchronous=NORMAL');
-        } catch (e) {
-          debugPrint('DB onOpen: WAL mode error (non-fatal): $e');
-        }
         // Ensure paymentMethod column exists (defensive migration)
         try {
           final cols = await db.rawQuery('PRAGMA table_info(products)');
@@ -3125,81 +3128,74 @@ class DBHelper {
           debugPrint('DB onOpen check error (customers): $e');
         }
 
-        // Ensure firestoreId column exists in supplier_import_history table
+        // Ensure missing columns exist in supplier_import_history table
         try {
+          final cols = await db.rawQuery(
+            'PRAGMA table_info(supplier_import_history)',
+          );
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+
+          if (!colNames.contains('firestoreId')) {
+            await db.execute(
+              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT',
+            );
+            debugPrint('DB: added firestoreId column to supplier_import_history');
+          }
+          if (!colNames.contains('shopId')) {
+            await db.execute(
+              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+            );
+            debugPrint('DB: added shopId column to supplier_import_history');
+          }
+          if (!colNames.contains('importedByUid')) {
+            await db.execute(
+              'ALTER TABLE supplier_import_history ADD COLUMN importedByUid TEXT',
+            );
+            debugPrint('DB: added importedByUid column to supplier_import_history');
+          }
+          if (!colNames.contains('referenceId')) {
+            await db.execute(
+              'ALTER TABLE supplier_import_history ADD COLUMN referenceId TEXT',
+            );
+            debugPrint('DB: added referenceId column to supplier_import_history');
+          }
+          if (!colNames.contains('createdAt')) {
+            await db.execute(
+              'ALTER TABLE supplier_import_history ADD COLUMN createdAt INTEGER',
+            );
+            debugPrint('DB: added createdAt column to supplier_import_history');
+          }
           await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
-          );
-          debugPrint('DB: added firestoreId column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: firestoreId column already exists in supplier_import_history or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
-          );
-          debugPrint('DB: added shopId column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: shopId column already exists in supplier_import_history or error: $e',
-          );
-        }
-        // Add new columns for importedByUid, referenceId, createdAt
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN importedByUid TEXT',
-          );
-          debugPrint(
-            'DB: added importedByUid column to supplier_import_history',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_import_history_firestoreId_unique ON supplier_import_history(firestoreId)',
           );
         } catch (e) {
-          debugPrint(
-            'DB: importedByUid column already exists in supplier_import_history or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN referenceId TEXT',
-          );
-          debugPrint('DB: added referenceId column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: referenceId column already exists in supplier_import_history or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN createdAt INTEGER',
-          );
-          debugPrint('DB: added createdAt column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: createdAt column already exists in supplier_import_history or error: $e',
-          );
+          debugPrint('DB onOpen check error (supplier_import_history columns): $e');
         }
 
-        // Ensure firestoreId column exists in supplier_product_prices table
+        // Ensure missing columns exist in supplier_product_prices table
         try {
+          final cols = await db.rawQuery(
+            'PRAGMA table_info(supplier_product_prices)',
+          );
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+
+          if (!colNames.contains('firestoreId')) {
+            await db.execute(
+              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT',
+            );
+            debugPrint('DB: added firestoreId column to supplier_product_prices');
+          }
+          if (!colNames.contains('shopId')) {
+            await db.execute(
+              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
+            );
+            debugPrint('DB: added shopId column to supplier_product_prices');
+          }
           await db.execute(
-            'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_product_prices_firestoreId_unique ON supplier_product_prices(firestoreId)',
           );
-          debugPrint('DB: added firestoreId column to supplier_product_prices');
         } catch (e) {
-          debugPrint(
-            'DB: firestoreId column already exists in supplier_product_prices or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-          );
-          debugPrint('DB: added shopId column to supplier_product_prices');
-        } catch (e) {
-          debugPrint(
-            'DB: shopId column already exists in supplier_product_prices or error: $e',
-          );
+          debugPrint('DB onOpen check error (supplier_product_prices columns): $e');
         }
 
         // Ensure missing columns exist in suppliers table
