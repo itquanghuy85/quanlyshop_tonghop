@@ -979,11 +979,15 @@ class UserService {
       debugPrint(
         '⚡ syncUserInfo: Existing user - skipping blocking claims wait. cached shopId=$_cachedShopId',
       );
-      // Fire-and-forget: refresh claims in background
-      Future.microtask(() async {
+      // Fire-and-forget: refresh claims in background.
+      // Use Future.delayed (not microtask) to avoid racing with active
+      // Firestore/SQLite ops — prevents iOS nano allocator crash.
+      Future.delayed(const Duration(seconds: 2), () async {
         try {
+          // refreshMyClaims() already calls getIdToken(true) internally.
+          // Do NOT call getIdToken(true) again — double-call on iOS Firebase
+          // SDK causes ARC reference freed out-of-order → crash.
           await ClaimsService().refreshMyClaims();
-          await FirebaseAuth.instance.currentUser?.getIdToken(true);
           debugPrint('✅ syncUserInfo: background claims refresh done');
         } catch (e) {
           debugPrint('⚠️ syncUserInfo: background claims refresh failed: $e');

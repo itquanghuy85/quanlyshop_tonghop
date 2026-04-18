@@ -188,6 +188,7 @@ class DBHelper {
     return await openDatabase(
       path,
       version: 96,
+      singleInstance: true,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -2818,6 +2819,14 @@ class DBHelper {
         debugPrint('DB upgrade completed');
       },
       onOpen: (db) async {
+        // WAL mode: critical for iOS — prevents nano allocator crash from
+        // concurrent reads+writes on the default DELETE journal mode.
+        try {
+          await db.execute('PRAGMA journal_mode=WAL');
+          await db.execute('PRAGMA synchronous=NORMAL');
+        } catch (e) {
+          debugPrint('DB onOpen: WAL mode error (non-fatal): $e');
+        }
         // Ensure paymentMethod column exists (defensive migration)
         try {
           final cols = await db.rawQuery('PRAGMA table_info(products)');
