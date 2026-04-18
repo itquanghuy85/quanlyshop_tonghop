@@ -154,6 +154,7 @@ class SyncService {
   // ═══════════════════════════════════════════════════════════════════════
   static DateTime? _lastDownloadTime;
   static bool _isDownloading = false;
+  static bool _isInitializingRealtime = false;
   static const _downloadCooldown = Duration(seconds: 60);
 
   /// Key prefix for storing last sync timestamps per collection in SharedPreferences
@@ -162,6 +163,9 @@ class SyncService {
   /// Check if real-time sync is initialized and active
   static bool get isRealTimeSyncActive =>
       _isInitialized && _subscriptions.isNotEmpty;
+
+  /// Check if real-time sync setup is currently running.
+  static bool get isRealtimeInitializationInProgress => _isInitializingRealtime;
 
   /// Get subscription status for debugging
   static Map<String, bool> get subscriptionStatus =>
@@ -474,107 +478,114 @@ class SyncService {
 
   /// Khởi tạo đồng bộ thời gian thực
   static Future<void> initRealTimeSync(VoidCallback onDataChanged) async {
-    PerfMonitor.start('initRealTimeSync');
-    debugPrint("Khởi tạo real-time sync...");
-    // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
-    await cancelAllSubscriptions();
-
-    // Store callback for potential reinitialization
-    _onDataChangedCallback = onDataChanged;
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      debugPrint("initRealTimeSync: Không có user, bỏ qua");
+    if (_isInitializingRealtime) {
+      debugPrint('⏸️ initRealTimeSync: đang khởi tạo, bỏ qua lần gọi trùng');
       return;
     }
 
-    final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
-    final permissions = await UserService.getCurrentUserPermissions();
-    final role = await UserService.getUserRole(user.uid);
-    // Super admin cũng cần shopId nếu đã chọn shop
-    final String? shopId = await UserService.getCurrentShopId();
+    _isInitializingRealtime = true;
+    PerfMonitor.start('initRealTimeSync');
+    try {
+      debugPrint("Khởi tạo real-time sync...");
+      // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
+      await cancelAllSubscriptions();
 
-    // Store shopId for later reference
-    _currentShopId = shopId;
+      // Store callback for potential reinitialization
+      _onDataChangedCallback = onDataChanged;
 
-    // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng để filter
-    debugPrint(
-      "⚡ initRealTimeSync: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
-    );
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint("initRealTimeSync: Không có user, bỏ qua");
+        return;
+      }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // QUAN TRỌNG: Kiểm tra và refresh Custom Claims nếu cần
-    // Firestore Rules yêu cầu token phải có shopId claim để truy cập data
-    // ═══════════════════════════════════════════════════════════════════════
-    if (!isSuperAdmin && shopId != null) {
-      try {
-        // Lấy claims từ token để kiểm tra
-        final claims = await ClaimsService().getClaimsFromToken(
-          forceRefresh: true,
-        );
-        final tokenShopId = claims?['shopId'];
+      final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+      final permissions = await UserService.getCurrentUserPermissions();
+      final role = await UserService.getUserRole(user.uid);
+      // Super admin cũng cần shopId nếu đã chọn shop
+      final String? shopId = await UserService.getCurrentShopId();
 
-        debugPrint(
-          "🔑 Token claims: shopId=$tokenShopId, role=${claims?['role']}",
-        );
+      // Store shopId for later reference
+      _currentShopId = shopId;
 
-        // Nếu shopId trong token không khớp với shopId từ Firestore, refresh claims
-        if (tokenShopId != shopId) {
-          debugPrint(
-            "⚠️ Token shopId ($tokenShopId) != Firestore shopId ($shopId), refreshing claims...",
-          );
+      // LOG QUAN TRỌNG: Hiển thị shopId được sử dụng để filter
+      debugPrint(
+        "⚡ initRealTimeSync: user=${user.uid}, email=${user.email}, shopId=$shopId, isSuperAdmin=$isSuperAdmin",
+      );
 
-          // Gọi Cloud Function để refresh claims
-          final result = await ClaimsService().refreshMyClaims();
-          debugPrint("🔄 refreshMyClaims result: $result");
-
-          // Chờ và refresh token lại
-          await Future.delayed(const Duration(seconds: 1));
-          await user.getIdToken(true);
-
-          // Kiểm tra lại claims sau khi refresh
-          final newClaims = await ClaimsService().getClaimsFromToken(
+      // ═══════════════════════════════════════════════════════════════════════
+      // QUAN TRỌNG: Kiểm tra và refresh Custom Claims nếu cần
+      // Firestore Rules yêu cầu token phải có shopId claim để truy cập data
+      // ═══════════════════════════════════════════════════════════════════════
+      if (!isSuperAdmin && shopId != null) {
+        try {
+          // Lấy claims từ token để kiểm tra
+          final claims = await ClaimsService().getClaimsFromToken(
             forceRefresh: true,
           );
+          final tokenShopId = claims?['shopId'];
+
           debugPrint(
-            "✅ New token claims after refresh: shopId=${newClaims?['shopId']}, role=${newClaims?['role']}",
+            "🔑 Token claims: shopId=$tokenShopId, role=${claims?['role']}",
+          );
+
+          // Nếu shopId trong token không khớp với shopId từ Firestore, refresh claims
+          if (tokenShopId != shopId) {
+            debugPrint(
+              "⚠️ Token shopId ($tokenShopId) != Firestore shopId ($shopId), refreshing claims...",
+            );
+
+            // Gọi Cloud Function để refresh claims
+            final result = await ClaimsService().refreshMyClaims();
+            debugPrint("🔄 refreshMyClaims result: $result");
+
+            // Chờ và refresh token lại
+            await Future.delayed(const Duration(seconds: 1));
+            await user.getIdToken(true);
+
+            // Kiểm tra lại claims sau khi refresh
+            final newClaims = await ClaimsService().getClaimsFromToken(
+              forceRefresh: true,
+            );
+            debugPrint(
+              "✅ New token claims after refresh: shopId=${newClaims?['shopId']}, role=${newClaims?['role']}",
+            );
+          }
+        } catch (e) {
+          debugPrint("⚠️ Error checking/refreshing claims: $e");
+        }
+      }
+
+      // Super admin phải chọn shop trước khi init real-time sync
+      if (shopId == null) {
+        if (isSuperAdmin) {
+          debugPrint("⚠️ initRealTimeSync: Super admin chưa chọn shop, bỏ qua");
+        } else {
+          debugPrint("⚠️ initRealTimeSync: Không có shopId, bỏ qua");
+        }
+        return;
+      }
+
+      // AUTO-CLEANUP: Xóa orphan repair_parts bị stuck (không có firestoreId)
+      // force mark các records có firestoreId là đã sync
+      // và fix records bị stuck deleted=1 do bug cũ
+      try {
+        final dbHelper = DBHelper();
+        final deduped = await dbHelper.cleanupCloudShadowDuplicates();
+        final orphansCleaned = await dbHelper.cleanupOrphanRepairParts();
+        final forceMarked = await dbHelper.forceMarkRepairPartsSynced();
+        final stuckFixed = await dbHelper.fixStuckDeletedRepairParts();
+        if (deduped > 0 ||
+            orphansCleaned > 0 ||
+            forceMarked > 0 ||
+            stuckFixed > 0) {
+          debugPrint(
+            "🧹 Auto-cleanup: deduped $deduped cloud-shadow rows, removed $orphansCleaned orphans, force-marked $forceMarked synced, fixed $stuckFixed stuck-deleted",
           );
         }
       } catch (e) {
-        debugPrint("⚠️ Error checking/refreshing claims: $e");
+        debugPrint("⚠️ Auto-cleanup failed: $e");
       }
-    }
-
-    // Super admin phải chọn shop trước khi init real-time sync
-    if (shopId == null) {
-      if (isSuperAdmin) {
-        debugPrint("⚠️ initRealTimeSync: Super admin chưa chọn shop, bỏ qua");
-      } else {
-        debugPrint("⚠️ initRealTimeSync: Không có shopId, bỏ qua");
-      }
-      return;
-    }
-
-    // AUTO-CLEANUP: Xóa orphan repair_parts bị stuck (không có firestoreId)
-    // force mark các records có firestoreId là đã sync
-    // và fix records bị stuck deleted=1 do bug cũ
-    try {
-      final dbHelper = DBHelper();
-      final deduped = await dbHelper.cleanupCloudShadowDuplicates();
-      final orphansCleaned = await dbHelper.cleanupOrphanRepairParts();
-      final forceMarked = await dbHelper.forceMarkRepairPartsSynced();
-      final stuckFixed = await dbHelper.fixStuckDeletedRepairParts();
-      if (deduped > 0 ||
-          orphansCleaned > 0 ||
-          forceMarked > 0 ||
-          stuckFixed > 0) {
-        debugPrint(
-          "🧹 Auto-cleanup: deduped $deduped cloud-shadow rows, removed $orphansCleaned orphans, force-marked $forceMarked synced, fixed $stuckFixed stuck-deleted",
-        );
-      }
-    } catch (e) {
-      debugPrint("⚠️ Auto-cleanup failed: $e");
-    }
 
     // 1. Đồng bộ REPAIRS
     _subscribeToCollection(
@@ -903,22 +914,25 @@ class SyncService {
       "deferred collections will load in 3s...",
     );
 
-    // Schedule DEFERRED subscriptions after 3s to reduce initial load
-    Future.delayed(const Duration(seconds: 3), () {
-      if (_currentShopId != shopId) {
-        debugPrint('⚠️ Shop changed before deferred sync — skipping');
-        return;
-      }
-      _initDeferredSubscriptions(
-        shopId: shopId,
-        isSuperAdmin: isSuperAdmin,
-        permissions: permissions,
-        role: role,
-        onDataChanged: onDataChanged,
-      );
-    });
+      // Schedule DEFERRED subscriptions after 3s to reduce initial load
+      Future.delayed(const Duration(seconds: 3), () {
+        if (_currentShopId != shopId) {
+          debugPrint('⚠️ Shop changed before deferred sync — skipping');
+          return;
+        }
+        _initDeferredSubscriptions(
+          shopId: shopId,
+          isSuperAdmin: isSuperAdmin,
+          permissions: permissions,
+          role: role,
+          onDataChanged: onDataChanged,
+        );
+      });
 
-    debugPrint("📊 Subscription status: $_subscriptionStatus");
+      debugPrint("📊 Subscription status: $_subscriptionStatus");
+    } finally {
+      _isInitializingRealtime = false;
+    }
   }
 
   /// Khởi tạo các subscription KHÔNG CẤP BÁCH sau 3 giây delay
@@ -3481,6 +3495,15 @@ class SyncService {
         return;
       }
     }
+
+    // Tránh full sync đè lên realtime startup trên mobile/iOS.
+    if (!force && (_isInitializingRealtime || isRealTimeSyncActive)) {
+      debugPrint(
+        '⏸️ downloadAllFromCloud: Bỏ qua vì realtime sync đang active/initializing',
+      );
+      return;
+    }
+
     _isDownloading = true;
     _lastDownloadTime = DateTime.now();
 

@@ -1379,13 +1379,21 @@ class _HomeViewState extends State<HomeView>
 
       // Chỉ gọi downloadAllFromCloud TỐI ĐA 1 lần nếu thực sự cần
       if (needsCloudDownload) {
-        debugPrint('HomeView: Cần cloud download, gọi 1 lần duy nhất...');
-        await SyncService.downloadAllFromCloud().timeout(
-          const Duration(seconds: 20),
-          onTimeout: () {
-            debugPrint('HomeView: Cloud download timeout');
-          },
-        );
+        if (!kIsWeb &&
+            (SyncService.isRealTimeSyncActive ||
+                SyncService.isRealtimeInitializationInProgress)) {
+          debugPrint(
+            'HomeView: Skip cloud download vì realtime sync đang active/initializing',
+          );
+        } else {
+          debugPrint('HomeView: Cần cloud download, gọi 1 lần duy nhất...');
+          await SyncService.downloadAllFromCloud().timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint('HomeView: Cloud download timeout');
+            },
+          );
+        }
       }
 
       // 4. Load stats (giờ đã có data)

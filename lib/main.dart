@@ -339,11 +339,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       final currentShopId = UserService.getShopIdSync();
       if (currentShopId != null && currentShopId.isNotEmpty) {
         try {
-          await SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              debugPrint('⚠️ Background sync timeout sau 20s');
-            },
+          debugPrint(
+            '⏸️ Background warmup: skip full download on mobile startup (realtime sync will bootstrap local DB)',
           );
           await _initSyncOrchestrator();
           await CashClosingNotifier.instance.init();
@@ -589,16 +586,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         // MOBILE: Chạy background - SQLite có data persistent
         Future.microtask(() async {
           try {
-            debugPrint('🔄 Bắt đầu sync ở background...');
-            await SyncService.downloadAllFromCloud().timeout(
-              const Duration(seconds: 20),
-              onTimeout: () {
-                debugPrint(
-                  '⚠️ Sync timeout sau 20s, tiếp tục với data local...',
-                );
-              },
+            debugPrint(
+              '⏸️ MOBILE startup: skip full download to avoid overlap with realtime sync',
             );
-            debugPrint('✅ Sync hoàn thành');
             await _initSyncOrchestrator();
             await CashClosingNotifier.instance.init();
             await PaymentIntentService.initialize();
