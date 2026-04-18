@@ -284,6 +284,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     required String source,
     bool force = false,
   }) async {
+    if (!kIsWeb && Platform.isIOS && !force) {
+      debugPrint(
+        '🍏 [$source] iOS stable mode: skip automatic startup full download',
+      );
+      return;
+    }
+
     if (_startupDownloadFuture != null) {
       debugPrint('⏳ [$source] waiting for ongoing startup download...');
       await _startupDownloadFuture;

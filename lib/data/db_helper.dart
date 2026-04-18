@@ -20,6 +20,7 @@ import '../services/user_service.dart';
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
   static Database? _database;
+  static Future<Database>? _databaseOpening;
   static bool _factoryInitialized = false;
   DBHelper._internal();
   factory DBHelper() => _instance;
@@ -88,7 +89,16 @@ class DBHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB();
+    if (_databaseOpening != null) {
+      return _databaseOpening!;
+    }
+
+    _databaseOpening = _initDB();
+    try {
+      _database = await _databaseOpening!;
+    } finally {
+      _databaseOpening = null;
+    }
     return _database!;
   }
 
