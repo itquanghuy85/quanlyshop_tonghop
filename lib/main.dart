@@ -240,6 +240,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   String? _currentUid;
   Timer? _loggedOutFallbackTimer;
   bool _showLoggedOutFallback = false;
+  Future<void>? _startupDownloadFuture;
 
   // Track if sync orchestrator is initialized
   bool _syncOrchestratorInitialized = false;
@@ -276,6 +277,54 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       DBHelper().deduplicateFinancialActivities();
     } catch (e) {
       debugPrint('❌ SyncOrchestrator init failed: $e');
+    }
+  }
+
+  Future<void> _runGuardedStartupDownload({
+    required String source,
+    bool force = false,
+  }) async {
+    if (_startupDownloadFuture != null) {
+      debugPrint('⏳ [$source] waiting for ongoing startup download...');
+      await _startupDownloadFuture;
+      return;
+    }
+
+    final completer = Completer<void>();
+    _startupDownloadFuture = completer.future;
+
+    try {
+      if (!force) {
+        // Let realtime listener init start first, then avoid duplicate full pull.
+        await Future.delayed(const Duration(milliseconds: 1200));
+        if (SyncService.isRealTimeSyncActive) {
+          debugPrint(
+            '⏸️ [$source] skip full download: realtime already active',
+          );
+          return;
+        }
+      }
+
+      if (SyncService.isDownloadInProgress) {
+        debugPrint(
+          '⏸️ [$source] skip full download: another download is running',
+        );
+        return;
+      }
+
+      await SyncService.downloadAllFromCloud(force: force).timeout(
+        const Duration(seconds: 20),
+        onTimeout: () {
+          debugPrint('⚠️ [$source] download timeout after 20s');
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ [$source] startup download failed: $e');
+    } finally {
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+      _startupDownloadFuture = null;
     }
   }
 
@@ -360,11 +409,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       final currentShopId = UserService.getShopIdSync();
       if (currentShopId != null && currentShopId.isNotEmpty) {
         try {
-          await SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              debugPrint('⚠️ Background sync timeout sau 20s');
-            },
+          await _runGuardedStartupDownload(
+            source: '_startBackgroundUserWarmup',
           );
           await _initSyncOrchestrator();
           await CashClosingNotifier.instance.init();
@@ -584,14 +630,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       if (kIsWeb) {
         try {
           debugPrint('🔄 [WEB] Đồng bộ dữ liệu trước khi hiển thị...');
-          await SyncService.downloadAllFromCloud().timeout(
-            const Duration(seconds: 20),
-            onTimeout: () {
-              debugPrint(
-                '⚠️ [WEB] Sync timeout sau 20s, tiếp tục với data hiện có...',
-              );
-            },
-          );
+          await _runGuardedStartupDownload(source: '_getRoleAfterSync-web');
           debugPrint('✅ [WEB] Sync hoàn thành');
         } catch (e) {
           debugPrint('❌ [WEB] Lỗi đồng bộ (non-fatal): $e');
@@ -611,13 +650,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         Future.microtask(() async {
           try {
             debugPrint('🔄 Bắt đầu sync ở background...');
-            await SyncService.downloadAllFromCloud().timeout(
-              const Duration(seconds: 20),
-              onTimeout: () {
-                debugPrint(
-                  '⚠️ Sync timeout sau 20s, tiếp tục với data local...',
-                );
-              },
+            await _runGuardedStartupDownload(
+              source: '_getRoleAfterSync-mobile',
             );
             debugPrint('✅ Sync hoàn thành');
             await _initSyncOrchestrator();

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
@@ -140,8 +141,16 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
       vsync: this,
     )..repeat(reverse: true);
 
-    // Staggered entrance sequence
-    _startAnimationSequence();
+    // iOS stability: avoid forward() race on startup by showing entrance state immediately.
+    final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+    if (isIOS) {
+      _logoController.value = 1;
+      _textController.value = 1;
+      _progressController.value = 1;
+    } else {
+      // Staggered entrance sequence
+      _startAnimationSequence();
+    }
     _startInit();
   }
 
@@ -172,7 +181,7 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
 
   void _safeForward(AnimationController controller, String name) {
     try {
-      if (_canRunAnimations()) {
+      if (_canRunAnimations() && !controller.isAnimating) {
         controller.forward();
       }
     } catch (e, stack) {
