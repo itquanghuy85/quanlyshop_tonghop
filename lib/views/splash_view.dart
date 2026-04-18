@@ -1,7 +1,5 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
@@ -18,8 +16,6 @@ class SplashView extends StatefulWidget {
 class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   String _status = "";
   bool _isNavigating = false;
-  bool _isDisposed = false;
-  final List<Timer> _sequenceTimers = [];
 
   // Animation controllers
   late AnimationController _bgController;
@@ -141,62 +137,22 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
       vsync: this,
     )..repeat(reverse: true);
 
-    // iOS stability: avoid forward() race on startup by showing entrance state immediately.
-    final bool isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    if (isIOS) {
-      _logoController.value = 1;
-      _textController.value = 1;
-      _progressController.value = 1;
-    } else {
-      // Staggered entrance sequence
-      _startAnimationSequence();
-    }
+    // Staggered entrance sequence
+    _startAnimationSequence();
     _startInit();
   }
 
-  void _startAnimationSequence() {
-    _sequenceTimers.add(
-      Timer(const Duration(milliseconds: 100), () {
-        if (!_canRunAnimations()) return;
-        _safeForward(_logoController, 'logo');
-      }),
-    );
-    _sequenceTimers.add(
-      Timer(const Duration(milliseconds: 600), () {
-        if (!_canRunAnimations()) return;
-        _safeForward(_textController, 'text');
-      }),
-    );
-    _sequenceTimers.add(
-      Timer(const Duration(milliseconds: 1000), () {
-        if (!_canRunAnimations()) return;
-        _safeForward(_progressController, 'progress');
-      }),
-    );
-  }
-
-  bool _canRunAnimations() {
-    return mounted && !_isDisposed && !_isNavigating;
-  }
-
-  void _safeForward(AnimationController controller, String name) {
-    try {
-      if (_canRunAnimations() && !controller.isAnimating) {
-        controller.forward();
-      }
-    } catch (e, stack) {
-      debugPrint('⚠️ Splash animation $name forward skipped: $e');
-      debugPrint('⚠️ Splash animation $name stack: $stack');
-    }
+  Future<void> _startAnimationSequence() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    _logoController.forward();
+    await Future.delayed(const Duration(milliseconds: 500));
+    _textController.forward();
+    await Future.delayed(const Duration(milliseconds: 400));
+    _progressController.forward();
   }
 
   @override
   void dispose() {
-    _isDisposed = true;
-    for (final timer in _sequenceTimers) {
-      timer.cancel();
-    }
-    _sequenceTimers.clear();
     _bgController.dispose();
     _logoController.dispose();
     _textController.dispose();

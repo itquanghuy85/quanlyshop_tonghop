@@ -726,13 +726,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: statusColor))
-          else if (status == 4)
-            Text('Chưa có giá',
-                style: TextStyle(
-                    fontSize: 11,
-                    fontStyle: FontStyle.italic,
-                    color: Colors.grey.shade400)),
+                    color: statusColor)),
         ],
       ),
     );

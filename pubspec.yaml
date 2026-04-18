@@ -1,7 +1,7 @@
 name: quanlyshop
 description: "Phần mềm quản lý tiệm sửa chữa mua bán điện thoại chuyên nghiệp"
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-version: 11.3.7+281
+publish_to: 'none' # Remove this line if you wish to publish to pub.de
+version: 11.3.4+262
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
@@ -46,7 +46,7 @@ dependencies:
   flutter_esc_pos_utils: ^1.0.1
   # esc_pos_utils: ^1.1.0  # Deprecated - replaced with flutter_esc_pos_utils
   # esc_pos_printer: ^4.1.0  # Tạm bỏ vì xung đột với pdf package
-  file_selector: ^1.0.3
+  file_picker: ^8.0.0
   connectivity_plus: ^6.0.0
   package_info_plus: ^8.0.0
   geolocator: ^12.0.0
@@ -118,4 +118,3 @@ hooks:
     sqlite3:
       source: system
       name_windows: winsqlite3
-

@@ -93,18 +93,16 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Load all data in parallel for faster startup
-      debugPrint('📋 PendingStockListView._loadData: START');
-      final results = await Future.wait([
-        CategoryService().getShopSettings(),
-        UserService.getCurrentUserPermissions(),
-        _service.getPendingEntries(),
-      ]);
-      final settings = results[0] as ShopSettings?;
-      final perms = results[1] as Map<String, dynamic>;
-      final entries = results[2] as List<StockEntry>;
+      // Load shop settings for terminology
+      final settings = await CategoryService().getShopSettings();
       if (mounted) _shopSettings = settings;
+
+      // Load cost price permission
+      final perms = await UserService.getCurrentUserPermissions();
       if (mounted) _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+      
+      debugPrint('📋 PendingStockListView._loadData: START');
+      final entries = await _service.getPendingEntries();
       debugPrint(
         '📋 PendingStockListView._loadData: got ${entries.length} entries',
       );

@@ -868,12 +868,8 @@ class UserService {
 
     // Khởi tạo EncryptionService với shopId để mã hóa/giải mã dữ liệu
     if (_cachedShopId != null && _cachedShopId!.isNotEmpty) {
-      try {
-        await EncryptionService.init(_cachedShopId!);
-        debugPrint('EncryptionService initialized for shop: $_cachedShopId');
-      } catch (e) {
-        debugPrint('EncryptionService init failed for $_cachedShopId: $e');
-      }
+      EncryptionService.init(_cachedShopId!);
+      debugPrint('EncryptionService initialized for shop: $_cachedShopId');
     }
 
     // Determine displayName with multiple fallbacks
@@ -983,15 +979,11 @@ class UserService {
       debugPrint(
         '⚡ syncUserInfo: Existing user - skipping blocking claims wait. cached shopId=$_cachedShopId',
       );
-      // Fire-and-forget: refresh claims in background.
-      // Use Future.delayed (not microtask) to avoid racing with active
-      // Firestore/SQLite ops — prevents iOS nano allocator crash.
-      Future.delayed(const Duration(seconds: 2), () async {
+      // Fire-and-forget: refresh claims in background
+      Future.microtask(() async {
         try {
-          // refreshMyClaims() already calls getIdToken(true) internally.
-          // Do NOT call getIdToken(true) again — double-call on iOS Firebase
-          // SDK causes ARC reference freed out-of-order → crash.
           await ClaimsService().refreshMyClaims();
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
           debugPrint('✅ syncUserInfo: background claims refresh done');
         } catch (e) {
           debugPrint('⚠️ syncUserInfo: background claims refresh failed: $e');

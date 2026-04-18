@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -23,7 +23,6 @@ import 'fast_inventory_input_view.dart';
 import 'fast_inventory_check_view.dart';
 import 'supplier_list_view.dart';
 import 'quick_input_codes_view.dart';
-import 'recent_activity_view.dart';
 import 'sale_list_view.dart';
 import 'sales_return_list_view.dart';
 import 'expense_view.dart';
@@ -98,7 +97,6 @@ import 'dashboard_settings_view.dart';
 import 'payment_request_chat_view.dart';
 import 'daily_activity_report_view.dart';
 import 'reminders_view.dart';
-import 'firebase_stats_view.dart';
 import '../services/test_data_service.dart';
 import '../services/social_auth_service.dart';
 import '../services/reminder_service.dart';
@@ -188,14 +186,7 @@ class _HomeViewState extends State<HomeView>
   final Map<String, int> _tabHostVersions = {};
 
   /// Getter for localization - dùng chung cho tất cả methods
-  /// Trả về AppLocalizations hiện tại, hoặc fallback Vietnamese nếu context chưa sẵn sàng
-  AppLocalizations get loc {
-    final l = AppLocalizations.of(context);
-    if (l != null) return l;
-    // Fallback: avoid crash khi context chưa có localization (rebuild/navigation)
-    debugPrint('⚠️ HomeView: AppLocalizations.of(context) returned null — using fallback');
-    return lookupAppLocalizations(const Locale('vi'));
-  }
+  AppLocalizations get loc => AppLocalizations.of(context)!;
 
   _HomeViewState() {
     debugPrint('HomeView: _HomeViewState constructor called');
@@ -475,7 +466,7 @@ class _HomeViewState extends State<HomeView>
       _isSuperAdmin || widget.role == 'owner' || widget.role == 'admin';
 
   void _initializeTabConfigs() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     _tabConfigs = [
       {
         'id': _homeTabId,
@@ -604,7 +595,7 @@ class _HomeViewState extends State<HomeView>
   }
 
   void _showLanguageSheet() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     showAppBottomSheet(
       context: context,
       builder: (_) => SafeArea(
@@ -2405,7 +2396,7 @@ class _HomeViewState extends State<HomeView>
 
   @override
   Widget build(BuildContext context) {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     final shouldInterceptRootBack =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     final homeScaffold = Scaffold(
@@ -2957,29 +2948,19 @@ class _HomeViewState extends State<HomeView>
           widgets.add(const SizedBox(height: 10));
           break;
         case DashboardCardType.activityFeed:
-          final canViewFinancialActivity =
-              hasFullAccess ||
-              _permissions['allowViewRevenue'] == true ||
-              _permissions['allowViewExpenses'] == true ||
-              _permissions['allowViewDebts'] == true;
-          if (canViewFinancialActivity) {
-            widgets.add(
-              ActivityFeedCard(
-                key: const ValueKey('activity_feed'),
-                enableRepair: _enableRepair,
-                onViewAll: () => _pushRoute(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => RecentActivityView(
-                      permissions: _permissions,
-                      hasFullAccess: hasFullAccess,
-                      enableRepair: _enableRepair,
-                    ),
-                  ),
+          widgets.add(
+            ActivityFeedCard(
+              key: const ValueKey('activity_feed'),
+              enableRepair: _enableRepair,
+              onViewAll: () => _pushRoute(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const CashClosingView(showOnlyTransactions: true),
                 ),
               ),
-            );
-          }
+            ),
+          );
           break;
         case DashboardCardType.chat:
           widgets.add(_buildChatCard());
@@ -3073,7 +3054,7 @@ class _HomeViewState extends State<HomeView>
 
   /// Widget lời chào người dùng - hiển thị tên và vai trò
   Widget _buildGreetingCard() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     // Xác định lời chào theo thời gian
     final hour = DateTime.now().hour;
     String greeting;
@@ -3248,7 +3229,7 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildNewStaffBannerSimple() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -3307,7 +3288,7 @@ class _HomeViewState extends State<HomeView>
 
   // Giữ lại _buildNewStaffBanner cũ nhưng không dùng - có thể xóa sau
   Widget _buildNewStaffBanner() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -3393,7 +3374,7 @@ class _HomeViewState extends State<HomeView>
   }
 
   Future<void> _showDownloadDataDialog() async {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     // Lấy tên shop để hiển thị
     final shopId = await UserService.getCurrentShopId();
     String shopName = "shop hiện tại";
@@ -4891,7 +4872,7 @@ class _HomeViewState extends State<HomeView>
 
   /// Widget hiển thị 2 lối tắt quan trọng: Hàng chờ xác nhận & Thanh toán
   Widget _buildPinnedShortcutsSection() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -5153,8 +5134,9 @@ class _HomeViewState extends State<HomeView>
 
   /// Quick Actions mới theo style Settings
   Widget _buildQuickActionsNew() {
-    final loc = this.loc;
-    bool _can(String perm) => hasFullAccess || _permissions[perm] == true;
+    final loc = AppLocalizations.of(context)!;
+    bool _can(String perm) =>
+        hasFullAccess || _permissions[perm] == true;
     return Column(
       children: [
         // BÁN HÀNG
@@ -5736,8 +5718,9 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildQuickActions() {
-    final loc = this.loc;
-    bool _can(String perm) => hasFullAccess || _permissions[perm] == true;
+    final loc = AppLocalizations.of(context)!;
+    bool _can(String perm) =>
+        hasFullAccess || _permissions[perm] == true;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -5941,7 +5924,7 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildSalesTab() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: ResponsiveCenter(
@@ -6706,7 +6689,7 @@ class _HomeViewState extends State<HomeView>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                loc.salaryCalculationGuide,
+                AppLocalizations.of(context)!.salaryCalculationGuide,
                 style: const TextStyle(
                   fontSize: AppTextStyles.h3,
                   fontWeight: FontWeight.bold,
@@ -6722,33 +6705,33 @@ class _HomeViewState extends State<HomeView>
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildHelpSection(
-                loc.accessSalaryTable,
-                loc.accessSalaryDesc,
+                AppLocalizations.of(context)!.accessSalaryTable,
+                AppLocalizations.of(context)!.accessSalaryDesc,
                 Colors.blue,
               ),
               _buildHelpSection(
-                loc.salarySettings,
-                loc.salarySettingsDesc,
+                AppLocalizations.of(context)!.salarySettings,
+                AppLocalizations.of(context)!.salarySettingsDesc,
                 Colors.green,
               ),
               _buildHelpSection(
-                loc.salaryComponents,
-                loc.salaryComponentsDesc,
+                AppLocalizations.of(context)!.salaryComponents,
+                AppLocalizations.of(context)!.salaryComponentsDesc,
                 Colors.orange,
               ),
               _buildHelpSection(
-                loc.viewDetails,
-                loc.viewDetailsDesc,
+                AppLocalizations.of(context)!.viewDetails,
+                AppLocalizations.of(context)!.viewDetailsDesc,
                 Colors.blue,
               ),
               _buildHelpSection(
-                loc.printSalarySlip,
-                loc.printSalaryDesc,
+                AppLocalizations.of(context)!.printSalarySlip,
+                AppLocalizations.of(context)!.printSalaryDesc,
                 Colors.teal,
               ),
               _buildHelpSection(
-                loc.taxAndInsurance,
-                loc.taxAndInsuranceDesc,
+                AppLocalizations.of(context)!.taxAndInsurance,
+                AppLocalizations.of(context)!.taxAndInsuranceDesc,
                 Colors.red,
               ),
             ],
@@ -6758,7 +6741,7 @@ class _HomeViewState extends State<HomeView>
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(
-              loc.understood,
+              AppLocalizations.of(context)!.understood,
               style: const TextStyle(
                 color: Colors.orange,
                 fontWeight: FontWeight.bold,
@@ -6774,7 +6757,7 @@ class _HomeViewState extends State<HomeView>
               );
             },
             icon: const Icon(Icons.arrow_forward, size: 16),
-            label: Text(loc.goToSalaryTable),
+            label: Text(AppLocalizations.of(context)!.goToSalaryTable),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,
@@ -6865,7 +6848,7 @@ class _HomeViewState extends State<HomeView>
 
               const SizedBox(height: 16),
 
-              // THAO TÁC NHANH - Sổ quỹ + Thu Chi + Chi phí
+              // THAO TÁC NHANH - Sổ quỹ + Thu Chi
               _buildSectionHeader(loc.quickActions),
               Row(
                 children: [
@@ -6900,23 +6883,6 @@ class _HomeViewState extends State<HomeView>
                         ),
                         subtitle:
                             '+${MoneyUtils.formatVND(_todayTotalIn)} / -${MoneyUtils.formatVND(_todayTotalOut)}',
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                  if (hasFullAccess ||
-                      _permissions['allowViewExpenses'] == true)
-                    Expanded(
-                      child: _financeQuickCard(
-                        'Chi phí',
-                        Icons.receipt_long_outlined,
-                        Colors.deepOrange,
-                        () => _pushRoute(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ExpenseView(),
-                          ),
-                        ),
-                        subtitle: '-${MoneyUtils.formatVND(_todayTotalOut)}',
                       ),
                     ),
                 ],
@@ -7474,7 +7440,7 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildSettingsTab() {
-    final loc = this.loc;
+    final loc = AppLocalizations.of(context)!;
     final currentLangLabel = _currentLocale.languageCode == 'en'
         ? loc.english
         : loc.vietnamese;
@@ -7573,19 +7539,6 @@ class _HomeViewState extends State<HomeView>
                     ),
                   ),
                   subtitle: loc.printerSettingsDescription,
-                ),
-                _tabMenuItem(
-                  'Thống kê Firebase Read/Write',
-                  Icons.analytics_outlined,
-                  Colors.indigo,
-                  () => _pushRoute(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FirebaseStatsView(),
-                    ),
-                  ),
-                  subtitle:
-                      'Đếm read/write theo collection, listeners và cloud docs',
                 ),
                 if (_isSuperAdmin)
                   _tabMenuItem(

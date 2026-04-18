@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/network_printer_scanner.dart';
@@ -281,16 +280,8 @@ class _PrinterSelectionDialogState extends State<PrinterSelectionDialog> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
                       controller: TextEditingController(text: _wifiIp),
-                      onChanged: (value) => _wifiIp = value.replaceAll(',', '.'),
+                      onChanged: (value) => _wifiIp = value,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                        TextInputFormatter.withFunction((oldValue, newValue) {
-                          return newValue.copyWith(
-                            text: newValue.text.replaceAll(',', '.'),
-                          );
-                        }),
-                      ],
                     ),
                     const SizedBox(height: 6),
                     Text(

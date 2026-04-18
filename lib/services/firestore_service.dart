@@ -12,28 +12,9 @@ import 'notification_service.dart';
 import 'encryption_service.dart';
 import 'financial_activity_service.dart';
 import 'money_validation_service.dart';
-import 'firebase_stats_service.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
-
-  static void _trackRead(String collection, int count) {
-    if (count <= 0) return;
-    FirebaseStatsService.trackRead(collection, count);
-  }
-
-  static void _trackWrite(
-    String collection, {
-    int count = 1,
-    String operation = 'write',
-  }) {
-    if (count <= 0) return;
-    FirebaseStatsService.trackWrite(
-      collection,
-      count: count,
-      operation: operation,
-    );
-  }
 
   // --- THÔNG BÁO HỆ THỐNG ---
   static Future<void> _notifyAll(
@@ -48,7 +29,6 @@ class FirestoreService {
         title: title,
         body: body,
         type: 'system',
-        id: id,
       );
       final shopId = await UserService.getCurrentShopId();
       await _db.collection('chats').add({
@@ -62,7 +42,6 @@ class FirestoreService {
         'readBy': ['SYSTEM'],
         'createdAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('chats', operation: 'add');
     } catch (_) {}
   }
 
@@ -87,7 +66,6 @@ class FirestoreService {
       data['updatedAt'] = FieldValue.serverTimestamp();
 
       await docRef.set(data, SetOptions(merge: true));
-      _trackWrite('purchase_orders', operation: 'set');
 
       // CẬP NHẬT INVENTORY SAU KHI NHẬP HÀNG
       await _updateInventoryFromPurchaseOrder(order, shopId!);
@@ -119,9 +97,6 @@ class FirestoreService {
             .where('shopId', isEqualTo: shopId)
             .where('name', isEqualTo: item.productName)
             .get();
-        if (!productQuery.metadata.isFromCache) {
-          _trackRead('products', productQuery.docs.length);
-        }
 
         // Tìm sản phẩm khớp với color, capacity, condition
         final matchingProducts = productQuery.docs.where((doc) {
@@ -152,7 +127,6 @@ class FirestoreService {
             'price': item.unitPrice, // Cập nhật giá bán nếu cần
             'updatedAt': FieldValue.serverTimestamp(),
           });
-          _trackWrite('products', operation: 'update');
 
           debugPrint(
             'Cập nhật sản phẩm: ${item.productName}, SL: $currentQuantity -> $newQuantity, Chi phí TB: $averageCost',
@@ -179,7 +153,6 @@ class FirestoreService {
           };
 
           await _db.collection('products').add(newProduct);
-          _trackWrite('products', operation: 'add');
           debugPrint(
             'Tạo sản phẩm mới: ${item.productName}, SL: ${item.quantity}, Chi phí: ${item.unitCost}',
           );
@@ -217,7 +190,6 @@ class FirestoreService {
       // Mã hóa dữ liệu nhạy cảm trước khi upload
       final encryptedData = EncryptionService.encryptMap(data);
       await docRef.set(encryptedData, SetOptions(merge: true));
-      _trackWrite('repairs', operation: 'set');
       _notifyAll(
         "🔧 MÁY NHẬN MỚI",
         "${r.createdBy} nhận ${r.model} của khách ${r.customerName}",
@@ -250,7 +222,6 @@ class FirestoreService {
           .collection('repairs')
           .doc(r.firestoreId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('repairs', operation: 'set');
     } catch (e) {
       debugPrint('Firestore upsertRepair error: $e');
     }
@@ -262,7 +233,6 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('repairs', operation: 'update');
     } catch (e) {
       debugPrint('Firestore deleteRepair error: $e');
     }
@@ -322,7 +292,6 @@ class FirestoreService {
       debugPrint('📤 addSale: writing to Firestore docId=$docId');
 
       await docRef.set(encryptedData, SetOptions(merge: true));
-      _trackWrite('sales', operation: 'set');
       debugPrint('✅ addSale: success docId=$docId');
 
       _notifyAll(
@@ -367,7 +336,6 @@ class FirestoreService {
           .collection('sales')
           .doc(s.firestoreId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('sales', operation: 'set');
     } catch (e) {
       debugPrint('Firestore updateSaleCloud error: $e');
     }
@@ -379,7 +347,6 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('sales', operation: 'update');
     } catch (e) {
       debugPrint('Firestore deleteSale error: $e');
     }
@@ -405,7 +372,6 @@ class FirestoreService {
       data.remove('firestoreId');
       final encryptedData = EncryptionService.encryptMap(data);
       await docRef.set(encryptedData, SetOptions(merge: true));
-      _trackWrite('products', operation: 'set');
       return docRef.id;
     } catch (e) {
       return null;
@@ -430,7 +396,6 @@ class FirestoreService {
           .collection('products')
           .doc(p.firestoreId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('products', operation: 'set');
     } catch (e) {
       debugPrint('Firestore updateProductCloud error: $e');
     }
@@ -442,7 +407,6 @@ class FirestoreService {
         'status': 0,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('products', operation: 'update');
     } catch (e) {
       debugPrint('Firestore deleteProduct error: $e');
     }
@@ -469,7 +433,6 @@ class FirestoreService {
         'readBy': [senderId],
         'createdAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('chats', operation: 'add');
     } catch (_) {}
   }
 
@@ -479,17 +442,7 @@ class FirestoreService {
   }) {
     Query<Map<String, dynamic>> q = _db.collection('chats');
     if (shopId != null) q = q.where('shopId', isEqualTo: shopId);
-    return q
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snapshot) {
-          if (!snapshot.metadata.isFromCache &&
-              snapshot.docChanges.isNotEmpty) {
-            _trackRead('chats', snapshot.docChanges.length);
-          }
-          return snapshot;
-        });
+    return q.orderBy('createdAt', descending: true).limit(limit).snapshots();
   }
 
   static Future<void> addAuditLogCloud(Map<String, dynamic> logData) async {
@@ -503,7 +456,6 @@ class FirestoreService {
           .collection('audit_logs')
           .doc(docId)
           .set(logData, SetOptions(merge: true));
-      _trackWrite('audit_logs', operation: 'set');
     } catch (_) {}
   }
 
@@ -528,7 +480,6 @@ class FirestoreService {
           .collection('debts')
           .doc(docId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('debts', operation: 'set');
     } catch (e) {
       debugPrint('Error adding debt to cloud: $e');
       rethrow; // Re-throw để caller biết có lỗi
@@ -568,7 +519,6 @@ class FirestoreService {
           .collection('debt_payments')
           .doc(docId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('debt_payments', operation: 'set');
     } catch (e) {
       debugPrint('Error adding debt payment to cloud: $e');
     }
@@ -590,7 +540,6 @@ class FirestoreService {
           .collection('expenses')
           .doc(docId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('expenses', operation: 'set');
     } catch (_) {}
   }
 
@@ -605,7 +554,6 @@ class FirestoreService {
           .collection('expenses')
           .doc(expData['firestoreId'])
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('expenses', operation: 'set');
     } catch (e) {
       debugPrint('Firestore updateExpenseCloud error: $e');
     }
@@ -617,7 +565,6 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('expenses', operation: 'update');
     } catch (e) {
       debugPrint('Firestore deleteExpenseCloud error: $e');
     }
@@ -639,7 +586,6 @@ class FirestoreService {
           .collection('salvage_phones')
           .doc(docId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('salvage_phones', operation: 'set');
     } catch (e) {
       debugPrint('Firestore addSalvagePhoneCloud error: $e');
     }
@@ -658,7 +604,6 @@ class FirestoreService {
           .collection('salvage_phones')
           .doc(data['firestoreId'])
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('salvage_phones', operation: 'set');
     } catch (e) {
       debugPrint('Firestore updateSalvagePhoneCloud error: $e');
     }
@@ -670,7 +615,6 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('salvage_phones', operation: 'update');
     } catch (e) {
       debugPrint('Firestore deleteSalvagePhoneCloud error: $e');
     }
@@ -685,12 +629,7 @@ class FirestoreService {
         query = query.where('shopId', isEqualTo: shopId);
       }
 
-      yield* query.orderBy('date', descending: true).snapshots().map((snapshot) {
-        if (!snapshot.metadata.isFromCache && snapshot.docChanges.isNotEmpty) {
-          _trackRead('expenses', snapshot.docChanges.length);
-        }
-        return snapshot;
-      });
+      yield* query.orderBy('date', descending: true).snapshots();
     } catch (e) {
       debugPrint('Firestore getExpenseStream error: $e');
       yield* const Stream.empty();
@@ -716,7 +655,6 @@ class FirestoreService {
       data['updatedAt'] = FieldValue.serverTimestamp();
       final encryptedData = EncryptionService.encryptMap(data);
       await docRef.set(encryptedData, SetOptions(merge: true));
-      _trackWrite('attendance', operation: 'set');
       return docId;
     } catch (e) {
       debugPrint('Firestore addAttendance error: $e');
@@ -736,7 +674,6 @@ class FirestoreService {
           .collection('attendance')
           .doc(attendance.firestoreId)
           .set(encryptedData, SetOptions(merge: true));
-      _trackWrite('attendance', operation: 'set');
     } catch (e) {
       debugPrint('Firestore updateAttendanceCloud error: $e');
     }
@@ -748,7 +685,6 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      _trackWrite('attendance', operation: 'update');
     } catch (e) {
       debugPrint('Firestore deleteAttendance error: $e');
     }
@@ -771,7 +707,6 @@ class FirestoreService {
           .collection('cash_closings')
           .doc(docId)
           .set(closingData, SetOptions(merge: true));
-        _trackWrite('cash_closings', operation: 'set');
       debugPrint('Cash closing synced to cloud: $docId');
     } catch (e) {
       debugPrint('Error syncing cash closing to cloud: $e');
@@ -785,9 +720,6 @@ class FirestoreService {
       final shopId = await UserService.getCurrentShopId();
       final docId = "closing_${shopId}_$dateKey";
       final doc = await _db.collection('cash_closings').doc(docId).get();
-      if (!doc.metadata.isFromCache) {
-        _trackRead('cash_closings', 1);
-      }
       if (doc.exists) {
         return doc.data();
       }
@@ -802,12 +734,7 @@ class FirestoreService {
     try {
       final shopId = await UserService.getCurrentShopId();
       final docId = "closing_${shopId}_$dateKey";
-      yield* _db.collection('cash_closings').doc(docId).snapshots().map((snapshot) {
-        if (!snapshot.metadata.isFromCache) {
-          _trackRead('cash_closings', 1);
-        }
-        return snapshot;
-      });
+      yield* _db.collection('cash_closings').doc(docId).snapshots();
     } catch (e) {
       debugPrint('Error streaming cash closing: $e');
     }
@@ -833,12 +760,7 @@ class FirestoreService {
         query = query.where('dateKey', isEqualTo: dateKey);
       }
 
-      yield* query.orderBy('createdAt', descending: true).snapshots().map((snapshot) {
-        if (!snapshot.metadata.isFromCache && snapshot.docChanges.isNotEmpty) {
-          _trackRead('attendance', snapshot.docChanges.length);
-        }
-        return snapshot;
-      });
+      yield* query.orderBy('createdAt', descending: true).snapshots();
     } catch (e) {
       debugPrint('Firestore getAttendanceStream error: $e');
       yield* const Stream.empty();

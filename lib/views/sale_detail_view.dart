@@ -75,16 +75,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   int _totalReturnedAmount = 0;
   bool _allItemsReturned = false;
 
-  // Permission: cost price visibility
-  bool _canViewCostPrice = false;
-
   @override
   void initState() {
     super.initState();
     s = widget.sale;
     _loadShopInfo();
     _loadReturnInfo();
-    _loadCostPermission();
   }
 
   Future<void> _loadReturnInfo() async {
@@ -151,30 +147,6 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       _shopPhone = prefs.getString('shop_phone') ?? "SDT";
       _logoPath = prefs.getString('shop_logo_path') ?? "";
     });
-  }
-
-  Future<void> _loadCostPermission() async {
-    final can = await UserService.canViewCostPrice();
-    if (mounted) setState(() => _canViewCostPrice = can);
-  }
-
-  List<Widget> _buildPerItemCosts() {
-    final names = s.productNames.split(RegExp(r',\s*'));
-    final costs = s.productCosts.split(RegExp(r',\s*'));
-    final widgets = <Widget>[];
-    for (int i = 0; i < names.length; i++) {
-      final name = names[i].trim();
-      if (name.isEmpty) continue;
-      final costVal = i < costs.length ? (int.tryParse(costs[i].trim()) ?? 0) : 0;
-      if (costVal > 0) {
-        widgets.add(_item(
-          name,
-          "Vốn: ${MoneyUtils.formatCurrency(costVal)} Đ",
-          color: Colors.purple.shade300,
-        ));
-      }
-    }
-    return widgets;
   }
 
   String _fmtDate(int ms) => DateFormat(
@@ -1255,21 +1227,6 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
                 color: Colors.red,
               ),
-              // Giá vốn từng món (phân quyền - không in hóa đơn)
-              if (_canViewCostPrice && s.totalCost > 0) ...[
-                const Divider(),
-                if (s.productCosts.isNotEmpty) ..._buildPerItemCosts(),
-                _item(
-                  "📊 Tổng vốn",
-                  "${MoneyUtils.formatCurrency(s.totalCost)} Đ",
-                  color: Colors.purple,
-                ),
-                _item(
-                  "📈 Lợi nhuận",
-                  "${MoneyUtils.formatCurrency(s.finalPrice - s.totalCost)} Đ",
-                  color: (s.finalPrice - s.totalCost) >= 0 ? Colors.green : Colors.red,
-                ),
-              ],
             ]),
             if (_isInstallmentNH)
               _card("TRẢ GÓP - NGÂN HÀNG", [

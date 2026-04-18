@@ -281,10 +281,7 @@ class SalaryCalculationService {
     int saleOrderCount = 0;
     double saleRevenue = 0;
     double saleProfit = 0;
-    double salePhoneRevenue = 0; // Doanh thu riêng điện thoại (dùng tính hoa hồng)
-    double salePhoneProfit = 0;
     List<double> saleOrderValues = []; // Lưu giá trị từng đơn cho tính tiered
-    List<double> salePhoneOrderValues = []; // Giá trị ĐT từng đơn cho tiered
     
     try {
       final shopId = await UserService.getCurrentShopId();
@@ -317,20 +314,6 @@ class SalaryCalculationService {
             saleRevenue += finalPrice;
             saleProfit += (finalPrice - totalCost);
             saleOrderValues.add(finalPrice); // Lưu giá trị đơn (sau giảm giá)
-
-            // Doanh thu riêng điện thoại (dùng tính hoa hồng NV)
-            final phoneRev = (data['phoneRevenue'] ?? 0).toDouble();
-            final phoneCst = (data['phoneCost'] ?? 0).toDouble();
-            if (phoneRev > 0) {
-              salePhoneRevenue += phoneRev;
-              salePhoneProfit += (phoneRev - phoneCst);
-              salePhoneOrderValues.add(phoneRev);
-            } else {
-              // Đơn cũ chưa có phoneRevenue → tính tất cả như trước (backward compatible)
-              salePhoneRevenue += finalPrice;
-              salePhoneProfit += (finalPrice - totalCost);
-              salePhoneOrderValues.add(finalPrice);
-            }
           }
         }
       }
@@ -349,24 +332,11 @@ class SalaryCalculationService {
       saleRevenue = staffSales.fold(0.0, (sum, s) => sum + s.finalPrice);
       saleProfit = staffSales.fold(0.0, (sum, s) => sum + (s.finalPrice - s.totalCost));
       saleOrderValues = staffSales.map((s) => s.finalPrice.toDouble()).toList();
-      // phoneRevenue fallback
-      for (final s in staffSales) {
-        if (s.phoneRevenue > 0) {
-          salePhoneRevenue += s.phoneRevenue.toDouble();
-          salePhoneProfit += (s.phoneRevenue - s.phoneCost).toDouble();
-          salePhoneOrderValues.add(s.phoneRevenue.toDouble());
-        } else {
-          salePhoneRevenue += s.finalPrice.toDouble();
-          salePhoneProfit += (s.finalPrice - s.totalCost).toDouble();
-          salePhoneOrderValues.add(s.finalPrice.toDouble());
-        }
-      }
     }
 
     if (saleOrderCount > 0) {
       notes.add(
-        '🛒 Bán hàng: $saleOrderCount đơn, doanh số ${_formatCurrency(saleRevenue)}'
-        '${salePhoneRevenue < saleRevenue ? ' (ĐT: ${_formatCurrency(salePhoneRevenue)})' : ''}',
+        '🛒 Bán hàng: $saleOrderCount đơn, doanh số ${_formatCurrency(saleRevenue)}',
       );
     }
 
@@ -480,23 +450,23 @@ class SalaryCalculationService {
         break;
     }
 
-    // (2) HOA HỒNG BÁN HÀNG (chỉ tính doanh thu điện thoại)
+    // (2) HOA HỒNG BÁN HÀNG
     double calculatedSaleComm = 0;
     if (settings.saleCommType == 'percent') {
-      calculatedSaleComm = salePhoneRevenue * (settings.saleCommValue / 100);
-      if (salePhoneRevenue > 0) {
+      calculatedSaleComm = saleRevenue * (settings.saleCommValue / 100);
+      if (saleRevenue > 0) {
         notes.add(
-          '🛒 HH bán (ĐT): ${_formatCurrency(salePhoneRevenue)} × ${settings.saleCommValue}% = ${_formatCurrency(calculatedSaleComm)}',
+          '🛒 HH bán: ${_formatCurrency(saleRevenue)} × ${settings.saleCommValue}% = ${_formatCurrency(calculatedSaleComm)}',
         );
       }
     } else if (settings.saleCommType == 'tiered') {
-      // Tính hoa hồng theo bậc - dùng giá trị ĐT từng đơn
-      if (salePhoneOrderValues.isNotEmpty) {
+      // Tính hoa hồng theo bậc - dùng giá trị thực từng đơn
+      if (saleOrderValues.isNotEmpty) {
         // Đếm số đơn theo từng bậc
         int tier1Count = 0;
         int tier2Count = 0;
         int tier3Count = 0;
-        for (final orderValue in salePhoneOrderValues) {
+        for (final orderValue in saleOrderValues) {
           final comm = settings.calculateSaleCommission(orderValue);
           calculatedSaleComm += comm;
           // Đếm bậc
@@ -578,9 +548,9 @@ class SalaryCalculationService {
       );
     }
 
-    // (5) THƯỞNG DOANH SỐ (doanh thu ĐT + sửa chữa)
+    // (5) THƯỞNG DOANH SỐ
     double calculatedBonus = 0;
-    final totalRevenue = salePhoneRevenue + repairRevenue;
+    final totalRevenue = saleRevenue + repairRevenue;
     if (settings.monthlyTarget > 0 && totalRevenue >= settings.monthlyTarget) {
       calculatedBonus = totalRevenue * (settings.targetBonusPercent / 100);
       notes.add(

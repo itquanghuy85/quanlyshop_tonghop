@@ -12,7 +12,6 @@ import '../models/expense_model.dart';
 import '../models/debt_model.dart';
 import '../models/attendance_model.dart';
 import '../models/leave_request_model.dart';
-import '../models/shift_swap_model.dart';
 import '../models/customer_model.dart';
 import '../models/quick_input_code_model.dart';
 import 'storage_service.dart';
@@ -22,7 +21,6 @@ import 'sync_orchestrator.dart';
 import 'event_bus.dart';
 import 'claims_service.dart';
 import 'shop_deletion_service.dart';
-import 'firebase_stats_service.dart';
 import '../utils/perf_monitor.dart';
 
 class SyncService {
@@ -34,11 +32,6 @@ class SyncService {
   static VoidCallback? _onDataChangedCallback;
   static String? _currentShopId;
   static bool _isInitialized = false;
-  static bool _isInitializingRealtime = false;
-  static Completer<void>? _realtimeInitCompleter;
-  static Completer<void>? _downloadCompleter;
-  static final Map<String, Future<void>> _collectionProcessingQueue = {};
-  static final Map<String, Timer> _batchDoneDebounceTimers = {};
 
   static bool _hasPermission(Map<String, dynamic> permissions, String key) {
     return permissions[key] == true;
@@ -98,7 +91,6 @@ class SyncService {
         return _isStaffLike(role, isSuperAdmin);
       case 'attendance':
       case 'leave_requests':
-      case 'shift_swaps':
       case 'audit_logs':
       case 'supplier_payments':
       case 'repair_partner_payments':
@@ -171,47 +163,9 @@ class SyncService {
   static bool get isRealTimeSyncActive =>
       _isInitialized && _subscriptions.isNotEmpty;
 
-  static bool get isDownloadInProgress => _isDownloading;
-
   /// Get subscription status for debugging
   static Map<String, bool> get subscriptionStatus =>
       Map.unmodifiable(_subscriptionStatus);
-
-  static Future<void> _waitForRealtimeInitIfRunning({
-    Duration timeout = const Duration(seconds: 20),
-  }) async {
-    final initFuture = _realtimeInitCompleter;
-    if (!_isInitializingRealtime || initFuture == null) return;
-    try {
-      await initFuture.future.timeout(timeout);
-    } catch (_) {
-      debugPrint('⚠️ waitForRealtimeInit timeout after ${timeout.inSeconds}s');
-    }
-  }
-
-  static Future<void> _waitForDownloadIfRunning({
-    Duration timeout = const Duration(seconds: 30),
-  }) async {
-    final downloadFuture = _downloadCompleter;
-    if (!_isDownloading || downloadFuture == null) return;
-    try {
-      await downloadFuture.future.timeout(timeout);
-    } catch (_) {
-      debugPrint('⚠️ waitForDownload timeout after ${timeout.inSeconds}s');
-    }
-  }
-
-  static void _scheduleBatchDone(String collection, VoidCallback onBatchDone) {
-    _batchDoneDebounceTimers[collection]?.cancel();
-    _batchDoneDebounceTimers[collection] = Timer(
-      const Duration(milliseconds: 250),
-      () {
-        if (_subscriptionStatus[collection] != false) {
-          onBatchDone();
-        }
-      },
-    );
-  }
 
   /// Helper: Lấy timestamp từ data (hỗ trợ cả Timestamp và int)
   static int _getTimestamp(dynamic value) {
@@ -427,18 +381,7 @@ class SyncService {
       return true;
     }
 
-    // Local có thay đổi chưa sync (isSynced=false)
-    // Nếu quá 5 phút chưa sync được → accept cloud (tránh kẹt vĩnh viễn)
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final staleThreshold = 5 * 60 * 1000; // 5 phút
-    if (localUpdatedAt > 0 && (now - localUpdatedAt) > staleThreshold) {
-      debugPrint(
-        '⚠️ SYNC: $collection/$firestoreId - Local chưa sync >5min (local: $localUpdatedAt, now: $now), accept cloud để tránh kẹt',
-      );
-      return true;
-    }
-
-    // Trong vòng 5 phút: giữ local, enqueue để push lên cloud
+    // Local có thay đổi chưa sync (isSynced=false) → LUÔN giữ local
     // Đây là fix cho race condition: khi vừa cập nhật status, cloud listener
     // có thể trả về data cũ (echo) và ghi đè local changes
     debugPrint(
@@ -531,41 +474,19 @@ class SyncService {
 
   /// Khởi tạo đồng bộ thời gian thực
   static Future<void> initRealTimeSync(VoidCallback onDataChanged) async {
-    try {
-      await _initRealTimeSyncImpl(onDataChanged);
-    } catch (e, stack) {
-      debugPrint("❌ initRealTimeSync UNCAUGHT error: $e");
-      debugPrint("❌ initRealTimeSync STACK: $stack");
-    }
-  }
+    PerfMonitor.start('initRealTimeSync');
+    debugPrint("Khởi tạo real-time sync...");
+    // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
+    await cancelAllSubscriptions();
 
-  static Future<void> _initRealTimeSyncImpl(VoidCallback onDataChanged) async {
-    if (_isInitializingRealtime) {
-      debugPrint('⏳ initRealTimeSync: another init is running, waiting...');
-      await _waitForRealtimeInitIfRunning();
+    // Store callback for potential reinitialization
+    _onDataChangedCallback = onDataChanged;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint("initRealTimeSync: Không có user, bỏ qua");
       return;
     }
-
-    // Avoid running real-time setup while a full cloud download is in-flight.
-    await _waitForDownloadIfRunning();
-
-    _isInitializingRealtime = true;
-    _realtimeInitCompleter = Completer<void>();
-    PerfMonitor.start('initRealTimeSync');
-
-    try {
-      debugPrint("Khởi tạo real-time sync...");
-      // Hủy các subscription cũ nếu có để tránh rò rỉ bộ nhớ hoặc lặp sự kiện
-      await cancelAllSubscriptions();
-
-      // Store callback for potential reinitialization
-      _onDataChangedCallback = onDataChanged;
-
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        debugPrint("initRealTimeSync: Không có user, bỏ qua");
-        return;
-      }
 
     final bool isSuperAdmin = UserService.isCurrentUserSuperAdmin();
     final permissions = await UserService.getCurrentUserPermissions();
@@ -940,10 +861,6 @@ class SyncService {
       final data = snapshot.data();
       if (data == null) return;
 
-      if (!snapshot.metadata.isFromCache) {
-        FirebaseStatsService.trackRead('shops', 1);
-      }
-
       try {
         debugPrint("📡 Shop data changed for shopId: $shopId");
 
@@ -975,12 +892,12 @@ class SyncService {
       }
     }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
     _subscriptions.add(shopSub);
-    FirebaseStatsService.updateListenerCount(_subscriptions.length);
 
     // ═══════════════════════════════════════════════════════════════════════
     // CRITICAL subscriptions done — mark as initialized so UI can proceed
     // ═══════════════════════════════════════════════════════════════════════
     _isInitialized = true;
+    PerfMonitor.stop('initRealTimeSync');
     debugPrint(
       "✅ Critical sync ready (${_subscriptions.length} subs) — "
       "deferred collections will load in 3s...",
@@ -1002,14 +919,6 @@ class SyncService {
     });
 
     debugPrint("📊 Subscription status: $_subscriptionStatus");
-    } finally {
-      _isInitializingRealtime = false;
-      if (_realtimeInitCompleter != null &&
-          !_realtimeInitCompleter!.isCompleted) {
-        _realtimeInitCompleter!.complete();
-      }
-      PerfMonitor.stop('initRealTimeSync');
-    }
   }
 
   /// Khởi tạo các subscription KHÔNG CẤP BÁCH sau 3 giây delay
@@ -1105,45 +1014,6 @@ class SyncService {
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo leave_requests sync: $e");
-    }
-
-    // 8c. Đồng bộ SHIFT SWAPS (Đổi ca)
-    try {
-      _subscribeToCollection(
-        collection: 'shift_swaps',
-        shopId: shopId,
-        permissions: permissions,
-        role: role,
-        isSuperAdmin: isSuperAdmin,
-        onChanged: (data, docId) async {
-          try {
-            final db = DBHelper();
-            if (data['deleted'] == true) {
-              await db.deleteShiftSwapByFirestoreId(docId);
-            } else {
-              data['firestoreId'] = docId;
-              data['isSynced'] = 1;
-              // Convert Timestamp fields
-              for (final key in [
-                'createdAt',
-                'updatedAt',
-                'approvedAt',
-                'targetRespondedAt',
-              ]) {
-                if (data[key] is Timestamp) {
-                  data[key] = (data[key] as Timestamp).millisecondsSinceEpoch;
-                }
-              }
-              await db.upsertShiftSwap(ShiftSwap.fromMap(data));
-            }
-          } catch (e) {
-            debugPrint("Lỗi sync shift_swap $docId: $e");
-          }
-        },
-        onBatchDone: onDataChanged,
-      );
-    } catch (e) {
-      debugPrint("Lỗi khởi tạo shift_swaps sync: $e");
     }
 
     // 9. Đồng bộ QUICK INPUT CODES
@@ -1807,14 +1677,6 @@ class SyncService {
             .snapshots()
             .listen(
               (snapshot) async {
-                if (!snapshot.metadata.isFromCache &&
-                    snapshot.docChanges.isNotEmpty) {
-                  FirebaseStatsService.trackRead(
-                    'product_categories',
-                    snapshot.docChanges.length,
-                  );
-                }
-
                 for (final change in snapshot.docChanges) {
                   try {
                     final docId = change.doc.id;
@@ -1847,7 +1709,6 @@ class SyncService {
                   debugPrint("Sync error in product_categories: $e"),
             );
         _subscriptions.add(categoriesSub);
-        FirebaseStatsService.updateListenerCount(_subscriptions.length);
       }
     } catch (e) {
       debugPrint("Lỗi khởi tạo product_categories sync: $e");
@@ -2025,46 +1886,33 @@ class SyncService {
     _subscriptionStatus[collection] = true;
 
     final sub = query.snapshots().listen(
-      (snapshot) {
-        final previous = _collectionProcessingQueue[collection] ??
-            Future<void>.value();
-        _collectionProcessingQueue[collection] = previous.then((_) async {
-          // Double check shop không bị xóa trong lúc đang xử lý
-          if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
-            debugPrint(
-              "⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted",
-            );
-            return;
-          }
-
-          // Log initial sync or updates
+      (snapshot) async {
+        // Double check shop không bị xóa trong lúc đang xử lý
+        if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
           debugPrint(
-            "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
+            "⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted",
           );
+          return;
+        }
 
-          if (!snapshot.metadata.isFromCache && snapshot.docChanges.isNotEmpty) {
-            FirebaseStatsService.trackRead(
-              collection,
-              snapshot.docChanges.length,
-            );
-          }
+        // Log initial sync or updates
+        debugPrint(
+          "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
+        );
 
-          for (var change in snapshot.docChanges) {
-            var data = change.doc.data();
-            if (data == null) continue;
+        for (var change in snapshot.docChanges) {
+          var data = change.doc.data();
+          if (data == null) continue;
 
-            // Giải mã dữ liệu nếu được mã hóa
-            data = EncryptionService.decryptMap(data);
+          // Giải mã dữ liệu nếu được mã hóa
+          data = EncryptionService.decryptMap(data);
 
-            debugPrint(
-              "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
-            );
-            await onChanged(data, change.doc.id);
-          }
-          _scheduleBatchDone(collection, onBatchDone);
-        }).catchError((error, stack) {
-          debugPrint('❌ Snapshot queue error in $collection: $error');
-        });
+          debugPrint(
+            "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
+          );
+          await onChanged(data, change.doc.id);
+        }
+        onBatchDone();
       },
       onError: (e) {
         final errorStr = e.toString();
@@ -2105,7 +1953,6 @@ class SyncService {
     );
 
     _subscriptions.add(sub);
-    FirebaseStatsService.updateListenerCount(_subscriptions.length);
   }
 
   /// Helper để xóa record local theo firestoreId khi cloud record đã bị soft-delete
@@ -2167,9 +2014,6 @@ class SyncService {
         case 'leave_requests':
           await db.deleteLeaveRequestByFirestoreId(firestoreId);
           break;
-        case 'shift_swaps':
-          await db.deleteShiftSwapByFirestoreId(firestoreId);
-          break;
         case 'import_orders':
           await db.deleteImportOrderByFirestoreId(firestoreId);
           break;
@@ -2190,16 +2034,10 @@ class SyncService {
     for (var sub in _subscriptions) {
       await sub.cancel();
     }
-    for (final timer in _batchDoneDebounceTimers.values) {
-      timer.cancel();
-    }
-    _batchDoneDebounceTimers.clear();
-    _collectionProcessingQueue.clear();
     _subscriptions.clear();
     _subscriptionStatus.clear();
     _isInitialized = false;
     _currentShopId = null;
-    FirebaseStatsService.updateListenerCount(0);
     debugPrint('✅ All subscriptions cancelled');
   }
 
@@ -3618,43 +3456,6 @@ class SyncService {
         debugPrint("Lỗi sync payment intents collection: $e");
       }
 
-      // Đồng bộ Shift Swaps (Yêu cầu đổi ca)
-      try {
-        final shiftSwaps = await dbHelper.getUnsyncedShiftSwaps();
-        debugPrint(
-          "syncAllToCloud: có ${shiftSwaps.length} shift swaps cần sync",
-        );
-        if (shiftSwaps.isNotEmpty) {
-          for (var swap in shiftSwaps) {
-            try {
-              final docId =
-                  swap.firestoreId ??
-                  'ss_${swap.requesterId}_${swap.swapDate}_${swap.createdAt}';
-              Map<String, dynamic> data = swap.toMap();
-              data['shopId'] = shopId;
-              data['firestoreId'] = docId;
-              data.remove('id');
-              data.remove('isSynced');
-              data['updatedAt'] = FieldValue.serverTimestamp();
-              final encData = EncryptionService.encryptMap(data);
-              await _db
-                  .collection('shift_swaps')
-                  .doc(docId)
-                  .set(encData, SetOptions(merge: true));
-              // Mark synced locally
-              swap.isSynced = true;
-              swap.firestoreId = docId;
-              await dbHelper.upsertShiftSwap(swap);
-            } catch (e) {
-              debugPrint("Lỗi sync shift swap ${swap.firestoreId}: $e");
-            }
-          }
-          debugPrint("✅ Synced ${shiftSwaps.length} shift swaps to cloud");
-        }
-      } catch (e) {
-        debugPrint("Lỗi sync shift swaps collection: $e");
-      }
-
       debugPrint("Đã hoàn thành đồng bộ toàn bộ dữ liệu lên Cloud.");
     } catch (e) {
       debugPrint("Lỗi syncAllToCloud: $e");
@@ -3671,18 +3472,6 @@ class SyncService {
       debugPrint("⏸️ downloadAllFromCloud: Đang download, bỏ qua");
       return;
     }
-
-    // Tránh chạy song song với quá trình khởi tạo listener realtime.
-    await _waitForRealtimeInitIfRunning();
-
-    // Khi realtime đã active, không cần full pull lặp lại ở background.
-    if (!force && isRealTimeSyncActive) {
-      debugPrint(
-        '⏸️ downloadAllFromCloud: realtime sync active, skip background full pull',
-      );
-      return;
-    }
-
     if (!force && _lastDownloadTime != null) {
       final elapsed = DateTime.now().difference(_lastDownloadTime!);
       if (elapsed < _downloadCooldown) {
@@ -3693,7 +3482,6 @@ class SyncService {
       }
     }
     _isDownloading = true;
-    _downloadCompleter = Completer<void>();
     _lastDownloadTime = DateTime.now();
 
     debugPrint("Bắt đầu downloadAllFromCloud (force=$force)...");
@@ -3784,7 +3572,6 @@ class SyncService {
         'financial_activity_log', // FIX: Đồng bộ nhật ký tài chính
         'payment_requests', // FIX: Đồng bộ yêu cầu đóng tiền giữa các máy
         'leave_requests', // FIX: Đồng bộ đơn xin nghỉ giữa các máy
-        'shift_swaps', // Đồng bộ yêu cầu đổi ca giữa các máy
         'import_orders', // Đồng bộ phiếu nhập kho
         'import_order_items', // Đồng bộ chi tiết phiếu nhập
       ];
@@ -3836,10 +3623,6 @@ class SyncService {
 
           final snap = await query.get();
           debugPrint("  -> Found ${snap.docs.length} documents in $col");
-
-          if (!snap.metadata.isFromCache && snap.docs.isNotEmpty) {
-            FirebaseStatsService.trackRead(col, snap.docs.length);
-          }
 
           int successCount = 0;
           int skipCount = 0;
@@ -3897,8 +3680,6 @@ class SyncService {
                 await db.upsertAttendance(Attendance.fromMap(data));
               } else if (col == 'leave_requests') {
                 await db.upsertLeaveRequest(LeaveRequest.fromMap(data));
-              } else if (col == 'shift_swaps') {
-                await db.upsertShiftSwap(ShiftSwap.fromMap(data));
               } else if (col == 'quick_input_codes') {
                 await db.upsertQuickInputCode(QuickInputCode.fromMap(data));
               } else if (col == 'supplier_payments') {
@@ -3984,10 +3765,6 @@ class SyncService {
       debugPrint("Lỗi downloadAllFromCloud: $e");
     } finally {
       _isDownloading = false;
-      if (_downloadCompleter != null && !_downloadCompleter!.isCompleted) {
-        _downloadCompleter!.complete();
-      }
-      _downloadCompleter = null;
     }
   }
 
@@ -4091,11 +3868,6 @@ class SyncService {
       debugPrint(
         "syncCustomersFromCloud: Tìm thấy ${querySnapshot.docs.length} customers từ cloud",
       );
-
-      if (!querySnapshot.metadata.isFromCache &&
-          querySnapshot.docs.isNotEmpty) {
-        FirebaseStatsService.trackRead('customers', querySnapshot.docs.length);
-      }
 
       // Upsert từng customer vào local DB
       for (var doc in querySnapshot.docs) {

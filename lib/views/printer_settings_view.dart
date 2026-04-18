@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
@@ -805,15 +804,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.router),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              keyboardType: TextInputType.text,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                TextInputFormatter.withFunction((oldValue, newValue) {
-                  return newValue.copyWith(
-                    text: newValue.text.replaceAll(',', '.'),
-                  );
-                }),
-              ],
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -824,15 +815,7 @@ class _PrinterSettingsViewState extends State<PrinterSettingsView> {
                 prefixIcon: const Icon(Icons.router_outlined),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              keyboardType: TextInputType.text,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                TextInputFormatter.withFunction((oldValue, newValue) {
-                  return newValue.copyWith(
-                    text: newValue.text.replaceAll(',', '.'),
-                  );
-                }),
-              ],
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: 14),
 

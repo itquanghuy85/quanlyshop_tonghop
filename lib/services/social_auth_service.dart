@@ -257,21 +257,13 @@ class SocialAuthService {
     final rawNonce = _generateNonce();
     final nonce = _sha256ofString(rawNonce);
 
-    AuthorizationCredentialAppleID appleCredential;
-    try {
-      appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: nonce,
-      );
-    } on SignInWithAppleAuthorizationException catch (e) {
-      if (e.code == AuthorizationErrorCode.canceled) {
-        return null; // User cancelled — not an error
-      }
-      rethrow;
-    }
+    final appleCredential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: nonce,
+    );
 
     final oauthCredential = OAuthProvider('apple.com').credential(
       idToken: appleCredential.identityToken,

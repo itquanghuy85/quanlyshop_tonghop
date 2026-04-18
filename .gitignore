@@ -65,7 +65,3 @@ lib/firebase_options.dart
 
 # Backup files
 *.backup
-
-test_screenshots/
-oppo_test_log.txt
-backend/

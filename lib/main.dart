@@ -27,7 +27,6 @@ import 'services/claims_service.dart'; // Custom claims management
 import 'services/payment_intent_service.dart'; // Payment intents management
 import 'services/current_shop_service.dart'; // Multi-shop support
 import 'services/super_admin_security_service.dart'; // Super admin PIN & audit
-import 'services/firebase_stats_service.dart'; // Firebase read/write stats
 import 'data/db_helper.dart'; // Local database helper
 import 'utils/perf_monitor.dart'; // Performance monitoring
 import 'utils/seed_test_data.dart'; // Test data seeder
@@ -72,11 +71,6 @@ Future<void> _initializeDeferredAppServices() async {
   } catch (e) {
     debugPrint('ConnectivityService initialization failed: $e');
   }
-  try {
-    await FirebaseStatsService.init();
-  } catch (e) {
-    debugPrint('FirebaseStatsService initialization failed: $e');
-  }
 }
 
 // Background message handler (must be top-level function)
@@ -93,14 +87,6 @@ Future<void> main() async {
   await runZonedGuarded<Future<void>>(
     () async {
       final binding = WidgetsFlutterBinding.ensureInitialized();
-
-      // Catch Flutter framework errors (build, layout, paint) to prevent silent crashes
-      FlutterError.onError = (FlutterErrorDetails details) {
-        debugPrint('FLUTTER ERROR: ${details.exception}');
-        debugPrint('STACK: ${details.stack}');
-        // Không rethrow — chỉ log và swallow để tránh crash app
-      };
-
       if (!kIsWeb) {
         FlutterNativeSplash.preserve(widgetsBinding: binding);
       }
@@ -143,11 +129,6 @@ Future<void> main() async {
           } catch (e) {
             debugPrint('ConnectivityService initialization failed: $e');
           }
-          try {
-            await FirebaseStatsService.init();
-          } catch (e) {
-            debugPrint('FirebaseStatsService initialization failed: $e');
-          }
         });
 
         runApp(const MyApp());
@@ -155,7 +136,6 @@ Future<void> main() async {
     },
     (error, stack) {
       debugPrint('GLOBAL ERROR: $error');
-      debugPrint('GLOBAL STACK: $stack');
     },
   );
 }
@@ -182,7 +162,7 @@ class _MyAppState extends State<MyApp> {
     final supportedCodes = ['vi', 'en'];
     final code = supportedCodes.contains(languageCode) ? languageCode : 'vi';
     setState(() {
-      _locale = Locale(code ?? 'vi');
+      _locale = Locale(code!);
     });
   }
 
@@ -200,7 +180,6 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Quan Ly Shop',
       debugShowCheckedModeBanner: false,
-      navigatorKey: NotificationService.navigatorKey,
       scaffoldMessengerKey: NotificationService.messengerKey,
       theme: AppTheme.lightTheme,
       locale: _locale,
@@ -240,7 +219,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   String? _currentUid;
   Timer? _loggedOutFallbackTimer;
   bool _showLoggedOutFallback = false;
-  Future<void>? _startupDownloadFuture;
 
   // Track if sync orchestrator is initialized
   bool _syncOrchestratorInitialized = false;
@@ -277,61 +255,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       DBHelper().deduplicateFinancialActivities();
     } catch (e) {
       debugPrint('❌ SyncOrchestrator init failed: $e');
-    }
-  }
-
-  Future<void> _runGuardedStartupDownload({
-    required String source,
-    bool force = false,
-  }) async {
-    if (!kIsWeb && Platform.isIOS && !force) {
-      debugPrint(
-        '🍏 [$source] iOS stable mode: skip automatic startup full download',
-      );
-      return;
-    }
-
-    if (_startupDownloadFuture != null) {
-      debugPrint('⏳ [$source] waiting for ongoing startup download...');
-      await _startupDownloadFuture;
-      return;
-    }
-
-    final completer = Completer<void>();
-    _startupDownloadFuture = completer.future;
-
-    try {
-      if (!force) {
-        // Let realtime listener init start first, then avoid duplicate full pull.
-        await Future.delayed(const Duration(milliseconds: 1200));
-        if (SyncService.isRealTimeSyncActive) {
-          debugPrint(
-            '⏸️ [$source] skip full download: realtime already active',
-          );
-          return;
-        }
-      }
-
-      if (SyncService.isDownloadInProgress) {
-        debugPrint(
-          '⏸️ [$source] skip full download: another download is running',
-        );
-        return;
-      }
-
-      await SyncService.downloadAllFromCloud(force: force).timeout(
-        const Duration(seconds: 20),
-        onTimeout: () {
-          debugPrint('⚠️ [$source] download timeout after 20s');
-        },
-      );
-    } catch (e) {
-      debugPrint('❌ [$source] startup download failed: $e');
-    } finally {
-      if (!completer.isCompleted) {
-        completer.complete();
-      }
-      _startupDownloadFuture = null;
     }
   }
 
@@ -416,8 +339,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       final currentShopId = UserService.getShopIdSync();
       if (currentShopId != null && currentShopId.isNotEmpty) {
         try {
-          await _runGuardedStartupDownload(
-            source: '_startBackgroundUserWarmup',
+          await SyncService.downloadAllFromCloud().timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint('⚠️ Background sync timeout sau 20s');
+            },
           );
           await _initSyncOrchestrator();
           await CashClosingNotifier.instance.init();
@@ -637,7 +563,14 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       if (kIsWeb) {
         try {
           debugPrint('🔄 [WEB] Đồng bộ dữ liệu trước khi hiển thị...');
-          await _runGuardedStartupDownload(source: '_getRoleAfterSync-web');
+          await SyncService.downloadAllFromCloud().timeout(
+            const Duration(seconds: 20),
+            onTimeout: () {
+              debugPrint(
+                '⚠️ [WEB] Sync timeout sau 20s, tiếp tục với data hiện có...',
+              );
+            },
+          );
           debugPrint('✅ [WEB] Sync hoàn thành');
         } catch (e) {
           debugPrint('❌ [WEB] Lỗi đồng bộ (non-fatal): $e');
@@ -657,8 +590,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         Future.microtask(() async {
           try {
             debugPrint('🔄 Bắt đầu sync ở background...');
-            await _runGuardedStartupDownload(
-              source: '_getRoleAfterSync-mobile',
+            await SyncService.downloadAllFromCloud().timeout(
+              const Duration(seconds: 20),
+              onTimeout: () {
+                debugPrint(
+                  '⚠️ Sync timeout sau 20s, tiếp tục với data local...',
+                );
+              },
             );
             debugPrint('✅ Sync hoàn thành');
             await _initSyncOrchestrator();
@@ -769,8 +707,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
         _loggedOutFallbackTimer?.cancel();
         final uid = currentUser.uid;
-        final email =
-            currentUser.email ?? ''; // safe for phone-auth / anonymous users
+        final email = currentUser.email!;
 
         return FutureBuilder<Map<String, dynamic>>(
           future: _getOrCreateRoleFuture(uid, email),
@@ -871,9 +808,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                         prefs.setBool('claims_refreshed', true);
                         debugPrint('🔑 Claims refreshed for test account');
                       })
-                      .catchError((e) {
-                        debugPrint('⚠️ Claims refresh failed: $e');
-                      });
+                      .catchError(
+                        (e) => debugPrint('⚠️ Claims refresh failed: $e'),
+                      );
                 }
               });
             }

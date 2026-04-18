@@ -18,7 +18,6 @@ import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/app_cached_image.dart';
-import 'shift_swap_tab.dart';
 
 /// Trang theo dõi chấm công nhân viên cho quản lý/chủ shop
 /// 3 Tab: Tổng quan | Duyệt chấm công | Xin nghỉ
@@ -43,19 +42,14 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   List<AttendanceMonthlySummary> _monthlySummaries = [];
   List<Attendance> _pendingRequests = [];
   List<LeaveRequest> _leaveRequests = [];
-  List<Attendance> _cachedApprovalRecords = [];
 
   String? _currentShopId;
   String _viewMode = 'day'; // 'day' or 'month'
 
-  // Detail tab filters
-  String _detailFilter = 'all'; // all, ontime, late, absent, shift_change
-  String? _detailStaffFilter; // userId or null for all
-
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 5, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     _tabCtrl.addListener(() {
       if (!_tabCtrl.indexIsChanging && mounted) setState(() {});
     });
@@ -69,19 +63,14 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   }
 
   Future<void> _loadData() async {
-    if (mounted) setState(() => _loading = true);
-    try {
-      _currentShopId = await UserService.getCurrentShopId();
-      await _loadStaffList();
-      await Future.wait([
-        _loadAttendanceData(),
-        _loadPendingRequests(),
-        _loadLeaveRequests(),
-      ]);
-      _cachedApprovalRecords = _collectApprovalRecords();
-    } catch (e) {
-      debugPrint('Error loading attendance management data: $e');
-    }
+    setState(() => _loading = true);
+    _currentShopId = await UserService.getCurrentShopId();
+    await _loadStaffList();
+    await Future.wait([
+      _loadAttendanceData(),
+      _loadPendingRequests(),
+      _loadLeaveRequests(),
+    ]);
     if (mounted) setState(() => _loading = false);
   }
 
@@ -132,42 +121,30 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   Future<void> _loadDayAttendance() async {
     final dateKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
-    // Batch: Load ALL attendance for this day from local DB first
-    final allLocal = await _db.getAttendanceByDateRange(dateKey, dateKey);
-    final localByUser = <String, Attendance>{};
-    for (final a in allLocal) {
-      localByUser[a.userId] = a;
-    }
-
-    // Assign local records to staff
-    final missingUserIds = <String>[];
     for (final staff in _staffList) {
       final userId = staff['id'] as String;
-      final local = localByUser[userId];
-      if (local != null) {
-        _staffAttendance[userId] = [local];
-      } else {
-        missingUserIds.add(userId);
-        _staffAttendance[userId] = [];
-      }
-    }
-
-    // Single batch Firestore query for ALL missing staff
-    if (missingUserIds.isNotEmpty && _currentShopId != null) {
       try {
-        final snap = await FirebaseFirestore.instance
-                .collection('attendance')
-                .where('shopId', isEqualTo: _currentShopId)
-                .where('dateKey', isEqualTo: dateKey)
-                .get();
-        for (final doc in snap.docs) {
-          final record = Attendance.fromMap(doc.data());
-          if (missingUserIds.contains(record.userId)) {
-            _staffAttendance[record.userId] = [record];
-          }
+        final local = await _db.getAttendance(dateKey, userId);
+        if (local != null) {
+          _staffAttendance[userId] = [local];
+          continue;
+        }
+        if (_currentShopId != null) {
+          final doc = await FirebaseFirestore.instance
+              .collection('attendance')
+              .where('shopId', isEqualTo: _currentShopId)
+              .where('userId', isEqualTo: userId)
+              .where('dateKey', isEqualTo: dateKey)
+              .limit(1)
+              .get();
+          _staffAttendance[userId] = doc.docs.isNotEmpty
+              ? [Attendance.fromMap(doc.docs.first.data())]
+              : [];
+        } else {
+          _staffAttendance[userId] = [];
         }
       } catch (e) {
-        debugPrint('Error batch loading day attendance: $e');
+        _staffAttendance[userId] = [];
       }
     }
   }
@@ -179,42 +156,31 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     final endKey = DateFormat('yyyy-MM-dd').format(end);
     final allLocal = await _db.getAttendanceByDateRange(startKey, endKey);
 
-    // Batch: Group all local records by userId
-    final localByUser = <String, List<Attendance>>{};
-    for (final a in allLocal) {
-      localByUser.putIfAbsent(a.userId, () => []).add(a);
-    }
-
-    // Assign local records & find missing staff
-    final missingUserIds = <String>[];
     for (final staff in _staffList) {
       final userId = staff['id'] as String;
-      final records = localByUser[userId];
-      if (records != null && records.isNotEmpty) {
-        _staffAttendance[userId] = records;
-      } else {
-        missingUserIds.add(userId);
-        _staffAttendance[userId] = [];
-      }
-    }
-
-    // Single batch Firestore query for ALL missing staff
-    if (missingUserIds.isNotEmpty && _currentShopId != null) {
       try {
-        final snap = await FirebaseFirestore.instance
-                .collection('attendance')
-                .where('shopId', isEqualTo: _currentShopId)
-                .where('dateKey', isGreaterThanOrEqualTo: startKey)
-                .where('dateKey', isLessThanOrEqualTo: endKey)
-                .get();
-        for (final doc in snap.docs) {
-          final record = Attendance.fromMap(doc.data());
-          if (missingUserIds.contains(record.userId)) {
-            _staffAttendance.putIfAbsent(record.userId, () => []).add(record);
-          }
+        final records = allLocal.where((r) => r.userId == userId).toList();
+        if (records.isNotEmpty) {
+          _staffAttendance[userId] = records;
+          continue;
+        }
+        if (_currentShopId != null) {
+          final snap = await FirebaseFirestore.instance
+              .collection('attendance')
+              .where('shopId', isEqualTo: _currentShopId)
+              .where('userId', isEqualTo: userId)
+              .where('dateKey', isGreaterThanOrEqualTo: startKey)
+              .where('dateKey', isLessThanOrEqualTo: endKey)
+              .get();
+          final recs = snap.docs
+              .map((d) => Attendance.fromMap(d.data()))
+              .toList();
+          _staffAttendance[userId] = recs;
+        } else {
+          _staffAttendance[userId] = [];
         }
       } catch (e) {
-        debugPrint('Error batch loading month attendance: $e');
+        _staffAttendance[userId] = [];
       }
     }
     _monthlySummaries = AttendanceSummaryService.buildMonthlySummaries(
@@ -258,7 +224,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final pendingCount = _cachedApprovalRecords.length;
+    final pendingCount = _collectApprovalRecords().length;
     final leaveCount = _leaveRequests
         .where((l) => l.status == 'pending')
         .length;
@@ -300,8 +266,6 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
             const Tab(text: 'TỔNG QUAN'),
             Tab(child: _tabWithBadge('DUYỆT', pendingCount)),
             Tab(child: _tabWithBadge('XIN NGHỈ', leaveCount)),
-            const Tab(text: 'ĐỔI CA'),
-            const Tab(text: 'CHI TIẾT'),
           ],
         ),
       ),
@@ -314,12 +278,6 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
                   _buildOverviewTab(),
                   _buildApprovalTab(),
                   _buildLeaveTab(),
-                  ShiftSwapTab(
-                    isManager: true,
-                    staffList: _staffList,
-                    onChanged: _loadData,
-                  ),
-                  _buildDetailTab(),
                 ],
               ),
       ),
@@ -1203,7 +1161,7 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
   Widget _buildApprovalTab() {
     try {
       final loc = AppLocalizations.of(context)!;
-      final pending = _cachedApprovalRecords;
+      final pending = _collectApprovalRecords();
 
       // Build children list imperatively (no collection-if/for/spread in list literal)
       final children = <Widget>[];
@@ -3022,307 +2980,6 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
             : userId.isNotEmpty
             ? userId
             : 'N/A');
-  }
-
-  // ==================== TAB 5: CHI TIẾT ====================
-
-  List<Attendance> _getFilteredDetailRecords() {
-    // Collect all attendance from all staff for current period
-    final allRecords = <Attendance>[];
-    for (final entry in _staffAttendance.entries) {
-      if (_detailStaffFilter != null && entry.key != _detailStaffFilter) {
-        continue;
-      }
-      allRecords.addAll(entry.value);
-    }
-
-    // Apply status filter
-    switch (_detailFilter) {
-      case 'ontime':
-        return allRecords
-            .where((a) => a.isLate != 1 && a.isEarlyLeave != 1 && a.checkInAt != null)
-            .toList();
-      case 'late':
-        return allRecords.where((a) => a.isLate == 1).toList();
-      case 'absent':
-        // Staff with no record for a day = absent. Filter staff with 0 records.
-        // Here we show records with no checkIn (forgot or leave)
-        return allRecords
-            .where((a) => a.checkInAt == null || a.status == 'rejected')
-            .toList();
-      case 'shift_change':
-        return allRecords
-            .where((a) => a.requestType == 'overtime_edit' || a.requestType == 'shift_change')
-            .toList();
-      default:
-        return allRecords;
-    }
-  }
-
-  Widget _buildDetailTab() {
-    final records = _getFilteredDetailRecords()
-      ..sort((a, b) => b.dateKey.compareTo(a.dateKey));
-
-    return Column(
-      children: [
-        // Staff filter + Export button
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _detailStaffFilter,
-                  decoration: InputDecoration(
-                    labelText: 'Nhân viên',
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    isDense: true,
-                  ),
-                  items: [
-                    const DropdownMenuItem(value: null, child: Text('Tất cả nhân viên')),
-                    ..._staffList.map((s) => DropdownMenuItem(
-                      value: s['id'] as String,
-                      child: Text(s['name'] as String, overflow: TextOverflow.ellipsis),
-                    )),
-                  ],
-                  onChanged: (v) => setState(() => _detailStaffFilter = v),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.file_download, color: AppColors.primary),
-                tooltip: 'Xuất Excel',
-                onPressed: () => _exportDetailExcel(records),
-              ),
-            ],
-          ),
-        ),
-        // Filter chips
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _filterChip('Tất cả', 'all'),
-                const SizedBox(width: 6),
-                _filterChip('Đúng giờ', 'ontime'),
-                const SizedBox(width: 6),
-                _filterChip('Đi trễ', 'late'),
-                const SizedBox(width: 6),
-                _filterChip('Vắng/Nghỉ', 'absent'),
-                const SizedBox(width: 6),
-                _filterChip('Đổi ca/OT', 'shift_change'),
-              ],
-            ),
-          ),
-        ),
-        // Summary bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          color: AppColors.primary.withOpacity(0.05),
-          child: Row(
-            children: [
-              Text(
-                '${records.length} bản ghi',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-              const Spacer(),
-              Text(
-                _viewMode == 'day'
-                    ? DateFormat('dd/MM/yyyy').format(_selectedDate)
-                    : 'Tháng ${DateFormat('MM/yyyy').format(_selectedMonth)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-        // Records list
-        Expanded(
-          child: records.isEmpty
-              ? Center(
-                  child: Text(
-                    'Không có dữ liệu',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: records.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _buildDetailRecordCard(records[i]),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _filterChip(String label, String value) {
-    final selected = _detailFilter == value;
-    return FilterChip(
-      label: Text(label, style: TextStyle(fontSize: 12, color: selected ? Colors.white : null)),
-      selected: selected,
-      selectedColor: AppColors.primary,
-      checkmarkColor: Colors.white,
-      onSelected: (_) => setState(() => _detailFilter = value),
-    );
-  }
-
-  Widget _buildDetailRecordCard(Attendance a) {
-    final staffName = _staffList
-        .where((s) => s['id'] == a.userId)
-        .map((s) => s['name'] as String)
-        .firstOrNull ?? a.name;
-    
-    // Compute work hours
-    String workHours = '--';
-    if (a.checkInAt != null && a.checkOutAt != null) {
-      final minutes = ((a.checkOutAt! - a.checkInAt!) / 60000).round();
-      final h = minutes ~/ 60;
-      final m = minutes % 60;
-      workHours = '${h}h${m > 0 ? ' ${m}p' : ''}';
-    }
-
-    // Status icon + color
-    IconData icon;
-    Color iconColor;
-    String statusText;
-    if (a.checkInAt == null) {
-      icon = Icons.cancel_outlined;
-      iconColor = Colors.red;
-      statusText = 'Vắng';
-    } else if (a.isLate == 1) {
-      icon = Icons.schedule;
-      iconColor = Colors.orange;
-      statusText = 'Trễ';
-    } else if (a.isEarlyLeave == 1) {
-      icon = Icons.directions_run;
-      iconColor = Colors.orange;
-      statusText = 'Về sớm';
-    } else {
-      icon = Icons.check_circle_outline;
-      iconColor = Colors.green;
-      statusText = 'Đúng giờ';
-    }
-
-    if (a.requestType == 'overtime_edit' || a.requestType == 'shift_change') {
-      statusText += ' (Đổi ca)';
-    }
-
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: name + status
-            Row(
-              children: [
-                Icon(icon, color: iconColor, size: 18),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    staffName,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    statusText,
-                    style: TextStyle(color: iconColor, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Details row
-            Row(
-              children: [
-                _detailInfoItem(Icons.calendar_today, a.dateKey),
-                const SizedBox(width: 16),
-                _detailInfoItem(Icons.login, a.checkInAt != null
-                    ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(a.checkInAt!))
-                    : '--'),
-                const SizedBox(width: 16),
-                _detailInfoItem(Icons.logout, a.checkOutAt != null
-                    ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(a.checkOutAt!))
-                    : '--'),
-                const SizedBox(width: 16),
-                _detailInfoItem(Icons.timer, workHours),
-              ],
-            ),
-            if (a.overtimeOn > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Tăng ca: ${a.overtimeOn} phút',
-                style: TextStyle(fontSize: 11, color: Colors.blue[700]),
-              ),
-            ],
-            if (a.note != null && a.note!.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Ghi chú: ${a.note}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _detailInfoItem(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 13, color: Colors.grey[500]),
-        const SizedBox(width: 3),
-        Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-      ],
-    );
-  }
-
-  Future<void> _exportDetailExcel(List<Attendance> records) async {
-    if (records.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không có dữ liệu để xuất')),
-      );
-      return;
-    }
-
-    if (_viewMode == 'month') {
-      // Use existing monthly summary export
-      await ExcelExportHelper.exportAttendanceMonthlySummary(
-        context,
-        month: _selectedMonth,
-        summaries: _monthlySummaries,
-        staffAttendance: _staffAttendance,
-      );
-    } else {
-      // Export day attendance with current filters
-      final startMs = DateTime(
-        _selectedDate.year, _selectedDate.month, _selectedDate.day,
-      ).millisecondsSinceEpoch;
-      final endMs = DateTime(
-        _selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59,
-      ).millisecondsSinceEpoch;
-      await ExcelExportHelper.exportAttendance(
-        context,
-        startMs: startMs,
-        endMs: endMs,
-      );
-    }
   }
 
   AttendanceMonthlySummary? _summaryByUserId(String userId) {

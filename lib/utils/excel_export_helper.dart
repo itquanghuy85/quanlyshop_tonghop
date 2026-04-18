@@ -484,17 +484,8 @@ class ExcelExportHelper {
   }
 
   // ──────────────────────────────────────────────
-  //  3. EXPORT EXPENSES (THU CHI) - Professional Multi-sheet
+  //  3. EXPORT EXPENSES (THU CHI)
   // ──────────────────────────────────────────────
-
-  static const _fixedCategories = ['CỐ ĐỊNH', 'LƯƠNG', 'MẶT BẰNG', 'ĐIỆN NƯỚC'];
-
-  static String _expenseCategoryGroup(String category) {
-    if (_fixedCategories.contains(category)) return 'Cố định';
-    if (category == 'PHÁT SINH') return 'Phát sinh';
-    if (category == 'NHẬP HÀNG' || category == 'ĐƠN NHẬP HÀNG') return 'Nhập hàng';
-    return 'Khác';
-  }
 
   static Future<void> exportExpenses(
     BuildContext context, {
@@ -509,158 +500,33 @@ class ExcelExportHelper {
     }
 
     final expenses = maps.map((m) => Expense.fromMap(m)).toList();
-    final chiList = expenses.where((e) => e.type == 'CHI').toList();
-    final thuList = expenses.where((e) => e.type == 'THU').toList();
-
-    // Date range label
-    String dateRange = 'Tất cả';
-    if (startMs != null && endMs != null) {
-      dateRange = '${_fmtDate(startMs)} - ${_fmtDate(endMs)}';
-    }
 
     final excel = Excel.createExcel();
+    final sheet = excel['Thu chi'];
 
-    // ── SHEET 1: TỔNG HỢP (Summary) ──
-    final summary = excel['Tong hop'];
-    final titleStyle = CellStyle(
-      bold: true,
-      fontSize: 14,
-    );
-    final subHeaderStyle = CellStyle(
-      bold: true,
-      backgroundColorHex: ExcelColor.fromHexString('#E8EAF6'),
-    );
-
-    // Header info
-    summary.cell(CellIndex.indexByString('A1')).value = TextCellValue('BÁO CÁO THU CHI');
-    summary.cell(CellIndex.indexByString('A1')).cellStyle = titleStyle;
-    summary.cell(CellIndex.indexByString('A2')).value = TextCellValue('Kỳ: $dateRange');
-    summary.cell(CellIndex.indexByString('A3')).value = TextCellValue('Ngày xuất: ${_dateTimeFormat.format(DateTime.now())}');
-
-    int row = 5;
-    // CHI PHÍ summary
-    summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue('CHI PHÍ');
-    summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = subHeaderStyle;
-    summary.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue('Số khoản');
-    summary.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).cellStyle = subHeaderStyle;
-    summary.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue('Tổng tiền');
-    summary.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).cellStyle = subHeaderStyle;
-    row++;
-
-    // Group by category group
-    final groups = <String, List<Expense>>{};
-    for (final e in chiList) {
-      final g = _expenseCategoryGroup(e.category);
-      groups.putIfAbsent(g, () => []).add(e);
-    }
-
-    int totalChi = 0;
-    for (final g in ['Cố định', 'Phát sinh', 'Nhập hàng', 'Khác']) {
-      final items = groups[g] ?? [];
-      if (items.isEmpty) continue;
-      final sum = items.fold<int>(0, (s, e) => s + e.amount);
-      totalChi += sum;
-      _writeRow(summary, row, [g, items.length, _fmtMoney(sum)]);
-      row++;
-
-      // Sub-categories
-      final subGroups = <String, int>{};
-      for (final e in items) {
-        subGroups[e.category] = (subGroups[e.category] ?? 0) + e.amount;
-      }
-      for (final entry in subGroups.entries) {
-        _writeRow(summary, row, ['   ${entry.key}', '', _fmtMoney(entry.value)]);
-        row++;
-      }
-    }
-    _writeRow(summary, row, ['TỔNG CHI', chiList.length, _fmtMoney(totalChi)]);
-    summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = CellStyle(bold: true);
-    row += 2;
-
-    // THU PHỤ summary
-    if (thuList.isNotEmpty) {
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue('THU PHỤ');
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = subHeaderStyle;
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = TextCellValue('Số khoản');
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).cellStyle = subHeaderStyle;
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = TextCellValue('Tổng tiền');
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).cellStyle = subHeaderStyle;
-      row++;
-
-      final thuGroups = <String, List<Expense>>{};
-      for (final e in thuList) {
-        thuGroups.putIfAbsent(e.category, () => []).add(e);
-      }
-      int totalThu = 0;
-      for (final entry in thuGroups.entries) {
-        final sum = entry.value.fold<int>(0, (s, e) => s + e.amount);
-        totalThu += sum;
-        _writeRow(summary, row, [entry.key, entry.value.length, _fmtMoney(sum)]);
-        row++;
-      }
-      _writeRow(summary, row, ['TỔNG THU PHỤ', thuList.length, _fmtMoney(totalThu)]);
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = CellStyle(bold: true);
-      row += 2;
-
-      // Net
-      _writeRow(summary, row, ['LỢI NHUẬN RÒNG (Thu - Chi)', '', _fmtMoney(totalThu - totalChi)]);
-      summary.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).cellStyle = CellStyle(bold: true);
-    }
-
-    // ── SHEET 2: CHI TIẾT CHI PHÍ ──
-    final chiSheet = excel['Chi phi'];
-    _writeHeaders(chiSheet, [
+    _writeHeaders(sheet, [
       'STT',
       'Ngày',
-      'Nội dung',
       'Loại',
-      'Danh mục',
+      'Tiêu đề',
       'Số tiền',
+      'Danh mục',
       'PT thanh toán',
-      'Phạm vi',
       'Ghi chú',
     ]);
-    chiList.sort((a, b) => b.date.compareTo(a.date));
-    for (int i = 0; i < chiList.length; i++) {
-      final e = chiList[i];
-      _writeRow(chiSheet, i + 1, [
+
+    for (int i = 0; i < expenses.length; i++) {
+      final e = expenses[i];
+      _writeRow(sheet, i + 1, [
         i + 1,
         _fmtDateTime(e.date),
+        e.type == 'THU' ? 'Thu' : 'Chi',
         e.title,
-        _expenseCategoryGroup(e.category),
-        e.category,
         _fmtMoney(e.amount),
+        e.category,
         e.paymentMethod,
-        e.scope == 'PERSONAL' ? 'Cá nhân' : 'Shop',
         e.note ?? '',
       ]);
-    }
-
-    // ── SHEET 3: THU PHỤ (if any) ──
-    if (thuList.isNotEmpty) {
-      final thuSheet = excel['Thu phu'];
-      _writeHeaders(thuSheet, [
-        'STT',
-        'Ngày',
-        'Nội dung',
-        'Danh mục',
-        'Số tiền',
-        'PT thanh toán',
-        'Ghi chú',
-      ]);
-      thuList.sort((a, b) => b.date.compareTo(a.date));
-      for (int i = 0; i < thuList.length; i++) {
-        final e = thuList[i];
-        _writeRow(thuSheet, i + 1, [
-          i + 1,
-          _fmtDateTime(e.date),
-          e.title,
-          e.category,
-          _fmtMoney(e.amount),
-          e.paymentMethod,
-          e.note ?? '',
-        ]);
-      }
     }
 
     if (excel.sheets.containsKey('Sheet1')) {

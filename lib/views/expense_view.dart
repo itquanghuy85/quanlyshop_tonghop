@@ -54,8 +54,6 @@ class _ExpenseViewState extends State<ExpenseView> {
   // Filter options
   String _filterType = 'THÁNG'; // NGÀY, TUẦN, THÁNG
   DateTime _selectedDate = DateTime.now();
-  String? _selectedCategory; // null = all categories
-  String? _selectedScope; // null = all, 'SHOP', 'PERSONAL'
 
   StreamSubscription<String>? _eventSubscription;
 
@@ -172,32 +170,10 @@ class _ExpenseViewState extends State<ExpenseView> {
     List<Map<String, dynamic>> filtered = [];
 
     // First filter by THU/CHI type
-    var typeFiltered = _expenses.where((e) {
+    final typeFiltered = _expenses.where((e) {
       final eType = (e['type'] ?? 'CHI').toString();
       return eType == _viewMode;
     }).toList();
-
-    // Filter by scope if selected
-    if (_selectedScope != null) {
-      typeFiltered = typeFiltered.where((e) {
-        final scope = (e['scope'] ?? 'SHOP').toString();
-        return scope == _selectedScope;
-      }).toList();
-    }
-
-    // Then filter by category if selected
-    if (_selectedCategory != null) {
-      typeFiltered = typeFiltered.where((e) {
-        final cat = (e['category'] ?? '').toString();
-        if (_selectedCategory == 'CỐ ĐỊNH') {
-          return cat == 'CỐ ĐỊNH' || cat == 'LƯƠNG' || cat == 'MẶT BẰNG' || cat == 'ĐIỆN NƯỚC';
-        } else if (_selectedCategory == 'NHẬP HÀNG') {
-          return cat == 'NHẬP HÀNG' || cat == 'PURCHASE' || cat == 'ĐƠN NHẬP HÀNG';
-        } else {
-          return cat == _selectedCategory;
-        }
-      }).toList();
-    }
 
     switch (_filterType) {
       case 'NGÀY':
@@ -431,7 +407,6 @@ class _ExpenseViewState extends State<ExpenseView> {
     final noteC = TextEditingController();
     String category = "PHÁT SINH";
     String payMethod = "TIỀN MẶT";
-    String scope = "SHOP";
 
     showDialog(
       context: context,
@@ -458,29 +433,6 @@ class _ExpenseViewState extends State<ExpenseView> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "PHẠM VI",
-                      style: AppTextStyles.overline.copyWith(
-                        color: AppColors.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        ChoiceChip(
-                          label: Text('🏪 Shop', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
-                          selected: scope == 'SHOP',
-                          onSelected: (_) => setS(() => scope = 'SHOP'),
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: Text('🏠 Cá nhân', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
-                          selected: scope == 'PERSONAL',
-                          onSelected: (_) => setS(() => scope = 'PERSONAL'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                     Text(
                       "PHÂN LOẠI",
                       style: AppTextStyles.overline.copyWith(
@@ -606,7 +558,6 @@ class _ExpenseViewState extends State<ExpenseView> {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
                             'note': noteC.text,
-                            'scope': scope,
                           },
                         );
 
@@ -688,9 +639,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       children: [
         // THU/CHI toggle
         _buildViewModeToggle(),
-        _buildScopeFilter(),
         _buildFilterBar(),
-        _buildCategoryChips(),
         _viewMode == 'CHI'
             ? _buildProfessionalHeader(totalAmount, _filteredExpenses)
             : _buildIncomeHeader(totalAmount, _filteredExpenses),
@@ -820,10 +769,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       child: GestureDetector(
         onTap: () {
           if (_viewMode != mode) {
-            setState(() {
-              _viewMode = mode;
-              _selectedCategory = null;
-            });
+            setState(() => _viewMode = mode);
             _filterExpenses();
           }
         },
@@ -844,53 +790,6 @@ class _ExpenseViewState extends State<ExpenseView> {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.grey.shade500),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScopeFilter() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-      height: 30,
-      child: Row(
-        children: [
-          _scopeChip('Tất cả', null),
-          const SizedBox(width: 6),
-          _scopeChip('🏪 Shop', 'SHOP'),
-          const SizedBox(width: 6),
-          _scopeChip('🏠 Cá nhân', 'PERSONAL'),
-        ],
-      ),
-    );
-  }
-
-  Widget _scopeChip(String label, String? value) {
-    final active = _selectedScope == value;
-    final accentColor = value == 'PERSONAL'
-        ? const Color(0xFF6A1B9A)
-        : const Color(0xFF1565C0);
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedScope = value);
-        _filterExpenses();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: active ? accentColor : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: active ? accentColor : Colors.grey.shade200,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: active ? Colors.white : Colors.grey.shade600,
           ),
         ),
       ),
@@ -1018,7 +917,6 @@ class _ExpenseViewState extends State<ExpenseView> {
     final noteC = TextEditingController();
     String category = "PHÁT SINH";
     String payMethod = "TIỀN MẶT";
-    String scope = "SHOP";
 
     showDialog(
       context: context,
@@ -1045,31 +943,6 @@ class _ExpenseViewState extends State<ExpenseView> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "PHẠM VI",
-                      style: AppTextStyles.overline.copyWith(
-                        color: AppColors.onSurface.withOpacity(0.6),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        ChoiceChip(
-                          label: Text('🏪 Shop', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
-                          selected: scope == 'SHOP',
-                          selectedColor: const Color(0xFF66BB6A),
-                          onSelected: (_) => setS(() => scope = 'SHOP'),
-                        ),
-                        const SizedBox(width: 8),
-                        ChoiceChip(
-                          label: Text('🏠 Cá nhân', style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize)),
-                          selected: scope == 'PERSONAL',
-                          selectedColor: const Color(0xFF66BB6A),
-                          onSelected: (_) => setS(() => scope = 'PERSONAL'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                     Text(
                       "PHÂN LOẠI",
                       style: AppTextStyles.overline.copyWith(
@@ -1189,7 +1062,6 @@ class _ExpenseViewState extends State<ExpenseView> {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
                             'note': noteC.text,
-                            'scope': scope,
                           },
                         );
 
@@ -1219,72 +1091,6 @@ class _ExpenseViewState extends State<ExpenseView> {
         },
       ),
     );
-  }
-
-  Widget _buildCategoryChips() {
-    final categories = _viewMode == 'CHI'
-        ? ['CỐ ĐỊNH', 'PHÁT SINH', 'NHẬP HÀNG', 'KHÁC']
-        : ['PHÁT SINH', 'DỊCH VỤ', 'HOÀN TIỀN', 'KHÁC'];
-
-    final accentColor = _viewMode == 'CHI'
-        ? const Color(0xFFE53935)
-        : const Color(0xFF2E7D32);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      height: 34,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _categoryChip('Tất cả', null, accentColor),
-          const SizedBox(width: 4),
-          ...categories.map((cat) => Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: _categoryChip(_categoryLabel(cat), cat, accentColor),
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _categoryChip(String label, String? value, Color accentColor) {
-    final active = _selectedCategory == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedCategory = value);
-        _filterExpenses();
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? accentColor : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: active ? accentColor : Colors.grey.shade200,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: active ? Colors.white : Colors.grey.shade600,
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _categoryLabel(String cat) {
-    switch (cat) {
-      case 'CỐ ĐỊNH': return 'Cố định';
-      case 'PHÁT SINH': return 'Phát sinh';
-      case 'NHẬP HÀNG': return 'Nhập hàng';
-      case 'DỊCH VỤ': return 'Dịch vụ';
-      case 'HOÀN TIỀN': return 'Hoàn tiền';
-      case 'KHÁC': return 'Khác';
-      default: return cat;
-    }
   }
 
   Widget _buildFilterBar() {
@@ -1492,8 +1298,6 @@ class _ExpenseViewState extends State<ExpenseView> {
   Widget _expenseProfessionalCard(Map<String, dynamic> e) {
     final cat = (e['category'] ?? 'KHÁC').toString();
     final isIncome = (e['type'] ?? 'CHI') == 'THU';
-    final scope = (e['scope'] ?? 'SHOP').toString();
-    final isPersonal = scope == 'PERSONAL';
     Color color;
     IconData icon;
 
@@ -1541,8 +1345,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  "$cat${isPersonal ? ' • 🏠' : ''} • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
-                  style: TextStyle(fontSize: 12, color: isPersonal ? const Color(0xFF6A1B9A) : Colors.grey.shade500),
+                  "$cat • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
               ],

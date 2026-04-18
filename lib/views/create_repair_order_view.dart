@@ -1,11 +1,9 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/shop_settings_model.dart';
@@ -118,7 +116,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     // Hiển thị hướng dẫn cho người dùng mới
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
-      _checkAndRestoreDraft();
     });
   }
 
@@ -330,122 +327,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         loc.errorAddingCustomer(e.toString()),
         color: Colors.red,
       );
-    }
-  }
-
-  // ── DRAFT SAVE / RESTORE ──
-
-  static const _repairDraftKey = 'repair_draft';
-
-  Future<void> _saveDraft() async {
-    if (modelCtrl.text.trim().isEmpty) {
-      NotificationService.showSnackBar('Chưa có thông tin máy để lưu tạm', color: Colors.orange);
-      return;
-    }
-    final draft = {
-      'phone': phoneCtrl.text,
-      'name': nameCtrl.text,
-      'address': addressCtrl.text,
-      'model': modelCtrl.text,
-      'issue': issueCtrl.text,
-      'appearance': appearanceCtrl.text,
-      'accessories': accCtrl.text,
-      'password': passCtrl.text,
-      'price': priceCtrl.text,
-      'notes': notesCtrl.text,
-      'isWalkIn': _isWalkIn,
-      'selectedAccs': _selectedAccs.toList(),
-      'services': _services.map((s) => {
-        'name': s.serviceName,
-        'cost': s.cost,
-        'partnerId': s.partnerId,
-        'partnerName': s.partnerName,
-      }).toList(),
-      'savedAt': DateTime.now().millisecondsSinceEpoch,
-    };
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_repairDraftKey, jsonEncode(draft));
-    if (mounted) {
-      NotificationService.showSnackBar('💾 Đã lưu tạm đơn sửa', color: Colors.blue);
-    }
-  }
-
-  Future<bool> _hasDraft() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_repairDraftKey);
-  }
-
-  Future<void> _restoreDraft() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_repairDraftKey);
-    if (raw == null) return;
-    try {
-      final draft = jsonDecode(raw) as Map<String, dynamic>;
-      phoneCtrl.text = draft['phone'] ?? '';
-      nameCtrl.text = draft['name'] ?? '';
-      addressCtrl.text = draft['address'] ?? '';
-      modelCtrl.text = draft['model'] ?? '';
-      issueCtrl.text = draft['issue'] ?? '';
-      appearanceCtrl.text = draft['appearance'] ?? '';
-      accCtrl.text = draft['accessories'] ?? '';
-      passCtrl.text = draft['password'] ?? '';
-      priceCtrl.text = draft['price'] ?? '';
-      notesCtrl.text = draft['notes'] ?? '';
-      _isWalkIn = draft['isWalkIn'] ?? false;
-      final accs = (draft['selectedAccs'] as List?)?.cast<String>() ?? [];
-      _selectedAccs.clear();
-      _selectedAccs.addAll(accs);
-      final svcs = (draft['services'] as List?) ?? [];
-      _services.clear();
-      for (final s in svcs) {
-        _services.add(RepairService(
-          serviceName: s['name'] ?? '',
-          cost: s['cost'] ?? 0,
-          partnerId: s['partnerId'],
-          partnerName: s['partnerName'],
-        ));
-      }
-      setState(() {});
-      await _clearDraft();
-      if (mounted) {
-        NotificationService.showSnackBar('✅ Đã khôi phục đơn tạm', color: Colors.green);
-      }
-    } catch (e) {
-      debugPrint('Error restoring repair draft: $e');
-      await _clearDraft();
-    }
-  }
-
-  Future<void> _clearDraft() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_repairDraftKey);
-  }
-
-  Future<void> _checkAndRestoreDraft() async {
-    if (!await _hasDraft()) return;
-    if (!mounted) return;
-    final restore = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Khôi phục đơn tạm?'),
-        content: const Text('Bạn có đơn sửa chưa hoàn tất. Khôi phục lại?'),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await _clearDraft();
-              Navigator.pop(ctx, false);
-            },
-            child: const Text('XOÁ'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('KHÔI PHỤC'),
-          ),
-        ],
-      ),
-    );
-    if (restore == true) {
-      await _restoreDraft();
     }
   }
 
@@ -799,7 +680,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     );
     if (r != null) {
       HapticFeedback.mediumImpact();
-      _clearDraft();
 
       // Notify other views about the new repair
       EventBus().emit('repairs_changed');
@@ -1105,22 +985,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                   _buildCompactNotesImagesSection(),
 
                   const SizedBox(height: 16),
-                  // === NÚT LƯU TẠM ===
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: OutlinedButton.icon(
-                      onPressed: _saving ? null : _saveDraft,
-                      icon: const Icon(Icons.save_outlined, size: 18),
-                      label: const Text('LƯU TẠM', style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue.shade700,
-                        side: BorderSide(color: Colors.blue.shade300),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   // === NÚT LƯU ===
                   SizedBox(
                     width: double.infinity,

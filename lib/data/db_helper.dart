@@ -13,14 +13,12 @@ import '../models/debt_model.dart';
 import '../models/purchase_order_model.dart';
 import '../models/attendance_model.dart';
 import '../models/leave_request_model.dart';
-import '../models/shift_swap_model.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
   static Database? _database;
-  static Future<Database>? _databaseOpening;
   static bool _factoryInitialized = false;
   DBHelper._internal();
   factory DBHelper() => _instance;
@@ -89,16 +87,7 @@ class DBHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    if (_databaseOpening != null) {
-      return _databaseOpening!;
-    }
-
-    _databaseOpening = _initDB();
-    try {
-      _database = await _databaseOpening!;
-    } finally {
-      _databaseOpening = null;
-    }
+    _database = await _initDB();
     return _database!;
   }
 
@@ -197,19 +186,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 96,
-      singleInstance: true,
-      onConfigure: (db) async {
-        // iOS stability: use rawQuery for PRAGMA to avoid "not an error"
-        // exception from execute() and ensure WAL is applied.
-        try {
-          await db.rawQuery('PRAGMA journal_mode = WAL');
-          await db.rawQuery('PRAGMA synchronous = NORMAL');
-          await db.rawQuery('PRAGMA busy_timeout = 5000');
-        } catch (e) {
-          debugPrint('DB onConfigure: WAL setup error (non-fatal): $e');
-        }
-      },
+      version: 93,
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -218,7 +195,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, sellerUid TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, productCosts TEXT DEFAULT \'\', phoneRevenue INTEGER DEFAULT 0, phoneCost INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS sales(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, address TEXT, productNames TEXT, productImeis TEXT, totalPrice INTEGER, totalCost INTEGER, discount INTEGER DEFAULT 0, paymentMethod TEXT, sellerName TEXT, sellerUid TEXT, soldAt INTEGER, notes TEXT, gifts TEXT, isInstallment INTEGER DEFAULT 0, downPayment INTEGER DEFAULT 0, downPaymentMethod TEXT, loanAmount INTEGER DEFAULT 0, installmentTerm TEXT, bankName TEXT, bankName2 TEXT, loanAmount2 INTEGER DEFAULT 0, warranty TEXT, settlementPlannedAt INTEGER, settlementReceivedAt INTEGER, settlementAmount INTEGER DEFAULT 0, settlementFee INTEGER DEFAULT 0, settlementNote TEXT, settlementCode TEXT, cashAmount INTEGER DEFAULT 0, transferAmount INTEGER DEFAULT 0, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, phone TEXT, email TEXT, address TEXT, notes TEXT, createdAt INTEGER, lastVisitAt INTEGER, updatedAt INTEGER, totalSpent INTEGER DEFAULT 0, totalRepairs INTEGER DEFAULT 0, totalRepairCost INTEGER DEFAULT 0, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
@@ -227,7 +204,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, type TEXT, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI", scope TEXT DEFAULT "SHOP")',
+          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI")',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, debtType TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, linkedType TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT, deleted INTEGER DEFAULT 0, updatedAt INTEGER)',
@@ -237,9 +214,6 @@ class DBHelper {
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS leave_requests(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, email TEXT, name TEXT, leaveType TEXT, startDate TEXT, endDate TEXT, totalDays REAL, reason TEXT, status TEXT DEFAULT "pending", approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, deleted INTEGER DEFAULT 0)',
-        );
-        await db.execute(
-          'CREATE TABLE IF NOT EXISTS shift_swaps(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, requesterId TEXT, requesterName TEXT, requesterEmail TEXT, targetId TEXT, targetName TEXT, targetEmail TEXT, swapDate TEXT, returnDate TEXT, reason TEXT, status TEXT DEFAULT "pending_target", targetRespondedAt INTEGER, approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, rejectedBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, summary TEXT, role TEXT, email TEXT, payload TEXT, entityType TEXT, entityId TEXT)',
@@ -681,16 +655,6 @@ class DBHelper {
         );
         await db.execute(
           'CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status)',
-        );
-        // shift_swaps
-        await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_shift_swaps_requesterId ON shift_swaps(requesterId)',
-        );
-        await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_shift_swaps_targetId ON shift_swaps(targetId)',
-        );
-        await db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_shift_swaps_status ON shift_swaps(status)',
         );
         // debt_payments
         await db.execute(
@@ -1495,40 +1459,6 @@ class DBHelper {
             debugPrint('v93 error (import_orders): $e');
           }
         }
-        if (oldV < 94) {
-          // v94: Add productCosts column to sales (per-item cost breakdown)
-          try {
-            await db.execute("ALTER TABLE sales ADD COLUMN productCosts TEXT DEFAULT ''");
-          } catch (e) {
-            debugPrint('v94 error (sales productCosts): $e');
-          }
-        }
-        if (oldV < 95) {
-          // v95: Add phoneRevenue + phoneCost columns to sales (doanh thu riêng điện thoại cho tính lương NV)
-          try {
-            await db.execute('ALTER TABLE sales ADD COLUMN phoneRevenue INTEGER DEFAULT 0');
-          } catch (e) {
-            debugPrint('v95 error (sales phoneRevenue): $e');
-          }
-          try {
-            await db.execute('ALTER TABLE sales ADD COLUMN phoneCost INTEGER DEFAULT 0');
-          } catch (e) {
-            debugPrint('v95 error (sales phoneCost): $e');
-          }
-        }
-        if (oldV < 96) {
-          // v96: shift_swaps table for employee shift exchange
-          try {
-            await db.execute(
-              'CREATE TABLE IF NOT EXISTS shift_swaps(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, requesterId TEXT, requesterName TEXT, requesterEmail TEXT, targetId TEXT, targetName TEXT, targetEmail TEXT, swapDate TEXT, returnDate TEXT, reason TEXT, status TEXT DEFAULT "pending_target", targetRespondedAt INTEGER, approvedBy TEXT, approvedAt INTEGER, rejectReason TEXT, rejectedBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
-            );
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_shift_swaps_requesterId ON shift_swaps(requesterId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_shift_swaps_targetId ON shift_swaps(targetId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_shift_swaps_status ON shift_swaps(status)');
-          } catch (e) {
-            debugPrint('v96 error (shift_swaps): $e');
-          }
-        }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
           // Since SQLite doesn't support DROP COLUMN, we'll recreate tables without these columns
@@ -1612,56 +1542,35 @@ class DBHelper {
         }
         if (oldV < 30) {
           try {
-            final importCols = await db.rawQuery(
-              'PRAGMA table_info(supplier_import_history)',
-            );
-            final importColNames = importCols
-                .map((c) => c['name'] as String)
-                .toSet();
-
-            if (!importColNames.contains('shopId')) {
-              await db.execute(
-                'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
-              );
-            }
-            if (!importColNames.contains('firestoreId')) {
-              await db.execute(
-                'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT',
-              );
-            }
             await db.execute(
-              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_import_history_firestoreId_unique ON supplier_import_history(firestoreId)',
+              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_import_history shopId): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
+            );
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_product_prices shopId): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
             );
           } catch (e) {
             debugPrint(
-              'DB upgrade error (supplier_import_history columns v30): $e',
+              'DB upgrade error (supplier_import_history firestoreId): $e',
             );
           }
-
           try {
-            final priceCols = await db.rawQuery(
-              'PRAGMA table_info(supplier_product_prices)',
-            );
-            final priceColNames = priceCols
-                .map((c) => c['name'] as String)
-                .toSet();
-
-            if (!priceColNames.contains('shopId')) {
-              await db.execute(
-                'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-              );
-            }
-            if (!priceColNames.contains('firestoreId')) {
-              await db.execute(
-                'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT',
-              );
-            }
             await db.execute(
-              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_product_prices_firestoreId_unique ON supplier_product_prices(firestoreId)',
+              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
             );
           } catch (e) {
             debugPrint(
-              'DB upgrade error (supplier_product_prices columns v30): $e',
+              'DB upgrade error (supplier_product_prices firestoreId): $e',
             );
           }
         }
@@ -1755,62 +1664,44 @@ class DBHelper {
         if (oldV < 37) {
           // Ensure supplier tables have required columns
           try {
-            final importCols = await db.rawQuery(
-              'PRAGMA table_info(supplier_import_history)',
-            );
-            final importColNames = importCols
-                .map((c) => c['name'] as String)
-                .toSet();
-            if (!importColNames.contains('firestoreId')) {
-              await db.execute(
-                'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT',
-              );
-              debugPrint(
-                'DB upgrade: added firestoreId to supplier_import_history',
-              );
-            }
-            if (!importColNames.contains('shopId')) {
-              await db.execute(
-                'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
-              );
-              debugPrint('DB upgrade: added shopId to supplier_import_history');
-            }
             await db.execute(
-              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_import_history_firestoreId_unique ON supplier_import_history(firestoreId)',
+              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
+            );
+            debugPrint(
+              'DB upgrade: added firestoreId to supplier_import_history',
             );
           } catch (e) {
             debugPrint(
-              'DB upgrade error (supplier_import_history columns v37): $e',
+              'DB upgrade error (supplier_import_history firestoreId): $e',
             );
           }
           try {
-            final priceCols = await db.rawQuery(
-              'PRAGMA table_info(supplier_product_prices)',
-            );
-            final priceColNames = priceCols
-                .map((c) => c['name'] as String)
-                .toSet();
-            if (!priceColNames.contains('firestoreId')) {
-              await db.execute(
-                'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT',
-              );
-              debugPrint(
-                'DB upgrade: added firestoreId to supplier_product_prices',
-              );
-            }
-            if (!priceColNames.contains('shopId')) {
-              await db.execute(
-                'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-              );
-              debugPrint('DB upgrade: added shopId to supplier_product_prices');
-            }
             await db.execute(
-              'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_product_prices_firestoreId_unique ON supplier_product_prices(firestoreId)',
+              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+            );
+            debugPrint('DB upgrade: added shopId to supplier_import_history');
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_import_history shopId): $e');
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
+            );
+            debugPrint(
+              'DB upgrade: added firestoreId to supplier_product_prices',
             );
           } catch (e) {
             debugPrint(
-              'DB upgrade error (supplier_product_prices columns v37): $e',
+              'DB upgrade error (supplier_product_prices firestoreId): $e',
             );
+          }
+          try {
+            await db.execute(
+              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
+            );
+            debugPrint('DB upgrade: added shopId to supplier_product_prices');
+          } catch (e) {
+            debugPrint('DB upgrade error (supplier_product_prices shopId): $e');
           }
         }
         if (oldV < 39) {
@@ -3177,74 +3068,81 @@ class DBHelper {
           debugPrint('DB onOpen check error (customers): $e');
         }
 
-        // Ensure missing columns exist in supplier_import_history table
+        // Ensure firestoreId column exists in supplier_import_history table
         try {
-          final cols = await db.rawQuery(
-            'PRAGMA table_info(supplier_import_history)',
-          );
-          final colNames = cols.map((c) => c['name'] as String).toSet();
-
-          if (!colNames.contains('firestoreId')) {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT',
-            );
-            debugPrint('DB: added firestoreId column to supplier_import_history');
-          }
-          if (!colNames.contains('shopId')) {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
-            );
-            debugPrint('DB: added shopId column to supplier_import_history');
-          }
-          if (!colNames.contains('importedByUid')) {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN importedByUid TEXT',
-            );
-            debugPrint('DB: added importedByUid column to supplier_import_history');
-          }
-          if (!colNames.contains('referenceId')) {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN referenceId TEXT',
-            );
-            debugPrint('DB: added referenceId column to supplier_import_history');
-          }
-          if (!colNames.contains('createdAt')) {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN createdAt INTEGER',
-            );
-            debugPrint('DB: added createdAt column to supplier_import_history');
-          }
           await db.execute(
-            'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_import_history_firestoreId_unique ON supplier_import_history(firestoreId)',
+            'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
+          );
+          debugPrint('DB: added firestoreId column to supplier_import_history');
+        } catch (e) {
+          debugPrint(
+            'DB: firestoreId column already exists in supplier_import_history or error: $e',
+          );
+        }
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
+          );
+          debugPrint('DB: added shopId column to supplier_import_history');
+        } catch (e) {
+          debugPrint(
+            'DB: shopId column already exists in supplier_import_history or error: $e',
+          );
+        }
+        // Add new columns for importedByUid, referenceId, createdAt
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_import_history ADD COLUMN importedByUid TEXT',
+          );
+          debugPrint(
+            'DB: added importedByUid column to supplier_import_history',
           );
         } catch (e) {
-          debugPrint('DB onOpen check error (supplier_import_history columns): $e');
+          debugPrint(
+            'DB: importedByUid column already exists in supplier_import_history or error: $e',
+          );
+        }
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_import_history ADD COLUMN referenceId TEXT',
+          );
+          debugPrint('DB: added referenceId column to supplier_import_history');
+        } catch (e) {
+          debugPrint(
+            'DB: referenceId column already exists in supplier_import_history or error: $e',
+          );
+        }
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_import_history ADD COLUMN createdAt INTEGER',
+          );
+          debugPrint('DB: added createdAt column to supplier_import_history');
+        } catch (e) {
+          debugPrint(
+            'DB: createdAt column already exists in supplier_import_history or error: $e',
+          );
         }
 
-        // Ensure missing columns exist in supplier_product_prices table
+        // Ensure firestoreId column exists in supplier_product_prices table
         try {
-          final cols = await db.rawQuery(
-            'PRAGMA table_info(supplier_product_prices)',
-          );
-          final colNames = cols.map((c) => c['name'] as String).toSet();
-
-          if (!colNames.contains('firestoreId')) {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT',
-            );
-            debugPrint('DB: added firestoreId column to supplier_product_prices');
-          }
-          if (!colNames.contains('shopId')) {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-            );
-            debugPrint('DB: added shopId column to supplier_product_prices');
-          }
           await db.execute(
-            'CREATE UNIQUE INDEX IF NOT EXISTS idx_supplier_product_prices_firestoreId_unique ON supplier_product_prices(firestoreId)',
+            'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
           );
+          debugPrint('DB: added firestoreId column to supplier_product_prices');
         } catch (e) {
-          debugPrint('DB onOpen check error (supplier_product_prices columns): $e');
+          debugPrint(
+            'DB: firestoreId column already exists in supplier_product_prices or error: $e',
+          );
+        }
+        try {
+          await db.execute(
+            'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
+          );
+          debugPrint('DB: added shopId column to supplier_product_prices');
+        } catch (e) {
+          debugPrint(
+            'DB: shopId column already exists in supplier_product_prices or error: $e',
+          );
         }
 
         // Ensure missing columns exist in suppliers table
@@ -3428,12 +3326,6 @@ class DBHelper {
               'ALTER TABLE expenses ADD COLUMN deleted INTEGER DEFAULT 0',
             );
             debugPrint('DB onOpen: added deleted to expenses');
-          }
-          if (!colNames.contains('scope')) {
-            await db.execute(
-              "ALTER TABLE expenses ADD COLUMN scope TEXT DEFAULT 'SHOP'",
-            );
-            debugPrint('DB onOpen: added scope to expenses');
           }
         } catch (e) {
           debugPrint('DB onOpen check error (expenses columns): $e');
@@ -5354,120 +5246,6 @@ class DBHelper {
       orderBy: 'startDate ASC',
     );
     return maps.map((m) => LeaveRequest.fromMap(m)).toList();
-  }
-
-  // --- SHIFT SWAPS ---
-  Future<void> upsertShiftSwap(ShiftSwap swap) async => _upsert(
-    'shift_swaps',
-    swap.toMap(),
-    swap.firestoreId ?? "ss_${swap.requesterId}_${swap.swapDate}_${swap.targetId}",
-  );
-
-  Future<int> updateShiftSwap(ShiftSwap swap) async =>
-      (await database).update(
-        'shift_swaps',
-        swap.toMap(),
-        where: 'id = ?',
-        whereArgs: [swap.id],
-      );
-
-  Future<int> deleteShiftSwapByFirestoreId(String fId) async =>
-      (await database).delete(
-        'shift_swaps',
-        where: 'firestoreId = ?',
-        whereArgs: [fId],
-      );
-
-  Future<List<ShiftSwap>> getAllShiftSwaps() async {
-    final shopId = UserService.getShopIdSync();
-    String where = 'deleted = 0';
-    List<dynamic> args = [];
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND shopId = ?';
-      args.add(shopId);
-    }
-    final maps = await (await database).query(
-      'shift_swaps',
-      where: where,
-      whereArgs: args,
-      orderBy: 'createdAt DESC',
-    );
-    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
-  }
-
-  Future<List<ShiftSwap>> getShiftSwapsForUser(String userId) async {
-    final shopId = UserService.getShopIdSync();
-    String where = '(requesterId = ? OR targetId = ?) AND deleted = 0';
-    List<dynamic> args = [userId, userId];
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND shopId = ?';
-      args.add(shopId);
-    }
-    final maps = await (await database).query(
-      'shift_swaps',
-      where: where,
-      whereArgs: args,
-      orderBy: 'createdAt DESC',
-    );
-    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
-  }
-
-  Future<List<ShiftSwap>> getPendingShiftSwapsForTarget(String userId) async {
-    final shopId = UserService.getShopIdSync();
-    String where = 'targetId = ? AND status = ? AND deleted = 0';
-    List<dynamic> args = [userId, 'pending_target'];
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND shopId = ?';
-      args.add(shopId);
-    }
-    final maps = await (await database).query(
-      'shift_swaps',
-      where: where,
-      whereArgs: args,
-      orderBy: 'createdAt DESC',
-    );
-    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
-  }
-
-  Future<List<ShiftSwap>> getPendingShiftSwapsForManager() async {
-    final shopId = UserService.getShopIdSync();
-    String where = 'status = ? AND deleted = 0';
-    List<dynamic> args = ['pending_manager'];
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND shopId = ?';
-      args.add(shopId);
-    }
-    final maps = await (await database).query(
-      'shift_swaps',
-      where: where,
-      whereArgs: args,
-      orderBy: 'createdAt DESC',
-    );
-    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
-  }
-
-  Future<List<ShiftSwap>> getApprovedSwapsForDate(String dateKey) async {
-    final shopId = UserService.getShopIdSync();
-    String where = '(swapDate = ? OR returnDate = ?) AND status = ? AND deleted = 0';
-    List<dynamic> args = [dateKey, dateKey, 'approved'];
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND shopId = ?';
-      args.add(shopId);
-    }
-    final maps = await (await database).query(
-      'shift_swaps',
-      where: where,
-      whereArgs: args,
-    );
-    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
-  }
-
-  Future<List<ShiftSwap>> getUnsyncedShiftSwaps() async {
-    final maps = await (await database).query(
-      'shift_swaps',
-      where: 'isSynced = 0',
-    );
-    return maps.map((m) => ShiftSwap.fromMap(m)).toList();
   }
 
   Future<List<Attendance>> getPendingAttendanceRequests() async {
