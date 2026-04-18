@@ -28,8 +28,59 @@ def flutter_root
 end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+require 'json'
 
 flutter_ios_podfile_setup
+
+def expected_ios_plugins
+  plugins_path = File.expand_path(File.join('..', '.flutter-plugins-dependencies'), __FILE__)
+  return [] unless File.exist?(plugins_path)
+
+  data = JSON.parse(File.read(plugins_path))
+  ios_plugins = data.dig('plugins', 'ios') || []
+  ios_plugins.map { |plugin| plugin['name'] }.compact.uniq
+rescue StandardError => e
+  puts "[iOS Pods] Failed to read .flutter-plugins-dependencies: #{e.message}"
+  []
+end
+
+def locked_ios_plugin_sources
+  lock_path = File.expand_path(File.join(__dir__, 'Podfile.lock'))
+  return [] unless File.exist?(lock_path)
+
+  lock_content = File.read(lock_path)
+  # EXTERNAL SOURCES entries created by Flutter plugins.
+  lock_content.scan(/^\s{2}([A-Za-z0-9_\-]+):\n\s{4}:path: ".symlinks\/plugins\/\1\/(ios|darwin)"/)
+              .map(&:first)
+              .uniq
+rescue StandardError => e
+  puts "[iOS Pods] Failed to parse Podfile.lock: #{e.message}"
+  []
+end
+
+def abort_if_stale_ios_plugins!
+  expected_plugins = expected_ios_plugins
+  return if expected_plugins.empty?
+
+  locked_plugins = locked_ios_plugin_sources
+  stale_plugins = locked_plugins - expected_plugins
+  return if stale_plugins.empty?
+
+  raise <<~MSG
+    [iOS Pods] Podfile.lock contains stale Flutter plugin pod(s): #{stale_plugins.join(', ')}
+    This stale native state can cause startup/login crashes on iOS (e.g. duplicate ObjC classes).
+
+    Run this full cleanup on macOS from project root:
+      flutter clean
+      flutter pub get
+      cd ios
+      pod deintegrate
+      rm -rf Pods Podfile.lock .symlinks
+      pod install
+  MSG
+end
+
+abort_if_stale_ios_plugins!
 
 target 'Runner' do
   use_frameworks!
