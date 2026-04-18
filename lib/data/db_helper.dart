@@ -236,24 +236,24 @@ class DBHelper {
       version: 93,
       onConfigure: (db) async {
         try {
-          await db.execute('PRAGMA foreign_keys = ON');
+          await db.rawQuery('PRAGMA foreign_keys = ON');
         } catch (e) {
           debugPrint('DB onConfigure foreign_keys error: $e');
         }
         if (!kIsWeb) {
           try {
-            await db.execute('PRAGMA journal_mode = WAL');
+            await db.rawQuery('PRAGMA journal_mode = WAL');
           } catch (e) {
             debugPrint('DB onConfigure journal_mode error: $e');
           }
           try {
-            await db.execute('PRAGMA synchronous = NORMAL');
+            await db.rawQuery('PRAGMA synchronous = NORMAL');
           } catch (e) {
             debugPrint('DB onConfigure synchronous error: $e');
           }
         }
         try {
-          await db.execute('PRAGMA busy_timeout = 5000');
+          await db.rawQuery('PRAGMA busy_timeout = 5000');
         } catch (e) {
           debugPrint('DB onConfigure busy_timeout error: $e');
         }
