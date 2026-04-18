@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -16,6 +17,8 @@ class SplashView extends StatefulWidget {
 class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
   String _status = "";
   bool _isNavigating = false;
+  bool _isDisposed = false;
+  final List<Timer> _animationTimers = [];
 
   // Animation controllers
   late AnimationController _bgController;
@@ -142,17 +145,47 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     _startInit();
   }
 
-  Future<void> _startAnimationSequence() async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    _logoController.forward();
-    await Future.delayed(const Duration(milliseconds: 500));
-    _textController.forward();
-    await Future.delayed(const Duration(milliseconds: 400));
-    _progressController.forward();
+  void _startAnimationSequence() {
+    _registerAnimationTimer(
+      const Duration(milliseconds: 100),
+      _logoController,
+    );
+    _registerAnimationTimer(
+      const Duration(milliseconds: 600),
+      _textController,
+    );
+    _registerAnimationTimer(
+      const Duration(milliseconds: 1000),
+      _progressController,
+    );
+  }
+
+  void _registerAnimationTimer(
+    Duration delay,
+    AnimationController controller,
+  ) {
+    final timer = Timer(delay, () => _safeForward(controller));
+    _animationTimers.add(timer);
+  }
+
+  void _safeForward(AnimationController controller) {
+    if (!mounted || _isDisposed || _isNavigating) {
+      return;
+    }
+    try {
+      controller.forward();
+    } catch (e) {
+      debugPrint('Splash animation skipped: $e');
+    }
   }
 
   @override
   void dispose() {
+    _isDisposed = true;
+    for (final timer in _animationTimers) {
+      timer.cancel();
+    }
+    _animationTimers.clear();
     _bgController.dispose();
     _logoController.dispose();
     _textController.dispose();

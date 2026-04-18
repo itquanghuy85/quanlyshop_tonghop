@@ -9,7 +9,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:csv/csv.dart';
 import '../services/user_service.dart';
 import '../services/category_service.dart';
@@ -739,45 +739,51 @@ class _StaffListViewState extends State<StaffListView> {
         return StatefulBuilder(
           builder: (ctx, setState) {
             Future<void> pickFile() async {
-              final result = await FilePicker.platform.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: ['csv'],
+              const typeGroup = XTypeGroup(
+                label: 'csv',
+                extensions: ['csv'],
+                mimeTypes: ['text/csv', 'application/vnd.ms-excel'],
+              );
+              final pickedFile = await openFile(
+                acceptedTypeGroups: const [typeGroup],
               );
 
-              if (result != null && result.files.single.path != null) {
-                final file = File(result.files.single.path!);
-                final content = await file.readAsString();
-                final csvData = const CsvToListConverter().convert(content);
-
-                if (csvData.isEmpty || csvData[0].length < 2) {
-                  setState(
-                    () => errorText =
-                        'File CSV không hợp lệ. Cần ít nhất 2 cột: Email, Họ tên',
-                  );
-                  return;
-                }
-
-                // Parse CSV data (skip header row)
-                parsedData = [];
-                for (int i = 1; i < csvData.length; i++) {
-                  final row = csvData[i];
-                  if (row.length >= 2) {
-                    parsedData!.add({
-                      'email': row[0]?.toString().trim() ?? '',
-                      'displayName': row[1]?.toString().trim() ?? '',
-                      'phone': row.length > 2 ? row[2]?.toString().trim() : '',
-                      'address': row.length > 3
-                          ? row[3]?.toString().trim()
-                          : '',
-                      'role': row.length > 4
-                          ? row[4]?.toString().trim()
-                          : 'employee',
-                    });
-                  }
-                }
-
-                setState(() => errorText = null);
+              if (pickedFile == null) {
+                return;
               }
+
+              final rawContent = await pickedFile.readAsString();
+              final content = rawContent.startsWith('\uFEFF')
+                  ? rawContent.substring(1)
+                  : rawContent;
+              final csvData = const CsvToListConverter().convert(content);
+
+              if (csvData.isEmpty || csvData[0].length < 2) {
+                setState(
+                  () => errorText =
+                      'File CSV không hợp lệ. Cần ít nhất 2 cột: Email, Họ tên',
+                );
+                return;
+              }
+
+              // Parse CSV data (skip header row)
+              parsedData = [];
+              for (int i = 1; i < csvData.length; i++) {
+                final row = csvData[i];
+                if (row.length >= 2) {
+                  parsedData!.add({
+                    'email': row[0]?.toString().trim() ?? '',
+                    'displayName': row[1]?.toString().trim() ?? '',
+                    'phone': row.length > 2 ? row[2]?.toString().trim() : '',
+                    'address': row.length > 3 ? row[3]?.toString().trim() : '',
+                    'role': row.length > 4
+                        ? row[4]?.toString().trim()
+                        : 'employee',
+                  });
+                }
+              }
+
+              setState(() => errorText = null);
             }
 
             Future<void> submit() async {
