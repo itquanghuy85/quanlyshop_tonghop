@@ -120,6 +120,53 @@ class DBHelper {
     return data;
   }
 
+  Future<bool> _tableHasColumn(
+    DatabaseExecutor executor,
+    String table,
+    String column,
+  ) async {
+    final cols = await executor.rawQuery('PRAGMA table_info($table)');
+    return cols.any((c) => (c['name'] ?? '').toString() == column);
+  }
+
+  Future<void> _ensureColumnExists({
+    required DatabaseExecutor executor,
+    required String table,
+    required String column,
+    required String definition,
+    required String logScope,
+  }) async {
+    if (await _tableHasColumn(executor, table, column)) {
+      return;
+    }
+
+    try {
+      await executor.execute(
+        'ALTER TABLE $table ADD COLUMN $column $definition',
+      );
+      _tableColumnsCache.remove(table);
+      debugPrint('$logScope: added $column to $table');
+    } catch (e) {
+      debugPrint('$logScope error ($table.$column): $e');
+    }
+  }
+
+  Future<void> _ensureUniqueIndexExists({
+    required DatabaseExecutor executor,
+    required String indexName,
+    required String table,
+    required String column,
+    required String logScope,
+  }) async {
+    try {
+      await executor.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS $indexName ON $table($column)',
+      );
+    } catch (e) {
+      debugPrint('$logScope error ($indexName): $e');
+    }
+  }
+
   Future<void> _ensurePaymentIntentsSchema([DatabaseExecutor? executor]) async {
     final dbExecutor = executor ?? await database;
 
@@ -187,6 +234,30 @@ class DBHelper {
     return await openDatabase(
       path,
       version: 93,
+      onConfigure: (db) async {
+        try {
+          await db.rawQuery('PRAGMA foreign_keys = ON');
+        } catch (e) {
+          debugPrint('DB onConfigure foreign_keys error: $e');
+        }
+        if (!kIsWeb) {
+          try {
+            await db.rawQuery('PRAGMA journal_mode = WAL');
+          } catch (e) {
+            debugPrint('DB onConfigure journal_mode error: $e');
+          }
+          try {
+            await db.rawQuery('PRAGMA synchronous = NORMAL');
+          } catch (e) {
+            debugPrint('DB onConfigure synchronous error: $e');
+          }
+        }
+        try {
+          await db.rawQuery('PRAGMA busy_timeout = 5000');
+        } catch (e) {
+          debugPrint('DB onConfigure busy_timeout error: $e');
+        }
+      },
       onCreate: (db, version) async {
         await db.execute(
           'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
@@ -1541,38 +1612,48 @@ class DBHelper {
           }
         }
         if (oldV < 30) {
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
-            );
-          } catch (e) {
-            debugPrint('DB upgrade error (supplier_import_history shopId): $e');
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-            );
-          } catch (e) {
-            debugPrint('DB upgrade error (supplier_product_prices shopId): $e');
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
-            );
-          } catch (e) {
-            debugPrint(
-              'DB upgrade error (supplier_import_history firestoreId): $e',
-            );
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
-            );
-          } catch (e) {
-            debugPrint(
-              'DB upgrade error (supplier_product_prices firestoreId): $e',
-            );
-          }
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_import_history',
+            column: 'shopId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_product_prices',
+            column: 'shopId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_import_history',
+            column: 'firestoreId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_product_prices',
+            column: 'firestoreId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureUniqueIndexExists(
+            executor: db,
+            indexName: 'idx_supplier_import_history_firestoreId_unique',
+            table: 'supplier_import_history',
+            column: 'firestoreId',
+            logScope: 'DB upgrade',
+          );
+          await _ensureUniqueIndexExists(
+            executor: db,
+            indexName: 'idx_supplier_product_prices_firestoreId_unique',
+            table: 'supplier_product_prices',
+            column: 'firestoreId',
+            logScope: 'DB upgrade',
+          );
         }
         if (oldV < 31) {
           try {
@@ -1663,46 +1744,48 @@ class DBHelper {
         }
         if (oldV < 37) {
           // Ensure supplier tables have required columns
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
-            );
-            debugPrint(
-              'DB upgrade: added firestoreId to supplier_import_history',
-            );
-          } catch (e) {
-            debugPrint(
-              'DB upgrade error (supplier_import_history firestoreId): $e',
-            );
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
-            );
-            debugPrint('DB upgrade: added shopId to supplier_import_history');
-          } catch (e) {
-            debugPrint('DB upgrade error (supplier_import_history shopId): $e');
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
-            );
-            debugPrint(
-              'DB upgrade: added firestoreId to supplier_product_prices',
-            );
-          } catch (e) {
-            debugPrint(
-              'DB upgrade error (supplier_product_prices firestoreId): $e',
-            );
-          }
-          try {
-            await db.execute(
-              'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-            );
-            debugPrint('DB upgrade: added shopId to supplier_product_prices');
-          } catch (e) {
-            debugPrint('DB upgrade error (supplier_product_prices shopId): $e');
-          }
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_import_history',
+            column: 'firestoreId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_import_history',
+            column: 'shopId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_product_prices',
+            column: 'firestoreId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureColumnExists(
+            executor: db,
+            table: 'supplier_product_prices',
+            column: 'shopId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade',
+          );
+          await _ensureUniqueIndexExists(
+            executor: db,
+            indexName: 'idx_supplier_import_history_firestoreId_unique',
+            table: 'supplier_import_history',
+            column: 'firestoreId',
+            logScope: 'DB upgrade',
+          );
+          await _ensureUniqueIndexExists(
+            executor: db,
+            indexName: 'idx_supplier_product_prices_firestoreId_unique',
+            table: 'supplier_product_prices',
+            column: 'firestoreId',
+            logScope: 'DB upgrade',
+          );
         }
         if (oldV < 39) {
           // Align customers table schema with Customer model
@@ -3069,81 +3152,72 @@ class DBHelper {
         }
 
         // Ensure firestoreId column exists in supplier_import_history table
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN firestoreId TEXT UNIQUE',
-          );
-          debugPrint('DB: added firestoreId column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: firestoreId column already exists in supplier_import_history or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN shopId TEXT',
-          );
-          debugPrint('DB: added shopId column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: shopId column already exists in supplier_import_history or error: $e',
-          );
-        }
+        await _ensureColumnExists(
+          executor: db,
+          table: 'supplier_import_history',
+          column: 'firestoreId',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
+        await _ensureColumnExists(
+          executor: db,
+          table: 'supplier_import_history',
+          column: 'shopId',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
         // Add new columns for importedByUid, referenceId, createdAt
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN importedByUid TEXT',
-          );
-          debugPrint(
-            'DB: added importedByUid column to supplier_import_history',
-          );
-        } catch (e) {
-          debugPrint(
-            'DB: importedByUid column already exists in supplier_import_history or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN referenceId TEXT',
-          );
-          debugPrint('DB: added referenceId column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: referenceId column already exists in supplier_import_history or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_import_history ADD COLUMN createdAt INTEGER',
-          );
-          debugPrint('DB: added createdAt column to supplier_import_history');
-        } catch (e) {
-          debugPrint(
-            'DB: createdAt column already exists in supplier_import_history or error: $e',
-          );
-        }
+        await _ensureColumnExists(
+          executor: db,
+          table: 'supplier_import_history',
+          column: 'importedByUid',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
+        await _ensureColumnExists(
+          executor: db,
+          table: 'supplier_import_history',
+          column: 'referenceId',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
+        await _ensureColumnExists(
+          executor: db,
+          table: 'supplier_import_history',
+          column: 'createdAt',
+          definition: 'INTEGER',
+          logScope: 'DB onOpen',
+        );
+        await _ensureUniqueIndexExists(
+          executor: db,
+          indexName: 'idx_supplier_import_history_firestoreId_unique',
+          table: 'supplier_import_history',
+          column: 'firestoreId',
+          logScope: 'DB onOpen',
+        );
 
         // Ensure firestoreId column exists in supplier_product_prices table
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_product_prices ADD COLUMN firestoreId TEXT UNIQUE',
-          );
-          debugPrint('DB: added firestoreId column to supplier_product_prices');
-        } catch (e) {
-          debugPrint(
-            'DB: firestoreId column already exists in supplier_product_prices or error: $e',
-          );
-        }
-        try {
-          await db.execute(
-            'ALTER TABLE supplier_product_prices ADD COLUMN shopId TEXT',
-          );
-          debugPrint('DB: added shopId column to supplier_product_prices');
-        } catch (e) {
-          debugPrint(
-            'DB: shopId column already exists in supplier_product_prices or error: $e',
-          );
-        }
+        await _ensureColumnExists(
+          executor: db,
+          table: 'supplier_product_prices',
+          column: 'firestoreId',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
+        await _ensureColumnExists(
+          executor: db,
+          table: 'supplier_product_prices',
+          column: 'shopId',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
+        await _ensureUniqueIndexExists(
+          executor: db,
+          indexName: 'idx_supplier_product_prices_firestoreId_unique',
+          table: 'supplier_product_prices',
+          column: 'firestoreId',
+          logScope: 'DB onOpen',
+        );
 
         // Ensure missing columns exist in suppliers table
         try {
