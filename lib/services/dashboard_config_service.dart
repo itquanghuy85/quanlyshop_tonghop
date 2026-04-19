@@ -905,16 +905,18 @@ class ShortcutConfigService {
   static const String _prefsVersionKey = 'shortcut_config_version_v1';
   static const String _cloudField = 'shortcutConfigV1';
   static const String _cloudVersionField = 'shortcutConfigVersionV1';
-  static const int _schemaVersion = 3;
+  static const int _schemaVersion = 4;
 
-  /// Get default shortcuts - 4 visible by default in user-requested order
+  /// Get default shortcuts - keep core operations + expose key new features.
   static List<ShortcutConfig> getDefaultShortcuts() {
-    // Default visible: ds bán, bán hàng, ds sửa, đơn sửa
+    // Default visible: core operations + attendance + recent activity.
     const priorityOrder = [
       ShortcutType.saleList,
       ShortcutType.sellCreate,
       ShortcutType.repairList,
       ShortcutType.repairCreate,
+      ShortcutType.attendance,
+      ShortcutType.activityLog,
     ];
     final visibleDefaults = priorityOrder.toSet();
     final defaults = <ShortcutConfig>[];
@@ -961,6 +963,28 @@ class ShortcutConfigService {
     return defaults;
   }
 
+  static List<ShortcutConfig> _getV3DefaultShortcutsTemplate() {
+    // v3 defaults — only 4 visible shortcuts.
+    const priorityOrder = [
+      ShortcutType.saleList,
+      ShortcutType.sellCreate,
+      ShortcutType.repairList,
+      ShortcutType.repairCreate,
+    ];
+    final visibleDefaults = priorityOrder.toSet();
+    final defaults = <ShortcutConfig>[];
+    int order = 0;
+
+    for (final type in priorityOrder) {
+      defaults.add(ShortcutConfig(type: type, visible: true, order: order++));
+    }
+    for (final type in ShortcutType.values) {
+      if (visibleDefaults.contains(type)) continue;
+      defaults.add(ShortcutConfig(type: type, visible: false, order: order++));
+    }
+    return defaults;
+  }
+
   static bool _matchesShortcutTemplate(
     List<ShortcutConfig> configs,
     List<ShortcutConfig> template,
@@ -997,9 +1021,11 @@ class ShortcutConfigService {
   _migrateShortcutConfigs(List<ShortcutConfig> configs, int savedVersion) {
     final defaults = getDefaultShortcuts();
     final legacyDefaults = _getLegacyDefaultShortcuts();
+    final v3Defaults = _getV3DefaultShortcutsTemplate();
 
     if (savedVersion < _schemaVersion &&
-        _matchesShortcutTemplate(configs, legacyDefaults)) {
+        (_matchesShortcutTemplate(configs, legacyDefaults) ||
+            _matchesShortcutTemplate(configs, v3Defaults))) {
       return (configs: _cloneShortcutConfigs(defaults), migrated: true);
     }
 

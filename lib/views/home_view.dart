@@ -52,6 +52,7 @@ import 'salvage_phone_view.dart';
 import 'financial_report_view.dart';
 import 'audit_log_view.dart';
 import 'recent_activity_view.dart';
+import 'firestore_connectivity_test_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
@@ -9145,6 +9146,36 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _financeShortcutButton(
+                  icon: Icons.history,
+                  label: 'Hoạt động',
+                  color: Colors.deepPurple,
+                  onTap: () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RecentActivityView()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _financeShortcutButton(
+                  icon: Icons.wifi_find,
+                  label: 'Test Firestore',
+                  color: Colors.indigo,
+                  onTap: () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FirestoreConnectivityTestView(),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ],
