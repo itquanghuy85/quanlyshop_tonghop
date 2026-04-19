@@ -4,6 +4,27 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
+## [1.0.2] - 2026-04-19
+
+### Nâng cấp lớn cho người dùng (từ mốc v262)
+- **Đồng bộ nhanh, ổn định hơn giữa nhiều thiết bị**: giảm lỗi chậm/đơ khi đồng bộ, dữ liệu cập nhật nhất quán hơn khi mở lại app hoặc làm mới.
+- **Màn hình trạng thái đồng bộ chi tiết**: có trung tâm theo dõi tình trạng đọc/ghi Firebase, giúp kiểm tra trạng thái hệ thống rõ ràng hơn.
+- **Bổ sung quản trị vận hành**: thêm màn hình hoạt động gần đây và các lối tắt thao tác trên Trang chủ để truy cập nhanh chức năng thường dùng.
+- **Hoàn thiện luồng Đổi ca nhân viên**: tạo yêu cầu, duyệt/từ chối rõ ràng hơn cho quản lý và nhân viên.
+- **Tối ưu chi phí cloud**: giảm mạnh đọc dữ liệu nền, cải thiện tốc độ phản hồi và tiết kiệm tài nguyên khi vận hành lâu dài.
+
+### Ổn định & bảo mật
+- **Chuẩn hóa cập nhật dữ liệu theo thời gian** (updatedAt) để hạn chế ghi đè sai và lệch trạng thái.
+- **Củng cố Firestore Rules và phân quyền** cho các luồng nhạy cảm như đổi ca, dữ liệu vận hành, thống kê.
+- **Hoàn thiện kiến trúc Firebase-only** để đồng nhất hạ tầng và giảm rủi ro lỗi môi trường.
+
+### Khả năng phát hành đa nền tảng
+- Build phát hành Android thành công (AAB).
+- Build phát hành Web thành công.
+- iOS giữ tương thích phát hành, sẵn sàng build trên máy macOS.
+
+---
+
 ## [11.0.9] - 2026-03-08
 
 ### Cải thiện giao diện
