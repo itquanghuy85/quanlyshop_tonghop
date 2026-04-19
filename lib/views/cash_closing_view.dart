@@ -146,25 +146,14 @@ class _CashClosingViewState extends State<CashClosingView>
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) return;
 
-    final firestore = FirebaseFirestore.instance;
-
-    // cash_closings - chỉ giữ listener trực tiếp cho collection này
-    // vì SyncService không có EventBus event riêng cho cash_closings
-    _closingSubscription = firestore
-        .collection('cash_closings')
-        .where('shopId', isEqualTo: shopId)
-        .snapshots()
-        .listen((_) {
-          _scheduleReload();
-        });
-
     // Các collection khác đã được SyncService sync + emit EventBus
     // → sử dụng EventBus thay vì tạo duplicate Firestore listeners
     _eventBusSub = EventBus().stream.listen((event) {
       if (event == 'sales_changed' ||
           event == 'repairs_changed' ||
           event == 'expenses_changed' ||
-          event == 'debts_changed') {
+          event == 'debts_changed' ||
+          event == 'cash_closings_changed') {
         _scheduleReload();
       }
     });

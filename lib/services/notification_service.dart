@@ -801,6 +801,7 @@ class NotificationService {
           .collection('shop_notifications')
           .where('shopId', isEqualTo: shopId)
           .where('createdAt', isGreaterThan: Timestamp.fromDate(_appStartTime))
+          .limit(20)
           .snapshots()
           .listen((snapshot) {
             debugPrint(

@@ -372,7 +372,7 @@ class ChatService {
 
   /// Stream tin nhắn realtime
   static Stream<List<ChatMessage>> messagesStream({
-    int limit = 100,
+    int limit = 20,
     String? beforeMessageId,
   }) async* {
     final shopId = await UserService.getCurrentShopId();
@@ -385,7 +385,7 @@ class ChatService {
         .collection(_collectionChats)
         .where('shopId', isEqualTo: shopId)
         .orderBy('createdAt', descending: true)
-        .limit(limit);
+      .limit(limit.clamp(1, 20));
 
     yield* query.snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => ChatMessage.fromSnapshot(doc)).toList();
@@ -405,7 +405,7 @@ class ChatService {
         .where('shopId', isEqualTo: shopId)
         .where('isPinned', isEqualTo: true)
         .orderBy('createdAt', descending: true)
-        .limit(10)
+        .limit(20)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -458,6 +458,7 @@ class ChatService {
     yield* _db
         .collection(_collectionChats)
         .where('shopId', isEqualTo: shopId)
+      .limit(20)
         .snapshots()
         .map((snapshot) {
           int count = 0;
@@ -523,6 +524,7 @@ class ChatService {
     yield* _db
         .collection(_collectionTyping)
         .where('shopId', isEqualTo: shopId)
+      .limit(20)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs
@@ -569,6 +571,7 @@ class ChatService {
         .collection(_collectionOnline)
         .where('shopId', isEqualTo: shopId)
         .where('isOnline', isEqualTo: true)
+      .limit(20)
         .snapshots()
         .map((snapshot) {
           return snapshot.docs

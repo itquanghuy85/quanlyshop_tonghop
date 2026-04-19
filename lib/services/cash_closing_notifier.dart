@@ -19,7 +19,9 @@ class CashClosingNotifier {
   
   CashClosingNotifier._();
   
-  StreamSubscription<QuerySnapshot>? _subscription;
+  Timer? _pollTimer;
+  bool _isPolling = false;
+  static const Duration _pollInterval = Duration(seconds: 30);
   final _db = FirebaseFirestore.instance;
   final _localDb = DBHelper();
   
@@ -43,22 +45,35 @@ class CashClosingNotifier {
       debugPrint('CashClosingNotifier: No shopId, skipping init');
       return;
     }
-    
-    // Cancel existing subscription
-    await _subscription?.cancel();
-    
-    // Listen to cash_closings collection for this shop
-    _subscription = _db
-        .collection('cash_closings')
-        .where('shopId', isEqualTo: shopId)
-        .orderBy('createdAt', descending: true)
-        .limit(7) // Last 7 days
-        .snapshots()
-        .listen(_onClosingChanged, onError: (e) {
-      debugPrint('CashClosingNotifier error: $e');
+
+    // Cancel existing poller
+    _pollTimer?.cancel();
+
+    // Poll by get() instead of snapshots to avoid high realtime reads.
+    await _pollLatestClosings(shopId);
+    _pollTimer = Timer.periodic(_pollInterval, (_) {
+      unawaited(_pollLatestClosings(shopId));
     });
     
     debugPrint('CashClosingNotifier: Initialized for shop $shopId');
+  }
+
+  Future<void> _pollLatestClosings(String shopId) async {
+    if (_isPolling) return;
+    _isPolling = true;
+    try {
+      final snapshot = await _db
+          .collection('cash_closings')
+          .where('shopId', isEqualTo: shopId)
+          .orderBy('createdAt', descending: true)
+          .limit(7)
+          .get();
+      _onClosingChanged(snapshot);
+    } catch (e) {
+      debugPrint('CashClosingNotifier polling error: $e');
+    } finally {
+      _isPolling = false;
+    }
   }
   
   /// Xử lý khi có thay đổi từ Firestore
@@ -300,7 +315,7 @@ class CashClosingNotifier {
   
   /// Cleanup
   void dispose() {
-    _subscription?.cancel();
+    _pollTimer?.cancel();
     _listeners.clear();
   }
 }

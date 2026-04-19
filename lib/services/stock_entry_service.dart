@@ -1007,21 +1007,26 @@ class StockEntryService {
       return;
     }
 
-    final stream = _firestore
-        .collection(_collection)
-        .where('shopId', isEqualTo: shopId)
-        .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => StockEntry.fromMap(doc.data(), docId: doc.id))
-              .toList(),
-        )
-        .handleError((e) {
-          debugPrint('watchPendingEntries permission/sync error: $e');
-        });
-    yield* stream;
+    while (true) {
+      try {
+        final snapshot = await _firestore
+            .collection(_collection)
+            .where('shopId', isEqualTo: shopId)
+            .where('status', isEqualTo: 'draft')
+            .orderBy('createdAt', descending: true)
+            .limit(20)
+            .get();
+
+        yield snapshot.docs
+            .map((doc) => StockEntry.fromMap(doc.data(), docId: doc.id))
+            .toList();
+      } catch (e) {
+        debugPrint('watchPendingEntries polling error: $e');
+        yield <StockEntry>[];
+      }
+
+      await Future.delayed(const Duration(seconds: 20));
+    }
   }
 
   /// Stream đếm số hàng chờ
@@ -1032,16 +1037,22 @@ class StockEntryService {
       return;
     }
 
-    final stream = _firestore
-        .collection(_collection)
-        .where('shopId', isEqualTo: shopId)
-        .where('status', isEqualTo: 'draft') // lowercase để match với toMap()
-        .snapshots()
-        .map((snapshot) => snapshot.docs.length)
-        .handleError((e) {
-          debugPrint('watchPendingCount permission/sync error: $e');
-        });
-    yield* stream;
+    while (true) {
+      try {
+        final snapshot = await _firestore
+            .collection(_collection)
+            .where('shopId', isEqualTo: shopId)
+            .where('status', isEqualTo: 'draft')
+            .limit(20)
+            .get();
+        yield snapshot.docs.length;
+      } catch (e) {
+        debugPrint('watchPendingCount polling error: $e');
+        yield 0;
+      }
+
+      await Future.delayed(const Duration(seconds: 20));
+    }
   }
 }
 

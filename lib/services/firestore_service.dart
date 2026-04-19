@@ -439,11 +439,14 @@ class FirestoreService {
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> chatStream({
     String? shopId,
-    int limit = 100,
+    int limit = 20,
   }) {
     Query<Map<String, dynamic>> q = _db.collection('chats');
     if (shopId != null) q = q.where('shopId', isEqualTo: shopId);
-    return q.orderBy('createdAt', descending: true).limit(limit).snapshots();
+    return q
+        .orderBy('createdAt', descending: true)
+        .limit(limit.clamp(1, 20))
+        .snapshots();
   }
 
   static Future<void> addAuditLogCloud(Map<String, dynamic> logData) async {
@@ -630,7 +633,10 @@ class FirestoreService {
         query = query.where('shopId', isEqualTo: shopId);
       }
 
-      yield* query.orderBy('date', descending: true).snapshots();
+      while (true) {
+        yield await query.orderBy('date', descending: true).limit(20).get();
+        await Future.delayed(const Duration(seconds: 20));
+      }
     } catch (e) {
       debugPrint('Firestore getExpenseStream error: $e');
       yield* const Stream.empty();
@@ -761,7 +767,10 @@ class FirestoreService {
         query = query.where('dateKey', isEqualTo: dateKey);
       }
 
-      yield* query.orderBy('createdAt', descending: true).snapshots();
+      while (true) {
+        yield await query.orderBy('createdAt', descending: true).limit(20).get();
+        await Future.delayed(const Duration(seconds: 20));
+      }
     } catch (e) {
       debugPrint('Firestore getAttendanceStream error: $e');
       yield* const Stream.empty();
@@ -1013,7 +1022,7 @@ class FirestoreService {
             ),
           )
           .orderBy('createdAt', descending: true)
-          .limit(50)
+          .limit(20)
           .snapshots()
           .map(
             (snapshot) => snapshot.docs
@@ -1055,6 +1064,7 @@ class FirestoreService {
               Filter('targetUserId', isNull: true),
             ),
           )
+          .limit(20)
           .snapshots()
           .map((snapshot) => snapshot.docs.length)
           .handleError((error) {

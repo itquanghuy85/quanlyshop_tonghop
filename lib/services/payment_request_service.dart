@@ -422,56 +422,33 @@ class PaymentRequestService {
   static Stream<List<PaymentRequest>> requestsStream({
     PaymentRequestStatus? statusFilter,
     int limit = 50,
-  }) {
-    final controller = StreamController<List<PaymentRequest>>();
-    StreamSubscription? firestoreSub;
+  }) async* {
+    final shopId = await UserService.getCurrentShopId();
+    if (shopId == null) {
+      yield [];
+      return;
+    }
 
-    () async {
-      try {
-        final shopId = await UserService.getCurrentShopId();
-        if (shopId == null) {
-          controller.add([]);
-          await controller.close();
-          return;
-        }
+    Query<Map<String, dynamic>> query = _db
+        .collection(_collection)
+        .where('shopId', isEqualTo: shopId)
+        .where('deleted', isEqualTo: false);
 
-        Query<Map<String, dynamic>> query = _db
-            .collection(_collection)
-            .where('shopId', isEqualTo: shopId)
-            .where('deleted', isEqualTo: false);
+    if (statusFilter != null) {
+      query = query.where('status', isEqualTo: statusFilter.name);
+    }
 
-        if (statusFilter != null) {
-          query = query.where('status', isEqualTo: statusFilter.name);
-        }
+    query = query.orderBy('createdAt', descending: true).limit(limit.clamp(1, 20));
 
-        query = query.orderBy('createdAt', descending: true).limit(limit);
+    Future<List<PaymentRequest>> fetchOnce() async {
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) => PaymentRequest.fromSnapshot(doc)).toList();
+    }
 
-        firestoreSub = query.snapshots().listen(
-          (snapshot) {
-            final list = snapshot.docs
-                .map((doc) => PaymentRequest.fromSnapshot(doc))
-                .toList();
-            if (!controller.isClosed) controller.add(list);
-          },
-          onError: (e) {
-            debugPrint('❌ PaymentRequest stream error: $e');
-            if (!controller.isClosed) controller.addError(e);
-          },
-        );
-      } catch (e) {
-        if (!controller.isClosed) {
-          controller.addError(e);
-          await controller.close();
-        }
-      }
-    }();
-
-    controller.onCancel = () {
-      firestoreSub?.cancel();
-      if (!controller.isClosed) controller.close();
-    };
-
-    return controller.stream;
+    yield await fetchOnce();
+    yield* Stream.periodic(
+      const Duration(seconds: 20),
+    ).asyncMap((_) => fetchOnce());
   }
 
   /// Đếm yêu cầu chờ xử lý
@@ -482,13 +459,21 @@ class PaymentRequestService {
       return;
     }
 
-    yield* _db
-        .collection(_collection)
-        .where('shopId', isEqualTo: shopId)
-        .where('deleted', isEqualTo: false)
-        .where('status', isEqualTo: PaymentRequestStatus.pending.name)
-        .snapshots()
-        .map((s) => s.size);
+    Future<int> fetchCount() async {
+      final snapshot = await _db
+          .collection(_collection)
+          .where('shopId', isEqualTo: shopId)
+          .where('deleted', isEqualTo: false)
+          .where('status', isEqualTo: PaymentRequestStatus.pending.name)
+          .limit(20)
+          .get();
+      return snapshot.size;
+    }
+
+    yield await fetchCount();
+    yield* Stream.periodic(
+      const Duration(seconds: 20),
+    ).asyncMap((_) => fetchCount());
   }
 
   // ============== QUERIES ==============

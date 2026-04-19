@@ -636,6 +636,14 @@ class UserService {
     return doc.data() ?? {};
   }
 
+  static Stream<QuerySnapshot> _pollQuerySnapshots(
+    Query query, {
+    Duration interval = const Duration(seconds: 30),
+  }) async* {
+    yield await query.get();
+    yield* Stream.periodic(interval).asyncMap((_) => query.get());
+  }
+
   static Stream<QuerySnapshot> getAllUsersStream() {
     final currentUser = FirebaseAuth.instance.currentUser;
 
@@ -644,33 +652,36 @@ class UserService {
       // Nếu super admin đã chọn shop cụ thể, lọc theo shop đó
       if (_adminSelectedShopId != null &&
           _adminSelectedShopId!.trim().isNotEmpty) {
-        return _db
+        final query = _db
             .collection('users')
             .where('shopId', isEqualTo: _adminSelectedShopId)
-            .snapshots();
+            .limit(20);
+        return _pollQuerySnapshots(query);
       }
-      return _db.collection('users').snapshots();
+      return _pollQuerySnapshots(_db.collection('users').limit(20));
     }
 
     // Người dùng thường: ưu tiên lọc theo shopId nếu đã có
     final shopId = _cachedShopId;
     if (shopId != null && shopId.trim().isNotEmpty) {
-      return _db
+      final query = _db
           .collection('users')
           .where('shopId', isEqualTo: shopId)
-          .snapshots();
+          .limit(20);
+      return _pollQuerySnapshots(query);
     }
 
     // Trường hợp chưa đồng bộ shopId, tạm thời trả toàn bộ (sẽ thu hẹp sau khi syncUserInfo chạy)
-    return _db.collection('users').snapshots();
+    return _pollQuerySnapshots(_db.collection('users').limit(20));
   }
 
   /// Stream lấy users theo shopId cụ thể (dùng khi cần đảm bảo có shopId)
   static Stream<QuerySnapshot> getUsersStreamByShopId(String shopId) {
-    return _db
+    final query = _db
         .collection('users')
         .where('shopId', isEqualTo: shopId)
-        .snapshots();
+        .limit(20);
+    return _pollQuerySnapshots(query);
   }
 
   static Future<void> updateUserInfo({
@@ -1259,11 +1270,10 @@ class UserService {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (!_isSuperAdmin(currentUser)) {
       // Người thường không được xem, trả về stream rỗng
-      return _db.collection('shops').limit(0).snapshots();
+      return Stream.fromFuture(_db.collection('shops').limit(0).get());
     }
     // Don't use orderBy — docs without createdAt field are excluded by Firestore
-    // includeMetadataChanges ensures we get updates when data comes from server
-    return _db.collection('shops').snapshots(includeMetadataChanges: true);
+    return _pollQuerySnapshots(_db.collection('shops').limit(20));
   }
 
   /// Temporary function to update existing shops with shopId field

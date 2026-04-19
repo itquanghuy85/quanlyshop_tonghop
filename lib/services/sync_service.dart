@@ -28,6 +28,7 @@ import '../utils/perf_monitor.dart';
 class SyncService {
   static final _db = FirebaseFirestore.instance;
   static final List<StreamSubscription> _subscriptions = [];
+  static final List<Timer> _pollingTimers = [];
 
   // Track active subscriptions and their status for debugging
   static final Map<String, bool> _subscriptionStatus = {};
@@ -158,6 +159,8 @@ class SyncService {
   static bool _isDownloading = false;
   static bool _isInitializingRealtime = false;
   static const _downloadCooldown = Duration(seconds: 60);
+  static const Duration _collectionPollInterval = Duration(seconds: 20);
+  static const int _collectionPollLimit = 20;
 
   /// Key prefix for storing last sync timestamps per collection in SharedPreferences
   static const _lastSyncPrefix = 'lastSync_';
@@ -179,6 +182,8 @@ class SyncService {
     'sales_returns',
     'salvage_phones',
     'supplier_import_history',
+    'purchase_orders',
+    'product_categories',
     'supplier_payments',
   };
   static final Map<String, int> _realtimeCursorCache = <String, int>{};
@@ -1700,7 +1705,10 @@ class SyncService {
             debugPrint("Lỗi sync cash_closing $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('cash_closings_changed');
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo cash_closings sync: $e");
@@ -1923,45 +1931,94 @@ class SyncService {
           '⏭️ Skipping product_categories subscription due to permissions',
         );
       } else {
-        final categoriesSub = _db
-            .collection('shops')
-            .doc(shopId)
-            .collection('product_categories')
-            .snapshots()
-            .listen(
-              (snapshot) async {
-                for (final change in snapshot.docChanges) {
-                  try {
-                    final docId = change.doc.id;
-                    final data = change.doc.data() ?? {};
-                    final db = DBHelper();
+        final currentShopId = shopId;
+        if (currentShopId == null || currentShopId.isEmpty) {
+          debugPrint('⚠️ Skipping product_categories polling: missing shopId');
+        } else {
+          bool isPolling = false;
 
-                    if (data['isActive'] == false) {
-                      // Soft delete locally
-                      await db.rawUpdate(
-                        'UPDATE product_categories SET isActive = 0 WHERE firestoreId = ?',
-                        [docId],
-                      );
-                    } else {
-                      data['firestoreId'] = docId;
-                      data['shopId'] = shopId;
-                      data['isSynced'] = 1;
-                      _convertTimestampFields(data);
-                      await db.upsertProductCategory(data);
-                    }
-                  } catch (e) {
-                    debugPrint(
-                      "Lỗi sync product_category ${change.doc.id}: $e",
-                    );
+          Future<void> pollProductCategories() async {
+            if (isPolling) return;
+            isPolling = true;
+            try {
+              Query<Map<String, dynamic>> query = _db
+                  .collection('shops')
+                  .doc(currentShopId)
+                  .collection('product_categories');
+
+              final cursorMs = _realtimeCursorMs(
+                'product_categories',
+                currentShopId,
+              );
+              if (cursorMs > 0) {
+                query = query.where(
+                  'updatedAt',
+                  isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(cursorMs),
+                );
+              }
+
+              final snapshot = await query.limit(_collectionPollLimit).get();
+              if (snapshot.docs.isEmpty) return;
+
+              final db = DBHelper();
+              var maxCursorMs = 0;
+              for (final doc in snapshot.docs) {
+                try {
+                  final docId = doc.id;
+                  final data = doc.data();
+                  final docCursorMs = _extractRealtimeCursorMs(data);
+                  if (docCursorMs > maxCursorMs) {
+                    maxCursorMs = docCursorMs;
                   }
+
+                  if (data['isActive'] == false) {
+                    await db.rawUpdate(
+                      'UPDATE product_categories SET isActive = 0 WHERE firestoreId = ?',
+                      [docId],
+                    );
+                  } else {
+                    data['firestoreId'] = docId;
+                    data['shopId'] = currentShopId;
+                    data['isSynced'] = 1;
+                    _convertTimestampFields(data);
+                    await db.upsertProductCategory(data);
+                  }
+                } catch (e) {
+                  debugPrint("Lỗi sync product_category ${doc.id}: $e");
                 }
-                onDataChanged();
-                EventBus().emit('product_categories_changed');
-              },
-              onError: (e) =>
-                  debugPrint("Sync error in product_categories: $e"),
-            );
-        _subscriptions.add(categoriesSub);
+              }
+
+              if (maxCursorMs > 0) {
+                await _saveRealtimeCursorMs(
+                  collection: 'product_categories',
+                  shopId: currentShopId,
+                  cursorMs: maxCursorMs,
+                );
+              }
+
+              unawaited(
+                FirebaseUsageStatsService.logRealtimeRead(
+                  collection: 'product_categories',
+                  shopId: currentShopId,
+                  readCount: snapshot.docs.length,
+                ),
+              );
+              onDataChanged();
+              EventBus().emit('product_categories_changed');
+            } catch (e) {
+              debugPrint('Sync error in product_categories polling: $e');
+            } finally {
+              isPolling = false;
+            }
+          }
+
+          unawaited(pollProductCategories());
+          _pollingTimers.add(
+            Timer.periodic(_collectionPollInterval, (_) {
+              unawaited(pollProductCategories());
+            }),
+          );
+        }
       }
     } catch (e) {
       debugPrint("Lỗi khởi tạo product_categories sync: $e");
@@ -2125,70 +2182,47 @@ class SyncService {
       return;
     }
 
-    Query<Map<String, dynamic>> query = _db.collection(collection);
-    bool usedIncrementalRealtime = false;
-
-    if (shopId != null) {
-      query = query.where('shopId', isEqualTo: shopId);
-
-      if (_canUseIncrementalRealtime(collection: collection, shopId: shopId)) {
-        final cursorMs = _realtimeCursorMs(collection, shopId);
-        query = query.where(
-          'updatedAt',
-          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(cursorMs),
-        );
-        usedIncrementalRealtime = true;
-        debugPrint(
-          '📡 Subscribing to $collection with incremental realtime filter (updatedAt > ${DateTime.fromMillisecondsSinceEpoch(cursorMs).toIso8601String()})',
-        );
-      } else {
-        debugPrint("📡 Subscribing to $collection with shopId filter: $shopId");
-      }
-    } else {
-      debugPrint(
-        "⚠️ Subscribing to $collection WITHOUT shopId filter (super admin mode)",
-      );
-    }
-
-    // Track subscription status
+    debugPrint('📉 $collection: using polling get() instead of snapshots()');
     _subscriptionStatus[collection] = true;
 
-    final sub = query.snapshots().listen(
-      (snapshot) async {
-        // Double check shop không bị xóa trong lúc đang xử lý
+    bool isPolling = false;
+
+    Future<void> pollCollection() async {
+      if (isPolling) return;
+      isPolling = true;
+      try {
         if (shopId != null && ShopDeletionService.isShopBeingDeleted(shopId)) {
           debugPrint(
-            "⏭️ Ignoring snapshot for $collection - shop $shopId is being deleted",
+            "⏭️ Skipping poll for $collection - shop $shopId is being deleted",
           );
           return;
         }
 
-        // Log initial sync or updates
-        debugPrint(
-          "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
-        );
+        Query<Map<String, dynamic>> query = _db.collection(collection);
+        if (shopId != null) {
+          query = query.where('shopId', isEqualTo: shopId);
 
-        // Cache snapshots are not billed as server reads; skip telemetry to avoid inflated numbers.
-        final readCount = snapshot.metadata.isFromCache
-            ? 0
-            : snapshot.docChanges.length;
-        if (readCount > 0) {
-          unawaited(
-            FirebaseUsageStatsService.logRealtimeRead(
-              collection: collection,
-              shopId: shopId,
-              readCount: readCount,
-            ),
-          );
+          if (_canUseIncrementalRealtime(collection: collection, shopId: shopId)) {
+            final cursorMs = _realtimeCursorMs(collection, shopId);
+            query = query.where(
+              'updatedAt',
+              isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(cursorMs),
+            );
+          }
         }
 
+        final snapshot = await query.limit(_collectionPollLimit).get();
+        if (snapshot.docs.isEmpty) {
+          return;
+        }
+
+        debugPrint(
+          "📥 Polled $collection: ${snapshot.docs.length} docs (limit=$_collectionPollLimit)",
+        );
+
         var maxCursorMs = 0;
-
-        for (var change in snapshot.docChanges) {
-          var data = change.doc.data();
-          if (data == null) continue;
-
-          // Giải mã dữ liệu nếu được mã hóa
+        for (final doc in snapshot.docs) {
+          var data = doc.data();
           data = EncryptionService.decryptMap(data);
 
           final cursorMs = _extractRealtimeCursorMs(data);
@@ -2196,78 +2230,67 @@ class SyncService {
             maxCursorMs = cursorMs;
           }
 
-          debugPrint(
-            "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
-          );
-          await onChanged(data, change.doc.id);
+          await onChanged(data, doc.id);
         }
 
         if (shopId != null && maxCursorMs > 0) {
-          unawaited(
-            _saveRealtimeCursorMs(
-              collection: collection,
-              shopId: shopId,
-              cursorMs: maxCursorMs,
-            ),
+          await _saveRealtimeCursorMs(
+            collection: collection,
+            shopId: shopId,
+            cursorMs: maxCursorMs,
           );
         }
 
-        onBatchDone();
-      },
-      onError: (e) {
-        final errorStr = e.toString();
-        debugPrint("❌ Sync error in $collection: $errorStr");
-        _subscriptionStatus[collection] = false;
+        unawaited(
+          FirebaseUsageStatsService.logRealtimeRead(
+            collection: collection,
+            shopId: shopId,
+            readCount: snapshot.docs.length,
+          ),
+        );
 
-        // Check for permission-denied errors
+        onBatchDone();
+      } catch (e) {
+        final errorStr = e.toString();
+        debugPrint("❌ Poll sync error in $collection: $errorStr");
+
         final isPermissionError =
             errorStr.contains('permission-denied') ||
             errorStr.contains('PERMISSION_DENIED') ||
             errorStr.contains('Missing or insufficient permissions');
 
         final isMissingIndexError =
-          errorStr.contains('failed-precondition') &&
-          (errorStr.contains('requires an index') ||
-            errorStr.contains('missing index') ||
-            errorStr.contains('create it here'));
+            errorStr.contains('failed-precondition') &&
+            (errorStr.contains('requires an index') ||
+                errorStr.contains('missing index') ||
+                errorStr.contains('create it here'));
 
         if (isPermissionError) {
-          debugPrint(
-            "🔒 Permission denied for $collection - shop may be deleted or user lost access",
-          );
-
-          // Emit event để UI biết
+          _subscriptionStatus[collection] = false;
           EventBus().emit('permission_denied:$collection');
-
-          // Nếu đây là collection repairs và shopId đang bị xóa, không retry
-          if (shopId != null &&
-              ShopDeletionService.isShopBeingDeleted(shopId)) {
-            debugPrint("⏭️ Shop is being deleted, not retrying");
-            return;
-          }
-
-          // Không retry cho permission errors - đây là lỗi cấu hình hoặc shop bị xóa
           debugPrint(
-            "⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules or shop status)",
+            "⚠️ Permission denied while polling $collection - waiting for next init/re-auth",
           );
           return;
         }
 
-        if (isMissingIndexError && usedIncrementalRealtime) {
-          debugPrint(
-            '⚠️ Missing index for incremental realtime on $collection. Falling back to full listener query.',
-          );
+        if (isMissingIndexError && shopId != null) {
           _incrementalRealtimeDisabled.add(collection);
-          _scheduleResubscribe(collection, shopId, onChanged, onBatchDone);
-          return;
+          debugPrint(
+            "⚠️ Missing index for incremental poll $collection, next poll will fallback without updatedAt cursor",
+          );
         }
+      } finally {
+        isPolling = false;
+      }
+    }
 
-        // Try to re-subscribe after error for other error types
-        _scheduleResubscribe(collection, shopId, onChanged, onBatchDone);
-      },
+    unawaited(pollCollection());
+    _pollingTimers.add(
+      Timer.periodic(_collectionPollInterval, (_) {
+        unawaited(pollCollection());
+      }),
     );
-
-    _subscriptions.add(sub);
   }
 
   /// Helper để xóa record local theo firestoreId khi cloud record đã bị soft-delete
@@ -2345,11 +2368,17 @@ class SyncService {
   }
 
   static Future<void> cancelAllSubscriptions() async {
-    debugPrint('🔴 Canceling all ${_subscriptions.length} subscriptions...');
+    debugPrint(
+      '🔴 Canceling all ${_subscriptions.length} subscriptions and ${_pollingTimers.length} polling timers...',
+    );
     for (var sub in _subscriptions) {
       await sub.cancel();
     }
+    for (final timer in _pollingTimers) {
+      timer.cancel();
+    }
     _subscriptions.clear();
+    _pollingTimers.clear();
     _subscriptionStatus.clear();
     _isInitialized = false;
     _currentShopId = null;

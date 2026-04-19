@@ -57,58 +57,71 @@ class ShiftSwapService {
   }
 
   static Stream<List<ShiftSwapRequest>> watchMyRequests({int limit = 100}) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Stream<List<ShiftSwapRequest>>.empty();
-    }
-
-    return Stream.fromFuture(UserService.getCurrentShopId()).asyncExpand((shopId) {
-      if (shopId == null || shopId.isEmpty) {
-        return const Stream<List<ShiftSwapRequest>>.empty();
+    return (() async* {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        yield <ShiftSwapRequest>[];
+        return;
       }
 
-      return _db
-          .collection('shift_swap_requests')
-          .where('shopId', isEqualTo: shopId)
-          .where('requesterId', isEqualTo: user.uid)
-          .where('deleted', isEqualTo: false)
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .snapshots()
-          .map((snap) {
-            return snap.docs.map((doc) {
-              final map = doc.data();
-              map['firestoreId'] = doc.id;
-              return ShiftSwapRequest.fromMap(map);
-            }).toList();
-          });
-    });
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null || shopId.isEmpty) {
+        yield <ShiftSwapRequest>[];
+        return;
+      }
+
+      final effectiveLimit = limit.clamp(1, 20);
+      while (true) {
+        final snap = await _db
+            .collection('shift_swap_requests')
+            .where('shopId', isEqualTo: shopId)
+            .where('requesterId', isEqualTo: user.uid)
+            .where('deleted', isEqualTo: false)
+            .orderBy('createdAt', descending: true)
+            .limit(effectiveLimit)
+            .get();
+
+        yield snap.docs.map((doc) {
+          final map = doc.data();
+          map['firestoreId'] = doc.id;
+          return ShiftSwapRequest.fromMap(map);
+        }).toList();
+
+        await Future.delayed(const Duration(seconds: 20));
+      }
+    })();
   }
 
   static Stream<List<ShiftSwapRequest>> watchPendingRequests({
     int limit = 120,
   }) {
-    return Stream.fromFuture(UserService.getCurrentShopId()).asyncExpand((shopId) {
+    return (() async* {
+      final shopId = await UserService.getCurrentShopId();
       if (shopId == null || shopId.isEmpty) {
-        return const Stream<List<ShiftSwapRequest>>.empty();
+        yield <ShiftSwapRequest>[];
+        return;
       }
 
-      return _db
-          .collection('shift_swap_requests')
-          .where('shopId', isEqualTo: shopId)
-          .where('status', isEqualTo: 'pending')
-          .where('deleted', isEqualTo: false)
-          .orderBy('createdAt', descending: true)
-          .limit(limit)
-          .snapshots()
-          .map((snap) {
-            return snap.docs.map((doc) {
-              final map = doc.data();
-              map['firestoreId'] = doc.id;
-              return ShiftSwapRequest.fromMap(map);
-            }).toList();
-          });
-    });
+      final effectiveLimit = limit.clamp(1, 20);
+      while (true) {
+        final snap = await _db
+            .collection('shift_swap_requests')
+            .where('shopId', isEqualTo: shopId)
+            .where('status', isEqualTo: 'pending')
+            .where('deleted', isEqualTo: false)
+            .orderBy('createdAt', descending: true)
+            .limit(effectiveLimit)
+            .get();
+
+        yield snap.docs.map((doc) {
+          final map = doc.data();
+          map['firestoreId'] = doc.id;
+          return ShiftSwapRequest.fromMap(map);
+        }).toList();
+
+        await Future.delayed(const Duration(seconds: 20));
+      }
+    })();
   }
 
   static Future<void> approveRequest(ShiftSwapRequest request) async {

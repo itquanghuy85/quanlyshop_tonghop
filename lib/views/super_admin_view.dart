@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -28,6 +29,19 @@ String getRoleDisplayName(String role) {
 
 class SuperAdminView extends StatelessWidget {
   const SuperAdminView({super.key});
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _shopMembersPollingStream(
+    String shopId,
+  ) async* {
+    final query = FirebaseFirestore.instance
+        .collection('users')
+        .where('shopId', isEqualTo: shopId)
+        .limit(20);
+    yield await query.get();
+    yield* Stream.periodic(
+      const Duration(seconds: 30),
+    ).asyncMap((_) => query.get());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -396,10 +410,7 @@ class _ShopsTabState extends State<ShopsTab> {
 
   Widget _buildShopMembersList(String shopId) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .where('shopId', isEqualTo: shopId)
-          .snapshots(),
+      stream: _shopMembersPollingStream(shopId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
