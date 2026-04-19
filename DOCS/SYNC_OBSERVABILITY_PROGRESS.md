@@ -45,4 +45,4 @@ Cập nhật: 2026-04-19
 - [x] Cập nhật tài liệu recovery với trạng thái Firebase-only mới nhất.
 - [x] Bổ sung `.gitignore` cho artifacts local (xml dump/log/test_screenshots/backend) để giảm nhiễu git status.
 - [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
-- [ ] Commit + push bước hardening Firebase-only.
+- [x] Commit + push bước hardening Firebase-only.
