@@ -51,6 +51,7 @@ import 'parts_inventory_view.dart';
 import 'salvage_phone_view.dart';
 import 'financial_report_view.dart';
 import 'audit_log_view.dart';
+import 'recent_activity_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
@@ -2962,10 +2963,7 @@ class _HomeViewState extends State<HomeView>
               enableRepair: _enableRepair,
               onViewAll: () => _pushRoute(
                 context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const CashClosingView(showOnlyTransactions: true),
-                ),
+                MaterialPageRoute(builder: (_) => const RecentActivityView()),
               ),
             ),
           );
@@ -4315,7 +4313,7 @@ class _HomeViewState extends State<HomeView>
         case ShortcutType.activityLog:
           return () => _pushRoute(
             context,
-            MaterialPageRoute(builder: (_) => const AuditLogView()),
+            MaterialPageRoute(builder: (_) => const RecentActivityView()),
           );
         case ShortcutType.printer:
           return () => _pushRoute(

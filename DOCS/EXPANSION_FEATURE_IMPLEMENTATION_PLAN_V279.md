@@ -33,15 +33,18 @@ Kết quả đã hoàn tất:
 - Đã tích hợp điểm mở từ màn hình chấm công cá nhân và quản lý chấm công.
 - Đã chạy test + build debug thành công trước khi phát hành.
 
-## Ưu tiên 3 - Màn hình Recent Activity độc lập
+## Ưu tiên 3 - Màn hình Recent Activity độc lập (HOÀN TẤT)
 
 Phạm vi dự kiến:
 - Tách khỏi card feed hiện tại thành trang riêng.
 - Filter theo nghiệp vụ, người thực hiện, mốc thời gian.
 - Truy cập nhanh từ Home shortcut/tab tài chính.
 
-Điều kiện bắt đầu:
-- Hoàn tất ưu tiên 2.
+Kết quả đã hoàn tất:
+- Đã có màn hình `RecentActivityView` độc lập, lọc theo nguồn và mốc thời gian.
+- Đã tổng hợp dữ liệu từ financial activity log + sync audit + audit logs.
+- Đã tích hợp điểm mở từ shortcut hoạt động và thẻ Activity Feed trên Home.
+- Đã chạy test + build debug thành công trước khi phát hành.
 
 ## Ưu tiên 4 - Màn hình test kết nối Firestore độc lập
 
