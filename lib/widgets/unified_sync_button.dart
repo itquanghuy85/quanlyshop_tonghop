@@ -14,6 +14,7 @@ import '../services/data_migration_service.dart';
 import '../services/firestore_connectivity_service.dart';
 import '../services/sync_audit_service.dart';
 import '../services/sync_domain_report_service.dart';
+import '../views/firestore_connectivity_test_view.dart';
 import '../views/firebase_rw_stats_view.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -409,7 +410,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             subtitle: _firestoreConnectivityReport == null
                                 ? 'Test mạng, auth và quyền đọc dữ liệu cloud'
                                 : _firestoreConnectivityReport!.summary,
-                            onTap: _handleFirestoreConnectivityTest,
+                            onTap: _handleOpenFirestoreConnectivityPage,
                           ),
 
                           _buildActionTile(
@@ -1309,6 +1310,16 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const FirebaseRwStatsView()),
+    );
+
+    if (!mounted) return;
+    await _loadInitialData();
+  }
+
+  Future<void> _handleOpenFirestoreConnectivityPage() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FirestoreConnectivityTestView()),
     );
 
     if (!mounted) return;

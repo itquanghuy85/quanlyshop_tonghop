@@ -46,15 +46,18 @@ Kết quả đã hoàn tất:
 - Đã tích hợp điểm mở từ shortcut hoạt động và thẻ Activity Feed trên Home.
 - Đã chạy test + build debug thành công trước khi phát hành.
 
-## Ưu tiên 4 - Màn hình test kết nối Firestore độc lập
+## Ưu tiên 4 - Màn hình test kết nối Firestore độc lập (HOÀN TẤT)
 
 Phạm vi dự kiến:
 - Reuse dữ liệu từ diagnostics hiện có.
 - Thêm step-by-step UI để vận hành tự kiểm tra.
 - Nút xuất kết quả chẩn đoán để gửi hỗ trợ.
 
-Điều kiện bắt đầu:
-- Hoàn tất ưu tiên 3.
+Kết quả đã hoàn tất:
+- Đã có màn hình `FirestoreConnectivityTestView` độc lập, hiển thị step-by-step checklist.
+- Đã có phần tổng quan, cảnh báo/lỗi/khuyến nghị và copy báo cáo để hỗ trợ vận hành.
+- Đã tích hợp điểm mở từ Trung tâm đồng bộ.
+- Đã chạy test + build debug thành công trước khi phát hành.
 
 ## Nguyên tắc triển khai
 
