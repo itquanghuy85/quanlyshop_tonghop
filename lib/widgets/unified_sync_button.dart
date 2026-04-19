@@ -9,6 +9,7 @@ import '../services/sync_health_check.dart';
 import '../services/notification_service.dart';
 import '../services/data_migration_service.dart';
 import '../services/firestore_connectivity_service.dart';
+import '../services/sync_domain_report_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -153,6 +154,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   String _loadingMessage = '';
   SyncHealthReport? _healthReport;
   FirestoreConnectivityReport? _firestoreConnectivityReport;
+  SyncDomainReportSnapshot? _domainReport;
   Map<String, int>? _localStats;
   Map<String, int>? _syncQueueStats;
   bool _isRealtimeSyncActive = false;
@@ -198,6 +200,11 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       // Load Firestore connectivity diagnostics
       _firestoreConnectivityReport =
           await FirestoreConnectivityService.runDiagnostics();
+
+      // Build domain-level sync report
+      _domainReport = await SyncDomainReportService.buildReport(
+        healthReport: _healthReport,
+      );
     } catch (e) {
       debugPrint('Error loading sync data: $e');
     } finally {
@@ -299,6 +306,11 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
                           // Local stats
                           _buildLocalStatsCard(),
+
+                          const SizedBox(height: 16),
+
+                          // Domain sync report
+                          _buildDomainSyncReportCard(),
 
                           const SizedBox(height: 16),
 
@@ -605,6 +617,138 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     );
   }
 
+  Widget _buildDomainSyncReportCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.assessment, size: 18, color: Colors.black87),
+              SizedBox(width: 8),
+              Text(
+                'BAO CAO SYNC THEO NGHIEP VU',
+                style: TextStyle(
+                  fontSize: AppTextStyles.subtitle1Size,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_domainReport == null)
+            const Text('Dang tong hop bao cao...')
+          else
+            ..._domainReport!.domains.map(_buildDomainRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDomainRow(DomainSyncReport domain) {
+    final statusColor = _domainStatusColor(domain);
+    final statusIcon = _domainStatusIcon(domain);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: statusColor.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(statusIcon, size: 18, color: statusColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  domain.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: AppTextStyles.subtitle1Size,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  domain.statusLabel,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: AppTextStyles.body1Size,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Queue: ${domain.pendingQueue} cho | ${domain.processingQueue} dang xu ly | ${domain.failedQueue} loi',
+            style: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Local chua sync: ${domain.unsyncedLocal} | Lech local-cloud: ${domain.mismatchCount} | Tong local: ${domain.totalLocalRecords}',
+            style: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
+              color: Colors.grey.shade800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            domain.lastSyncAt != null
+                ? 'Cap nhat cloud gan nhat: ${_formatSyncTime(domain.lastSyncAt!)}'
+                : 'Cap nhat cloud gan nhat: chua co moc sync',
+            style: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
+              color: Colors.grey.shade700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _domainStatusColor(DomainSyncReport domain) {
+    if (domain.hasError) return Colors.red;
+    if (domain.hasPending) return Colors.orange;
+    return Colors.green;
+  }
+
+  IconData _domainStatusIcon(DomainSyncReport domain) {
+    if (domain.hasError) return Icons.cloud_off;
+    if (domain.hasPending) return Icons.cloud_upload;
+    return Icons.cloud_done;
+  }
+
+  String _formatSyncTime(DateTime dateTime) {
+    final d = dateTime.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
+  }
+
   Widget _buildStatChip(String label, int count, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -756,6 +900,9 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
       // Reload health report
       _healthReport = await SyncHealthCheck.runFullCheck();
+      _domainReport = await SyncDomainReportService.buildReport(
+        healthReport: _healthReport,
+      );
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -888,6 +1035,9 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
       // Reload stats
       _syncQueueStats = await _orchestrator.getSyncStats();
+      _domainReport = await SyncDomainReportService.buildReport(
+        healthReport: _healthReport,
+      );
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -923,6 +1073,9 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
       // Reload stats
       _syncQueueStats = await _orchestrator.getSyncStats();
+      _domainReport = await SyncDomainReportService.buildReport(
+        healthReport: _healthReport,
+      );
 
       if (mounted) {
         setState(() => _isLoading = false);
@@ -946,6 +1099,10 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     try {
       final report = await SyncHealthCheck.runFullCheck();
       if (mounted) {
+        _healthReport = report;
+        _domainReport = await SyncDomainReportService.buildReport(
+          healthReport: report,
+        );
         setState(() => _isLoading = false);
         _showDetailedReportDialog(report);
       }
