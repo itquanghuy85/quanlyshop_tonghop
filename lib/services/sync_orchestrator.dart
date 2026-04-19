@@ -171,6 +171,94 @@ class SyncOrchestrator {
         p.startsWith('gs://');
   }
 
+  static int _asInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is DateTime) return value.millisecondsSinceEpoch;
+    if (value is String) {
+      final parsedInt = int.tryParse(value.trim());
+      if (parsedInt != null) return parsedInt;
+      final parsedDouble = double.tryParse(value.trim());
+      if (parsedDouble != null) return parsedDouble.toInt();
+    }
+    return 0;
+  }
+
+  static bool _asBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == '1' ||
+          normalized == 'true' ||
+          normalized == 'yes' ||
+          normalized == 'y';
+    }
+    return false;
+  }
+
+  static int _normalizeRepairStatus(dynamic value) {
+    final numeric = _asInt(value);
+    if (numeric >= 1 && numeric <= 4) return numeric;
+
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      switch (normalized) {
+        case 'may cho':
+        case 'cho sua':
+        case 'pending':
+        case 'received':
+        case 'new':
+          return 1;
+        case 'dang sua':
+        case 'repairing':
+        case 'in_progress':
+        case 'repair':
+          return 2;
+        case 'da xong':
+        case 'hoan thanh':
+        case 'completed':
+        case 'done':
+          return 3;
+        case 'da giao':
+        case 'delivered':
+        case 'closed':
+          return 4;
+      }
+    }
+
+    return 1;
+  }
+
+  static void _normalizeRepairPayloadForCloud(Map<String, dynamic> data) {
+    var status = _normalizeRepairStatus(data['status']);
+    final createdAt = _asInt(data['createdAt']);
+    final finishedAt = _asInt(data['finishedAt']);
+    var deliveredAt = _asInt(data['deliveredAt']);
+    final lastCaredAt = _asInt(data['lastCaredAt']);
+    final pendingApproval = _asBool(data['pendingDeliveryApproval']);
+
+    if (deliveredAt > 0 && status < 4) {
+      status = 4;
+    }
+
+    if (status == 4) {
+      if (deliveredAt <= 0) {
+        deliveredAt = lastCaredAt > 0
+            ? lastCaredAt
+            : (finishedAt > 0 ? finishedAt : createdAt);
+      }
+      data['pendingDeliveryApproval'] = 0;
+      data['deliveredAt'] = deliveredAt;
+    } else {
+      data['pendingDeliveryApproval'] = status == 3 && pendingApproval ? 1 : 0;
+    }
+
+    data['status'] = status;
+  }
+
   Future<void> _normalizeRepairImagePathsForCloud(Map<String, dynamic> data) async {
     final rawImagePath = data['imagePath'];
     if (rawImagePath == null) return;
@@ -485,6 +573,7 @@ class SyncOrchestrator {
 
     // Ensure web-compatible image URLs are stored for repairs.
     if (item.entityType == SyncEntityType.repair) {
+      _normalizeRepairPayloadForCloud(data);
       await _normalizeRepairImagePathsForCloud(data);
     }
 
@@ -546,6 +635,7 @@ class SyncOrchestrator {
 
     // Ensure web-compatible image URLs are stored for repairs.
     if (item.entityType == SyncEntityType.repair) {
+      _normalizeRepairPayloadForCloud(data);
       await _normalizeRepairImagePathsForCloud(data);
     }
 

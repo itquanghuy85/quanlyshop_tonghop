@@ -14,6 +14,61 @@ int _parseIntSafe(dynamic value) {
   return 0;
 }
 
+bool _parseBoolSafe(dynamic value) {
+  if (value == null) return false;
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    return normalized == '1' ||
+        normalized == 'true' ||
+        normalized == 'yes' ||
+        normalized == 'y';
+  }
+  return false;
+}
+
+int _normalizeRepairStatus(dynamic value) {
+  final numeric = _parseIntSafe(value);
+  if (numeric >= 1 && numeric <= 4) {
+    return numeric;
+  }
+
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    switch (normalized) {
+      case 'may cho':
+      case 'cho sua':
+      case 'moi nhan':
+      case 'pending':
+      case 'received':
+      case 'new':
+      case '1':
+        return 1;
+      case 'dang sua':
+      case 'repair':
+      case 'repairing':
+      case 'in_progress':
+      case '2':
+        return 2;
+      case 'da xong':
+      case 'hoan thanh':
+      case 'completed':
+      case 'done':
+      case '3':
+        return 3;
+      case 'da giao':
+      case 'delivered':
+      case 'closed':
+      case '4':
+        return 4;
+    }
+  }
+
+  return 1;
+}
+
 class Repair {
   int? id;
   String? firestoreId;
@@ -182,6 +237,13 @@ class Repair {
   }
 
   Map<String, dynamic> toMap() {
+    final normalizedStatus = _normalizeRepairStatus(status);
+    final normalizedPendingDeliveryApproval =
+        normalizedStatus == 3 && pendingDeliveryApproval;
+    final normalizedDeliveredAt = normalizedStatus == 4
+        ? (deliveredAt ?? lastCaredAt ?? finishedAt ?? createdAt)
+        : deliveredAt;
+
     return {
       'id': id,
       'firestoreId': firestoreId,
@@ -198,14 +260,14 @@ class Repair {
       'deliveredImage': deliveredImage,
       'warranty': warranty,
       'partsUsed': partsUsed,
-      'status': status,
+      'status': normalizedStatus,
       'price': price,
       'cost': cost,
       'paymentMethod': paymentMethod,
       'createdAt': createdAt,
       'startedAt': startedAt,
       'finishedAt': finishedAt,
-      'deliveredAt': deliveredAt,
+      'deliveredAt': normalizedDeliveredAt,
       'createdBy': createdBy,
       'createdByUid': createdByUid,
       'repairedBy': repairedBy,
@@ -220,7 +282,7 @@ class Repair {
       'condition': condition,
       'services': jsonEncode(services.map((s) => s.toMap()).toList()),
       'notes': notes,
-      'pendingDeliveryApproval': pendingDeliveryApproval ? 1 : 0,
+      'pendingDeliveryApproval': normalizedPendingDeliveryApproval ? 1 : 0,
       'costRecordedInFund': costRecordedInFund ? 1 : 0,
       'costPaymentMethod': costPaymentMethod,
       'costRecordedAt': costRecordedAt,
@@ -234,7 +296,7 @@ class Repair {
       firestoreId: map['firestoreId'],
       customerName: map['customerName'] ?? "",
       phone: map['phone'] ?? "",
-      isWalkIn: map['isWalkIn'] == 1 || map['isWalkIn'] == true,
+      isWalkIn: _parseBoolSafe(map['isWalkIn']),
       walkInName: map['walkInName'],
       walkInPhone: map['walkInPhone'],
       model: map['model'] ?? "",
@@ -245,23 +307,31 @@ class Repair {
       deliveredImage: map['deliveredImage'],
       warranty: map['warranty'] ?? "Không bảo hành",
       partsUsed: map['partsUsed'] ?? "",
-      status: map['status'] ?? 1,
+        status: _normalizeRepairStatus(map['status']),
       price: _parseIntSafe(map['price']),
       cost: _parseIntSafe(map['cost']),
       paymentMethod: map['paymentMethod'] ?? "TIỀN MẶT",
-      createdAt: map['createdAt'] ?? 0,
-      startedAt: map['startedAt'],
-      finishedAt: map['finishedAt'],
-      deliveredAt: map['deliveredAt'],
+        createdAt: _parseIntSafe(map['createdAt']),
+        startedAt: _parseIntSafe(map['startedAt']) > 0
+          ? _parseIntSafe(map['startedAt'])
+          : null,
+        finishedAt: _parseIntSafe(map['finishedAt']) > 0
+          ? _parseIntSafe(map['finishedAt'])
+          : null,
+        deliveredAt: _parseIntSafe(map['deliveredAt']) > 0
+          ? _parseIntSafe(map['deliveredAt'])
+          : null,
       createdBy: map['createdBy'],
       createdByUid: map['createdByUid'],
       repairedBy: map['repairedBy'],
       repairedByUid: map['repairedByUid'],
       deliveredBy: map['deliveredBy'],
       deliveredByUid: map['deliveredByUid'],
-      lastCaredAt: map['lastCaredAt'],
-      isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
-      deleted: map['deleted'] == 1 || map['deleted'] == true,
+        lastCaredAt: _parseIntSafe(map['lastCaredAt']) > 0
+          ? _parseIntSafe(map['lastCaredAt'])
+          : null,
+        isSynced: _parseBoolSafe(map['isSynced']),
+        deleted: _parseBoolSafe(map['deleted']),
       color: map['color'],
       imei: map['imei'],
       condition: map['condition'],
@@ -271,14 +341,12 @@ class Repair {
                 .toList()
           : [],
       notes: map['notes'],
-      pendingDeliveryApproval:
-          map['pendingDeliveryApproval'] == 1 ||
-          map['pendingDeliveryApproval'] == true,
-      costRecordedInFund:
-          map['costRecordedInFund'] == 1 ||
-          map['costRecordedInFund'] == true,
+            pendingDeliveryApproval: _parseBoolSafe(map['pendingDeliveryApproval']),
+            costRecordedInFund: _parseBoolSafe(map['costRecordedInFund']),
       costPaymentMethod: map['costPaymentMethod'],
-      costRecordedAt: map['costRecordedAt'],
+            costRecordedAt: _parseIntSafe(map['costRecordedAt']) > 0
+              ? _parseIntSafe(map['costRecordedAt'])
+              : null,
       costRecordedAmount: _parseIntSafe(map['costRecordedAmount']),
     );
   }

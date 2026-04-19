@@ -176,7 +176,124 @@ class SyncService {
     if (value == null) return 0;
     if (value is Timestamp) return value.millisecondsSinceEpoch;
     if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is DateTime) return value.millisecondsSinceEpoch;
+    if (value is String) {
+      final parsedInt = int.tryParse(value.trim());
+      if (parsedInt != null) return parsedInt;
+      final parsedDouble = double.tryParse(value.trim());
+      if (parsedDouble != null) return parsedDouble.toInt();
+    }
     return 0;
+  }
+
+  static int _asInt(dynamic value) => _getTimestamp(value);
+
+  static bool _asBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == '1' ||
+          normalized == 'true' ||
+          normalized == 'yes' ||
+          normalized == 'y';
+    }
+    return false;
+  }
+
+  static int _normalizeRepairStatusValue(dynamic value) {
+    final numeric = _asInt(value);
+    if (numeric >= 1 && numeric <= 4) return numeric;
+
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      switch (normalized) {
+        case 'may cho':
+        case 'cho sua':
+        case 'pending':
+        case 'received':
+        case 'new':
+          return 1;
+        case 'dang sua':
+        case 'repairing':
+        case 'in_progress':
+        case 'repair':
+          return 2;
+        case 'da xong':
+        case 'hoan thanh':
+        case 'completed':
+        case 'done':
+          return 3;
+        case 'da giao':
+        case 'delivered':
+        case 'closed':
+          return 4;
+      }
+    }
+
+    return 1;
+  }
+
+  static void _normalizeRepairPayload(Map<String, dynamic> data) {
+    var status = _normalizeRepairStatusValue(data['status']);
+    final createdAt = _asInt(data['createdAt']);
+    final finishedAt = _asInt(data['finishedAt']);
+    var deliveredAt = _asInt(data['deliveredAt']);
+    final lastCaredAt = _asInt(data['lastCaredAt']);
+    final pendingApproval = _asBool(data['pendingDeliveryApproval']);
+
+    // If deliveredAt already exists, status must be delivered.
+    if (deliveredAt > 0 && status < 4) {
+      status = 4;
+    }
+
+    if (status == 4) {
+      if (deliveredAt <= 0) {
+        deliveredAt = lastCaredAt > 0
+            ? lastCaredAt
+            : (finishedAt > 0 ? finishedAt : createdAt);
+      }
+      data['pendingDeliveryApproval'] = 0;
+      data['deliveredAt'] = deliveredAt;
+    } else {
+      data['pendingDeliveryApproval'] = status == 3 && pendingApproval ? 1 : 0;
+    }
+
+    data['status'] = status;
+  }
+
+  static Future<void> _dropStaleRepairQueueEntry(
+    String firestoreId, {
+    int? localId,
+  }) async {
+    try {
+      final db = await DBHelper().database;
+      int removed = 0;
+
+      if (localId != null) {
+        removed = await db.delete(
+          'sync_queue',
+          where: 'entityType = ? AND (firestoreId = ? OR entityId = ?)',
+          whereArgs: ['repair', firestoreId, localId],
+        );
+      } else {
+        removed = await db.delete(
+          'sync_queue',
+          where: 'entityType = ? AND firestoreId = ?',
+          whereArgs: ['repair', firestoreId],
+        );
+      }
+
+      if (removed > 0) {
+        debugPrint(
+          '🧹 SYNC: dropped $removed stale repair queue item(s) for $firestoreId',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to drop stale repair queue for $firestoreId: $e');
+    }
   }
 
   /// Helper: Chuyển đổi tất cả Timestamp fields trong map sang milliseconds
@@ -318,6 +435,7 @@ class SyncService {
 
     int localUpdatedAt = 0;
     bool localIsSynced = true;
+    int? localEntityId;
 
     try {
       switch (collection) {
@@ -327,6 +445,7 @@ class SyncService {
             // Repair model doesn't have updatedAt, use lastCaredAt or createdAt
             localUpdatedAt = local.lastCaredAt ?? local.createdAt;
             localIsSynced = local.isSynced;
+            localEntityId = local.id;
           }
           break;
         case 'sales':
@@ -383,6 +502,22 @@ class SyncService {
         '✅ SYNC: $collection/$firestoreId - Local đã sync, accept cloud',
       );
       return true;
+    }
+
+    // Repair-specific guard: local unsynced does not always mean local is newest.
+    // If cloud updatedAt is clearly newer, accept cloud and drop stale queued local write.
+    if (collection == 'repairs' && cloudTime > 0 && localUpdatedAt > 0) {
+      const toleranceMs = 5000;
+      if (cloudTime > localUpdatedAt + toleranceMs) {
+        debugPrint(
+          '⬇️ SYNC: repairs/$firestoreId - Cloud newer than unsynced local (cloud: $cloudTime, local: $localUpdatedAt), accept cloud',
+        );
+        await _dropStaleRepairQueueEntry(
+          firestoreId,
+          localId: localEntityId,
+        );
+        return true;
+      }
     }
 
     // Local có thay đổi chưa sync (isSynced=false) → LUÔN giữ local
@@ -615,6 +750,7 @@ class SyncService {
 
             if (shouldAccept) {
               _convertTimestampFields(data);
+              _normalizeRepairPayload(data);
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
               await db.upsertRepair(Repair.fromMap(data));
@@ -2450,6 +2586,7 @@ class SyncService {
       for (var r in unsyncedRepairs) {
         try {
           Map<String, dynamic> data = r.toMap();
+          _normalizeRepairPayload(data);
           data['shopId'] = shopId;
           data.remove('id');
           data['updatedAt'] = FieldValue.serverTimestamp();
@@ -2552,6 +2689,7 @@ class SyncService {
 
         try {
           Map<String, dynamic> data = r.toMap();
+          _normalizeRepairPayload(data);
           data['shopId'] = shopId;
           data.remove('id');
           // FIX: Add updatedAt for conflict resolution on receiving devices
@@ -3678,6 +3816,7 @@ class SyncService {
               _convertTimestampFields(data);
 
               if (col == 'repairs') {
+                _normalizeRepairPayload(data);
                 await db.upsertRepair(Repair.fromMap(data));
               } else if (col == 'products') {
                 // BẢO TOÀN isPending và pendingSupplier từ local nếu cloud không có
