@@ -65,10 +65,10 @@ class DomainSyncReport {
   bool get isSynced => !hasError && !hasPending;
 
   String get statusLabel {
-    if (hasError) return 'Loi sync';
-    if (hasStuckQueue) return 'Canh bao ket sync';
-    if (hasPending) return 'Chua sync het';
-    return 'Da sync';
+    if (hasError) return 'Lỗi sync';
+    if (hasStuckQueue) return 'Cảnh báo kẹt sync';
+    if (hasPending) return 'Chưa sync hết';
+    return 'Đã sync';
   }
 }
 
@@ -127,7 +127,7 @@ class SyncDomainReportService {
   static final List<_DomainConfig> _domainConfigs = [
     const _DomainConfig(
       key: 'financial',
-      title: 'Tai chinh',
+      title: 'Tài chính',
       queueEntityTypes: [
         'expense',
         'debt',
@@ -163,7 +163,7 @@ class SyncDomainReportService {
     ),
     const _DomainConfig(
       key: 'repair',
-      title: 'Don sua',
+      title: 'Đơn sửa',
       queueEntityTypes: ['repair', 'repairPart', 'repairPartner'],
       localTables: [
         'repairs',
@@ -203,7 +203,7 @@ class SyncDomainReportService {
     ),
     const _DomainConfig(
       key: 'sales',
-      title: 'Ban hang',
+      title: 'Bán hàng',
       queueEntityTypes: ['sale', 'customer', 'salvagePhone'],
       localTables: [
         'sales',

@@ -191,6 +191,15 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(
+            'Lưu ý: Reads 24h là số bản ghi listener nhận từ server trong 24 giờ. Lần mở app đầu tiên hoặc khi listener khởi động lại có thể tăng cao do tải snapshot ban đầu.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.blueGrey.shade700,
+              height: 1.35,
+            ),
+          ),
         ],
       ),
     );

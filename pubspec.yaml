@@ -1,7 +1,7 @@
 name: quanlyshop
 description: "Phần mềm quản lý tiệm sửa chữa mua bán điện thoại chuyên nghiệp"
 publish_to: 'none' # Remove this line if you wish to publish to pub.de
-version: 11.3.5+285
+version: 11.3.6+286
 
 environment:
   sdk: '>=3.10.0 <4.0.0'

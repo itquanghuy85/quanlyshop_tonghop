@@ -663,7 +663,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
               Icon(Icons.assessment, size: 18, color: Colors.black87),
               SizedBox(width: 8),
               Text(
-                'BAO CAO SYNC THEO NGHIEP VU',
+                'BÁO CÁO SYNC THEO NGHIỆP VỤ',
                 style: TextStyle(
                   fontSize: AppTextStyles.subtitle1Size,
                   fontWeight: FontWeight.bold,
@@ -674,7 +674,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ),
           const SizedBox(height: 12),
           if (_domainReport == null)
-            const Text('Dang tong hop bao cao...')
+            const Text('Đang tổng hợp báo cáo...')
           else
             ..._domainReport!.domains.map(_buildDomainRow),
         ],
@@ -732,7 +732,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Queue: ${domain.pendingQueue} cho | ${domain.processingQueue} dang xu ly | ${domain.failedQueue} loi',
+            'Queue: ${domain.pendingQueue} chờ | ${domain.processingQueue} đang xử lý | ${domain.failedQueue} lỗi',
             style: TextStyle(
               fontSize: AppTextStyles.body1.fontSize,
               color: Colors.grey.shade800,
@@ -740,7 +740,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ),
           const SizedBox(height: 2),
           Text(
-            'Local chua sync: ${domain.unsyncedLocal} | Lech local-cloud: ${domain.mismatchCount} | Tong local: ${domain.totalLocalRecords}',
+            'Local chưa sync: ${domain.unsyncedLocal} | Lệch local-cloud: ${domain.mismatchCount} | Tổng local: ${domain.totalLocalRecords}',
             style: TextStyle(
               fontSize: AppTextStyles.body1.fontSize,
               color: Colors.grey.shade800,
@@ -748,7 +748,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ),
           const SizedBox(height: 2),
           Text(
-            '24h gan nhat: ${domain.recentSuccessCount} thanh cong | ${domain.recentRetryCount} retry | ${domain.recentFailedCount} loi',
+            '24h gần nhất: ${domain.recentSuccessCount} thành công | ${domain.recentRetryCount} retry | ${domain.recentFailedCount} lỗi',
             style: TextStyle(
               fontSize: AppTextStyles.body1.fontSize,
               color: domain.recentIssueCount > 0
@@ -759,8 +759,8 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           const SizedBox(height: 2),
           Text(
             domain.lastSyncAt != null
-                ? 'Cap nhat cloud gan nhat: ${_formatSyncTime(domain.lastSyncAt!)}'
-                : 'Cap nhat cloud gan nhat: chua co moc sync',
+                ? 'Cập nhật cloud gần nhất: ${_formatSyncTime(domain.lastSyncAt!)}'
+                : 'Cập nhật cloud gần nhất: chưa có mốc sync',
             style: TextStyle(
               fontSize: AppTextStyles.body1.fontSize,
               color: Colors.grey.shade700,
@@ -768,7 +768,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ),
           if (domain.lastFailureAt != null)
             Text(
-              'Lan loi gan nhat: ${_formatSyncTime(domain.lastFailureAt!)}',
+              'Lần lỗi gần nhất: ${_formatSyncTime(domain.lastFailureAt!)}',
               style: TextStyle(
                 fontSize: AppTextStyles.body1.fontSize,
                 color: Colors.red.shade700,
@@ -776,7 +776,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
             )
           else if (domain.lastSuccessAt != null)
             Text(
-              'Lan thanh cong gan nhat: ${_formatSyncTime(domain.lastSuccessAt!)}',
+              'Lần thành công gần nhất: ${_formatSyncTime(domain.lastSuccessAt!)}',
               style: TextStyle(
                 fontSize: AppTextStyles.body1.fontSize,
                 color: Colors.green.shade700,
@@ -784,7 +784,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
             ),
           if (domain.hasStuckQueue)
             Text(
-              'Canh bao ket sync: ${domain.stalePendingQueue} pending + ${domain.staleProcessingQueue} processing > ${SyncDomainReportService.stuckQueueThresholdMinutes} phut${domain.oldestQueueAgeMinutes != null ? ' (cu nhat ${domain.oldestQueueAgeMinutes} phut)' : ''}',
+              'Cảnh báo kẹt sync: ${domain.stalePendingQueue} pending + ${domain.staleProcessingQueue} processing > ${SyncDomainReportService.stuckQueueThresholdMinutes} phút${domain.oldestQueueAgeMinutes != null ? ' (cũ nhất ${domain.oldestQueueAgeMinutes} phút)' : ''}',
               style: TextStyle(
                 fontSize: AppTextStyles.body1.fontSize,
                 color: Colors.deepOrange.shade700,
@@ -822,7 +822,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
               ),
               const SizedBox(width: 8),
               Text(
-                'CANH BAO VAN HANH SYNC',
+                'CẢNH BÁO VẬN HÀNH SYNC',
                 style: TextStyle(
                   color: Colors.deepOrange.shade800,
                   fontWeight: FontWeight.bold,
@@ -833,7 +833,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Phat hien ${report.totalStuckQueue} item ket > ${SyncDomainReportService.stuckQueueThresholdMinutes} phut va ${report.totalFailed} item failed trong queue.',
+            'Phát hiện ${report.totalStuckQueue} item kẹt > ${SyncDomainReportService.stuckQueueThresholdMinutes} phút và ${report.totalFailed} item failed trong queue.',
             style: TextStyle(
               fontSize: AppTextStyles.body1.fontSize,
               color: Colors.deepOrange.shade800,
@@ -845,7 +845,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
             (domain) => Padding(
               padding: const EdgeInsets.only(top: 3),
               child: Text(
-                '• ${domain.title}: failed=${domain.failedQueue}, ket=${domain.staleQueueTotal}',
+                '• ${domain.title}: failed=${domain.failedQueue}, kẹt=${domain.staleQueueTotal}',
                 style: TextStyle(
                   fontSize: AppTextStyles.body1.fontSize,
                   color: Colors.deepOrange.shade700,
@@ -1437,13 +1437,13 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   String _domainTitleFromKey(String key) {
     switch (key) {
       case 'financial':
-        return 'Tai chinh';
+        return 'Tài chính';
       case 'repair':
-        return 'Don sua';
+        return 'Đơn sửa';
       case 'inventory':
         return 'Kho';
       case 'sales':
-        return 'Ban hang';
+        return 'Bán hàng';
       default:
         return key;
     }

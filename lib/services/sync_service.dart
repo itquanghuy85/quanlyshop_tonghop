@@ -160,6 +160,28 @@ class SyncService {
 
   /// Key prefix for storing last sync timestamps per collection in SharedPreferences
   static const _lastSyncPrefix = 'lastSync_';
+  static const _realtimeCursorPrefix = 'rtCursor_';
+  static const Set<String> _incrementalRealtimeCollections = {
+    'attendance',
+    'cash_closings',
+    'customers',
+    'debts',
+    'debt_payments',
+    'expenses',
+    'payment_requests',
+    'products',
+    'quick_input_codes',
+    'repair_parts',
+    'repair_partner_payments',
+    'repairs',
+    'sales',
+    'sales_returns',
+    'salvage_phones',
+    'supplier_import_history',
+    'supplier_payments',
+  };
+  static final Map<String, int> _realtimeCursorCache = <String, int>{};
+  static final Set<String> _incrementalRealtimeDisabled = <String>{};
 
   /// Check if real-time sync is initialized and active
   static bool get isRealTimeSyncActive =>
@@ -322,6 +344,83 @@ class SyncService {
         data[field] = (data[field] as Timestamp).millisecondsSinceEpoch;
       }
     }
+  }
+
+  static String _realtimeCursorKey(String collection, String shopId) =>
+      '$_realtimeCursorPrefix${collection}_$shopId';
+
+  static Future<void> _warmRealtimeCursorCache(String shopId) async {
+    if (shopId.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    for (final collection in _incrementalRealtimeCollections) {
+      final key = _realtimeCursorKey(collection, shopId);
+      final cursorMs = prefs.getInt(key) ?? 0;
+      if (cursorMs > 0) {
+        _realtimeCursorCache[key] = cursorMs;
+      }
+    }
+  }
+
+  static int _realtimeCursorMs(String collection, String shopId) {
+    if (shopId.isEmpty) return 0;
+    return _realtimeCursorCache[_realtimeCursorKey(collection, shopId)] ?? 0;
+  }
+
+  static int _normalizeRealtimeCursorMs(int rawMs) {
+    if (rawMs <= 0) return 0;
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final maxAllowedMs = nowMs + const Duration(days: 1).inMilliseconds;
+    if (rawMs > maxAllowedMs) {
+      return maxAllowedMs;
+    }
+    return rawMs;
+  }
+
+  static Future<void> _saveRealtimeCursorMs({
+    required String collection,
+    required String shopId,
+    required int cursorMs,
+  }) async {
+    if (shopId.isEmpty) return;
+
+    final normalizedMs = _normalizeRealtimeCursorMs(cursorMs);
+    if (normalizedMs <= 0) return;
+
+    final key = _realtimeCursorKey(collection, shopId);
+    final currentMs = _realtimeCursorCache[key] ?? 0;
+    if (normalizedMs <= currentMs) return;
+
+    _realtimeCursorCache[key] = normalizedMs;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(key, normalizedMs);
+  }
+
+  static int _extractRealtimeCursorMs(Map<String, dynamic> data) {
+    var maxMs = _getTimestamp(data['updatedAt']);
+    final createdAtMs = _getTimestamp(data['createdAt']);
+    final syncedAtMs = _getTimestamp(data['syncedAt']);
+
+    if (createdAtMs > maxMs) {
+      maxMs = createdAtMs;
+    }
+    if (syncedAtMs > maxMs) {
+      maxMs = syncedAtMs;
+    }
+
+    return _normalizeRealtimeCursorMs(maxMs);
+  }
+
+  static bool _canUseIncrementalRealtime({
+    required String collection,
+    required String? shopId,
+  }) {
+    if (shopId == null || shopId.isEmpty) return false;
+    if (!_incrementalRealtimeCollections.contains(collection)) return false;
+    if (_incrementalRealtimeDisabled.contains(collection)) return false;
+
+    return _realtimeCursorMs(collection, shopId) > 0;
   }
 
   static List<String> _splitImagePaths(String? csv) {
@@ -701,6 +800,8 @@ class SyncService {
         }
         return;
       }
+
+      await _warmRealtimeCursorCache(shopId);
 
       // AUTO-CLEANUP: Xóa orphan repair_parts bị stuck (không có firestoreId)
       // force mark các records có firestoreId là đã sync
@@ -2024,9 +2125,24 @@ class SyncService {
     }
 
     Query<Map<String, dynamic>> query = _db.collection(collection);
+    bool usedIncrementalRealtime = false;
+
     if (shopId != null) {
       query = query.where('shopId', isEqualTo: shopId);
-      debugPrint("📡 Subscribing to $collection with shopId filter: $shopId");
+
+      if (_canUseIncrementalRealtime(collection: collection, shopId: shopId)) {
+        final cursorMs = _realtimeCursorMs(collection, shopId);
+        query = query.where(
+          'updatedAt',
+          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(cursorMs),
+        );
+        usedIncrementalRealtime = true;
+        debugPrint(
+          '📡 Subscribing to $collection with incremental realtime filter (updatedAt > ${DateTime.fromMillisecondsSinceEpoch(cursorMs).toIso8601String()})',
+        );
+      } else {
+        debugPrint("📡 Subscribing to $collection with shopId filter: $shopId");
+      }
     } else {
       debugPrint(
         "⚠️ Subscribing to $collection WITHOUT shopId filter (super admin mode)",
@@ -2051,8 +2167,10 @@ class SyncService {
           "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
         );
 
-        // Track read volume per collection for Firebase read/write dashboard.
-        final readCount = snapshot.docChanges.length;
+        // Cache snapshots are not billed as server reads; skip telemetry to avoid inflated numbers.
+        final readCount = snapshot.metadata.isFromCache
+            ? 0
+            : snapshot.docChanges.length;
         if (readCount > 0) {
           unawaited(
             FirebaseUsageStatsService.logRealtimeRead(
@@ -2063,6 +2181,8 @@ class SyncService {
           );
         }
 
+        var maxCursorMs = 0;
+
         for (var change in snapshot.docChanges) {
           var data = change.doc.data();
           if (data == null) continue;
@@ -2070,11 +2190,27 @@ class SyncService {
           // Giải mã dữ liệu nếu được mã hóa
           data = EncryptionService.decryptMap(data);
 
+          final cursorMs = _extractRealtimeCursorMs(data);
+          if (cursorMs > maxCursorMs) {
+            maxCursorMs = cursorMs;
+          }
+
           debugPrint(
             "Real-time change in $collection: ${change.doc.id}, type: ${change.type}",
           );
           await onChanged(data, change.doc.id);
         }
+
+        if (shopId != null && maxCursorMs > 0) {
+          unawaited(
+            _saveRealtimeCursorMs(
+              collection: collection,
+              shopId: shopId,
+              cursorMs: maxCursorMs,
+            ),
+          );
+        }
+
         onBatchDone();
       },
       onError: (e) {
@@ -2087,6 +2223,12 @@ class SyncService {
             errorStr.contains('permission-denied') ||
             errorStr.contains('PERMISSION_DENIED') ||
             errorStr.contains('Missing or insufficient permissions');
+
+        final isMissingIndexError =
+          errorStr.contains('failed-precondition') &&
+          (errorStr.contains('requires an index') ||
+            errorStr.contains('missing index') ||
+            errorStr.contains('create it here'));
 
         if (isPermissionError) {
           debugPrint(
@@ -2107,6 +2249,15 @@ class SyncService {
           debugPrint(
             "⚠️ Permission denied for $collection - skipping re-subscribe (check Firestore rules or shop status)",
           );
+          return;
+        }
+
+        if (isMissingIndexError && usedIncrementalRealtime) {
+          debugPrint(
+            '⚠️ Missing index for incremental realtime on $collection. Falling back to full listener query.',
+          );
+          _incrementalRealtimeDisabled.add(collection);
+          _scheduleResubscribe(collection, shopId, onChanged, onBatchDone);
           return;
         }
 
@@ -2208,12 +2359,21 @@ class SyncService {
   /// Dùng khi: đổi shop, force reinit, clear data
   static Future<void> resetSyncTimestamps() async {
     final prefs = await SharedPreferences.getInstance();
-    final keys = prefs.getKeys().where((k) => k.startsWith(_lastSyncPrefix));
+    final keys = prefs
+        .getKeys()
+        .where(
+          (k) =>
+              k.startsWith(_lastSyncPrefix) ||
+              k.startsWith(_realtimeCursorPrefix),
+        )
+        .toList();
     for (final key in keys) {
       await prefs.remove(key);
     }
     _lastDownloadTime = null;
-    debugPrint('🔄 Reset ${keys.length} sync timestamps');
+    _realtimeCursorCache.clear();
+    _incrementalRealtimeDisabled.clear();
+    debugPrint('🔄 Reset ${keys.length} sync timestamps/cursors');
   }
 
   /// Schedule re-subscribe after an error with exponential backoff
