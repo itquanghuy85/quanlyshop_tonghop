@@ -207,6 +207,12 @@ class FirebaseRwStatsService {
     final listeners = SyncService.subscriptionStatus;
     final activeListeners = listeners.values.where((v) => v).length;
 
+    if (activeListeners > 0) {
+      warnings.add(
+        'Trạng thái ON thể hiện collection đang được đồng bộ (đa số là polling get theo chu kỳ), không chỉ realtime listener.',
+      );
+    }
+
     final readByCollection = hasShopContext
         ? await FirebaseUsageStatsService.getReadCountsByCollection(
             shopId: shopId,

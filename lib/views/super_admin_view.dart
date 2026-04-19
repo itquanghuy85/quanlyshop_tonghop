@@ -30,19 +30,6 @@ String getRoleDisplayName(String role) {
 class SuperAdminView extends StatelessWidget {
   const SuperAdminView({super.key});
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _shopMembersPollingStream(
-    String shopId,
-  ) async* {
-    final query = FirebaseFirestore.instance
-        .collection('users')
-        .where('shopId', isEqualTo: shopId)
-        .limit(20);
-    yield await query.get();
-    yield* Stream.periodic(
-      const Duration(seconds: 30),
-    ).asyncMap((_) => query.get());
-  }
-
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -94,6 +81,19 @@ class ShopsTab extends StatefulWidget {
 
 class _ShopsTabState extends State<ShopsTab> {
   bool _isSyncingClaims = false;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> _shopMembersPollingStream(
+    String shopId,
+  ) async* {
+    final query = FirebaseFirestore.instance
+        .collection('users')
+        .where('shopId', isEqualTo: shopId)
+        .limit(20);
+    yield await query.get();
+    yield* Stream.periodic(
+      const Duration(seconds: 30),
+    ).asyncMap((_) => query.get());
+  }
 
   Future<void> _syncAllClaims() async {
     setState(() => _isSyncingClaims = true);

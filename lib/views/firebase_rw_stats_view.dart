@@ -173,7 +173,7 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
               ),
               _buildSummaryChip(
                 icon: Icons.wifi,
-                label: 'Realtime listeners',
+                label: 'Sync collections',
                 value: '${snapshot.activeListeners}/${snapshot.totalListeners}',
                 color: Colors.deepPurple,
               ),
@@ -193,7 +193,7 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
           ),
           const SizedBox(height: 10),
           Text(
-            'Lưu ý: Reads 24h là số bản ghi listener nhận từ server trong 24 giờ. Lần mở app đầu tiên hoặc khi listener khởi động lại có thể tăng cao do tải snapshot ban đầu.',
+            'Lưu ý: Trạng thái ON bên dưới là trạng thái đồng bộ (polling/listener). Reads 24h là tổng đọc từ cloud trong 24 giờ gần nhất nên có thể tăng theo chu kỳ polling hoặc khi sync khởi động lại.',
             style: TextStyle(
               fontSize: 12,
               color: Colors.blueGrey.shade700,
@@ -296,15 +296,16 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
                   ),
                   decoration: BoxDecoration(
                     color: stat.listenerActive
-                        ? Colors.green.shade50
+                        ? Colors.teal.shade50
                         : Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
-                    stat.listenerActive ? 'Listener ON' : 'Listener OFF',
+                    stat.listenerActive ? 'Polling ON' : 'Sync OFF',
                     style: TextStyle(
-                      color:
-                          stat.listenerActive ? Colors.green : Colors.grey[700],
+                      color: stat.listenerActive
+                          ? Colors.teal.shade700
+                          : Colors.grey[700],
                       fontWeight: FontWeight.w600,
                       fontSize: 11,
                     ),
