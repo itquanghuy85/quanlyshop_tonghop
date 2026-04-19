@@ -57,7 +57,10 @@ class BackgroundUploadService {
 
       // Update Firestore directly
       try {
-        final encData = EncryptionService.encryptMap({'imagePath': cloudPaths});
+        final encData = EncryptionService.encryptMap({
+          'imagePath': cloudPaths,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
         await _db.collection('repairs').doc(firestoreId).update(encData);
       } catch (e) {
         debugPrint('📸 BackgroundUpload: Firestore update failed (will sync later): $e');
@@ -109,6 +112,7 @@ class BackgroundUploadService {
       try {
         await _db.collection('attendance').doc(firestoreId).update({
           field: cloudUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
           'syncedAt': FieldValue.serverTimestamp(),
         });
       } catch (e) {

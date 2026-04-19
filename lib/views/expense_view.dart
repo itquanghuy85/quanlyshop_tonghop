@@ -17,6 +17,7 @@ import '../services/adjustment_service.dart';
 import '../services/event_bus.dart';
 import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
+import '../models/expense_model.dart';
 import '../services/financial_activity_service.dart';
 import '../services/audit_service.dart';
 import '../constants/financial_constants.dart';
@@ -32,7 +33,15 @@ import '../widgets/export_date_filter_dialog.dart';
 
 class ExpenseView extends StatefulWidget {
   final bool embedded;
-  const ExpenseView({super.key, this.embedded = false});
+  final String initialMode;
+  final bool openCreateDialogOnStart;
+
+  const ExpenseView({
+    super.key,
+    this.embedded = false,
+    this.initialMode = 'CHI',
+    this.openCreateDialogOnStart = false,
+  });
   @override
   State<ExpenseView> createState() => _ExpenseViewState();
 }
@@ -50,16 +59,19 @@ class _ExpenseViewState extends State<ExpenseView> {
 
   // THU/CHI toggle
   String _viewMode = 'CHI'; // 'CHI' or 'THU'
+  String _scopeFilter = 'TAT_CA'; // TAT_CA, SHOP, CA_NHAN
 
   // Filter options
   String _filterType = 'THÁNG'; // NGÀY, TUẦN, THÁNG
   DateTime _selectedDate = DateTime.now();
+  bool _hasOpenedInitialDialog = false;
 
   StreamSubscription<String>? _eventSubscription;
 
   @override
   void initState() {
     super.initState();
+    _viewMode = widget.initialMode.toUpperCase() == 'THU' ? 'THU' : 'CHI';
     _checkPermission();
     _refresh();
     _eventSubscription = EventBus().stream.listen((event) {
@@ -79,6 +91,23 @@ class _ExpenseViewState extends State<ExpenseView> {
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
     setState(() => _hasPermission = perms['allowViewExpenses'] ?? false);
+    await _openInitialCreateDialogIfNeeded();
+  }
+
+  Future<void> _openInitialCreateDialogIfNeeded() async {
+    if (_hasOpenedInitialDialog ||
+        !widget.openCreateDialogOnStart ||
+        !_hasPermission) {
+      return;
+    }
+    _hasOpenedInitialDialog = true;
+    await Future.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    if (_viewMode == 'THU') {
+      _showAddIncomeDialog();
+    } else {
+      _showAddExpenseDialog();
+    }
   }
 
   Future<void> _refresh() async {
@@ -108,6 +137,8 @@ class _ExpenseViewState extends State<ExpenseView> {
               'category': 'ĐƠN NHẬP HÀNG',
               'createdBy': po['createdBy'],
               'note': po['notes'],
+              'type': 'CHI',
+              'scope': 'SHOP',
               'isPurchaseDebt': true,
             },
           )
@@ -175,9 +206,14 @@ class _ExpenseViewState extends State<ExpenseView> {
       return eType == _viewMode;
     }).toList();
 
+    final scopeFiltered = typeFiltered.where((e) {
+      if (_scopeFilter == 'TAT_CA') return true;
+      return _normalizedScopeFromRow(e) == _scopeFilter;
+    }).toList();
+
     switch (_filterType) {
       case 'NGÀY':
-        filtered = typeFiltered.where((e) {
+        filtered = scopeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.day == _selectedDate.day &&
               d.month == _selectedDate.month &&
@@ -190,21 +226,21 @@ class _ExpenseViewState extends State<ExpenseView> {
           Duration(days: _selectedDate.weekday - 1),
         );
         DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
-        filtered = typeFiltered.where((e) {
+        filtered = scopeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
               d.isBefore(endOfWeek.add(const Duration(days: 1)));
         }).toList();
         break;
       case 'THÁNG':
-        filtered = typeFiltered.where((e) {
+        filtered = scopeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.month == _selectedDate.month && d.year == _selectedDate.year;
         }).toList();
         break;
       default:
         // Default to current month if no filter
-        filtered = typeFiltered.where((e) {
+        filtered = scopeFiltered.where((e) {
           final d = DateTime.fromMillisecondsSinceEpoch(e['date']);
           return d.month == now.month && d.year == now.year;
         }).toList();
@@ -240,6 +276,90 @@ class _ExpenseViewState extends State<ExpenseView> {
       _selectedDate = newDate;
       _filterExpenses();
     });
+  }
+
+  void _changeScopeFilter(String scope) {
+    if (_scopeFilter == scope) return;
+    setState(() {
+      _scopeFilter = scope;
+      _filterExpenses();
+    });
+  }
+
+  String _normalizedScopeFromRow(Map<String, dynamic> row) {
+    return Expense.normalizeScope(row['scope']);
+  }
+
+  int _sumAmountByScope(List<Map<String, dynamic>> list, String scope) {
+    return list
+        .where((e) => _normalizedScopeFromRow(e) == scope)
+        .fold(0, (sum, e) => sum + ((e['amount'] as num?)?.toInt() ?? 0));
+  }
+
+  Widget _buildScopeSummaryBar(List<Map<String, dynamic>> list, Color accentColor) {
+    final shopTotal = _sumAmountByScope(list, 'SHOP');
+    final personalTotal = _sumAmountByScope(list, 'CA_NHAN');
+
+    Widget buildScopeBox({
+      required String label,
+      required int value,
+      required bool isPersonal,
+    }) {
+      final boxColor = isPersonal
+          ? Colors.orange.shade50
+          : accentColor.withOpacity(0.08);
+      final textColor = isPersonal ? Colors.orange.shade700 : accentColor;
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: boxColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isPersonal
+                  ? Colors.orange.withOpacity(0.2)
+                  : accentColor.withOpacity(0.16),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                MoneyUtils.formatCurrency(value),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        buildScopeBox(label: 'SHOP', value: shopTotal, isPersonal: false),
+        const SizedBox(width: 8),
+        buildScopeBox(
+          label: 'CÁ NHÂN',
+          value: personalTotal,
+          isPersonal: true,
+        ),
+      ],
+    );
   }
 
   Future<void> _handleDeleteExpense(Map<String, dynamic> exp) async {
@@ -874,6 +994,9 @@ class _ExpenseViewState extends State<ExpenseView> {
             ],
           ),
 
+          const SizedBox(height: 10),
+          _buildScopeSummaryBar(list, const Color(0xFF2E7D32)),
+
           if (categories.isNotEmpty) ...[
             const SizedBox(height: 10),
             Row(
@@ -1154,56 +1277,124 @@ class _ExpenseViewState extends State<ExpenseView> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade100),
       ),
-      child: Row(
+      child: Column(
         children: [
-          ...['NGÀY', 'TUẦN', 'THÁNG'].map((type) {
-            final active = _filterType == type;
-            return Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: GestureDetector(
-                onTap: () => _changeFilterType(type),
+          Row(
+            children: [
+              ...['NGÀY', 'TUẦN', 'THÁNG'].map((type) {
+                final active = _filterType == type;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: GestureDetector(
+                    onTap: () => _changeFilterType(type),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: active
+                            ? (_viewMode == 'CHI'
+                                  ? const Color(0xFFE53935)
+                                  : const Color(0xFF2E7D32))
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        type,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: active ? Colors.white : Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+              const Spacer(),
+              InkWell(
+                onTap: () async {
+                  DateTime? picked;
+                  if (_filterType == 'NGÀY' || _filterType == 'TUẦN') {
+                    picked = await showDatePicker(
+                      context: context,
+                      initialDate: _selectedDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                  } else {
+                    picked = await _showMonthPicker();
+                  }
+                  if (picked != null) _changeDate(picked);
+                },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
-                    color: active
-                        ? (_viewMode == 'CHI' ? const Color(0xFFE53935) : const Color(0xFF2E7D32))
-                        : Colors.grey.shade50,
+                    border: Border.all(color: Colors.grey.shade200),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(
-                    type,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.grey.shade600),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _getDateDisplayText(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            );
-          }),
-          const Spacer(),
-          InkWell(
-            onTap: () async {
-              DateTime? picked;
-              if (_filterType == 'NGÀY' || _filterType == 'TUẦN') {
-                picked = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime(2020), lastDate: DateTime.now());
-              } else {
-                picked = await _showMonthPicker();
-              }
-              if (picked != null) _changeDate(picked);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
-                  const SizedBox(width: 4),
-                  Text(_getDateDisplayText(), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey.shade700)),
-                ],
-              ),
-            ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ...const [
+                {'value': 'TAT_CA', 'label': 'TẤT CẢ'},
+                {'value': 'SHOP', 'label': 'SHOP'},
+                {'value': 'CA_NHAN', 'label': 'CÁ NHÂN'},
+              ].map((item) {
+                final value = item['value']!;
+                final label = item['label']!;
+                final active = _scopeFilter == value;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: active,
+                    selectedColor: _viewMode == 'CHI'
+                        ? const Color(0xFFFFEBEE)
+                        : const Color(0xFFE8F5E9),
+                    labelStyle: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: active
+                          ? (_viewMode == 'CHI'
+                                ? const Color(0xFFE53935)
+                                : const Color(0xFF2E7D32))
+                          : Colors.grey.shade700,
+                    ),
+                    onSelected: (_) => _changeScopeFilter(value),
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                );
+              }),
+            ],
           ),
         ],
       ),
@@ -1297,6 +1488,9 @@ class _ExpenseViewState extends State<ExpenseView> {
             ],
           ),
 
+          const SizedBox(height: 10),
+          _buildScopeSummaryBar(list, const Color(0xFFE53935)),
+
           if (categories.isNotEmpty) ...[
             const SizedBox(height: 10),
             // Donut chart + legend
@@ -1350,11 +1544,8 @@ class _ExpenseViewState extends State<ExpenseView> {
   Widget _expenseProfessionalCard(Map<String, dynamic> e) {
     final cat = (e['category'] ?? 'KHÁC').toString();
     final isIncome = (e['type'] ?? 'CHI') == 'THU';
-    final rawScope = (e['scope'] ?? 'SHOP').toString().toUpperCase();
     final scopeLabel =
-        (rawScope == 'CA_NHAN' || rawScope == 'CÁ NHÂN' || rawScope == 'PERSONAL')
-        ? 'CÁ NHÂN'
-        : 'SHOP';
+      _normalizedScopeFromRow(e) == 'CA_NHAN' ? 'CÁ NHÂN' : 'SHOP';
     Color color;
     IconData icon;
 

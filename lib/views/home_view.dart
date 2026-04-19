@@ -329,6 +329,18 @@ class _HomeViewState extends State<HomeView>
     return Navigator.of(context).push(route);
   }
 
+  void _openExpensePageAndAdd({required bool isIncome}) {
+    _pushRoute(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ExpenseView(
+          initialMode: isIncome ? 'THU' : 'CHI',
+          openCreateDialogOnStart: true,
+        ),
+      ),
+    );
+  }
+
   Future<bool> _maybePopCurrentTabNavigator() async {
     final index = _currentIndex.clamp(0, _tabConfigs.length - 1);
     if (!_usesNestedNavigator(index)) return false;
@@ -4256,9 +4268,9 @@ class _HomeViewState extends State<HomeView>
                 )
               : null;
         case ShortcutType.addExpense:
-          return _showQuickExpenseDialog;
+          return () => _openExpensePageAndAdd(isIncome: false);
         case ShortcutType.addIncome:
-          return _showQuickIncomeDialog;
+          return () => _openExpensePageAndAdd(isIncome: true);
         case ShortcutType.inventoryCheck:
           return () => _pushRoute(
             context,
@@ -4467,14 +4479,14 @@ class _HomeViewState extends State<HomeView>
             Icons.remove_circle_outline,
             'Thêm chi',
             Colors.red,
-            _showQuickExpenseDialog,
+            () => _openExpensePageAndAdd(isIncome: false),
           ),
         if (_ok('allowViewRevenue'))
           _ShortcutItem(
             Icons.add_circle_outline,
             'Thêm thu',
             Colors.green.shade700,
-            _showQuickIncomeDialog,
+            () => _openExpensePageAndAdd(isIncome: true),
           ),
         if (_ok('allowViewInventory'))
           _ShortcutItem(
@@ -5583,7 +5595,7 @@ class _HomeViewState extends State<HomeView>
                   side: BorderSide(color: Colors.red.shade300, width: 2),
                 ),
                 child: InkWell(
-                  onTap: _showQuickExpenseDialog,
+                  onTap: () => _openExpensePageAndAdd(isIncome: false),
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
                     padding: const EdgeInsets.all(10),
@@ -5632,7 +5644,7 @@ class _HomeViewState extends State<HomeView>
                   side: BorderSide(color: Colors.green.shade300, width: 2),
                 ),
                 child: InkWell(
-                  onTap: _showQuickIncomeDialog,
+                  onTap: () => _openExpensePageAndAdd(isIncome: true),
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
                     padding: const EdgeInsets.all(10),

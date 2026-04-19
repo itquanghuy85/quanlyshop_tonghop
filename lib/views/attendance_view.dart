@@ -416,6 +416,7 @@ class _AttendanceViewState extends State<AttendanceView>
     try {
       final data = attendance.toMap();
       data['shopId'] = shopId;
+      data['updatedAt'] = FieldValue.serverTimestamp();
       data['syncedAt'] = FieldValue.serverTimestamp();
       data.remove('id');
       data.remove('isSynced');

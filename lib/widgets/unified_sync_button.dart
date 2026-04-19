@@ -354,14 +354,6 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                           ),
 
                           _buildActionTile(
-                            icon: Icons.sync,
-                            iconColor: Colors.orange,
-                            title: 'Đồng bộ 2 chiều',
-                            subtitle: 'Upload + Download để đồng nhất dữ liệu',
-                            onTap: _handleFullSync,
-                          ),
-
-                          _buildActionTile(
                             icon: Icons.replay,
                             iconColor: Colors.blue,
                             title: 'Khởi động lại Realtime',
@@ -422,24 +414,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             onTap: _handleOpenFirebaseStats,
                           ),
 
-                          _buildActionTile(
-                            icon: Icons.restore,
-                            iconColor: Colors.blue,
-                            title: 'Khôi phục dữ liệu',
-                            subtitle: 'Tìm dữ liệu bị "lạc" do đổi shop',
-                            onTap: _handleDataRecovery,
-                          ),
-
-                          _buildActionTile(
-                            icon: Icons.summarize,
-                            iconColor: Colors.deepPurple,
-                            title: 'Xuất báo cáo Sync',
-                            subtitle:
-                                'Tạo file Markdown trạng thái sync để gửi vận hành',
-                            onTap: _handleExportSyncReport,
-                          ),
-
-                          // Show retry/clear failed when there are failed items
+                            // Show retry action when there are failed items
                           if (_syncQueueStats != null &&
                               (_syncQueueStats!['failed'] ?? 0) > 0) ...[
                             _buildActionTile(
@@ -449,14 +424,6 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                                   'Thử lại ${_syncQueueStats!['failed']} items lỗi',
                               subtitle: 'Reset và sync lại các items bị failed',
                               onTap: _handleRetryFailed,
-                            ),
-                            _buildActionTile(
-                              icon: Icons.delete_sweep,
-                              iconColor: Colors.red,
-                              title: 'Xóa items lỗi',
-                              subtitle:
-                                  'Xóa vĩnh viễn các items không thể sync',
-                              onTap: _handleClearFailed,
                             ),
                           ],
 

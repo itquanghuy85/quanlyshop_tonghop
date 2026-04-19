@@ -113,6 +113,23 @@ class ExcelExportHelper {
     return MoneyUtils.formatVND(n);
   }
 
+  static String _normalizeExpenseScope(String? rawScope) {
+    return Expense.normalizeScope(rawScope);
+  }
+
+  static int _sumExpenses(
+    List<Expense> expenses, {
+    String? type,
+    String? scope,
+  }) {
+    return expenses.where((e) {
+      final typeOk = type == null ? true : e.type == type;
+      final scopeOk =
+          scope == null ? true : _normalizeExpenseScope(e.scope) == scope;
+      return typeOk && scopeOk;
+    }).fold(0, (sum, e) => sum + e.amount);
+  }
+
   static String _fmtMinutes(int totalMinutes) {
     return AttendanceMonthlySummary.formatMinutes(totalMinutes);
   }
@@ -522,7 +539,7 @@ class ExcelExportHelper {
         i + 1,
         _fmtDateTime(e.date),
         e.type == 'THU' ? 'Thu' : 'Chi',
-        e.scope == 'CA_NHAN' ? 'Cá nhân' : 'Shop',
+        _normalizeExpenseScope(e.scope) == 'CA_NHAN' ? 'Cá nhân' : 'Shop',
         e.title,
         _fmtMoney(e.amount),
         e.category,
@@ -530,6 +547,33 @@ class ExcelExportHelper {
         e.note ?? '',
       ]);
     }
+
+    final summarySheet = excel['Tổng hợp phạm vi'];
+    _writeHeaders(summarySheet, ['Chỉ tiêu', 'Shop', 'Cá nhân', 'Tổng']);
+
+    final thuShop = _sumExpenses(expenses, type: 'THU', scope: 'SHOP');
+    final thuCaNhan = _sumExpenses(expenses, type: 'THU', scope: 'CA_NHAN');
+    final chiShop = _sumExpenses(expenses, type: 'CHI', scope: 'SHOP');
+    final chiCaNhan = _sumExpenses(expenses, type: 'CHI', scope: 'CA_NHAN');
+
+    _writeRow(summarySheet, 1, [
+      'Thu',
+      _fmtMoney(thuShop),
+      _fmtMoney(thuCaNhan),
+      _fmtMoney(thuShop + thuCaNhan),
+    ]);
+    _writeRow(summarySheet, 2, [
+      'Chi',
+      _fmtMoney(chiShop),
+      _fmtMoney(chiCaNhan),
+      _fmtMoney(chiShop + chiCaNhan),
+    ]);
+    _writeRow(summarySheet, 3, [
+      'Chênh lệch (Thu - Chi)',
+      _fmtMoney(thuShop - chiShop),
+      _fmtMoney(thuCaNhan - chiCaNhan),
+      _fmtMoney((thuShop + thuCaNhan) - (chiShop + chiCaNhan)),
+    ]);
 
     if (excel.sheets.containsKey('Sheet1')) {
       excel.delete('Sheet1');

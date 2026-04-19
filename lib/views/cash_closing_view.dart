@@ -1533,6 +1533,7 @@ class _CashClosingViewState extends State<CashClosingView>
             'firestoreId': 'closing_${shopId}_$dateKey',
             'isManualOpening': true,
             'isSynced': true,
+            'updatedAt': FieldValue.serverTimestamp(),
           };
           await FirebaseFirestore.instance
               .collection('cash_closings')
@@ -3183,6 +3184,7 @@ class _CashClosingViewState extends State<CashClosingView>
             'shopId': shopId,
             'date': dateKey, // FIX: Firestore rules require 'date' field
             'firestoreId': 'closing_${shopId}_$dateKey',
+            'updatedAt': FieldValue.serverTimestamp(),
           };
           await FirebaseFirestore.instance
               .collection('cash_closings')

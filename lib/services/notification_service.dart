@@ -1260,8 +1260,12 @@ class NotificationService {
   }
 
   static bool _getDefaultNotificationSetting(String type) {
-    // Critical notifications are enabled by default
-    return type == 'new_order' || type == 'payment' || type == 'system';
+    // Business-critical notifications are enabled by default.
+    return type == 'new_order' ||
+        type == 'payment' ||
+        type == 'inventory' ||
+        type == 'staff' ||
+        type == 'system';
   }
 
   // Business Logic Integration Methods
@@ -1448,10 +1452,10 @@ class NotificationService {
     String type,
     String? targetUserId,
   ) async {
-    // Nếu là broadcast, kiểm tra settings của từng user
+    // Broadcast must not be blocked by sender-side local settings.
+    // Recipient filtering/preferences should be handled per-recipient.
     if (targetUserId == null) {
-      // Cho broadcast, chỉ gửi nếu type được bật mặc định
-      return _getDefaultNotificationSetting(type);
+      return true;
     }
 
     // Nếu target specific user, kiểm tra settings của họ
