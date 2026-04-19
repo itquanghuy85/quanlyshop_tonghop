@@ -53,6 +53,7 @@ import 'financial_report_view.dart';
 import 'audit_log_view.dart';
 import 'recent_activity_view.dart';
 import 'firestore_connectivity_test_view.dart';
+import 'firebase_rw_stats_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'smart_stock_in_view.dart';
 import 'pending_stock_list_view.dart';
@@ -9184,6 +9185,24 @@ class _HomeViewState extends State<HomeView>
                     context,
                     MaterialPageRoute(
                       builder: (_) => const FirestoreConnectivityTestView(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _financeShortcutButton(
+                  icon: Icons.query_stats,
+                  label: 'Thống kê Firebase',
+                  color: Colors.blueGrey,
+                  onTap: () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FirebaseRwStatsView(),
                     ),
                   ),
                 ),

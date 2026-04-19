@@ -16,6 +16,7 @@ import '../services/notification_service.dart';
 import '../services/category_service.dart';
 import '../services/event_bus.dart';
 import '../services/daily_financial_analysis_service.dart';
+import '../services/firestore_write_helper.dart';
 import '../utils/money_utils.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/custom_app_bar.dart';
@@ -1533,7 +1534,7 @@ class _CashClosingViewState extends State<CashClosingView>
             'firestoreId': 'closing_${shopId}_$dateKey',
             'isManualOpening': true,
             'isSynced': true,
-            'updatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
           };
           await FirebaseFirestore.instance
               .collection('cash_closings')
@@ -3184,7 +3185,7 @@ class _CashClosingViewState extends State<CashClosingView>
             'shopId': shopId,
             'date': dateKey, // FIX: Firestore rules require 'date' field
             'firestoreId': 'closing_${shopId}_$dateKey',
-            'updatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
           };
           await FirebaseFirestore.instance
               .collection('cash_closings')

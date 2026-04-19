@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 
 /// Trạng thái phiếu nhập kho
 enum StockEntryStatus {
@@ -228,7 +229,7 @@ class StockEntry {
         if (totalCost != null) 'totalCost': totalCost,
         if (paymentMethod != null) 'paymentMethod': paymentMethod,
         'notes': notes ?? '',
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
     }
     
@@ -260,7 +261,7 @@ class StockEntry {
       map['confirmedAt'] = Timestamp.fromDate(confirmedAt!);
     }
     
-    map['updatedAt'] = FieldValue.serverTimestamp();
+    map['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
     
     return map;
   }
@@ -455,3 +456,4 @@ class StockEntry {
     }
   }
 }
+

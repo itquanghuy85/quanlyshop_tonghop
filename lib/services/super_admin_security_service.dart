@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -48,7 +49,7 @@ class SuperAdminSecurityService {
       if (user != null) {
         await _db.collection('admin_security').doc(user.uid).set({
           'pinHash': hash,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         }, SetOptions(merge: true));
       }
       debugPrint('✅ Super admin PIN set up successfully');
@@ -115,7 +116,7 @@ class SuperAdminSecurityService {
         await _db.collection('admin_security').doc(user.uid).set({
           'pinHash': FieldValue.delete(),
           'pinRemoved': true,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         }, SetOptions(merge: true));
       }
       return true;
@@ -217,3 +218,4 @@ class SuperAdminSecurityService {
     return sha256.convert(bytes).toString();
   }
 }
+

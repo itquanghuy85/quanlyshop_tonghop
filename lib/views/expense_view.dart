@@ -16,6 +16,7 @@ import '../services/user_service.dart';
 import '../services/adjustment_service.dart';
 import '../services/event_bus.dart';
 import '../services/payment_intent_service.dart';
+import '../services/firestore_write_helper.dart';
 import '../models/payment_intent_model.dart';
 import '../models/expense_model.dart';
 import '../services/financial_activity_service.dart';
@@ -462,10 +463,7 @@ class _ExpenseViewState extends State<ExpenseView> {
               await FirebaseFirestore.instance
                   .collection('expenses')
                   .doc(firestoreId)
-                  .update({
-                'deleted': true,
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
+                  .update(FirestoreWriteHelper.softDeletePayload());
               debugPrint('Firestore soft-delete expense: $firestoreId');
             } catch (e) {
               // Firestore delete failed - queue for later sync

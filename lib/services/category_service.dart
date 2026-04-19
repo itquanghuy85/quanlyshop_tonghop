@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:flutter/foundation.dart';
 import '../models/product_category_model.dart';
 import '../models/shop_settings_model.dart';
@@ -175,7 +176,7 @@ class CategoryService {
         'enableBatch': settingsWithShop.enableBatch,
         'enableVariants': settingsWithShop.enableVariants,
         'defaultUnit': settingsWithShop.defaultUnit,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       }, SetOptions(merge: true));
       debugPrint('💾 CategoryService: Updated shop doc businessType');
     } catch (e) {
@@ -352,7 +353,7 @@ class CategoryService {
             'enableBatch': currentSettings.enableBatch,
             'enableVariants': currentSettings.enableVariants,
             'defaultUnit': currentSettings.defaultUnit,
-            'updatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
           }, SetOptions(merge: true));
           debugPrint('💾 CategoryService: Updated shop doc businessType');
         }
@@ -540,4 +541,5 @@ class CategoryService {
     return settings?.enableSerial ?? true;
   }
 }
+
 

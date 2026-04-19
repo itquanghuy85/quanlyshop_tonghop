@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../data/db_helper.dart';
 import '../services/storage_service.dart';
 import '../services/encryption_service.dart';
+import 'firestore_write_helper.dart';
 
 /// Service to upload images in the background after saving records.
 /// Allows screens to pop immediately while uploads continue.
@@ -59,7 +60,7 @@ class BackgroundUploadService {
       try {
         final encData = EncryptionService.encryptMap({
           'imagePath': cloudPaths,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         });
         await _db.collection('repairs').doc(firestoreId).update(encData);
       } catch (e) {
@@ -112,7 +113,7 @@ class BackgroundUploadService {
       try {
         await _db.collection('attendance').doc(firestoreId).update({
           field: cloudUrl,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
           'syncedAt': FieldValue.serverTimestamp(),
         });
       } catch (e) {

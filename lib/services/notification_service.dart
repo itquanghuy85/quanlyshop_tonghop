@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -578,7 +579,7 @@ class NotificationService {
             batch.update(doc.reference, {
               'fcmToken': FieldValue.delete(),
               'fcmTokenUpdatedAt': FieldValue.delete(),
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
             hasDuplicates = true;
             debugPrint('Removing duplicate FCM token from user: ${doc.id}');
@@ -1517,3 +1518,4 @@ class NotificationService {
     );
   }
 }
+

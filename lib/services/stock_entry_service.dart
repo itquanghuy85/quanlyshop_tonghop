@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/stock_entry_model.dart';
@@ -129,7 +130,7 @@ class StockEntryService {
 
       await _firestore.collection(_collection).doc(entryId).update({
         'status': 'cancelled', // lowercase để match với toMap()
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
 
       _showSuccess('Đã hủy phiếu');
@@ -378,7 +379,7 @@ class StockEntryService {
               transaction.update(partRef, {
                 'quantity': totalQty,
                 'costPrice': weightedCost,
-                'updatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
               partFirestoreIds[item.name] = docId;
               debugPrint('🔄 UPSERT part: $key qty $existingQty+$newQty=$totalQty');
@@ -397,7 +398,7 @@ class StockEntryService {
                 'shopId': entry.shopId,
                 'stockEntryId': entryId,
                 'createdAt': FieldValue.serverTimestamp(),
-                'updatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
                 'deleted': false,
               });
               partFirestoreIds[item.name] = partRef.id;
@@ -431,7 +432,7 @@ class StockEntryService {
               transaction.update(productRef, {
                 'quantity': totalQty,
                 'cost': weightedCost,
-                'updatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
               debugPrint('🔄 UPSERT product: $key qty $existingQty+$newQty=$totalQty');
               continue; // Existing product updated, skip creation
@@ -538,7 +539,7 @@ class StockEntryService {
               'stockEntryId': entryId,
               'shopId': entry.shopId,
               'createdAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               'deleted': false,
               if (isPhoneWithBatch)
                 'needsImeiUpdate': true, // Đánh dấu cần cập nhật IMEI
@@ -647,7 +648,7 @@ class StockEntryService {
           'totalCost': totalCost,
           'confirmedAt': FieldValue.serverTimestamp(),
           'confirmedBy': userId,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         });
 
         debugPrint('✅ confirmEntry: Transaction completed successfully');
@@ -1043,3 +1044,4 @@ class StockEntryService {
     yield* stream;
   }
 }
+

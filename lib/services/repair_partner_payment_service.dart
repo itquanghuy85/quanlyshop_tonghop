@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
@@ -53,7 +54,7 @@ class RepairPartnerPaymentService {
       'partnerId': id,
       'deleted': true,
       'shopId': shopId,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     }, SetOptions(merge: true));
   }
 
@@ -75,7 +76,7 @@ class RepairPartnerPaymentService {
     await _firestore.collection('repair_partner_payments').doc(docId).set({
       ...mapData,
       'shopId': shopId,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     }, SetOptions(merge: true));
   }
 

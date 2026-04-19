@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
@@ -280,7 +281,7 @@ class AttendanceApprovalService {
       Map<String, dynamic> data = record.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db.collection('attendance').doc(docId).set(
         encryptedData,
@@ -298,7 +299,7 @@ class AttendanceApprovalService {
       Map<String, dynamic> data = request.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db.collection('leave_requests').doc(docId).set(
         encryptedData,
@@ -309,3 +310,4 @@ class AttendanceApprovalService {
     }
   }
 }
+

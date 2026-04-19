@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../data/db_helper.dart';
@@ -62,7 +63,7 @@ class ImportOrderService {
         'stockEntryId': entryId,
         'notes': entry.notes ?? '',
         'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         'deleted': false,
       };
 
@@ -250,3 +251,4 @@ class ImportOrderService {
     }
   }
 }
+

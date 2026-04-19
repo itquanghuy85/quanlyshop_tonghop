@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import 'package:flutter/foundation.dart';
 import '../services/user_service.dart';
 import '../services/encryption_service.dart';
@@ -49,7 +50,7 @@ class SeedTestData {
         'status': 'IN_STOCK',
         'createdAt': ts,
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       await _db.collection('products').add(EncryptionService.encryptMap(data));
     }
@@ -94,7 +95,7 @@ class SeedTestData {
         'notes': '',
         'gifts': '',
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       if (s['method'] == 'TRẢ GÓP') {
         data['isInstallment'] = 1;
@@ -136,7 +137,7 @@ class SeedTestData {
         'createdAt': createdAt,
         'createdBy': 'TUẤN',
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       if ((r['status'] as int) >= 2) data['startedAt'] = createdAt + 3600000;
       if ((r['status'] as int) >= 3) data['finishedAt'] = createdAt + 7200000;
@@ -169,7 +170,7 @@ class SeedTestData {
         'date': date,
         'createdAt': date,
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       await _db.collection('expenses').add(EncryptionService.encryptMap(data));
     }
@@ -193,7 +194,7 @@ class SeedTestData {
         'status': 'ACTIVE',
         'createdAt': todayMs - 3 * 86400000,
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       final ref = await _db.collection('debts').add(EncryptionService.encryptMap(data));
       debtIds.add(ref.id);
@@ -214,7 +215,7 @@ class SeedTestData {
         'personName': 'VŨ THỊ TUYẾT',
         'debtType': 'CUSTOMER_OWES',
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       await _db.collection('debt_payments').add(EncryptionService.encryptMap(payData1));
 
@@ -230,7 +231,7 @@ class SeedTestData {
         'personName': 'NCC PHÚC AN MOBILE',
         'debtType': 'SHOP_OWES',
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       await _db.collection('debt_payments').add(EncryptionService.encryptMap(payData2));
     }
@@ -253,7 +254,7 @@ class SeedTestData {
         'createdAt': todayMs - daysAgo * 86400000,
         'createdBy': 'TUẤN',
         'shopId': shopId,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
       await _db.collection('supplier_import_history').add(EncryptionService.encryptMap(data));
     }
@@ -272,7 +273,7 @@ class SeedTestData {
       'closedBy': 'TUẤN',
       'closedAt': dayBefore.millisecondsSinceEpoch + 72000000,
       'shopId': shopId,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     });
 
     await _db.collection('cash_closings').doc('${_fmt(yesterday)}_$shopId').set({
@@ -284,7 +285,7 @@ class SeedTestData {
       'closedBy': 'TUẤN',
       'closedAt': yesterday.millisecondsSinceEpoch + 72000000,
       'shopId': shopId,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     });
     debugPrint('✅ SeedTestData: 2 cash closings created');
 
@@ -295,3 +296,4 @@ class SeedTestData {
   static String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
+

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import '../data/db_helper.dart';
 import '../models/supplier_payment_model.dart';
 import '../services/user_service.dart';
@@ -51,7 +52,7 @@ class SupplierPaymentService {
       'supplierId': id,
       'deleted': true,
       'shopId': shopId,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     }, SetOptions(merge: true));
   }
 
@@ -68,7 +69,7 @@ class SupplierPaymentService {
     await _firestore.collection('supplier_payments').doc(docId).set({
       ...payment.toMap(),
       'shopId': shopId,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     }, SetOptions(merge: true));
   }
 

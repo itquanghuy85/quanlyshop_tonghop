@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
@@ -916,7 +917,7 @@ class OrderListViewState extends State<OrderListView> {
               .doc(repairFirestoreId)
               .update({
                 'deleted': true,
-                'updatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
         } catch (e) {
           debugPrint('❌ Failed to soft delete on Firestore: $e');
@@ -1708,3 +1709,4 @@ class OrderListViewState extends State<OrderListView> {
     }
   }
 }
+

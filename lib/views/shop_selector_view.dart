@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import 'package:intl/intl.dart';
 import '../services/user_service.dart';
 import '../services/sync_service.dart';
@@ -185,7 +186,7 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
           'shopId': shopId,
           'email': user.email,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         }, SetOptions(merge: true));
         debugPrint('✅ Đã update shopId trong Firestore user doc');
         
@@ -549,3 +550,4 @@ class _ShopSelectorViewState extends State<ShopSelectorView> {
   }
 
 }
+

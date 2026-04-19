@@ -15,6 +15,7 @@ import '../services/user_service.dart';
 import '../services/notification_service.dart';
 import '../services/background_upload_service.dart';
 import '../services/osm_map_service.dart';
+import '../services/firestore_write_helper.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
 import 'shift_swap_view.dart';
 import '../widgets/app_cached_image.dart';
@@ -416,7 +417,7 @@ class _AttendanceViewState extends State<AttendanceView>
     try {
       final data = attendance.toMap();
       data['shopId'] = shopId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      FirestoreWriteHelper.applyUpdatedAt(data);
       data['syncedAt'] = FieldValue.serverTimestamp();
       data.remove('id');
       data.remove('isSynced');

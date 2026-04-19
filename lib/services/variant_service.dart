@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:flutter/foundation.dart';
 import '../models/product_variant_model.dart';
 import '../models/product_model.dart';
@@ -130,7 +131,7 @@ class VariantService {
           .set({
         'isActive': false,
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       }, SetOptions(merge: true));
 
       // Delete from local DB
@@ -312,7 +313,7 @@ class VariantService {
           .doc(firestoreId)
           .update({
         'quantity': quantity,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
 
       // Update local
@@ -661,3 +662,4 @@ class CommonColors {
     'Bạc': '#C0C0C0',
   };
 }
+

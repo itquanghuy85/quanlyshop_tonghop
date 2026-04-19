@@ -12,6 +12,7 @@ import 'notification_service.dart';
 import 'encryption_service.dart';
 import 'financial_activity_service.dart';
 import 'money_validation_service.dart';
+import 'firestore_write_helper.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
@@ -63,7 +64,7 @@ class FirestoreService {
       Map<String, dynamic> data = order.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
 
       await docRef.set(data, SetOptions(merge: true));
 
@@ -125,7 +126,7 @@ class FirestoreService {
             'quantity': newQuantity,
             'cost': averageCost,
             'price': item.unitPrice, // Cập nhật giá bán nếu cần
-            'updatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
           });
 
           debugPrint(
@@ -184,7 +185,7 @@ class FirestoreService {
       final docId = r.firestoreId ?? "rep_${r.createdAt}_${r.phone}";
       final docRef = _db.collection('repairs').doc(docId);
       Map<String, dynamic> data = r.toMap();
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       data['shopId'] = shopId;
       data['firestoreId'] = docRef.id;
       // Mã hóa dữ liệu nhạy cảm trước khi upload
@@ -216,7 +217,7 @@ class FirestoreService {
         return;
       }
       final data = r.toMap();
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db
           .collection('repairs')
@@ -231,7 +232,7 @@ class FirestoreService {
     try {
       await _db.collection('repairs').doc(firestoreId).update({
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       debugPrint('Firestore deleteRepair error: $e');
@@ -285,7 +286,7 @@ class FirestoreService {
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docRef.id;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
 
       // Mã hóa dữ liệu nhạy cảm trước khi upload
       final encryptedData = EncryptionService.encryptMap(data);
@@ -330,7 +331,7 @@ class FirestoreService {
       final shopId = await UserService.getCurrentShopId();
       Map<String, dynamic> data = s.toMap();
       data['shopId'] = shopId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db
           .collection('sales')
@@ -345,7 +346,7 @@ class FirestoreService {
     try {
       await _db.collection('sales').doc(firestoreId).update({
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       debugPrint('Firestore deleteSale error: $e');
@@ -367,7 +368,7 @@ class FirestoreService {
       final docRef = _db.collection('products').doc(docId);
       Map<String, dynamic> data = p.toMap();
       data['shopId'] = shopId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       // Remove firestoreId from data since it's already in docId
       data.remove('firestoreId');
       final encryptedData = EncryptionService.encryptMap(data);
@@ -390,7 +391,7 @@ class FirestoreService {
         return;
       }
       final data = p.toMap();
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db
           .collection('products')
@@ -405,7 +406,7 @@ class FirestoreService {
     try {
       await _db.collection('products').doc(firestoreId).update({
         'status': 0,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       debugPrint('Firestore deleteProduct error: $e');
@@ -451,7 +452,7 @@ class FirestoreService {
       final String docId = "log_${logData['createdAt']}_${logData['userId']}";
       logData['shopId'] = shopId;
       logData['firestoreId'] = docId;
-      logData['updatedAt'] = FieldValue.serverTimestamp();
+      logData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       await _db
           .collection('audit_logs')
           .doc(docId)
@@ -474,7 +475,7 @@ class FirestoreService {
           "debt_${debtData['createdAt']}_${debtData['phone'] ?? 'ncc'}";
       debtData['shopId'] = shopId;
       debtData['firestoreId'] = docId;
-      debtData['updatedAt'] = FieldValue.serverTimestamp();
+      debtData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(debtData);
       await _db
           .collection('debts')
@@ -513,7 +514,7 @@ class FirestoreService {
 
       paymentData['shopId'] = shopId;
       paymentData['firestoreId'] = docId;
-      paymentData['updatedAt'] = FieldValue.serverTimestamp();
+      paymentData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(paymentData);
       await _db
           .collection('debt_payments')
@@ -534,7 +535,7 @@ class FirestoreService {
           "exp_${expData['date']}_${expData['title'].hashCode}";
       expData['shopId'] = shopId;
       expData['firestoreId'] = docId;
-      expData['updatedAt'] = FieldValue.serverTimestamp();
+      expData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(expData);
       await _db
           .collection('expenses')
@@ -548,7 +549,7 @@ class FirestoreService {
     try {
       final shopId = await UserService.getCurrentShopId();
       expData['shopId'] = shopId;
-      expData['updatedAt'] = FieldValue.serverTimestamp();
+      expData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(expData);
       await _db
           .collection('expenses')
@@ -563,7 +564,7 @@ class FirestoreService {
     try {
       await _db.collection('expenses').doc(firestoreId).update({
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       debugPrint('Firestore deleteExpenseCloud error: $e');
@@ -580,7 +581,7 @@ class FirestoreService {
           'sp_${data['createdAt']}_${data['deviceName'].hashCode}';
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db
           .collection('salvage_phones')
@@ -598,7 +599,7 @@ class FirestoreService {
     try {
       final shopId = await UserService.getCurrentShopId();
       data['shopId'] = shopId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db
           .collection('salvage_phones')
@@ -613,7 +614,7 @@ class FirestoreService {
     try {
       await _db.collection('salvage_phones').doc(firestoreId).update({
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       debugPrint('Firestore deleteSalvagePhoneCloud error: $e');
@@ -652,7 +653,7 @@ class FirestoreService {
       Map<String, dynamic> data = attendance.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await docRef.set(encryptedData, SetOptions(merge: true));
       return docId;
@@ -668,7 +669,7 @@ class FirestoreService {
       final shopId = await UserService.getCurrentShopId();
       Map<String, dynamic> data = attendance.toMap();
       data['shopId'] = shopId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await _db
           .collection('attendance')
@@ -683,7 +684,7 @@ class FirestoreService {
     try {
       await _db.collection('attendance').doc(firestoreId).update({
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       debugPrint('Firestore deleteAttendance error: $e');
@@ -701,7 +702,7 @@ class FirestoreService {
 
       closingData['shopId'] = shopId;
       closingData['firestoreId'] = docId;
-      closingData['updatedAt'] = FieldValue.serverTimestamp();
+      closingData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
 
       await _db
           .collection('cash_closings')
@@ -862,7 +863,7 @@ class FirestoreService {
       await _db.collection('suppliers').doc(firestoreId).update({
         'deleted': true,
         'active': 0,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
       debugPrint('Firestore deleteSupplier: $firestoreId soft deleted');
     } catch (e) {
@@ -886,7 +887,7 @@ class FirestoreService {
       Map<String, dynamic> data = code.toMap();
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
 
       await docRef.set(encryptedData, SetOptions(merge: true));
@@ -903,7 +904,7 @@ class FirestoreService {
       final docRef = _db.collection('quick_input_codes').doc(code.firestoreId);
 
       Map<String, dynamic> data = code.toMap();
-      data['updatedAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
 
       await docRef.update(encryptedData);
@@ -917,7 +918,7 @@ class FirestoreService {
       await _db.collection('quick_input_codes').doc(firestoreId).update({
         'deleted': true,
         'isActive': false,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       debugPrint('Error deleting quick input code: $e');
@@ -1085,7 +1086,7 @@ class FirestoreService {
       final docRef = _db.collection('repair_partners').doc(existingFirestoreId);
       partnerData['shopId'] = shopId;
       partnerData['firestoreId'] = existingFirestoreId;
-      partnerData['updatedAt'] = FieldValue.serverTimestamp();
+      partnerData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(partnerData);
       await docRef.set(encryptedData, SetOptions(merge: true));
       return existingFirestoreId;
@@ -1101,7 +1102,7 @@ class FirestoreService {
     try {
       final firestoreId = partnerData['firestoreId'];
       if (firestoreId == null) return;
-      partnerData['updatedAt'] = FieldValue.serverTimestamp();
+      partnerData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(partnerData);
       await _db
           .collection('repair_partners')
@@ -1134,7 +1135,7 @@ class FirestoreService {
       await _db.collection('repair_partners').doc(firestoreId).update({
         'deleted': true,
         'active': 0,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
       debugPrint(
         'Firestore deleteRepairPartnerByFirestoreId: $firestoreId deleted',
@@ -1165,7 +1166,7 @@ class FirestoreService {
       final docRef = _db.collection('partner_repair_history').doc(docId);
       historyData['shopId'] = shopId;
       historyData['firestoreId'] = docRef.id;
-      historyData['updatedAt'] = FieldValue.serverTimestamp();
+      historyData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(historyData);
       await docRef.set(encryptedData, SetOptions(merge: true));
       return docRef.id;
@@ -1181,7 +1182,7 @@ class FirestoreService {
     try {
       await _db.collection('partner_repair_history').doc(firestoreId).update({
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
     } catch (e) {
       try {
@@ -1206,7 +1207,7 @@ class FirestoreService {
       final docRef = _db.collection('suppliers').doc(docId);
       supplierData['shopId'] = shopId;
       supplierData['firestoreId'] = docRef.id;
-      supplierData['updatedAt'] = FieldValue.serverTimestamp();
+      supplierData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(supplierData);
       await docRef.set(encryptedData, SetOptions(merge: true));
       return docRef.id;
@@ -1220,7 +1221,7 @@ class FirestoreService {
     try {
       final firestoreId = supplierData['firestoreId'];
       if (firestoreId == null) return;
-      supplierData['updatedAt'] = FieldValue.serverTimestamp();
+      supplierData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(supplierData);
       await _db.collection('suppliers').doc(firestoreId).update(encryptedData);
     } catch (e) {
@@ -1245,7 +1246,7 @@ class FirestoreService {
       final docRef = _db.collection('supplier_import_history').doc(docId);
       historyData['shopId'] = shopId;
       historyData['firestoreId'] = docRef.id;
-      historyData['updatedAt'] = FieldValue.serverTimestamp();
+      historyData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       await docRef.set(historyData, SetOptions(merge: true));
       return docRef.id;
     } catch (e) {
@@ -1271,7 +1272,7 @@ class FirestoreService {
       final docRef = _db.collection('supplier_product_prices').doc(docId);
       pricesData['shopId'] = shopId;
       pricesData['firestoreId'] = docRef.id;
-      pricesData['updatedAt'] = FieldValue.serverTimestamp();
+      pricesData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       await docRef.set(pricesData, SetOptions(merge: true));
       return docRef.id;
     } catch (e) {
@@ -1290,7 +1291,7 @@ class FirestoreService {
       final docRef = _db.collection('customers').doc(docId);
       customerData['shopId'] = shopId;
       customerData['firestoreId'] = docRef.id;
-      customerData['updatedAt'] = FieldValue.serverTimestamp();
+      customerData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       await docRef.set(customerData, SetOptions(merge: true));
       return docRef.id;
     } catch (e) {
@@ -1306,7 +1307,7 @@ class FirestoreService {
       if (firestoreId == null) return false;
 
       customerData['shopId'] = shopId;
-      customerData['updatedAt'] = FieldValue.serverTimestamp();
+      customerData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       await _db.collection('customers').doc(firestoreId).update(customerData);
       return true;
     } catch (e) {
@@ -1327,7 +1328,7 @@ class FirestoreService {
             for (var doc in snapshot.docs) {
               doc.reference.update({
                 'deleted': true,
-                'updatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
             }
           });
@@ -1396,7 +1397,7 @@ class FirestoreService {
         transaction.update(debtRef, {
           'paidAmount': newPaidAmount,
           'status': newStatus,
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         });
 
         // PHASE 4: Create payment record
@@ -1608,7 +1609,7 @@ class FirestoreService {
           transaction.update(docRef, {
             'quantity': newQty,
             'status': (isPhone || newQty <= 0) ? 0 : data['status'],
-            'updatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
           });
         }
 
@@ -1616,7 +1617,7 @@ class FirestoreService {
         final saleDocRef = _db.collection('sales').doc(saleData['firestoreId']);
         saleData['shopId'] = shopId;
         saleData['createdAt'] = FieldValue.serverTimestamp();
-        saleData['updatedAt'] = FieldValue.serverTimestamp();
+        saleData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
         final encryptedSaleData = EncryptionService.encryptMap(saleData);
         transaction.set(saleDocRef, encryptedSaleData);
         saleDocId = saleDocRef.id;
@@ -1629,7 +1630,7 @@ class FirestoreService {
           final debtDocRef = _db.collection('debts').doc(debtDocId);
           debtData['shopId'] = shopId;
           debtData['firestoreId'] = debtDocId;
-          debtData['updatedAt'] = FieldValue.serverTimestamp();
+          debtData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
           final encryptedDebtData = EncryptionService.encryptMap(debtData);
           transaction.set(debtDocRef, encryptedDebtData);
         }
@@ -1764,7 +1765,7 @@ class FirestoreService {
       }
 
       settings['shopId'] = shopId;
-      settings['updatedAt'] = FieldValue.serverTimestamp();
+      settings['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       settings['updatedBy'] =
           FirebaseAuth.instance.currentUser?.email ?? 'unknown';
 
@@ -1840,7 +1841,7 @@ class FirestoreService {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return false;
 
-      settings['updatedAt'] = FieldValue.serverTimestamp();
+      settings['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       settings['updatedBy'] =
           FirebaseAuth.instance.currentUser?.email ?? 'unknown';
 
@@ -1936,7 +1937,7 @@ class FirestoreService {
       
       // Remove updatedAt from toMap() - will be replaced by serverTimestamp
       settings.remove('updatedAt');
-      settings['updatedAt'] = FieldValue.serverTimestamp();
+      settings['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       settings['updatedBy'] = currentUser?.email ?? 'unknown';
 
       await _db
@@ -2047,7 +2048,7 @@ class FirestoreService {
     Map<String, dynamic> adjustment,
   ) async {
     try {
-      adjustment['updatedAt'] = FieldValue.serverTimestamp();
+      adjustment['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       adjustment['updatedBy'] =
           FirebaseAuth.instance.currentUser?.email ?? 'unknown';
 
@@ -2087,3 +2088,4 @@ class FirestoreService {
     }
   }
 }
+

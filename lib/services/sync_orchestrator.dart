@@ -9,6 +9,7 @@ import '../data/db_helper.dart';
 import 'storage_service.dart';
 import 'sync_audit_service.dart';
 import 'user_service.dart';
+import 'firestore_write_helper.dart';
 
 /// Enum định nghĩa các loại entity được sync
 enum SyncEntityType {
@@ -590,7 +591,7 @@ class SyncOrchestrator {
 
     // Add shopId if not present
     data['shopId'] = shopId;
-    data['updatedAt'] = FieldValue.serverTimestamp();
+    FirestoreWriteHelper.applyUpdatedAt(data);
 
     // Ensure web-compatible image URLs are stored for repairs.
     if (item.entityType == SyncEntityType.repair) {
@@ -652,7 +653,7 @@ class SyncOrchestrator {
 
     // Add shopId and timestamp
     data['shopId'] = shopId;
-    data['updatedAt'] = FieldValue.serverTimestamp();
+    FirestoreWriteHelper.applyUpdatedAt(data);
 
     // Ensure web-compatible image URLs are stored for repairs.
     if (item.entityType == SyncEntityType.repair) {
@@ -684,10 +685,10 @@ class SyncOrchestrator {
     }
 
     // Soft delete
-    await _firestore.collection(collection).doc(item.firestoreId).update({
-      'deleted': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await _firestore
+        .collection(collection)
+        .doc(item.firestoreId)
+        .update(FirestoreWriteHelper.softDeletePayload());
   }
 
   /// Mark item as failed

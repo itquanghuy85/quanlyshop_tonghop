@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../widgets/responsive_wrapper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import '../data/db_helper.dart';
 import '../services/user_service.dart';
 import 'dart:async';
@@ -1035,7 +1036,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               .update({
             'quantity': newQty,
             'cost': cost > 0 ? cost : (p['cost'] as int? ?? 0),
-            'updatedAt': FieldValue.serverTimestamp(),
+            'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
           });
         } catch (e) {
           debugPrint('⚠️ Quick stock-in Firestore sync error: $e');
@@ -3714,3 +3715,4 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
     );
   }
 }
+

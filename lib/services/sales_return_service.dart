@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
@@ -204,7 +205,7 @@ class SalesReturnService {
                 .update({
               'quantity': product.quantity,
               'status': product.status,
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
             debugPrint('☁️ Synced stock restore: ${product.name} qty=${product.quantity}');
           } catch (e) {
@@ -256,7 +257,7 @@ class SalesReturnService {
           try {
             await _firestore.collection('debts').doc(debtFid).update({
               'totalAmount': newTotal,
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
           } catch (e) {
             debugPrint('⚠️ Debt cloud sync failed: $e');
@@ -283,7 +284,7 @@ class SalesReturnService {
       final headerData = returnHeader.toMap();
       headerData.remove('id');
       headerData['shopId'] = shopId;
-      headerData['updatedAt'] = FieldValue.serverTimestamp();
+      headerData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedHeader = EncryptionService.encryptMap(headerData);
       await _firestore
           .collection('sales_returns')
@@ -353,3 +354,4 @@ class SalesReturnService {
     return '$amount';
   }
 }
+

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2564,7 +2565,6 @@ class SyncService {
             final data = expense.toMap();
             data['shopId'] = shopId;
             data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
-            final localId = data['id'];
             data.remove('id');
 
             final docId =
@@ -2762,7 +2762,7 @@ class SyncService {
           _normalizeRepairPayload(data);
           data['shopId'] = shopId;
           data.remove('id');
-          data['updatedAt'] = FieldValue.serverTimestamp();
+          data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
           data.remove('isSynced');
           data.remove('firestoreId');
 
@@ -2866,7 +2866,7 @@ class SyncService {
           data['shopId'] = shopId;
           data.remove('id');
           // FIX: Add updatedAt for conflict resolution on receiving devices
-          data['updatedAt'] = FieldValue.serverTimestamp();
+          data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
           // FIX: Remove local-only fields from cloud data
           data.remove('isSynced');
           data.remove('firestoreId');
@@ -2929,7 +2929,7 @@ class SyncService {
           Map<String, dynamic> data = s.toMap();
           data['shopId'] = shopId;
           data.remove('id');
-          data['updatedAt'] = FieldValue.serverTimestamp();
+          data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
           data.remove('isSynced');
           data.remove('firestoreId');
 
@@ -2983,7 +2983,7 @@ class SyncService {
               Map<String, dynamic> data = expense.toMap();
               data['shopId'] = shopId;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3034,7 +3034,7 @@ class SyncService {
           Map<String, dynamic> data = p.toMap();
           data['shopId'] = shopId;
           data.remove('id');
-          data['updatedAt'] = FieldValue.serverTimestamp();
+          data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
           data.remove('isSynced');
           data.remove('firestoreId');
 
@@ -3108,7 +3108,7 @@ class SyncService {
             Map<String, dynamic> data = a.toMap();
             data['shopId'] = shopId;
             data.remove('id');
-            data['updatedAt'] = FieldValue.serverTimestamp();
+            data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
             data.remove('isSynced');
             data.remove('firestoreId');
 
@@ -3199,7 +3199,7 @@ class SyncService {
               Map<String, dynamic> data = code.toMap();
               data['shopId'] = shopId;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3277,7 +3277,7 @@ class SyncService {
               );
               data['shopId'] = shopId;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3341,7 +3341,7 @@ class SyncService {
               Map<String, dynamic> data = Map<String, dynamic>.from(partnerMap);
               data['shopId'] = shopId;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3403,7 +3403,7 @@ class SyncService {
               data['shopId'] = shopId;
               data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3465,7 +3465,7 @@ class SyncService {
               data['shopId'] = shopId;
               data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3528,7 +3528,7 @@ class SyncService {
               Map<String, dynamic> data = Map<String, dynamic>.from(debtMap);
               data['shopId'] = shopId;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3584,7 +3584,7 @@ class SyncService {
               Map<String, dynamic> data = Map<String, dynamic>.from(paymentMap);
               data['shopId'] = shopId;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3632,7 +3632,7 @@ class SyncService {
               Map<String, dynamic> data = Map<String, dynamic>.from(logMap);
               data['shopId'] = shopId;
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3681,7 +3681,7 @@ class SyncService {
               data['shopId'] = shopId;
               final localId = data['id'];
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -3744,7 +3744,7 @@ class SyncService {
               data['deleted'] = data['deleted'] == 1 || data['deleted'] == true;
               final localId = data['id'];
               data.remove('id');
-              data['updatedAt'] = FieldValue.serverTimestamp();
+              data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
               data.remove('isSynced');
               data.remove('firestoreId');
 
@@ -4233,3 +4233,4 @@ class SyncService {
     }
   }
 }
+

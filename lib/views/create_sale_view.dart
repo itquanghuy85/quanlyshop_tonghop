@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import '../utils/money_utils.dart';
 import '../data/db_helper.dart';
 import '../models/product_model.dart';
@@ -726,7 +727,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 .update({
                   'quantity': product.quantity,
                   'status': product.status,
-                  'updatedAt': FieldValue.serverTimestamp(),
+                  'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
                 });
           } catch (e) {
             debugPrint('⚠️ Cloud sync failed, queueing: $e');
@@ -3548,3 +3549,4 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
     Navigator.pop(context, {'action': 'discount', 'price': price});
   }
 }
+

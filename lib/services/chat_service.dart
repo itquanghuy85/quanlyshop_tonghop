@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -261,7 +262,7 @@ class ChatService {
       await _db.collection(_collectionChats).doc(messageId).update({
         'message': newMessage,
         'isEdited': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
 
       return true;
@@ -290,7 +291,7 @@ class ChatService {
       await _db.collection(_collectionChats).doc(messageId).update({
         'isDeleted': true,
         'message': '🗑️ Tin nhắn đã bị xóa',
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
 
       return true;
@@ -305,7 +306,7 @@ class ChatService {
     try {
       await _db.collection(_collectionChats).doc(messageId).update({
         'isPinned': isPinned,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
       return true;
     } catch (e) {
@@ -673,3 +674,4 @@ class ChatService {
     setOnlineStatus(false);
   }
 }
+

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
@@ -841,7 +842,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   .update({
                 'quantity': product.quantity,
                 'status': product.status,
-                'updatedAt': FieldValue.serverTimestamp(),
+                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
               debugPrint('☁️ Synced product quantity to cloud: ${product.firestoreId}');
             } catch (e) {
@@ -1436,3 +1437,4 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
   }
 }
+

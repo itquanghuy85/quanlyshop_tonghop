@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import '../utils/money_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -318,7 +319,7 @@ class _InventoryViewState extends State<InventoryView>
             .doc(p.firestoreId)
             .update({
               'paymentMethod': paymentMethod,
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
 
         // Cập nhật local
@@ -4901,3 +4902,4 @@ class _InventoryViewState extends State<InventoryView>
     }
   }
 }
+

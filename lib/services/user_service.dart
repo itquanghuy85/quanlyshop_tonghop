@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -712,7 +713,7 @@ class UserService {
       'address': address.toUpperCase(),
       'role': role, // Owner có thể thay đổi role theo rules
       'photoUrl': photoUrl,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     };
 
     // Chỉ SuperAdmin mới được cập nhật shopId
@@ -1379,7 +1380,7 @@ class UserService {
     bool? flagValue,
   }) async {
     final updateData = <String, dynamic>{
-      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     };
     if (appLocked != null) {
       updateData['appLocked'] = appLocked;
@@ -1596,3 +1597,4 @@ class UserService {
     _cachedCanViewCostPriceTime = null;
   }
 }
+

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -214,7 +215,7 @@ class PaymentRequestService {
       if (urls.isNotEmpty) {
         await _db.collection(_collection).doc(docId).update({
           'imageUrls': FieldValue.arrayUnion(urls),
-          'updatedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         });
         debugPrint('✅ PaymentRequest $docId: ${urls.length} images uploaded');
       }
@@ -242,7 +243,7 @@ class PaymentRequestService {
         'status': newStatus.name,
         'processedBy': user.uid,
         'processedByName': userName,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       };
 
       if (newStatus == PaymentRequestStatus.completed ||
@@ -406,7 +407,7 @@ class PaymentRequestService {
     try {
       await _db.collection(_collection).doc(requestId).update({
         'deleted': true,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
       return true;
     } catch (e) {
@@ -528,7 +529,7 @@ class PaymentRequestService {
 
       await _db.collection(_collection).doc(requestId).update({
         'imageUrls': FieldValue.arrayUnion(urls),
-        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
 
       return urls;
@@ -565,3 +566,4 @@ class PaymentRequestService {
     return file;
   }
 }
+

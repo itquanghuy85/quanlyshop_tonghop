@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_write_helper.dart';
 import '../models/repair_model.dart';
 import '../models/product_model.dart';
 import '../models/sale_order_model.dart';
@@ -4425,7 +4426,7 @@ class DBHelper {
             .update({
               'quantity': newQty < 0 ? 0 : newQty,
               'status': newQty <= 0 ? 0 : 1,
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
         // Đánh dấu đã sync
         await db.rawUpdate('UPDATE products SET isSynced = 1 WHERE id = ?', [
@@ -5601,7 +5602,7 @@ class DBHelper {
             .doc(firestoreId)
             .update({
               'quantity': newQty,
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
         // Đánh dấu đã sync
         await db.update(
@@ -5659,7 +5660,7 @@ class DBHelper {
             .doc(firestoreId)
             .update({
               'quantity': newQty,
-              'updatedAt': FieldValue.serverTimestamp(),
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
         await db.update(
           'repair_parts',
@@ -9388,3 +9389,4 @@ class DBHelper {
     );
   }
 }
+
