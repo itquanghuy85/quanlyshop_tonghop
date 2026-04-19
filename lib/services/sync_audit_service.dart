@@ -24,6 +24,24 @@ class SyncAuditDomainStats {
   int get totalIssues => retryCount + failedCount;
 }
 
+class SyncAuditEntityTypeStats {
+  final int successCount;
+  final int retryCount;
+  final int failedCount;
+  final DateTime? lastSuccessAt;
+  final DateTime? lastFailureAt;
+
+  const SyncAuditEntityTypeStats({
+    required this.successCount,
+    required this.retryCount,
+    required this.failedCount,
+    required this.lastSuccessAt,
+    required this.lastFailureAt,
+  });
+
+  int get writeAttempts => successCount + retryCount + failedCount;
+}
+
 class SyncAuditEvent {
   final int id;
   final String domainKey;
@@ -144,6 +162,44 @@ class SyncAuditService {
     for (final row in rows) {
       final key = row['domainKey']?.toString() ?? 'other';
       result[key] = SyncAuditDomainStats(
+        successCount: _toInt(row['successCount']),
+        retryCount: _toInt(row['retryCount']),
+        failedCount: _toInt(row['failedCount']),
+        lastSuccessAt: _toDateTime(row['lastSuccessAt']),
+        lastFailureAt: _toDateTime(row['lastFailureAt']),
+      );
+    }
+
+    return result;
+  }
+
+  static Future<Map<String, SyncAuditEntityTypeStats>> getEntityTypeStats({
+    Duration window = const Duration(hours: 24),
+  }) async {
+    final db = await _readyDb();
+    final thresholdMs = DateTime.now().subtract(window).millisecondsSinceEpoch;
+
+    final rows = await db.rawQuery(
+      '''
+      SELECT
+        entityType,
+        SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END) as successCount,
+        SUM(CASE WHEN outcome = 'retry' THEN 1 ELSE 0 END) as retryCount,
+        SUM(CASE WHEN outcome = 'failed' THEN 1 ELSE 0 END) as failedCount,
+        MAX(CASE WHEN outcome = 'success' THEN createdAt ELSE NULL END) as lastSuccessAt,
+        MAX(CASE WHEN outcome IN ('retry', 'failed') THEN createdAt ELSE NULL END) as lastFailureAt
+      FROM $tableName
+      WHERE createdAt >= ?
+      GROUP BY entityType
+      ''',
+      [thresholdMs],
+    );
+
+    final result = <String, SyncAuditEntityTypeStats>{};
+    for (final row in rows) {
+      final key = row['entityType']?.toString() ?? '';
+      if (key.isEmpty) continue;
+      result[key] = SyncAuditEntityTypeStats(
         successCount: _toInt(row['successCount']),
         retryCount: _toInt(row['retryCount']),
         failedCount: _toInt(row['failedCount']),

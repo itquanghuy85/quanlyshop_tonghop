@@ -14,6 +14,7 @@ import '../services/data_migration_service.dart';
 import '../services/firestore_connectivity_service.dart';
 import '../services/sync_audit_service.dart';
 import '../services/sync_domain_report_service.dart';
+import '../views/firebase_rw_stats_view.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -409,6 +410,15 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                                 ? 'Test mạng, auth và quyền đọc dữ liệu cloud'
                                 : _firestoreConnectivityReport!.summary,
                             onTap: _handleFirestoreConnectivityTest,
+                          ),
+
+                          _buildActionTile(
+                            icon: Icons.query_stats,
+                            iconColor: Colors.blueGrey,
+                            title: 'Thống kê Firebase Read/Write',
+                            subtitle:
+                                'Theo collection: cloud docs, realtime reads, write 24h',
+                            onTap: _handleOpenFirebaseStats,
                           ),
 
                           _buildActionTile(
@@ -1293,6 +1303,16 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
       NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _handleOpenFirebaseStats() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FirebaseRwStatsView()),
+    );
+
+    if (!mounted) return;
+    await _loadInitialData();
   }
 
   Future<void> _handleExportSyncReport() async {

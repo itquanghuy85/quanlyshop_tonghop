@@ -21,6 +21,7 @@ import 'sync_orchestrator.dart';
 import 'event_bus.dart';
 import 'claims_service.dart';
 import 'shop_deletion_service.dart';
+import 'firebase_usage_stats_service.dart';
 import '../utils/perf_monitor.dart';
 
 class SyncService {
@@ -2049,6 +2050,18 @@ class SyncService {
         debugPrint(
           "📥 Real-time snapshot for $collection: ${snapshot.docChanges.length} changes, total docs: ${snapshot.docs.length}",
         );
+
+        // Track read volume per collection for Firebase read/write dashboard.
+        final readCount = snapshot.docChanges.length;
+        if (readCount > 0) {
+          unawaited(
+            FirebaseUsageStatsService.logRealtimeRead(
+              collection: collection,
+              shopId: shopId,
+              readCount: readCount,
+            ),
+          );
+        }
 
         for (var change in snapshot.docChanges) {
           var data = change.doc.data();
