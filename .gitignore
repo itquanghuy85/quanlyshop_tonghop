@@ -65,3 +65,10 @@ lib/firebase_options.dart
 
 # Backup files
 *.backup
+
+# Local runtime artifacts (do not commit)
+backend/
+android_window_*.xml
+android_window_*.xml.localbak
+oppo_test_log.txt
+test_screenshots/

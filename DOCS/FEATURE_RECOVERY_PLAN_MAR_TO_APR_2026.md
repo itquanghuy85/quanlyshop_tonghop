@@ -1,5 +1,14 @@
 # Bao cao Audit Tinh nang (03/2026 -> 04/2026) va Ke hoach Khoi phuc
 
+## Cap nhat trang thai 2026-04-19 (Firebase-only)
+
+- Da chot he thong chay Firebase-only tren `master`.
+- Commit da phat hanh: `v276 - Chuyen he thong ve Firebase-only, loai bo MongoDB local mode`.
+- Runtime da them guard bo qua cac `dart-define` cu: `LOCAL_API_BASE_URL`, `MONGODB_URI`, `USE_MONGO`.
+- Da xoa thu muc local `backend/` trong workspace de tranh chay nham local mode.
+- Da xac nhan lai: `flutter test` (552 passed) va `flutter build apk --debug --no-pub` thanh cong.
+- Luu y: cac noi dung Mongo/API ben duoi la lich su audit phuc vu doi chieu, khong con duoc su dung lam huong runtime hien tai.
+
 Ngay lap: 2026-04-18
 Nguon du lieu:
 - git log --first-parent origin/master --since=2026-03-01

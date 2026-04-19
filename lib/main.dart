@@ -42,11 +42,11 @@ const String _deprecatedLocalApiBaseUrl = String.fromEnvironment(
   'LOCAL_API_BASE_URL',
   defaultValue: '',
 );
-const String _deprecatedMongoUri = String.fromEnvironment(
+const String _deprecatedLegacyDbUri = String.fromEnvironment(
   'MONGODB_URI',
   defaultValue: '',
 );
-const bool _deprecatedUseMongo = bool.fromEnvironment(
+const bool _deprecatedLegacyDataMode = bool.fromEnvironment(
   'USE_MONGO',
   defaultValue: false,
 );
@@ -60,23 +60,23 @@ void _markFirebaseBootstrapReady() {
 }
 
 void _enforceFirebaseOnlyMode() {
-  final hasLegacyMongoFlags =
+  final hasLegacyBackendFlags =
       _deprecatedLocalApiBaseUrl.trim().isNotEmpty ||
-      _deprecatedMongoUri.trim().isNotEmpty ||
-      _deprecatedUseMongo;
+      _deprecatedLegacyDbUri.trim().isNotEmpty ||
+      _deprecatedLegacyDataMode;
 
-  if (!hasLegacyMongoFlags) return;
+  if (!hasLegacyBackendFlags) return;
 
   debugPrint(
-      '⚠️ Firebase-only mode active: ignoring deprecated Mongo/API dart-defines.',
+      '⚠️ Firebase-only mode active: ignoring deprecated backend/API dart-defines.',
   );
   if (_deprecatedLocalApiBaseUrl.trim().isNotEmpty) {
     debugPrint('   - LOCAL_API_BASE_URL is ignored');
   }
-  if (_deprecatedMongoUri.trim().isNotEmpty) {
+  if (_deprecatedLegacyDbUri.trim().isNotEmpty) {
     debugPrint('   - MONGODB_URI is ignored');
   }
-  if (_deprecatedUseMongo) {
+  if (_deprecatedLegacyDataMode) {
     debugPrint('   - USE_MONGO is ignored');
   }
 }

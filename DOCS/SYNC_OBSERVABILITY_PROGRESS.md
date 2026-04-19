@@ -39,3 +39,10 @@ Cập nhật: 2026-04-19
 - [x] Dọn wording gây hiểu nhầm backend trong luồng cập nhật danh mục.
 - [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
 - [x] Commit + push bước Firebase-only.
+
+### Bước 4 - Hardening Firebase-only
+- [x] Chuẩn hóa naming guard runtime để tách bạch khái niệm legacy backend và Firebase runtime hiện tại.
+- [x] Cập nhật tài liệu recovery với trạng thái Firebase-only mới nhất.
+- [x] Bổ sung `.gitignore` cho artifacts local (xml dump/log/test_screenshots/backend) để giảm nhiễu git status.
+- [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
+- [ ] Commit + push bước hardening Firebase-only.
