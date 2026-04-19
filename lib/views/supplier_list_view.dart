@@ -79,13 +79,19 @@ class _SupplierListViewState extends State<SupplierListView>
   int _partnerOwingCount = 0;
 
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
-  bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings?.businessType == null;
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  bool get _isElectronics =>
+      _shopSettings?.businessType == 'electronics' ||
+      _shopSettings?.businessType == null;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this); // Will be recreated after settings load
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+    ); // Will be recreated after settings load
     _tabController.addListener(() {
       if (mounted) setState(() {}); // Rebuild FAB when tab changes
     });
@@ -95,9 +101,9 @@ class _SupplierListViewState extends State<SupplierListView>
     _eventBusSub = EventBus().stream
         .where((e) => e == 'suppliers_changed' || e == 'debts_changed')
         .listen((_) {
-      if (!mounted) return;
-      _debouncedReload();
-    });
+          if (!mounted) return;
+          _debouncedReload();
+        });
     // Hiển thị hướng dẫn cho người dùng mới
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
@@ -126,25 +132,29 @@ class _SupplierListViewState extends State<SupplierListView>
       steps: const [
         GuideStep(
           title: '🏢 Nhà cung cấp (NCC)',
-          description: 'Quản lý NCC hàng hóa. PHẢI tạo NCC trước khi nhập kho để theo dõi công nợ chính xác.',
+          description:
+              'Quản lý NCC hàng hóa. PHẢI tạo NCC trước khi nhập kho để theo dõi công nợ chính xác.',
           icon: Icons.local_shipping,
           iconColor: Colors.blue,
         ),
         GuideStep(
           title: '🔧 Đối tác sửa chữa',
-          description: 'Quản lý thợ/tiệm ngoài gửi sửa. Theo dõi đơn gửi đi và công nợ phải trả.',
+          description:
+              'Quản lý thợ/tiệm ngoài gửi sửa. Theo dõi đơn gửi đi và công nợ phải trả.',
           icon: Icons.build,
           iconColor: Colors.orange,
         ),
         GuideStep(
           title: '💰 Công nợ NCC',
-          description: 'Khi nhập kho chọn "CÔNG NỢ", hệ thống tự tạo nợ. Thanh toán dần trong chi tiết NCC.',
+          description:
+              'Khi nhập kho chọn "CÔNG NỢ", hệ thống tự tạo nợ. Thanh toán dần trong chi tiết NCC.',
           icon: Icons.account_balance_wallet,
           iconColor: Colors.red,
         ),
         GuideStep(
           title: '➕ Thêm mới',
-          description: 'Nhấn nút + góc phải để thêm NCC hoặc Đối tác mới. Điền đầy đủ thông tin liên hệ.',
+          description:
+              'Nhấn nút + góc phải để thêm NCC hoặc Đối tác mới. Điền đầy đủ thông tin liên hệ.',
           icon: Icons.add_circle,
           iconColor: Colors.green,
         ),
@@ -298,7 +308,11 @@ class _SupplierListViewState extends State<SupplierListView>
       int owingCount = 0;
 
       for (final p in partners) {
-        final stats = await _partnerService.getPartnerRepairStats(p.id!, partnerFirestoreId: p.firestoreId, partnerName: p.name);
+        final stats = await _partnerService.getPartnerRepairStats(
+          p.id!,
+          partnerFirestoreId: p.firestoreId,
+          partnerName: p.name,
+        );
         final cost = stats?['totalCost'] as int? ?? 0;
         final paid = stats?['totalPaid'] as int? ?? 0;
         final remain = cost - paid;
@@ -426,13 +440,19 @@ class _SupplierListViewState extends State<SupplierListView>
           children: [
             Text(
               'Quản lý đối tác',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: AppTextStyles.headline5.fontSize,
+              ),
             ),
             Text(
               _isElectronics
                   ? '${_items.length} NCC • ${_partners.length} đối tác'
                   : '${_items.length} nhà cung cấp',
-              style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.white70),
+              style: TextStyle(
+                fontSize: AppTextStyles.caption.fontSize,
+                color: Colors.white70,
+              ),
             ),
           ],
         ),
@@ -459,16 +479,18 @@ class _SupplierListViewState extends State<SupplierListView>
             },
           ),
         ],
-        bottom: _isElectronics ? TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'NHÀ CUNG CẤP'),
-            Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
-          ],
-        ) : null,
+        bottom: _isElectronics
+            ? TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.white,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                tabs: const [
+                  Tab(text: 'NHÀ CUNG CẤP'),
+                  Tab(text: 'ĐỐI TÁC SỬA CHỮA'),
+                ],
+              )
+            : null,
       ),
       floatingActionButton: GradientFab(
         onPressed: () async {
@@ -486,22 +508,23 @@ class _SupplierListViewState extends State<SupplierListView>
             await _loadPartners();
           }
         },
-        icon: (!_isElectronics || _tabController.index == 0) ? Icons.add_business : Icons.handyman,
-        label: (!_isElectronics || _tabController.index == 0) ? 'Thêm NCC' : 'Thêm đối tác',
+        icon: (!_isElectronics || _tabController.index == 0)
+            ? Icons.add_business
+            : Icons.handyman,
+        label: (!_isElectronics || _tabController.index == 0)
+            ? 'Thêm NCC'
+            : 'Thêm đối tác',
         gradientColors: (!_isElectronics || _tabController.index == 0)
             ? const [Color(0xFF667eea), Color(0xFF764ba2)]
             : const [Color(0xFF11998e), Color(0xFF38ef7d)],
       ),
       body: ResponsiveCenter(
         child: _isElectronics
-          ? TabBarView(
-              controller: _tabController,
-              children: [
-                _buildSupplierTab(),
-                _buildPartnerTab(),
-              ],
-            )
-          : _buildSupplierTab(),
+            ? TabBarView(
+                controller: _tabController,
+                children: [_buildSupplierTab(), _buildPartnerTab()],
+              )
+            : _buildSupplierTab(),
       ),
     );
   }
@@ -1006,16 +1029,17 @@ class _SupplierListViewState extends State<SupplierListView>
             (e['totalAmount'] as int? ?? 0) > (e['paidAmount'] as int? ?? 0),
         orElse: () => {},
       );
-      
-      final debtFId = target.isNotEmpty 
-          ? (target['firestoreId'] as String? ?? 'debt_supplier_${d.supplier.id}')
+
+      final debtFId = target.isNotEmpty
+          ? (target['firestoreId'] as String? ??
+                'debt_supplier_${d.supplier.id}')
           : 'debt_supplier_${d.supplier.id}';
-      
+
       // Convert payment method string to enum
-      final method = methodStr == 'CHUYỂN KHOẢN' 
-          ? PaymentMethod.transfer 
+      final method = methodStr == 'CHUYỂN KHOẢN'
+          ? PaymentMethod.transfer
           : PaymentMethod.cash;
-      
+
       // Execute payment directly without navigation
       final user = FirebaseAuth.instance.currentUser;
       final result = await PaymentIntentService.executePaymentDirect(
@@ -1039,7 +1063,7 @@ class _SupplierListViewState extends State<SupplierListView>
           'suggestedMethod': methodStr,
         },
       );
-      
+
       if (result.success) {
         if (mounted) {
           NotificationService.showSnackBar(
@@ -1657,8 +1681,9 @@ class _SupplierListViewState extends State<SupplierListView>
     if (ok == true) {
       // Sử dụng SupplierService để xóa cả local và cloud (soft delete)
       final success = await _supplierService.deleteSupplier(
-        d.supplier.id!,
+        d.supplier.id,
         firestoreId: d.supplier.firestoreId,
+        supplierName: d.supplier.name,
       );
 
       if (success) {

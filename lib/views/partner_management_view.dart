@@ -29,7 +29,8 @@ class PartnerManagementView extends StatefulWidget {
   State<PartnerManagementView> createState() => _PartnerManagementViewState();
 }
 
-class _PartnerManagementViewState extends State<PartnerManagementView> with SingleTickerProviderStateMixin {
+class _PartnerManagementViewState extends State<PartnerManagementView>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final DBHelper _db = DBHelper();
 
@@ -114,7 +115,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
             _supplierImportHistory.add(h); // Nếu không có ID, add anyway
           }
         }
-        final prices = await supplierService.getSupplierProductPrices(supplier.id.toString());
+        final prices = await supplierService.getSupplierProductPrices(
+          supplier.id.toString(),
+        );
         _supplierProductPrices.addAll(prices);
       }
 
@@ -129,10 +132,12 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       // Load payments
       final partnerPaymentService = RepairPartnerPaymentService();
       for (var partner in _repairPartners) {
-        final payments = await partnerPaymentService.getPartnerPayments(partner.id!);
+        final payments = await partnerPaymentService.getPartnerPayments(
+          partner.id!,
+        );
         _partnerPayments.addAll(payments);
       }
-      
+
       // Load supplier payments từ debt_payments (thay vì supplier_payments)
       // Vì thanh toán NCC đều đi qua PaymentIntent -> debt_payments
       final allDebtPayments = await _db.getAllDebtPaymentsForSync();
@@ -140,39 +145,51 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         // Tìm các khoản thanh toán cho supplier này
         // debt_payments chứa debtFirestoreId liên kết với debt, mà debt có personName = supplier.name
         final supplierDebtIds = _supplierDebts
-            .where((d) => (d['personName'] ?? '').toString().toUpperCase() == supplier.name.toUpperCase())
+            .where(
+              (d) =>
+                  (d['personName'] ?? '').toString().toUpperCase() ==
+                  supplier.name.toUpperCase(),
+            )
             .map((d) => d['firestoreId'] as String?)
             .where((id) => id != null)
             .toSet();
-        
+
         // Cũng tìm các debtId local
         final supplierDebtLocalIds = _supplierDebts
-            .where((d) => (d['personName'] ?? '').toString().toUpperCase() == supplier.name.toUpperCase())
+            .where(
+              (d) =>
+                  (d['personName'] ?? '').toString().toUpperCase() ==
+                  supplier.name.toUpperCase(),
+            )
             .map((d) => d['id'] as int?)
             .where((id) => id != null)
             .toSet();
-        
+
         for (var dp in allDebtPayments) {
           final dpDebtFirestoreId = dp['debtFirestoreId'] as String?;
           final dpDebtId = dp['debtId'] as int?;
-          
-          if ((dpDebtFirestoreId != null && supplierDebtIds.contains(dpDebtFirestoreId)) ||
+
+          if ((dpDebtFirestoreId != null &&
+                  supplierDebtIds.contains(dpDebtFirestoreId)) ||
               (dpDebtId != null && supplierDebtLocalIds.contains(dpDebtId))) {
             final shopId = await UserService.getCurrentShopId() ?? '';
-            _supplierPayments.add(SupplierPayment(
-              id: dp['id'] as int?,
-              firestoreId: dp['firestoreId'] as String?,
-              supplierId: supplier.id!,
-              shopId: shopId,
-              amount: dp['amount'] as int? ?? 0,
-              paymentMethod: dp['paymentMethod'] as String? ?? 'CASH',
-              paidAt: dp['paidAt'] as int? ?? DateTime.now().millisecondsSinceEpoch,
-              note: dp['note'] as String?,
-            ));
+            _supplierPayments.add(
+              SupplierPayment(
+                id: dp['id'] as int?,
+                firestoreId: dp['firestoreId'] as String?,
+                supplierId: supplier.id!,
+                shopId: shopId,
+                amount: dp['amount'] as int? ?? 0,
+                paymentMethod: dp['paymentMethod'] as String? ?? 'CASH',
+                paidAt:
+                    dp['paidAt'] as int? ??
+                    DateTime.now().millisecondsSinceEpoch,
+                note: dp['note'] as String?,
+              ),
+            );
           }
         }
       }
-
     } catch (e) {
       debugPrint('Error loading data: $e');
     } finally {
@@ -196,10 +213,20 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
-        title: const Text('Quản lý đối tác & NCC', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
+        title: const Text(
+          'Quản lý đối tác & NCC',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 16,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          labelStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          labelStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
           unselectedLabelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
           indicatorColor: Colors.white,
           tabs: const [
@@ -210,14 +237,11 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       ),
       body: ResponsiveCenter(
         child: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : TabBarView(
-            controller: _tabController,
-            children: [
-              _buildRepairPartnersTab(),
-              _buildSuppliersTab(),
-            ],
-          ),
+            ? const Center(child: CircularProgressIndicator())
+            : TabBarView(
+                controller: _tabController,
+                children: [_buildRepairPartnersTab(), _buildSuppliersTab()],
+              ),
       ),
       floatingActionButton: FloatingActionButton(
         mini: true,
@@ -297,7 +321,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         return Card(
           child: ListTile(
             title: Text(partner.name, style: const TextStyle(fontSize: 16)),
-            subtitle: Text(partner.phone ?? 'Không có SĐT', style: const TextStyle(fontSize: 14)),
+            subtitle: Text(
+              partner.phone ?? 'Không có SĐT',
+              style: const TextStyle(fontSize: 14),
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -325,7 +352,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         return Card(
           child: ListTile(
             title: Text(supplier.name, style: const TextStyle(fontSize: 16)),
-            subtitle: Text('${supplier.phone ?? ''} - ${supplier.email ?? ''}', style: const TextStyle(fontSize: 14)),
+            subtitle: Text(
+              '${supplier.phone ?? ''} - ${supplier.email ?? ''}',
+              style: const TextStyle(fontSize: 14),
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -376,10 +406,21 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final history = _partnerImportHistory[i];
         return Card(
           child: ListTile(
-            title: Text('Lô ${history.batchId}', style: const TextStyle(fontSize: 16)),
+            title: Text(
+              'Lô ${history.batchId}',
+              style: const TextStyle(fontSize: 16),
+            ),
             subtitle: _canViewCostPrice
-                ? Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 14))
-                : Text(DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt)), style: const TextStyle(fontSize: 14)),
+                ? Text(
+                    'Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}',
+                    style: const TextStyle(fontSize: 14),
+                  )
+                : Text(
+                    DateFormat('dd/MM/yyyy').format(
+                      DateTime.fromMillisecondsSinceEpoch(history.createdAt),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                  ),
           ),
         );
       },
@@ -393,10 +434,21 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final history = _supplierImportHistory[i];
         return Card(
           child: ListTile(
-            title: Text('Lô ${history.batchId}', style: const TextStyle(fontSize: 16)),
+            title: Text(
+              'Lô ${history.batchId}',
+              style: const TextStyle(fontSize: 16),
+            ),
             subtitle: _canViewCostPrice
-                ? Text('Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}', style: const TextStyle(fontSize: 14))
-                : Text(DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt)), style: const TextStyle(fontSize: 14)),
+                ? Text(
+                    'Tổng: ${MoneyUtils.formatVND(history.totalCost.toInt())}₫ - ${DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(history.createdAt))}',
+                    style: const TextStyle(fontSize: 14),
+                  )
+                : Text(
+                    DateFormat('dd/MM/yyyy').format(
+                      DateTime.fromMillisecondsSinceEpoch(history.createdAt),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                  ),
           ),
         );
       },
@@ -412,8 +464,14 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           child: ListTile(
             title: Text(price.productId, style: const TextStyle(fontSize: 16)),
             subtitle: _canViewCostPrice
-                ? Text('Giá nhập: ${MoneyUtils.formatVND(price.costPrice.toInt())}₫ - Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫', style: const TextStyle(fontSize: 14))
-                : Text('Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫', style: const TextStyle(fontSize: 14)),
+                ? Text(
+                    'Giá nhập: ${MoneyUtils.formatVND(price.costPrice.toInt())}₫ - Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫',
+                    style: const TextStyle(fontSize: 14),
+                  )
+                : Text(
+                    'Giá bán: ${MoneyUtils.formatVND(price.sellingPrice.toInt())}₫',
+                    style: const TextStyle(fontSize: 14),
+                  ),
           ),
         );
       },
@@ -427,8 +485,14 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final payment = _partnerPayments[i];
         return Card(
           child: ListTile(
-            title: Text('${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}', style: const TextStyle(fontSize: 16)),
-            subtitle: Text('${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}', style: const TextStyle(fontSize: 14)),
+            title: Text(
+              '${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}',
+              style: const TextStyle(fontSize: 16),
+            ),
+            subtitle: Text(
+              '${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}',
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
         );
       },
@@ -442,8 +506,14 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         final payment = _supplierPayments[i];
         return Card(
           child: ListTile(
-            title: Text('${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}', style: const TextStyle(fontSize: 16)),
-            subtitle: Text('${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}', style: const TextStyle(fontSize: 14)),
+            title: Text(
+              '${MoneyUtils.formatVND(payment.amount)}₫ - ${payment.paymentMethod}',
+              style: const TextStyle(fontSize: 16),
+            ),
+            subtitle: Text(
+              '${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(payment.paidAt))} - ${payment.note ?? ''}',
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
         );
       },
@@ -462,17 +532,28 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Text('Tổng thanh toán: ${MoneyUtils.formatVND(totalPaid)}₫', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            'Tổng thanh toán: ${MoneyUtils.formatVND(totalPaid)}₫',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 20),
           SizedBox(
             height: 200,
             child: PieChart(
               PieChartData(
-                sections: paymentStats.entries.map((e) => PieChartSectionData(
-                  value: e.value.toDouble(),
-                  title: '${e.key}\n${MoneyUtils.formatVND(e.value)}₫',
-                  color: Colors.primaries[paymentStats.keys.toList().indexOf(e.key) % Colors.primaries.length],
-                )).toList(),
+                sections: paymentStats.entries
+                    .map(
+                      (e) => PieChartSectionData(
+                        value: e.value.toDouble(),
+                        title: '${e.key}\n${MoneyUtils.formatVND(e.value)}₫',
+                        color:
+                            Colors.primaries[paymentStats.keys.toList().indexOf(
+                                  e.key,
+                                ) %
+                                Colors.primaries.length],
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ),
@@ -482,22 +563,25 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
   }
 
   Widget _buildSupplierStats() {
-    final totalPaid = _supplierPayments.fold<int>(0, (sum, p) => sum + p.amount);
-    
+    final totalPaid = _supplierPayments.fold<int>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
+
     // Tính tổng công nợ cho suppliers
     final supplierDebtStats = <String, Map<String, dynamic>>{};
     for (var supplier in _suppliers) {
-      final supplierDebts = _supplierDebts.where((debt) => 
-        debt['personName'] == supplier.name
-      ).toList();
-      
+      final supplierDebts = _supplierDebts
+          .where((debt) => debt['personName'] == supplier.name)
+          .toList();
+
       int totalOwed = 0;
       for (var debt in supplierDebts) {
         final int total = debt['totalAmount'] ?? 0;
         final int paid = debt['paidAmount'] ?? 0;
         totalOwed += (total - paid);
       }
-      
+
       if (totalOwed > 0 || supplierDebts.isNotEmpty) {
         supplierDebtStats[supplier.name] = {
           'totalOwed': totalOwed,
@@ -505,9 +589,12 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         };
       }
     }
-    
-    final totalOwedAll = supplierDebtStats.values.fold<int>(0, (sum, stat) => sum + (stat['totalOwed'] as int));
-    
+
+    final totalOwedAll = supplierDebtStats.values.fold<int>(
+      0,
+      (sum, stat) => sum + (stat['totalOwed'] as int),
+    );
+
     final paymentStats = <String, int>{};
     for (var p in _supplierPayments) {
       final method = _normalizePaymentMethod(p.paymentMethod);
@@ -520,24 +607,38 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Tổng quan thanh toán
-          Text('💰 TỔNG THANH TOÁN: ${MoneyUtils.formatVND(totalPaid)}₫', 
-               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-          
+          Text(
+            '💰 TỔNG THANH TOÁN: ${MoneyUtils.formatVND(totalPaid)}₫',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.green,
+            ),
+          ),
+
           const SizedBox(height: 16),
-          
+
           // Tổng quan công nợ
-          Text('💸 TỔNG CÔNG NỢ: ${MoneyUtils.formatVND(totalOwedAll)}₫', 
-               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
-          
+          Text(
+            '💸 TỔNG CÔNG NỢ: ${MoneyUtils.formatVND(totalOwedAll)}₫',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+
           const SizedBox(height: 20),
-          
+
           // Chi tiết công nợ theo supplier
           if (supplierDebtStats.isNotEmpty) ...[
-            const Text('📋 CHI TIẾT CÔNG NỢ THEO NCC:', 
-                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            const Text(
+              '📋 CHI TIẾT CÔNG NỢ THEO NCC:',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
-            ...supplierDebtStats.entries.map((entry) => 
-              Container(
+            ...supplierDebtStats.entries.map(
+              (entry) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -563,28 +664,39 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                     ),
                   ],
                 ),
-              )
+              ),
             ),
             const SizedBox(height: 20),
           ],
-          
+
           // Biểu đồ thanh toán
-          const Text('📊 THỐNG KÊ THANH TOÁN:', 
-               style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          const Text(
+            '📊 THỐNG KÊ THANH TOÁN:',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
-            child: paymentStats.isEmpty 
-              ? const Center(child: Text('Chưa có dữ liệu thanh toán'))
-              : PieChart(
-                  PieChartData(
-                    sections: paymentStats.entries.map((e) => PieChartSectionData(
-                      value: e.value.toDouble(),
-                      title: '${e.key}\n${MoneyUtils.formatVND(e.value)}₫',
-                      color: Colors.primaries[paymentStats.keys.toList().indexOf(e.key) % Colors.primaries.length],
-                    )).toList(),
+            child: paymentStats.isEmpty
+                ? const Center(child: Text('Chưa có dữ liệu thanh toán'))
+                : PieChart(
+                    PieChartData(
+                      sections: paymentStats.entries
+                          .map(
+                            (e) => PieChartSectionData(
+                              value: e.value.toDouble(),
+                              title:
+                                  '${e.key}\n${MoneyUtils.formatVND(e.value)}₫',
+                              color:
+                                  Colors.primaries[paymentStats.keys
+                                          .toList()
+                                          .indexOf(e.key) %
+                                      Colors.primaries.length],
+                            ),
+                          )
+                          .toList(),
+                    ),
                   ),
-                ),
           ),
         ],
       ),
@@ -612,14 +724,21 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ValidatedTextField(controller: nameCtrl, label: 'Tên đối tác *', required: true),
+              ValidatedTextField(
+                controller: nameCtrl,
+                label: 'Tên đối tác *',
+                required: true,
+              ),
               ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
               ValidatedTextField(controller: noteCtrl, label: 'Ghi chú'),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) {
@@ -629,11 +748,14 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                 return;
               }
               if (phoneCtrl.text.trim().isNotEmpty) {
-                final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                final phoneError = UserService.validatePhone(
+                  phoneCtrl.text.trim(),
+                  AppLocalizations.of(ctx)!,
+                );
                 if (phoneError != null) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(phoneError)),
-                  );
+                  ScaffoldMessenger.of(
+                    ctx,
+                  ).showSnackBar(SnackBar(content: Text(phoneError)));
                   return;
                 }
               }
@@ -669,7 +791,11 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ValidatedTextField(controller: nameCtrl, label: 'Tên nhà cung cấp *', required: true),
+              ValidatedTextField(
+                controller: nameCtrl,
+                label: 'Tên nhà cung cấp *',
+                required: true,
+              ),
               ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
               ValidatedTextField(controller: emailCtrl, label: 'Email'),
               ValidatedTextField(controller: addressCtrl, label: 'Địa chỉ'),
@@ -677,23 +803,31 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.isEmpty) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Vui lòng nhập tên nhà cung cấp')),
+                  const SnackBar(
+                    content: Text('Vui lòng nhập tên nhà cung cấp'),
+                  ),
                 );
                 return;
               }
-              
+
               try {
                 if (phoneCtrl.text.trim().isNotEmpty) {
-                  final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                  final phoneError = UserService.validatePhone(
+                    phoneCtrl.text.trim(),
+                    AppLocalizations.of(ctx)!,
+                  );
                   if (phoneError != null) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(content: Text(phoneError)),
-                    );
+                    ScaffoldMessenger.of(
+                      ctx,
+                    ).showSnackBar(SnackBar(content: Text(phoneError)));
                     return;
                   }
                 }
@@ -706,7 +840,7 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                   address: addressCtrl.text.trim(),
                   shopId: (await UserService.getCurrentShopId())!,
                 );
-                
+
                 final result = await service.addSupplier(supplier);
                 if (result != null) {
                   // Clear supplier cache in other controllers
@@ -716,18 +850,22 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                   await _loadData();
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Đã thêm nhà cung cấp thành công')),
+                    const SnackBar(
+                      content: Text('Đã thêm nhà cung cấp thành công'),
+                    ),
                   );
                 } else {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Lỗi: Không thể thêm nhà cung cấp')),
+                    const SnackBar(
+                      content: Text('Lỗi: Không thể thêm nhà cung cấp'),
+                    ),
                   );
                 }
               } catch (e) {
                 debugPrint('Error adding supplier: $e');
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(content: Text('Lỗi: $e')),
-                );
+                ScaffoldMessenger.of(
+                  ctx,
+                ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
               }
             },
             child: const Text('Thêm'),
@@ -736,6 +874,7 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       ),
     );
   }
+
   // ============ PASSWORD VERIFICATION ============
   Future<String?> _showPasswordDialog(String action) async {
     String password = '';
@@ -746,7 +885,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Chỉ chủ shop được phép thực hiện.\nNhập mật khẩu tài khoản để xác nhận:'),
+            const Text(
+              'Chỉ chủ shop được phép thực hiện.\nNhập mật khẩu tài khoản để xác nhận:',
+            ),
             const SizedBox(height: 10),
             TextField(
               obscureText: true,
@@ -759,7 +900,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, password),
             child: const Text('Xác nhận'),
@@ -775,9 +919,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng đăng nhập lại')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng đăng nhập lại')));
       return false;
     }
 
@@ -790,9 +934,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       return true;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mật khẩu không đúng!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Mật khẩu không đúng!')));
       }
       return false;
     }
@@ -823,6 +967,7 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       _confirmDeleteSupplier(supplier);
     }
   }
+
   void _showEditPartnerDialog(RepairPartner partner) {
     final nameCtrl = TextEditingController(text: partner.name);
     final phoneCtrl = TextEditingController(text: partner.phone ?? '');
@@ -849,7 +994,11 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ValidatedTextField(controller: nameCtrl, label: 'Tên đối tác *', required: true),
+              ValidatedTextField(
+                controller: nameCtrl,
+                label: 'Tên đối tác *',
+                required: true,
+              ),
               ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
               ValidatedTextField(controller: noteCtrl, label: 'Ghi chú'),
             ],
@@ -866,7 +1015,10 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
             label: const Text('Xóa', style: TextStyle(color: Colors.red)),
           ),
           const Spacer(),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) {
@@ -876,11 +1028,14 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                 return;
               }
               if (phoneCtrl.text.trim().isNotEmpty) {
-                final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                final phoneError = UserService.validatePhone(
+                  phoneCtrl.text.trim(),
+                  AppLocalizations.of(ctx)!,
+                );
                 if (phoneError != null) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(phoneError)),
-                  );
+                  ScaffoldMessenger.of(
+                    ctx,
+                  ).showSnackBar(SnackBar(content: Text(phoneError)));
                   return;
                 }
               }
@@ -930,7 +1085,11 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ValidatedTextField(controller: nameCtrl, label: 'Tên nhà cung cấp *', required: true),
+              ValidatedTextField(
+                controller: nameCtrl,
+                label: 'Tên nhà cung cấp *',
+                required: true,
+              ),
               ValidatedTextField(controller: phoneCtrl, label: 'Số điện thoại'),
               ValidatedTextField(controller: emailCtrl, label: 'Email'),
               ValidatedTextField(controller: addressCtrl, label: 'Địa chỉ'),
@@ -949,21 +1108,29 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
             label: const Text('Xóa', style: TextStyle(color: Colors.red)),
           ),
           const Spacer(),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Vui lòng nhập tên nhà cung cấp')),
+                  const SnackBar(
+                    content: Text('Vui lòng nhập tên nhà cung cấp'),
+                  ),
                 );
                 return;
               }
               if (phoneCtrl.text.trim().isNotEmpty) {
-                final phoneError = UserService.validatePhone(phoneCtrl.text.trim(), AppLocalizations.of(ctx)!);
+                final phoneError = UserService.validatePhone(
+                  phoneCtrl.text.trim(),
+                  AppLocalizations.of(ctx)!,
+                );
                 if (phoneError != null) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(phoneError)),
-                  );
+                  ScaffoldMessenger.of(
+                    ctx,
+                  ).showSnackBar(SnackBar(content: Text(phoneError)));
                   return;
                 }
               }
@@ -992,9 +1159,14 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa đối tác "${partner.name}"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.'),
+        content: Text(
+          'Bạn có chắc muốn xóa đối tác "${partner.name}"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
@@ -1011,21 +1183,25 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                   await _loadData();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã xóa đối tác thành công')),
+                      const SnackBar(
+                        content: Text('Đã xóa đối tác thành công'),
+                      ),
                     );
                   }
                 } else {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Lỗi: Không thể xóa đối tác')),
+                      const SnackBar(
+                        content: Text('Lỗi: Không thể xóa đối tác'),
+                      ),
                     );
                   }
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
                 }
               }
             },
@@ -1041,9 +1217,14 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc muốn xóa nhà cung cấp "${supplier.name}"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.'),
+        content: Text(
+          'Bạn có chắc muốn xóa nhà cung cấp "${supplier.name}"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
@@ -1052,8 +1233,9 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                 final service = SupplierService();
                 // Truyền firestoreId để xóa cả local và cloud
                 final success = await service.deleteSupplier(
-                  supplier.id!,
+                  supplier.id,
                   firestoreId: supplier.firestoreId,
+                  supplierName: supplier.name,
                 );
                 if (success) {
                   FastInventoryInputController().clearSupplierCache();
@@ -1061,21 +1243,25 @@ class _PartnerManagementViewState extends State<PartnerManagementView> with Sing
                   await _loadData();
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã xóa nhà cung cấp thành công')),
+                      const SnackBar(
+                        content: Text('Đã xóa nhà cung cấp thành công'),
+                      ),
                     );
                   }
                 } else {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Lỗi: Không thể xóa nhà cung cấp')),
+                      const SnackBar(
+                        content: Text('Lỗi: Không thể xóa nhà cung cấp'),
+                      ),
                     );
                   }
                 }
               } catch (e) {
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
                 }
               }
             },

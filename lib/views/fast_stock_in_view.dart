@@ -67,9 +67,11 @@ class _FastStockInViewState extends State<FastStockInView> {
 
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
   bool get _isFashion => _shopSettings?.businessType == 'fashion';
-  bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings == null;
+  bool get _isElectronics =>
+      _shopSettings?.businessType == 'electronics' || _shopSettings == null;
   bool get _enableSerial => _shopSettings?.enableSerial ?? true;
 
   // Permission: cost price visibility
@@ -105,7 +107,8 @@ class _FastStockInViewState extends State<FastStockInView> {
   List<String> get paymentMethods => ProductConstants.paymentMethods;
 
   // Model suggestions based on brand
-  Map<String, List<String>> get modelSuggestions => ProductConstants.modelSuggestions;
+  Map<String, List<String>> get modelSuggestions =>
+      ProductConstants.modelSuggestions;
 
   @override
   void initState() {
@@ -260,7 +263,7 @@ class _FastStockInViewState extends State<FastStockInView> {
       // Load shop settings for terminology
       final settings = await CategoryService().getShopSettings();
       if (mounted) _shopSettings = settings;
-      
+
       // Load cost price permission
       final perms = await UserService.getCurrentUserPermissions();
       if (mounted) _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
@@ -500,7 +503,10 @@ class _FastStockInViewState extends State<FastStockInView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Xác nhận xóa', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
+        title: Text(
+          'Xác nhận xóa',
+          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+        ),
         content: Text(
           'Bạn có chắc muốn xóa nhà cung cấp "$supplierName"?\n\nLưu ý: Dữ liệu liên quan có thể bị ảnh hưởng.',
         ),
@@ -521,12 +527,15 @@ class _FastStockInViewState extends State<FastStockInView> {
     if (confirm != true) return;
 
     try {
-      final supplierId = supplierMap['id'] as int;
+      final supplierId = supplierMap['id'] as int?;
       final firestoreId = supplierMap['firestoreId'] as String?;
+      final supplierNameValue =
+          (supplierMap['name'] as String?) ?? supplierName;
 
       final success = await supplierService.deleteSupplier(
         supplierId,
         firestoreId: firestoreId,
+        supplierName: supplierNameValue,
       );
 
       if (success) {
@@ -662,7 +671,9 @@ class _FastStockInViewState extends State<FastStockInView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${_terms.productLabel} sẽ được nhập vào KHO TẠM vì chưa có giá vốn.'),
+              Text(
+                '${_terms.productLabel} sẽ được nhập vào KHO TẠM vì chưa có giá vốn.',
+              ),
               SizedBox(height: 8),
               Text(
                 '• Sẽ KHÔNG tạo công nợ NCC',
@@ -755,7 +766,9 @@ class _FastStockInViewState extends State<FastStockInView> {
         color: selectedColor!,
         capacity: selectedCapacity!,
         labelInfo: labelInfoCtrl.text.trim(),
-        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim().toUpperCase() : null,
+        labelNote: labelNoteCtrl.text.trim().isNotEmpty
+            ? labelNoteCtrl.text.trim().toUpperCase()
+            : null,
         paymentMethod: isPending
             ? null
             : selectedPaymentMethod, // Chỉ gán khi không pending
@@ -861,10 +874,11 @@ class _FastStockInViewState extends State<FastStockInView> {
       if (!isPending) {
         final totalCost = cost * quantity;
         final shopId = await UserService.getCurrentShopId();
-        
+
         if (selectedPaymentMethod == 'CÔNG NỢ') {
           // Tạo công nợ shop phải trả cho nhà cung cấp
-          final debtFirestoreId = 'debt_${DateTime.now().millisecondsSinceEpoch}_${product.imei}';
+          final debtFirestoreId =
+              'debt_${DateTime.now().millisecondsSinceEpoch}_${product.imei}';
           final debtData = Debt(
             firestoreId: debtFirestoreId,
             personName: selectedSupplier ?? 'NCC không xác định',
@@ -889,11 +903,13 @@ class _FastStockInViewState extends State<FastStockInView> {
           debugPrint('FastStockIn: Created debt for CÔNG NỢ: $totalCost');
         } else {
           // TIỀN MẶT hoặc CHUYỂN KHOẢN - Tạo expense record trực tiếp
-          final expenseFirestoreId = 'exp_stockin_${DateTime.now().millisecondsSinceEpoch}_${product.imei}';
+          final expenseFirestoreId =
+              'exp_stockin_${DateTime.now().millisecondsSinceEpoch}_${product.imei}';
           final expenseData = {
             'firestoreId': expenseFirestoreId,
             'title': 'Nhập kho: ${product.name}',
-            'description': 'NCC: ${selectedSupplier ?? "N/A"} - IMEI: ${product.imei} - SL: $quantity',
+            'description':
+                'NCC: ${selectedSupplier ?? "N/A"} - IMEI: ${product.imei} - SL: $quantity',
             'amount': totalCost,
             'category': 'NHẬP HÀNG',
             'date': DateTime.now().millisecondsSinceEpoch,
@@ -913,7 +929,7 @@ class _FastStockInViewState extends State<FastStockInView> {
               data: expenseData,
             );
           }
-          
+
           // Log vào financial_activity_log để hiện trong Nhật ký tài chính
           await FinancialActivityService.logPurchase(
             firestoreId: expenseFirestoreId,
@@ -923,9 +939,11 @@ class _FastStockInViewState extends State<FastStockInView> {
             paymentMethod: selectedPaymentMethod!,
             supplierName: selectedSupplier ?? 'N/A',
           );
-          
+
           EventBus().emit('expenses_changed');
-          debugPrint('FastStockIn: Created expense for $selectedPaymentMethod: $totalCost');
+          debugPrint(
+            'FastStockIn: Created expense for $selectedPaymentMethod: $totalCost',
+          );
         }
       }
 
@@ -1055,8 +1073,12 @@ class _FastStockInViewState extends State<FastStockInView> {
         capacity: selectedCapacity,
         color: selectedColor,
         condition: selectedCondition,
-        labelInfo: labelInfoCtrl.text.trim().isNotEmpty ? labelInfoCtrl.text.trim() : null,
-        labelNote: labelNoteCtrl.text.trim().isNotEmpty ? labelNoteCtrl.text.trim().toUpperCase() : null,
+        labelInfo: labelInfoCtrl.text.trim().isNotEmpty
+            ? labelInfoCtrl.text.trim()
+            : null,
+        labelNote: labelNoteCtrl.text.trim().isNotEmpty
+            ? labelNoteCtrl.text.trim().toUpperCase()
+            : null,
         productType: 'DIEN_THOAI',
       );
 
@@ -1243,7 +1265,10 @@ class _FastStockInViewState extends State<FastStockInView> {
                   ),
                   filled: false,
                 ),
-                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: Colors.black87,
+                ),
                 dropdownColor: Colors.white,
               ),
             ),
@@ -1286,7 +1311,10 @@ class _FastStockInViewState extends State<FastStockInView> {
       children: [
         Text(
           'Model',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: AppTextStyles.body1.fontSize,
+          ),
         ),
         const SizedBox(height: 4),
         TextField(
@@ -1317,7 +1345,9 @@ class _FastStockInViewState extends State<FastStockInView> {
                     child: Chip(
                       label: Text(
                         model.toUpperCase(),
-                        style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
+                        style: TextStyle(
+                          fontSize: AppTextStyles.caption.fontSize,
+                        ),
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 4,
@@ -1345,7 +1375,10 @@ class _FastStockInViewState extends State<FastStockInView> {
       children: [
         Text(
           title,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.subtitle1.fontSize),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: AppTextStyles.subtitle1.fontSize,
+          ),
         ),
         const SizedBox(height: 4),
         Wrap(
@@ -1355,7 +1388,10 @@ class _FastStockInViewState extends State<FastStockInView> {
                 (option) => ChoiceChip(
                   label: Text(
                     option,
-                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.black),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.caption.fontSize,
+                      color: Colors.black,
+                    ),
                   ),
                   selected: selected == option,
                   selectedColor: Colors.blue[100],
@@ -1390,10 +1426,7 @@ class _FastStockInViewState extends State<FastStockInView> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Colors.blue.shade50,
-              Colors.indigo.shade50,
-            ],
+            colors: [Colors.blue.shade50, Colors.indigo.shade50],
           ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.blue.shade200),
@@ -1412,8 +1445,11 @@ class _FastStockInViewState extends State<FastStockInView> {
                 ),
               ),
             ),
-            Icon(Icons.arrow_forward_ios, 
-              color: Colors.blue.shade400, size: 14),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.blue.shade400,
+              size: 14,
+            ),
           ],
         ),
       ),
@@ -1515,7 +1551,9 @@ class _FastStockInViewState extends State<FastStockInView> {
         }
         // Map condition về dạng short
         if (code.condition != null) {
-          final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
+          final mappedCondition = ProductConstants.mapConditionShort(
+            code.condition!,
+          );
           if (conditions.contains(mappedCondition)) {
             selectedCondition = mappedCondition;
           } else if (conditions.contains(code.condition)) {
@@ -1676,7 +1714,8 @@ class _FastStockInViewState extends State<FastStockInView> {
                     controller: labelInfoCtrl,
                     style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     decoration: InputDecoration(
-                      hintText: 'VD: ${_terms.specialField2Label}, ghi chú nhanh...',
+                      hintText:
+                          'VD: ${_terms.specialField2Label}, ghi chú nhanh...',
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 6,
                         vertical: 8,
@@ -1726,7 +1765,10 @@ class _FastStockInViewState extends State<FastStockInView> {
                   if (_enableSerial) ...[
                     Text(
                       'IMEI/Serial *',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: AppTextStyles.body1.fontSize,
+                      ),
                     ),
                     Row(
                       children: [
@@ -1738,7 +1780,9 @@ class _FastStockInViewState extends State<FastStockInView> {
                               FilteringTextInputFormatter.digitsOnly,
                               LengthLimitingTextInputFormatter(5),
                             ],
-                            style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                            style: TextStyle(
+                              fontSize: AppTextStyles.body1.fontSize,
+                            ),
                             decoration: InputDecoration(
                               hintText: 'Nhập 5 số cuối IMEI (bắt buộc)',
                               contentPadding: const EdgeInsets.symmetric(
@@ -1773,14 +1817,19 @@ class _FastStockInViewState extends State<FastStockInView> {
 
                   Text(
                     'Số lượng',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.body1.fontSize),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppTextStyles.body1.fontSize,
+                    ),
                   ),
                   TextField(
                     controller: quantityCtrl,
                     keyboardType: TextInputType.number,
                     enabled: _enableSerial ? imeiCtrl.text.isEmpty : true,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Số lượng',
                       contentPadding: const EdgeInsets.symmetric(
@@ -1794,12 +1843,13 @@ class _FastStockInViewState extends State<FastStockInView> {
                   ),
                   const SizedBox(height: 8),
 
-                  if (_canViewCostPrice) ...[                  _buildCurrencyField(
-                    'Giá nhập (VNĐ) *',
-                    costCtrl,
-                    Icons.attach_money,
-                  ),
-                  const SizedBox(height: 8),
+                  if (_canViewCostPrice) ...[
+                    _buildCurrencyField(
+                      'Giá nhập (VNĐ) *',
+                      costCtrl,
+                      Icons.attach_money,
+                    ),
+                    const SizedBox(height: 8),
                   ],
                   _buildCurrencyField('Giá bán (VNĐ)', priceCtrl, Icons.sell),
 
@@ -1844,7 +1894,9 @@ class _FastStockInViewState extends State<FastStockInView> {
                           icon: const Icon(Icons.list_alt, size: 16),
                           label: Text(
                             'Xem hàng chờ xác nhận nhập kho',
-                            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                            style: TextStyle(
+                              fontSize: AppTextStyles.subtitle1.fontSize,
+                            ),
                           ),
                         ),
                       ],
@@ -2060,7 +2112,10 @@ class _SmartIMEIScannerSheetState extends State<_SmartIMEIScannerSheet> {
                   child: Text(
                     'Hỗ trợ QR nhiều dòng (Apple, Samsung...).\n'
                     'Tự động trích xuất IMEI và cho phép chọn nếu có nhiều số.',
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.blue),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.blue,
+                    ),
                   ),
                 ),
               ],

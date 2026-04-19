@@ -66,7 +66,9 @@ class SuperAdminView extends StatelessWidget {
             ],
           ),
         ),
-        body: ResponsiveCenter(child: const TabBarView(children: [ShopsTab(), UsersTab()])),
+        body: ResponsiveCenter(
+          child: const TabBarView(children: [ShopsTab(), UsersTab()]),
+        ),
       ),
     );
   }
@@ -157,7 +159,10 @@ class _ShopsTabState extends State<ShopsTab> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Chưa có shop nào được tạo', style: TextStyle(color: Colors.grey)),
+                const Text(
+                  'Chưa có shop nào được tạo',
+                  style: TextStyle(color: Colors.grey),
+                ),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () => setState(() {}),
@@ -192,10 +197,19 @@ class _ShopsTabState extends State<ShopsTab> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   children: [
-                    Icon(Icons.cloud_off, size: 14, color: Colors.orange.shade700),
+                    Icon(
+                      Icons.cloud_off,
+                      size: 14,
+                      color: Colors.orange.shade700,
+                    ),
                     const SizedBox(width: 6),
-                    Text('Dữ liệu từ cache — kéo xuống để tải lại',
-                      style: TextStyle(fontSize: 12, color: Colors.orange.shade700)),
+                    Text(
+                      'Dữ liệu từ cache — kéo xuống để tải lại',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -679,7 +693,7 @@ class _ShopsTabState extends State<ShopsTab> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Ứng dụng được xây dựng và vận hành bởi HULUCA (admin@huluca.com) với mục tiêu hỗ trợ các cửa hàng bán lẻ vừa và nhỏ quản lý công việc hiệu quả, minh bạch và chuyên nghiệp hơn.',
+              'Ứng dụng được xây dựng và vận hành bởi HULUCA (itquanghuy85@gmail.com) với mục tiêu hỗ trợ các cửa hàng bán lẻ vừa và nhỏ quản lý công việc hiệu quả, minh bạch và chuyên nghiệp hơn.',
               style: TextStyle(
                 fontSize: AppTextStyles.subtitle1.fontSize,
                 color: Colors.black87,
@@ -979,9 +993,7 @@ class UsersTab extends StatelessWidget {
                 );
               } catch (e) {
                 navigator.pop();
-                messenger.showSnackBar(
-                  SnackBar(content: Text('Lỗi: $e')),
-                );
+                messenger.showSnackBar(SnackBar(content: Text('Lỗi: $e')));
               }
             },
             child: const Text('Chỉ xóa doc'),
@@ -993,7 +1005,8 @@ class UsersTab extends StatelessWidget {
               try {
                 final result = await UserService.deleteUserWithData(uid);
                 navigator.pop();
-                final deleted = (result['results']?['deleted'] as List?)?.join(', ') ?? '';
+                final deleted =
+                    (result['results']?['deleted'] as List?)?.join(', ') ?? '';
                 messenger.showSnackBar(
                   SnackBar(
                     content: Text('Đã xóa $email và dữ liệu: $deleted'),
