@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import 'encryption_service.dart';
 import 'claims_service.dart';
+import 'event_bus.dart';
 import 'payment_intent_service.dart';
 
 class UserService {
@@ -311,9 +312,9 @@ class UserService {
     }
     try {
       // Force server fetch to always get latest data (incl. newly created shops)
-      final snap = await _db.collection('shops').get(
-        const GetOptions(source: Source.server),
-      );
+      final snap = await _db
+          .collection('shops')
+          .get(const GetOptions(source: Source.server));
       debugPrint('getAllShops: fetched ${snap.docs.length} shops from server');
       final shops = <Map<String, dynamic>>[];
       for (final doc in snap.docs) {
@@ -636,12 +637,45 @@ class UserService {
     return doc.data() ?? {};
   }
 
-  static Stream<QuerySnapshot> _pollQuerySnapshots(
-    Query query, {
-    Duration interval = const Duration(seconds: 30),
-  }) async* {
-    yield await query.get();
-    yield* Stream.periodic(interval).asyncMap((_) => query.get());
+  static Stream<QuerySnapshot> _pollQuerySnapshots(Query query) async* {
+    QuerySnapshot? lastSnapshot;
+
+    Future<QuerySnapshot> fetchOnce(String reason) async {
+      debugPrint(
+        '[SYNC][FETCH] collection=users_query reason=$reason limit=20',
+      );
+      return query.get();
+    }
+
+    try {
+      lastSnapshot = await fetchOnce('initial_open');
+      yield lastSnapshot;
+    } catch (e) {
+      debugPrint('UserService users stream initial fetch error: $e');
+      if (lastSnapshot != null) {
+        yield lastSnapshot;
+      }
+    }
+
+    bool shouldRefresh(String event) {
+      return event == 'users_changed' ||
+          event == EventBus.dataRefresh ||
+          event == EventBus.shopChanged ||
+          event == 'sync_now_completed' ||
+          event == 'app_resumed';
+    }
+
+    await for (final event in EventBus().stream.where(shouldRefresh)) {
+      try {
+        lastSnapshot = await fetchOnce(event);
+        yield lastSnapshot;
+      } catch (e) {
+        debugPrint('UserService users stream refresh error: $e');
+        if (lastSnapshot != null) {
+          yield lastSnapshot;
+        }
+      }
+    }
   }
 
   static Stream<QuerySnapshot> getAllUsersStream() {
@@ -743,6 +777,7 @@ class UserService {
           .doc(uid)
           .set(updateData, SetOptions(merge: true));
       debugPrint('UserService.updateUserInfo: success for uid=$uid');
+      EventBus().emit('users_changed');
     } catch (e) {
       debugPrint('UserService.updateUserInfo: error for uid=$uid: $e');
       rethrow;
@@ -1375,6 +1410,7 @@ class UserService {
         'permissionsUpdatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       debugPrint('✅ Updated permissions for user $uid');
+      EventBus().emit('users_changed');
     } catch (e) {
       debugPrint('❌ Error updating permissions for user $uid: $e');
       rethrow;
@@ -1607,4 +1643,3 @@ class UserService {
     _cachedCanViewCostPriceTime = null;
   }
 }
-

@@ -17,6 +17,16 @@ class StockEntryService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   static const String _collection = 'stock_entries';
+  static int _pendingEntriesFetchCount = 0;
+  static int _pendingCountFetchCount = 0;
+
+  static bool _isRefreshEvent(String event) {
+    return event == 'stock_entries_changed' ||
+        event == EventBus.dataRefresh ||
+        event == EventBus.shopChanged ||
+        event == 'sync_now_completed' ||
+        event == 'app_resumed';
+  }
 
   // === HELPER METHODS ===
   void _showError(String message) {
@@ -62,6 +72,7 @@ class StockEntryService {
       final docRef = await _firestore.collection(_collection).add(mapData);
 
       debugPrint('✅ createEntry SUCCESS: docId=${docRef.id}');
+      EventBus().emit('stock_entries_changed');
       return newEntry.copyWith(firestoreId: docRef.id);
     } catch (e) {
       _showError('Lỗi tạo phiếu: $e');
@@ -105,6 +116,7 @@ class StockEntryService {
           .update(updateMap);
 
       _showSuccess('Đã cập nhật phiếu');
+      EventBus().emit('stock_entries_changed');
       return true;
     } catch (e) {
       debugPrint('❌ updateEntry error: $e');
@@ -134,6 +146,7 @@ class StockEntryService {
       });
 
       _showSuccess('Đã hủy phiếu');
+      EventBus().emit('stock_entries_changed');
       return true;
     } catch (e) {
       _showError('Lỗi hủy phiếu: $e');
@@ -253,7 +266,10 @@ class StockEntryService {
     debugPrint('🔄 confirmEntry: START entryId=$entryId');
     try {
       // === PRE-READ: Lấy entry + query existing products/parts TRƯỚC transaction ===
-      final entryDoc = await _firestore.collection(_collection).doc(entryId).get();
+      final entryDoc = await _firestore
+          .collection(_collection)
+          .doc(entryId)
+          .get();
       if (!entryDoc.exists) {
         _showError('Không tìm thấy phiếu');
         return false;
@@ -275,7 +291,8 @@ class StockEntryService {
           final partNameUpper = item.name.toUpperCase().trim();
           final modelUpper = (item.model ?? '').toUpperCase().trim();
           try {
-            final snap = await _firestore.collection('repair_parts')
+            final snap = await _firestore
+                .collection('repair_parts')
                 .where('shopId', isEqualTo: preEntry.shopId)
                 .where('partName', isEqualTo: partNameUpper)
                 .where('deleted', isEqualTo: false)
@@ -283,7 +300,10 @@ class StockEntryService {
                 .get();
             for (final doc in snap.docs) {
               final data = doc.data();
-              final existModel = (data['compatibleModels'] ?? '').toString().toUpperCase().trim();
+              final existModel = (data['compatibleModels'] ?? '')
+                  .toString()
+                  .toUpperCase()
+                  .trim();
               if (existModel == modelUpper) {
                 final key = '${partNameUpper}_$modelUpper';
                 existingPartDocIds[key] = doc.id;
@@ -301,7 +321,8 @@ class StockEntryService {
           final size = (item.size ?? '').toUpperCase().trim();
           final capacity = (item.capacity ?? '').toUpperCase().trim();
           try {
-            final snap = await _firestore.collection('products')
+            final snap = await _firestore
+                .collection('products')
                 .where('shopId', isEqualTo: preEntry.shopId)
                 .where('name', isEqualTo: nameUpper)
                 .where('deleted', isEqualTo: false)
@@ -310,10 +331,21 @@ class StockEntryService {
                 .get();
             for (final doc in snap.docs) {
               final data = doc.data();
-              final exColor = (data['color'] ?? '').toString().toUpperCase().trim();
-              final exSize = (data['size'] ?? '').toString().toUpperCase().trim();
-              final exCapacity = (data['capacity'] ?? '').toString().toUpperCase().trim();
-              if (exColor == color && exSize == size && exCapacity == capacity) {
+              final exColor = (data['color'] ?? '')
+                  .toString()
+                  .toUpperCase()
+                  .trim();
+              final exSize = (data['size'] ?? '')
+                  .toString()
+                  .toUpperCase()
+                  .trim();
+              final exCapacity = (data['capacity'] ?? '')
+                  .toString()
+                  .toUpperCase()
+                  .trim();
+              if (exColor == color &&
+                  exSize == size &&
+                  exCapacity == capacity) {
                 final key = '${nameUpper}_${color}_${size}_$capacity';
                 existingProductDocIds[key] = doc.id;
                 existingProductData[key] = data;
@@ -326,7 +358,9 @@ class StockEntryService {
         }
       }
 
-      debugPrint('📦 confirmEntry: Pre-query found ${existingPartDocIds.length} matching parts, ${existingProductDocIds.length} matching products');
+      debugPrint(
+        '📦 confirmEntry: Pre-query found ${existingPartDocIds.length} matching parts, ${existingProductDocIds.length} matching products',
+      );
 
       final result = await _firestore.runTransaction((transaction) async {
         debugPrint('🔄 confirmEntry: Inside transaction');
@@ -372,7 +406,8 @@ class StockEntryService {
               final newCost = (item.cost ?? 0);
               final totalQty = existingQty + newQty;
               final weightedCost = totalQty > 0
-                  ? ((existingQty * existingCost + newQty * newCost) / totalQty).round()
+                  ? ((existingQty * existingCost + newQty * newCost) / totalQty)
+                        .round()
                   : newCost;
 
               final partRef = _firestore.collection('repair_parts').doc(docId);
@@ -382,7 +417,9 @@ class StockEntryService {
                 'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
               partFirestoreIds[item.name] = docId;
-              debugPrint('🔄 UPSERT part: $key qty $existingQty+$newQty=$totalQty');
+              debugPrint(
+                '🔄 UPSERT part: $key qty $existingQty+$newQty=$totalQty',
+              );
             } else {
               // CREATE NEW repair_part
               final partRef = _firestore.collection('repair_parts').doc();
@@ -425,7 +462,8 @@ class StockEntryService {
               final newCost = (item.cost ?? 0);
               final totalQty = existingQty + newQty;
               final weightedCost = totalQty > 0
-                  ? ((existingQty * existingCost + newQty * newCost) / totalQty).round()
+                  ? ((existingQty * existingCost + newQty * newCost) / totalQty)
+                        .round()
                   : newCost;
 
               final productRef = _firestore.collection('products').doc(docId);
@@ -434,13 +472,16 @@ class StockEntryService {
                 'cost': weightedCost,
                 'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
-              debugPrint('🔄 UPSERT product: $key qty $existingQty+$newQty=$totalQty');
+              debugPrint(
+                '🔄 UPSERT product: $key qty $existingQty+$newQty=$totalQty',
+              );
               continue; // Existing product updated, skip creation
             }
           }
 
           // C) DIEN_THOAI or new (non-matched) PHU_KIEN/fashion → create product(s)
-          final bool isPhoneWithBatch = item.productType == 'DIEN_THOAI' &&
+          final bool isPhoneWithBatch =
+              item.productType == 'DIEN_THOAI' &&
               (item.imei == null || item.imei!.isEmpty) &&
               item.quantity > 1;
 
@@ -461,7 +502,8 @@ class StockEntryService {
                 parts.add(item.color!);
               }
               productName = parts.join(' ');
-            } else if (item.productType == 'QUAN_AO' || item.productType == 'GIAY_DEP') {
+            } else if (item.productType == 'QUAN_AO' ||
+                item.productType == 'GIAY_DEP') {
               // Fashion: include size and color in product name
               final parts = <String>[item.name];
               if (item.size != null && item.size!.isNotEmpty) {
@@ -487,7 +529,8 @@ class StockEntryService {
                 detailParts.add(item.condition!);
               }
               detail = detailParts.join(' - ');
-            } else if (item.productType == 'QUAN_AO' || item.productType == 'GIAY_DEP') {
+            } else if (item.productType == 'QUAN_AO' ||
+                item.productType == 'GIAY_DEP') {
               // Fashion: size + color as detail
               final detailParts = <String>[];
               if (item.size != null && item.size!.isNotEmpty) {
@@ -514,8 +557,9 @@ class StockEntryService {
             }
 
             // Check if fashion product
-            final bool isFashion = item.productType == 'QUAN_AO' || 
-                item.productType == 'GIAY_DEP' || 
+            final bool isFashion =
+                item.productType == 'QUAN_AO' ||
+                item.productType == 'GIAY_DEP' ||
                 item.productType == 'PHU_KIEN_THOI_TRANG';
 
             transaction.set(productRef, {
@@ -557,8 +601,7 @@ class StockEntryService {
               // SKU for non-phone products
               if (!isFashion && item.sku != null && item.sku!.isNotEmpty)
                 'sku': item.sku,
-              if (item.unit != null && item.unit!.isNotEmpty)
-                'unit': item.unit,
+              if (item.unit != null && item.unit!.isNotEmpty) 'unit': item.unit,
             });
           } // End for loop products
         }
@@ -669,7 +712,8 @@ class StockEntryService {
         final entry = result['entry'] as StockEntry;
         final totalCost = (result['totalCost'] as double).round();
         // direction used for debugging
-        final partFirestoreIds = result['partFirestoreIds'] as Map<String, String>;
+        final partFirestoreIds =
+            result['partFirestoreIds'] as Map<String, String>;
         final userName =
             _auth.currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
         final now = DateTime.now().millisecondsSinceEpoch;
@@ -730,7 +774,9 @@ class StockEntryService {
             // 1. Debt record đã được tạo (đây là financial record chính)
             // 2. PaymentIntentService.createIntent() chỉ chấp nhận status=pending
             // 3. Khi thanh toán công nợ, user sẽ tạo PaymentIntent mới từ trang NCC
-            debugPrint('✅ confirmEntry: CÔNG NỢ debt created, no PaymentIntent needed');
+            debugPrint(
+              '✅ confirmEntry: CÔNG NỢ debt created, no PaymentIntent needed',
+            );
           } else {
             // === TIỀN MẶT / CHUYỂN KHOẢN - Tạo EXPENSE ===
             // Ghi expense vào local DB
@@ -749,10 +795,12 @@ class StockEntryService {
             debugPrint(
               '✅ confirmEntry: Created local EXPENSE for ${entry.paymentMethod}: $totalCost',
             );
-            
+
             // Log to financial activity for reporting
             try {
-              final productNames = entry.items.map((i) => '${i.name} x${i.quantity}').join(', ');
+              final productNames = entry.items
+                  .map((i) => '${i.name} x${i.quantity}')
+                  .join(', ');
               await FinancialActivityService.logPurchase(
                 firestoreId: 'stock_${entryId}_$now',
                 amount: totalCost,
@@ -767,11 +815,13 @@ class StockEntryService {
             } catch (e) {
               debugPrint('⚠️ Failed to log stock entry activity: $e');
             }
-            
+
             // KHÔNG tạo PaymentIntent cho TIỀN MẶT/CK vì:
             // 1. Expense record đã được ghi (đây là financial record chính)
             // 2. PaymentIntentService.createIntent() chỉ chấp nhận status=pending
-            debugPrint('✅ confirmEntry: Expense created, no PaymentIntent needed');
+            debugPrint(
+              '✅ confirmEntry: Expense created, no PaymentIntent needed',
+            );
           }
 
           // === GHI LINH KIỆN VÀO LOCAL repair_parts ===
@@ -797,7 +847,9 @@ class StockEntryService {
                 'isSynced': 1,
                 'deleted': 0,
               });
-              debugPrint('✅ confirmEntry: Local repair_part saved for ${item.name} with firestoreId=$firestoreId');
+              debugPrint(
+                '✅ confirmEntry: Local repair_part saved for ${item.name} with firestoreId=$firestoreId',
+              );
             }
           }
         } catch (e) {
@@ -856,7 +908,9 @@ class StockEntryService {
           // NOTE: Không ghi supplier_import_history vào local DB ở đây
           // Để sync_service tự đồng bộ từ Firestore để tránh duplicate records
           // (trước đây firestoreId local != firestoreId từ Firestore => duplicate)
-          debugPrint('✅ confirmEntry: Local supplier_import_history synced from Firestore');
+          debugPrint(
+            '✅ confirmEntry: Local supplier_import_history synced from Firestore',
+          );
         } catch (e) {
           debugPrint('⚠️ confirmEntry: Failed to save local data: $e');
           // Không fail cả flow, chỉ log warning
@@ -878,6 +932,7 @@ class StockEntryService {
 
       debugPrint('✅ confirmEntry: SUCCESS');
       _showSuccess('Đã xác nhận nhập kho');
+      EventBus().emit('stock_entries_changed');
       return result['success'] == true;
     } catch (e) {
       debugPrint('❌ confirmEntry ERROR: $e');
@@ -1007,7 +1062,13 @@ class StockEntryService {
       return;
     }
 
-    while (true) {
+    List<StockEntry> lastData = const <StockEntry>[];
+
+    Future<List<StockEntry>> fetchOnce(String reason) async {
+      _pendingEntriesFetchCount += 1;
+      debugPrint(
+        '[SYNC][FETCH] collection=stock_entries_pending count=$_pendingEntriesFetchCount reason=$reason limit=20',
+      );
       try {
         final snapshot = await _firestore
             .collection(_collection)
@@ -1017,15 +1078,31 @@ class StockEntryService {
             .limit(20)
             .get();
 
-        yield snapshot.docs
+        return snapshot.docs
             .map((doc) => StockEntry.fromMap(doc.data(), docId: doc.id))
             .toList();
       } catch (e) {
         debugPrint('watchPendingEntries polling error: $e');
-        yield <StockEntry>[];
+        return lastData;
       }
+    }
 
-      await Future.delayed(const Duration(seconds: 20));
+    try {
+      lastData = await fetchOnce('initial_open');
+      yield lastData;
+    } catch (e) {
+      debugPrint('watchPendingEntries initial fetch error: $e');
+      yield lastData;
+    }
+
+    await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+      try {
+        lastData = await fetchOnce(event);
+        yield lastData;
+      } catch (e) {
+        debugPrint('watchPendingEntries refresh error: $e');
+        yield lastData;
+      }
     }
   }
 
@@ -1037,7 +1114,13 @@ class StockEntryService {
       return;
     }
 
-    while (true) {
+    int lastCount = 0;
+
+    Future<int> fetchCount(String reason) async {
+      _pendingCountFetchCount += 1;
+      debugPrint(
+        '[SYNC][FETCH] collection=stock_entries_pending_count count=$_pendingCountFetchCount reason=$reason limit=20',
+      );
       try {
         final snapshot = await _firestore
             .collection(_collection)
@@ -1045,14 +1128,29 @@ class StockEntryService {
             .where('status', isEqualTo: 'draft')
             .limit(20)
             .get();
-        yield snapshot.docs.length;
+        return snapshot.docs.length;
       } catch (e) {
         debugPrint('watchPendingCount polling error: $e');
-        yield 0;
+        return lastCount;
       }
+    }
 
-      await Future.delayed(const Duration(seconds: 20));
+    try {
+      lastCount = await fetchCount('initial_open');
+      yield lastCount;
+    } catch (e) {
+      debugPrint('watchPendingCount initial fetch error: $e');
+      yield lastCount;
+    }
+
+    await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+      try {
+        lastCount = await fetchCount(event);
+        yield lastCount;
+      } catch (e) {
+        debugPrint('watchPendingCount refresh error: $e');
+        yield lastCount;
+      }
     }
   }
 }
-

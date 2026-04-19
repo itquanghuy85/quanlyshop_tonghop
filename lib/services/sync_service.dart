@@ -29,6 +29,10 @@ class SyncService {
   static final _db = FirebaseFirestore.instance;
   static final List<StreamSubscription> _subscriptions = [];
   static final List<Timer> _pollingTimers = [];
+  static final Map<String, Future<void> Function()> _collectionRefreshers = {};
+  static final Map<String, int> _collectionFetchCounts = {};
+  static bool _isRefreshingCollections = false;
+  static DateTime? _lastRefreshCollectionsAt;
 
   // Track active subscriptions and their status for debugging
   static final Map<String, bool> _subscriptionStatus = {};
@@ -159,8 +163,8 @@ class SyncService {
   static bool _isDownloading = false;
   static bool _isInitializingRealtime = false;
   static const _downloadCooldown = Duration(seconds: 60);
-  static const Duration _collectionPollInterval = Duration(seconds: 20);
   static const int _collectionPollLimit = 20;
+  static const Duration _collectionRefreshCooldown = Duration(seconds: 5);
 
   /// Key prefix for storing last sync timestamps per collection in SharedPreferences
   static const _lastSyncPrefix = 'lastSync_';
@@ -199,6 +203,61 @@ class SyncService {
   /// Get subscription status for debugging
   static Map<String, bool> get subscriptionStatus =>
       Map.unmodifiable(_subscriptionStatus);
+
+  static void _logCollectionFetch({
+    required String collection,
+    required String reason,
+  }) {
+    final next = (_collectionFetchCounts[collection] ?? 0) + 1;
+    _collectionFetchCounts[collection] = next;
+    debugPrint(
+      '[SYNC][FETCH] collection=$collection count=$next reason=$reason limit=$_collectionPollLimit',
+    );
+  }
+
+  /// Trigger one-shot cloud fetch for active collections.
+  /// Used by open screen, pull-to-refresh, and resume events.
+  static Future<void> refreshCloudCollections({
+    String reason = 'manual',
+    bool force = false,
+  }) async {
+    if (_collectionRefreshers.isEmpty) {
+      debugPrint('⏭️ refreshCloudCollections: no active collections');
+      return;
+    }
+
+    if (_isRefreshingCollections) {
+      debugPrint('⏭️ refreshCloudCollections: already running ($reason)');
+      return;
+    }
+
+    final now = DateTime.now();
+    if (!force &&
+        _lastRefreshCollectionsAt != null &&
+        now.difference(_lastRefreshCollectionsAt!) <
+            _collectionRefreshCooldown) {
+      debugPrint('⏭️ refreshCloudCollections: cooldown active ($reason)');
+      return;
+    }
+
+    _isRefreshingCollections = true;
+    try {
+      debugPrint(
+        '🔄 refreshCloudCollections: reason=$reason total=${_collectionRefreshers.length}',
+      );
+      for (final entry in _collectionRefreshers.entries) {
+        try {
+          await entry.value();
+        } catch (e) {
+          debugPrint('❌ refreshCloudCollections error in ${entry.key}: $e');
+        }
+      }
+      _lastRefreshCollectionsAt = DateTime.now();
+      EventBus().emit(EventBus.dataRefresh);
+    } finally {
+      _isRefreshingCollections = false;
+    }
+  }
 
   /// Helper: Lấy timestamp từ data (hỗ trợ cả Timestamp và int)
   static int _getTimestamp(dynamic value) {
@@ -618,10 +677,7 @@ class SyncService {
         debugPrint(
           '⬇️ SYNC: repairs/$firestoreId - Cloud newer than unsynced local (cloud: $cloudTime, local: $localUpdatedAt), accept cloud',
         );
-        await _dropStaleRepairQueueEntry(
-          firestoreId,
-          localId: localEntityId,
-        );
+        await _dropStaleRepairQueueEntry(firestoreId, localId: localEntityId);
         return true;
       }
     }
@@ -830,333 +886,336 @@ class SyncService {
         debugPrint("⚠️ Auto-cleanup failed: $e");
       }
 
-    // 1. Đồng bộ REPAIRS
-    _subscribeToCollection(
-      collection: 'repairs',
-      shopId: shopId,
-      permissions: permissions,
-      role: role,
-      isSuperAdmin: isSuperAdmin,
-      onChanged: (data, docId) async {
-        try {
-          debugPrint(
-            "SYNC_TRACE: Received repair data from Firestore - docId: $docId, status: ${data['status']}, price: ${data['price']}, totalCost: ${data['totalCost']}, createdAt: ${data['createdAt']}, deliveredAt: ${data['deliveredAt']}, deleted: ${data['deleted']}",
-          );
-          final db = DBHelper();
-          if (data['deleted'] == true) {
-            await db.deleteRepairByFirestoreId(docId);
+      // 1. Đồng bộ REPAIRS
+      _subscribeToCollection(
+        collection: 'repairs',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
             debugPrint(
-              "SYNC_TRACE: Deleted repair $docId from local DB (deleted=true in Firestore)",
+              "SYNC_TRACE: Received repair data from Firestore - docId: $docId, status: ${data['status']}, price: ${data['price']}, totalCost: ${data['totalCost']}, createdAt: ${data['createdAt']}, deliveredAt: ${data['deliveredAt']}, deleted: ${data['deleted']}",
             );
-          } else {
-            // CONFLICT RESOLUTION: So sánh updatedAt
-            final shouldAccept = await _shouldAcceptCloudData(
-              collection: 'repairs',
-              firestoreId: docId,
-              cloudData: data,
-            );
-
-            if (shouldAccept) {
-              _convertTimestampFields(data);
-              _normalizeRepairPayload(data);
-              data['firestoreId'] = docId;
-              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-              await db.upsertRepair(Repair.fromMap(data));
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteRepairByFirestoreId(docId);
               debugPrint(
-                "SYNC_TRACE: Upserted repair $docId to local DB SUCCESSFULLY",
+                "SYNC_TRACE: Deleted repair $docId from local DB (deleted=true in Firestore)",
               );
-            }
-          }
-        } catch (e) {
-          debugPrint("SYNC_TRACE: Error syncing repair $docId: $e");
-        }
-      },
-      onBatchDone: () {
-        // Chỉ emit EventBus — HomeView + các view khác đã listen EventBus
-        // (bỏ onDataChanged() để tránh double-hit reload)
-        EventBus().emit('repairs_changed');
-      },
-    );
+            } else {
+              // CONFLICT RESOLUTION: So sánh updatedAt
+              final shouldAccept = await _shouldAcceptCloudData(
+                collection: 'repairs',
+                firestoreId: docId,
+                cloudData: data,
+              );
 
-    // 2. Đồng bộ SALES
-    _subscribeToCollection(
-      collection: 'sales',
-      shopId: shopId,
-      permissions: permissions,
-      role: role,
-      isSuperAdmin: isSuperAdmin,
-      onChanged: (data, docId) async {
-        try {
-          debugPrint(
-            "SYNC_TRACE: Received sale data from Firestore - docId: $docId, totalPrice: ${data['totalPrice']}, totalCost: ${data['totalCost']}, soldAt: ${data['soldAt']}, customerName: ${data['customerName']}, deleted: ${data['deleted']}",
-          );
-          final db = DBHelper();
-          if (data['deleted'] == true) {
-            await db.deleteSaleByFirestoreId(docId);
+              if (shouldAccept) {
+                _convertTimestampFields(data);
+                _normalizeRepairPayload(data);
+                data['firestoreId'] = docId;
+                data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+                await db.upsertRepair(Repair.fromMap(data));
+                debugPrint(
+                  "SYNC_TRACE: Upserted repair $docId to local DB SUCCESSFULLY",
+                );
+              }
+            }
+          } catch (e) {
+            debugPrint("SYNC_TRACE: Error syncing repair $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          // Chỉ emit EventBus — HomeView + các view khác đã listen EventBus
+          // (bỏ onDataChanged() để tránh double-hit reload)
+          EventBus().emit('repairs_changed');
+        },
+      );
+
+      // 2. Đồng bộ SALES
+      _subscribeToCollection(
+        collection: 'sales',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
             debugPrint(
-              "SYNC_TRACE: Deleted sale $docId from local DB (deleted=true in Firestore)",
+              "SYNC_TRACE: Received sale data from Firestore - docId: $docId, totalPrice: ${data['totalPrice']}, totalCost: ${data['totalCost']}, soldAt: ${data['soldAt']}, customerName: ${data['customerName']}, deleted: ${data['deleted']}",
             );
-          } else {
-            // CONFLICT RESOLUTION: So sánh updatedAt
-            final shouldAccept = await _shouldAcceptCloudData(
-              collection: 'sales',
-              firestoreId: docId,
-              cloudData: data,
-            );
-
-            if (shouldAccept) {
-              data['firestoreId'] = docId;
-              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-              await db.upsertSale(SaleOrder.fromMap(data));
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteSaleByFirestoreId(docId);
               debugPrint(
-                "SYNC_TRACE: Upserted sale $docId to local DB SUCCESSFULLY",
+                "SYNC_TRACE: Deleted sale $docId from local DB (deleted=true in Firestore)",
               );
+            } else {
+              // CONFLICT RESOLUTION: So sánh updatedAt
+              final shouldAccept = await _shouldAcceptCloudData(
+                collection: 'sales',
+                firestoreId: docId,
+                cloudData: data,
+              );
+
+              if (shouldAccept) {
+                data['firestoreId'] = docId;
+                data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+                await db.upsertSale(SaleOrder.fromMap(data));
+                debugPrint(
+                  "SYNC_TRACE: Upserted sale $docId to local DB SUCCESSFULLY",
+                );
+              }
             }
+          } catch (e) {
+            debugPrint("SYNC_TRACE: Error syncing sale $docId: $e");
           }
-        } catch (e) {
-          debugPrint("SYNC_TRACE: Error syncing sale $docId: $e");
-        }
-      },
-      onBatchDone: () {
-        // Chỉ emit EventBus — tránh double-hit reload
-        EventBus().emit('sales_changed');
-      },
-    );
+        },
+        onBatchDone: () {
+          // Chỉ emit EventBus — tránh double-hit reload
+          EventBus().emit('sales_changed');
+        },
+      );
 
-    // 3. Đồng bộ PRODUCTS
-    _subscribeToCollection(
-      collection: 'products',
-      shopId: shopId,
-      permissions: permissions,
-      role: role,
-      isSuperAdmin: isSuperAdmin,
-      onChanged: (data, docId) async {
-        try {
-          final db = DBHelper();
-          if (data['deleted'] == true) {
-            await db.deleteProductByFirestoreId(docId);
-          } else {
-            // CONFLICT RESOLUTION: So sánh updatedAt
-            final shouldAccept = await _shouldAcceptCloudData(
-              collection: 'products',
-              firestoreId: docId,
-              cloudData: data,
-            );
+      // 3. Đồng bộ PRODUCTS
+      _subscribeToCollection(
+        collection: 'products',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteProductByFirestoreId(docId);
+            } else {
+              // CONFLICT RESOLUTION: So sánh updatedAt
+              final shouldAccept = await _shouldAcceptCloudData(
+                collection: 'products',
+                firestoreId: docId,
+                cloudData: data,
+              );
 
-            if (shouldAccept) {
-              data['firestoreId'] = docId;
-              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+              if (shouldAccept) {
+                data['firestoreId'] = docId;
+                data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
 
-              // Chuyển đổi Timestamp sang milliseconds cho SQLite
-              if (data['createdAt'] is Timestamp) {
-                data['createdAt'] =
-                    (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
-              }
-              if (data['updatedAt'] is Timestamp) {
-                data['updatedAt'] =
-                    (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
-              }
-
-              // BẢO TOÀN isPending và pendingSupplier từ local nếu cloud không có
-              // (để tránh mất trạng thái Kho Tạm khi sync)
-              final existingProduct = await db.getProductByFirestoreId(docId);
-              if (existingProduct != null) {
-                // Nếu local có isPending = true và cloud không có trường này
-                // thì giữ nguyên giá trị local
-                if (existingProduct.isPending && data['isPending'] == null) {
-                  data['isPending'] = 1;
-                  data['pendingSupplier'] = existingProduct.pendingSupplier;
+                // Chuyển đổi Timestamp sang milliseconds cho SQLite
+                if (data['createdAt'] is Timestamp) {
+                  data['createdAt'] =
+                      (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
                 }
+                if (data['updatedAt'] is Timestamp) {
+                  data['updatedAt'] =
+                      (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
+                }
+
+                // BẢO TOÀN isPending và pendingSupplier từ local nếu cloud không có
+                // (để tránh mất trạng thái Kho Tạm khi sync)
+                final existingProduct = await db.getProductByFirestoreId(docId);
+                if (existingProduct != null) {
+                  // Nếu local có isPending = true và cloud không có trường này
+                  // thì giữ nguyên giá trị local
+                  if (existingProduct.isPending && data['isPending'] == null) {
+                    data['isPending'] = 1;
+                    data['pendingSupplier'] = existingProduct.pendingSupplier;
+                  }
+                }
+
+                // Map 'detail' → 'description' nếu cloud chỉ có 'detail' (backward compat)
+                if (data['description'] == null && data['detail'] != null) {
+                  data['description'] = data['detail'];
+                }
+
+                await db.upsertProduct(Product.fromMap(data));
               }
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync product $docId: $e");
+          }
+        },
+        onBatchDone: onDataChanged,
+      );
 
-              // Map 'detail' → 'description' nếu cloud chỉ có 'detail' (backward compat)
-              if (data['description'] == null && data['detail'] != null) {
-                data['description'] = data['detail'];
+      // 4. Đồng bộ EXPENSES
+      _subscribeToCollection(
+        collection: 'expenses',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteExpenseByFirestoreId(docId);
+            } else {
+              // CONFLICT RESOLUTION: So sánh updatedAt
+              final shouldAccept = await _shouldAcceptCloudData(
+                collection: 'expenses',
+                firestoreId: docId,
+                cloudData: data,
+              );
+
+              if (shouldAccept) {
+                data['firestoreId'] = docId;
+                data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+                await db.upsertExpense(Expense.fromMap(data));
               }
-
-              await db.upsertProduct(Product.fromMap(data));
             }
+          } catch (e) {
+            debugPrint("Lỗi sync expense $docId: $e");
           }
-        } catch (e) {
-          debugPrint("Lỗi sync product $docId: $e");
-        }
-      },
-      onBatchDone: onDataChanged,
-    );
+        },
+        onBatchDone: () {
+          // Chỉ emit EventBus — tránh double-hit reload
+          EventBus().emit('expenses_changed');
+        },
+      );
 
-    // 4. Đồng bộ EXPENSES
-    _subscribeToCollection(
-      collection: 'expenses',
-      shopId: shopId,
-      permissions: permissions,
-      role: role,
-      isSuperAdmin: isSuperAdmin,
-      onChanged: (data, docId) async {
-        try {
-          final db = DBHelper();
-          if (data['deleted'] == true) {
-            await db.deleteExpenseByFirestoreId(docId);
-          } else {
-            // CONFLICT RESOLUTION: So sánh updatedAt
-            final shouldAccept = await _shouldAcceptCloudData(
-              collection: 'expenses',
-              firestoreId: docId,
-              cloudData: data,
-            );
+      // 5. Đồng bộ DEBTS
+      _subscribeToCollection(
+        collection: 'debts',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteDebtByFirestoreId(docId);
+            } else {
+              // CONFLICT RESOLUTION: So sánh updatedAt
+              final shouldAccept = await _shouldAcceptCloudData(
+                collection: 'debts',
+                firestoreId: docId,
+                cloudData: data,
+              );
 
-            if (shouldAccept) {
+              if (shouldAccept) {
+                data['firestoreId'] = docId;
+                data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
+                await db.upsertDebt(Debt.fromMap(data));
+              }
+            }
+          } catch (e) {
+            debugPrint("Lỗi sync debt $docId: $e");
+          }
+        },
+        onBatchDone: () {
+          // Chỉ emit EventBus — tránh double-hit reload
+          EventBus().emit('debts_changed');
+        },
+      );
+
+      // 5b. Đồng bộ DEBT PAYMENTS (thanh toán công nợ)
+      // FIX: Thêm real-time listener cho debt_payments - trước đây bị thiếu
+      _subscribeToCollection(
+        collection: 'debt_payments',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            final db = DBHelper();
+            if (data['deleted'] == true) {
+              await db.deleteDebtPaymentByFirestoreId(docId);
+            } else {
               data['firestoreId'] = docId;
-              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-              await db.upsertExpense(Expense.fromMap(data));
+              data['isSynced'] = 1;
+              _convertTimestampFields(data);
+              await db.upsertDebtPayment(data);
             }
+          } catch (e) {
+            debugPrint("Lỗi sync debt_payment $docId: $e");
           }
-        } catch (e) {
-          debugPrint("Lỗi sync expense $docId: $e");
-        }
-      },
-      onBatchDone: () {
-        // Chỉ emit EventBus — tránh double-hit reload
-        EventBus().emit('expenses_changed');
-      },
-    );
+        },
+        onBatchDone: () {
+          // Chỉ emit EventBus — tránh double-hit reload
+          EventBus().emit('debts_changed');
+        },
+      );
 
-    // 5. Đồng bộ DEBTS
-    _subscribeToCollection(
-      collection: 'debts',
-      shopId: shopId,
-      permissions: permissions,
-      role: role,
-      isSuperAdmin: isSuperAdmin,
-      onChanged: (data, docId) async {
-        try {
-          final db = DBHelper();
-          if (data['deleted'] == true) {
-            await db.deleteDebtByFirestoreId(docId);
-          } else {
-            // CONFLICT RESOLUTION: So sánh updatedAt
-            final shouldAccept = await _shouldAcceptCloudData(
-              collection: 'debts',
-              firestoreId: docId,
-              cloudData: data,
-            );
-
-            if (shouldAccept) {
-              data['firestoreId'] = docId;
-              data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
-              await db.upsertDebt(Debt.fromMap(data));
+      // 6. Đồng bộ USERS (cập nhật cache khi có thay đổi)
+      _subscribeToCollection(
+        collection: 'users',
+        shopId: shopId,
+        permissions: permissions,
+        role: role,
+        isSuperAdmin: isSuperAdmin,
+        onChanged: (data, docId) async {
+          try {
+            // Nếu là user hiện tại, cập nhật cache shopId
+            final currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null && docId == currentUser.uid) {
+              UserService.updateCachedShopId(data['shopId']);
+              debugPrint("Updated cached shopId: ${data['shopId']}");
             }
+          } catch (e) {
+            debugPrint("Lỗi sync user $docId: $e");
           }
-        } catch (e) {
-          debugPrint("Lỗi sync debt $docId: $e");
-        }
-      },
-      onBatchDone: () {
-        // Chỉ emit EventBus — tránh double-hit reload
-        EventBus().emit('debts_changed');
-      },
-    );
+        },
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('users_changed');
+        },
+      );
 
-    // 5b. Đồng bộ DEBT PAYMENTS (thanh toán công nợ)
-    // FIX: Thêm real-time listener cho debt_payments - trước đây bị thiếu
-    _subscribeToCollection(
-      collection: 'debt_payments',
-      shopId: shopId,
-      permissions: permissions,
-      role: role,
-      isSuperAdmin: isSuperAdmin,
-      onChanged: (data, docId) async {
+      // 7. Đồng bộ SHOPS (subscribe trực tiếp vào document, không query by shopId)
+      // Collection 'shops' sử dụng document ID = shopId, không có field 'shopId'
+      final shopSub = _db.collection('shops').doc(shopId).snapshots().listen((
+        snapshot,
+      ) async {
+        if (!snapshot.exists) return;
+        final data = snapshot.data();
+        if (data == null) return;
+
         try {
-          final db = DBHelper();
-          if (data['deleted'] == true) {
-            await db.deleteDebtPaymentByFirestoreId(docId);
-          } else {
-            data['firestoreId'] = docId;
-            data['isSynced'] = 1;
-            _convertTimestampFields(data);
-            await db.upsertDebtPayment(data);
-          }
+          debugPrint("📡 Shop data changed for shopId: $shopId");
+
+          // Cập nhật SharedPreferences để các màn hình khác có thể đọc
+          final prefs = await SharedPreferences.getInstance();
+          final shopName = _normalizeLegacyShopName(data['name']?.toString());
+          final shopAddress = data['address']?.toString() ?? '';
+          final shopPhone = data['phone']?.toString() ?? '';
+
+          await prefs.setString('shop_name', shopName);
+          await prefs.setString('shop_address', shopAddress);
+          await prefs.setString('shop_phone', shopPhone);
+
+          // Sync policies to SharedPreferences so all devices in the same shop
+          // share the same warranty/return policy text.
+          final warrantyPolicy = data['warrantyPolicy']?.toString() ?? '';
+          final returnPolicy = data['returnPolicy']?.toString() ?? '';
+          await prefs.setString('warranty_policy', warrantyPolicy);
+          await prefs.setString('return_policy', returnPolicy);
+
+          debugPrint(
+            "✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone",
+          );
+
+          // Trigger UI update
+          onDataChanged();
         } catch (e) {
-          debugPrint("Lỗi sync debt_payment $docId: $e");
+          debugPrint("Lỗi sync shop $shopId: $e");
         }
-      },
-      onBatchDone: () {
-        // Chỉ emit EventBus — tránh double-hit reload
-        EventBus().emit('debts_changed');
-      },
-    );
+      }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
+      _subscriptions.add(shopSub);
 
-    // 6. Đồng bộ USERS (cập nhật cache khi có thay đổi)
-    _subscribeToCollection(
-      collection: 'users',
-      shopId: shopId,
-      permissions: permissions,
-      role: role,
-      isSuperAdmin: isSuperAdmin,
-      onChanged: (data, docId) async {
-        try {
-          // Nếu là user hiện tại, cập nhật cache shopId
-          final currentUser = FirebaseAuth.instance.currentUser;
-          if (currentUser != null && docId == currentUser.uid) {
-            UserService.updateCachedShopId(data['shopId']);
-            debugPrint("Updated cached shopId: ${data['shopId']}");
-          }
-        } catch (e) {
-          debugPrint("Lỗi sync user $docId: $e");
-        }
-      },
-      onBatchDone: onDataChanged,
-    );
-
-    // 7. Đồng bộ SHOPS (subscribe trực tiếp vào document, không query by shopId)
-    // Collection 'shops' sử dụng document ID = shopId, không có field 'shopId'
-    final shopSub = _db.collection('shops').doc(shopId).snapshots().listen((
-      snapshot,
-    ) async {
-      if (!snapshot.exists) return;
-      final data = snapshot.data();
-      if (data == null) return;
-
-      try {
-        debugPrint("📡 Shop data changed for shopId: $shopId");
-
-        // Cập nhật SharedPreferences để các màn hình khác có thể đọc
-        final prefs = await SharedPreferences.getInstance();
-        final shopName = _normalizeLegacyShopName(data['name']?.toString());
-        final shopAddress = data['address']?.toString() ?? '';
-        final shopPhone = data['phone']?.toString() ?? '';
-
-        await prefs.setString('shop_name', shopName);
-        await prefs.setString('shop_address', shopAddress);
-        await prefs.setString('shop_phone', shopPhone);
-
-        // Sync policies to SharedPreferences so all devices in the same shop
-        // share the same warranty/return policy text.
-        final warrantyPolicy = data['warrantyPolicy']?.toString() ?? '';
-        final returnPolicy = data['returnPolicy']?.toString() ?? '';
-        await prefs.setString('warranty_policy', warrantyPolicy);
-        await prefs.setString('return_policy', returnPolicy);
-
-        debugPrint(
-          "✅ Synced shop info to SharedPreferences: $shopName, $shopAddress, $shopPhone",
-        );
-
-        // Trigger UI update
-        onDataChanged();
-      } catch (e) {
-        debugPrint("Lỗi sync shop $shopId: $e");
-      }
-    }, onError: (e) => debugPrint("Sync error in shops/$shopId: $e"));
-    _subscriptions.add(shopSub);
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // CRITICAL subscriptions done — mark as initialized so UI can proceed
-    // ═══════════════════════════════════════════════════════════════════════
-    _isInitialized = true;
-    PerfMonitor.stop('initRealTimeSync');
-    debugPrint(
-      "✅ Critical sync ready (${_subscriptions.length} subs) — "
-      "deferred collections will load in 3s...",
-    );
+      // ═══════════════════════════════════════════════════════════════════════
+      // CRITICAL subscriptions done — mark as initialized so UI can proceed
+      // ═══════════════════════════════════════════════════════════════════════
+      _isInitialized = true;
+      PerfMonitor.stop('initRealTimeSync');
+      debugPrint(
+        "✅ Critical sync ready (${_subscriptions.length} subs) — "
+        "deferred collections will load in 3s...",
+      );
 
       // Schedule DEFERRED subscriptions after 3s to reduce initial load
       Future.delayed(const Duration(seconds: 3), () {
@@ -1937,10 +1996,16 @@ class SyncService {
         } else {
           bool isPolling = false;
 
-          Future<void> pollProductCategories() async {
+          Future<void> pollProductCategories({
+            String reason = 'initial',
+          }) async {
             if (isPolling) return;
             isPolling = true;
             try {
+              _logCollectionFetch(
+                collection: 'product_categories',
+                reason: reason,
+              );
               Query<Map<String, dynamic>> query = _db
                   .collection('shops')
                   .doc(currentShopId)
@@ -2012,12 +2077,9 @@ class SyncService {
             }
           }
 
+          _collectionRefreshers['product_categories'] = () =>
+              pollProductCategories(reason: 'manual_refresh');
           unawaited(pollProductCategories());
-          _pollingTimers.add(
-            Timer.periodic(_collectionPollInterval, (_) {
-              unawaited(pollProductCategories());
-            }),
-          );
         }
       }
     } catch (e) {
@@ -2171,6 +2233,7 @@ class SyncService {
         '⏭️ Skipping subscribe to $collection - not allowed for role=$role',
       );
       _subscriptionStatus[collection] = false;
+      _collectionRefreshers.remove(collection);
       return;
     }
 
@@ -2182,12 +2245,14 @@ class SyncService {
       return;
     }
 
-    debugPrint('📉 $collection: using polling get() instead of snapshots()');
+    debugPrint(
+      '📉 $collection: using controlled get() fetch instead of snapshots()',
+    );
     _subscriptionStatus[collection] = true;
 
     bool isPolling = false;
 
-    Future<void> pollCollection() async {
+    Future<void> pollCollection({String reason = 'initial'}) async {
       if (isPolling) return;
       isPolling = true;
       try {
@@ -2198,11 +2263,16 @@ class SyncService {
           return;
         }
 
+        _logCollectionFetch(collection: collection, reason: reason);
+
         Query<Map<String, dynamic>> query = _db.collection(collection);
         if (shopId != null) {
           query = query.where('shopId', isEqualTo: shopId);
 
-          if (_canUseIncrementalRealtime(collection: collection, shopId: shopId)) {
+          if (_canUseIncrementalRealtime(
+            collection: collection,
+            shopId: shopId,
+          )) {
             final cursorMs = _realtimeCursorMs(collection, shopId);
             query = query.where(
               'updatedAt',
@@ -2267,6 +2337,7 @@ class SyncService {
 
         if (isPermissionError) {
           _subscriptionStatus[collection] = false;
+          _collectionRefreshers.remove(collection);
           EventBus().emit('permission_denied:$collection');
           debugPrint(
             "⚠️ Permission denied while polling $collection - waiting for next init/re-auth",
@@ -2285,12 +2356,9 @@ class SyncService {
       }
     }
 
+    _collectionRefreshers[collection] = () =>
+        pollCollection(reason: 'manual_refresh');
     unawaited(pollCollection());
-    _pollingTimers.add(
-      Timer.periodic(_collectionPollInterval, (_) {
-        unawaited(pollCollection());
-      }),
-    );
   }
 
   /// Helper để xóa record local theo firestoreId khi cloud record đã bị soft-delete
@@ -2379,6 +2447,8 @@ class SyncService {
     }
     _subscriptions.clear();
     _pollingTimers.clear();
+    _collectionRefreshers.clear();
+    _collectionFetchCounts.clear();
     _subscriptionStatus.clear();
     _isInitialized = false;
     _currentShopId = null;
@@ -4262,4 +4332,3 @@ class SyncService {
     }
   }
 }
-

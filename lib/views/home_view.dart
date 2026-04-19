@@ -210,12 +210,6 @@ class _HomeViewState extends State<HomeView>
         _debouncedLoadStats();
         _debouncedLoadDebtOverview();
       });
-      _autoSyncTimer = Timer.periodic(
-        const Duration(
-          seconds: 120,
-        ), // Increase to 120s - real-time sync already handles changes
-        (_) => _syncNow(silent: true),
-      );
 
       _eventBusSub = EventBus().stream.listen((event) {
         debugPrint('HomeView: Received event: $event');
@@ -1287,14 +1281,7 @@ class _HomeViewState extends State<HomeView>
       _lastPausedAt = DateTime.now();
       debugPrint('HomeView: App paused - paused sync timer');
     } else if (state == AppLifecycleState.resumed) {
-      // Always restart the sync timer
-      if (_autoSyncTimer == null) {
-        _autoSyncTimer = Timer.periodic(
-          const Duration(seconds: 120),
-          (_) => _syncNow(silent: true),
-        );
-        debugPrint('HomeView: App resumed - restarted sync timer');
-      }
+      EventBus().emit('app_resumed');
 
       // Skip heavy reload if pause was very brief (< 2s) — this happens on
       // iOS when returning from camera, image picker, or quick overlays.
@@ -1666,8 +1653,8 @@ class _HomeViewState extends State<HomeView>
     if (mounted) setState(() => _isSyncing = true);
     try {
       await SyncService.syncAllToCloud();
-      // Không gọi downloadAllFromCloud ở đây — real-time listeners đã xử lý
-      // Chỉ reload stats từ local DB
+      await SyncService.refreshCloudCollections(reason: 'home_sync_now');
+      EventBus().emit('sync_now_completed');
       await _loadStats();
     } catch (e) {
       debugPrint("SYNC ERROR: $e");

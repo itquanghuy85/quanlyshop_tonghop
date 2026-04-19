@@ -3,10 +3,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/shift_swap_request_model.dart';
+import 'event_bus.dart';
 import 'user_service.dart';
 
 class ShiftSwapService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static int _myRequestsFetchCount = 0;
+  static int _pendingRequestsFetchCount = 0;
+
+  static bool _isRefreshEvent(String event) {
+    return event == 'shift_swap_requests_changed' ||
+        event == EventBus.dataRefresh ||
+        event == EventBus.shopChanged ||
+        event == 'sync_now_completed' ||
+        event == 'app_resumed';
+  }
 
   static Future<String> createRequest({
     required String requestedDate,
@@ -53,6 +64,8 @@ class ShiftSwapService {
       'serverUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
+    EventBus().emit('shift_swap_requests_changed');
+
     return docRef.id;
   }
 
@@ -71,7 +84,13 @@ class ShiftSwapService {
       }
 
       final effectiveLimit = limit.clamp(1, 20);
-      while (true) {
+      List<ShiftSwapRequest> lastData = const <ShiftSwapRequest>[];
+
+      Future<List<ShiftSwapRequest>> fetchOnce(String reason) async {
+        _myRequestsFetchCount += 1;
+        debugPrint(
+          '[SYNC][FETCH] collection=shift_swap_requests_my count=$_myRequestsFetchCount reason=$reason limit=$effectiveLimit',
+        );
         final snap = await _db
             .collection('shift_swap_requests')
             .where('shopId', isEqualTo: shopId)
@@ -81,13 +100,29 @@ class ShiftSwapService {
             .limit(effectiveLimit)
             .get();
 
-        yield snap.docs.map((doc) {
+        return snap.docs.map((doc) {
           final map = doc.data();
           map['firestoreId'] = doc.id;
           return ShiftSwapRequest.fromMap(map);
         }).toList();
+      }
 
-        await Future.delayed(const Duration(seconds: 20));
+      try {
+        lastData = await fetchOnce('initial_open');
+        yield lastData;
+      } catch (e) {
+        debugPrint('ShiftSwapService watchMyRequests initial fetch error: $e');
+        yield lastData;
+      }
+
+      await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+        try {
+          lastData = await fetchOnce(event);
+          yield lastData;
+        } catch (e) {
+          debugPrint('ShiftSwapService watchMyRequests refresh error: $e');
+          yield lastData;
+        }
       }
     })();
   }
@@ -103,7 +138,13 @@ class ShiftSwapService {
       }
 
       final effectiveLimit = limit.clamp(1, 20);
-      while (true) {
+      List<ShiftSwapRequest> lastData = const <ShiftSwapRequest>[];
+
+      Future<List<ShiftSwapRequest>> fetchOnce(String reason) async {
+        _pendingRequestsFetchCount += 1;
+        debugPrint(
+          '[SYNC][FETCH] collection=shift_swap_requests_pending count=$_pendingRequestsFetchCount reason=$reason limit=$effectiveLimit',
+        );
         final snap = await _db
             .collection('shift_swap_requests')
             .where('shopId', isEqualTo: shopId)
@@ -113,13 +154,31 @@ class ShiftSwapService {
             .limit(effectiveLimit)
             .get();
 
-        yield snap.docs.map((doc) {
+        return snap.docs.map((doc) {
           final map = doc.data();
           map['firestoreId'] = doc.id;
           return ShiftSwapRequest.fromMap(map);
         }).toList();
+      }
 
-        await Future.delayed(const Duration(seconds: 20));
+      try {
+        lastData = await fetchOnce('initial_open');
+        yield lastData;
+      } catch (e) {
+        debugPrint(
+          'ShiftSwapService watchPendingRequests initial fetch error: $e',
+        );
+        yield lastData;
+      }
+
+      await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+        try {
+          lastData = await fetchOnce(event);
+          yield lastData;
+        } catch (e) {
+          debugPrint('ShiftSwapService watchPendingRequests refresh error: $e');
+          yield lastData;
+        }
       }
     })();
   }
@@ -154,6 +213,7 @@ class ShiftSwapService {
       'updatedAt': now,
       'serverUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    EventBus().emit('shift_swap_requests_changed');
   }
 
   static Future<List<Map<String, String>>> getShopStaffOptions() async {
@@ -207,12 +267,15 @@ class ShiftSwapService {
     await _db.collection('shift_swap_requests').doc(request.firestoreId).set({
       'status': status,
       'reviewedBy': user.uid,
-      'reviewedByName': reviewerName.isEmpty ? (user.email ?? 'Quản lý') : reviewerName,
+      'reviewedByName': reviewerName.isEmpty
+          ? (user.email ?? 'Quản lý')
+          : reviewerName,
       'reviewedAt': now,
       'rejectReason': rejectReason,
       'updatedAt': now,
       'serverUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    EventBus().emit('shift_swap_requests_changed');
   }
 
   static void debugLog(Object message) {

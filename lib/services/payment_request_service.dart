@@ -21,6 +21,16 @@ class PaymentRequestService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static const String _collection = 'payment_requests';
+  static int _requestsFetchCount = 0;
+  static int _pendingFetchCount = 0;
+
+  static bool _isRefreshEvent(String event) {
+    return event == 'payment_requests_changed' ||
+        event == EventBus.dataRefresh ||
+        event == EventBus.shopChanged ||
+        event == 'sync_now_completed' ||
+        event == 'app_resumed';
+  }
 
   // ============== CREATE ==============
 
@@ -74,6 +84,7 @@ class PaymentRequestService {
 
       final docRef = await _db.collection(_collection).add(map);
       debugPrint('✅ PaymentRequest created: ${docRef.id}');
+      EventBus().emit('payment_requests_changed');
 
       // Upload images AFTER doc is created (non-blocking for list appearance)
       if (images != null && images.isNotEmpty) {
@@ -120,13 +131,29 @@ class PaymentRequestService {
 
       String typeDisplay;
       switch (paymentType) {
-        case PaymentType.electricity: typeDisplay = 'Tiền điện'; break;
-        case PaymentType.water: typeDisplay = 'Tiền nước'; break;
-        case PaymentType.internet: typeDisplay = 'Tiền mạng'; break;
-        case PaymentType.bankLoan: typeDisplay = 'Vay NH'; break;
-        case PaymentType.bankInstallment: typeDisplay = 'Trả góp NH'; break;
-        case PaymentType.insurance: typeDisplay = 'Bảo hiểm'; break;
-        case PaymentType.other: typeDisplay = (paymentTypeLabel?.isNotEmpty == true) ? paymentTypeLabel! : 'Đóng tiền'; break;
+        case PaymentType.electricity:
+          typeDisplay = 'Tiền điện';
+          break;
+        case PaymentType.water:
+          typeDisplay = 'Tiền nước';
+          break;
+        case PaymentType.internet:
+          typeDisplay = 'Tiền mạng';
+          break;
+        case PaymentType.bankLoan:
+          typeDisplay = 'Vay NH';
+          break;
+        case PaymentType.bankInstallment:
+          typeDisplay = 'Trả góp NH';
+          break;
+        case PaymentType.insurance:
+          typeDisplay = 'Bảo hiểm';
+          break;
+        case PaymentType.other:
+          typeDisplay = (paymentTypeLabel?.isNotEmpty == true)
+              ? paymentTypeLabel!
+              : 'Đóng tiền';
+          break;
       }
 
       final incTitle = 'THU ĐÓNG TIỀN: $typeDisplay - $customerName';
@@ -135,9 +162,12 @@ class PaymentRequestService {
 
       final noteParts = <String>[];
       if (customerPhone.isNotEmpty) noteParts.add('SĐT: $customerPhone');
-      if (bankName != null && bankName.isNotEmpty) noteParts.add('NH: $bankName');
-      if (accountNumber != null && accountNumber.isNotEmpty) noteParts.add('TK: $accountNumber');
-      if (description != null && description.isNotEmpty) noteParts.add(description);
+      if (bankName != null && bankName.isNotEmpty)
+        noteParts.add('NH: $bankName');
+      if (accountNumber != null && accountNumber.isNotEmpty)
+        noteParts.add('TK: $accountNumber');
+      if (description != null && description.isNotEmpty)
+        noteParts.add(description);
       noteParts.add('KH trả: $customerPaymentMethod');
       final noteStr = noteParts.join(' · ');
 
@@ -186,7 +216,9 @@ class PaymentRequestService {
         referenceId: requestId,
       );
 
-      debugPrint('✅ PaymentRequest $requestId: Income logged ($customerPaymentMethod)');
+      debugPrint(
+        '✅ PaymentRequest $requestId: Income logged ($customerPaymentMethod)',
+      );
       EventBus().emit('expenses_changed');
     } catch (e) {
       debugPrint('❌ PaymentRequest _logIncomeFromCustomer error: $e');
@@ -209,7 +241,9 @@ class PaymentRequestService {
         final url = await ref.getDownloadURL();
         urls.add(url);
         if (compressed.path != images[i].path) {
-          try { await compressed.delete(); } catch (_) {}
+          try {
+            await compressed.delete();
+          } catch (_) {}
         }
       }
       if (urls.isNotEmpty) {
@@ -218,6 +252,7 @@ class PaymentRequestService {
           'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         });
         debugPrint('✅ PaymentRequest $docId: ${urls.length} images uploaded');
+        EventBus().emit('payment_requests_changed');
       }
     } catch (e) {
       debugPrint('❌ PaymentRequest image upload error: $e');
@@ -231,7 +266,8 @@ class PaymentRequestService {
     String requestId,
     PaymentRequestStatus newStatus, {
     String? rejectReason,
-    String? paymentMethod, // 'TIỀN MẶT' or 'CHUYỂN KHOẢN' (required when completing)
+    String?
+    paymentMethod, // 'TIỀN MẶT' or 'CHUYỂN KHOẢN' (required when completing)
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -255,12 +291,14 @@ class PaymentRequestService {
         update['rejectReason'] = rejectReason;
       }
 
-      if (newStatus == PaymentRequestStatus.completed && paymentMethod != null) {
+      if (newStatus == PaymentRequestStatus.completed &&
+          paymentMethod != null) {
         update['paymentMethod'] = paymentMethod;
       }
 
       await _db.collection(_collection).doc(requestId).update(update);
       debugPrint('✅ PaymentRequest $requestId → ${newStatus.name}');
+      EventBus().emit('payment_requests_changed');
 
       // Khi hoàn thành: tạo chi phí + ghi log tài chính (chủ shop luôn chuyển khoản cho ngân hàng)
       if (newStatus == PaymentRequestStatus.completed) {
@@ -295,13 +333,16 @@ class PaymentRequestService {
   }
 
   /// Tạo bản ghi chi phí (expenses) + log tài chính khi đóng tiền hoàn thành
-  static Future<void> _logFinancialOnCompleted(String requestId, String paymentMethod) async {
+  static Future<void> _logFinancialOnCompleted(
+    String requestId,
+    String paymentMethod,
+  ) async {
     try {
       // Lấy thông tin payment request
       final doc = await _db.collection(_collection).doc(requestId).get();
       if (!doc.exists) return;
       final data = doc.data()!;
-      
+
       final amount = (data['amount'] as num?)?.toInt() ?? 0;
       if (amount <= 0) return;
 
@@ -316,13 +357,28 @@ class PaymentRequestService {
       // Build title cho expense
       String typeDisplay;
       switch (paymentType) {
-        case 'electricity': typeDisplay = 'Tiền điện'; break;
-        case 'water': typeDisplay = 'Tiền nước'; break;
-        case 'internet': typeDisplay = 'Tiền mạng'; break;
-        case 'bankLoan': typeDisplay = 'Vay NH'; break;
-        case 'bankInstallment': typeDisplay = 'Trả góp NH'; break;
-        case 'insurance': typeDisplay = 'Bảo hiểm'; break;
-        default: typeDisplay = paymentTypeLabel.isNotEmpty ? paymentTypeLabel : 'Đóng tiền';
+        case 'electricity':
+          typeDisplay = 'Tiền điện';
+          break;
+        case 'water':
+          typeDisplay = 'Tiền nước';
+          break;
+        case 'internet':
+          typeDisplay = 'Tiền mạng';
+          break;
+        case 'bankLoan':
+          typeDisplay = 'Vay NH';
+          break;
+        case 'bankInstallment':
+          typeDisplay = 'Trả góp NH';
+          break;
+        case 'insurance':
+          typeDisplay = 'Bảo hiểm';
+          break;
+        default:
+          typeDisplay = paymentTypeLabel.isNotEmpty
+              ? paymentTypeLabel
+              : 'Đóng tiền';
       }
 
       final expTitle = 'ĐÓNG TIỀN: $typeDisplay - $customerName';
@@ -395,7 +451,9 @@ class PaymentRequestService {
         referenceId: requestId,
       );
 
-      debugPrint('✅ PaymentRequest $requestId: Expense + FinancialActivity logged ($paymentMethod)');
+      debugPrint(
+        '✅ PaymentRequest $requestId: Expense + FinancialActivity logged ($paymentMethod)',
+      );
       EventBus().emit('expenses_changed');
     } catch (e) {
       debugPrint('❌ PaymentRequest _logFinancialOnCompleted error: $e');
@@ -409,6 +467,7 @@ class PaymentRequestService {
         'deleted': true,
         'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
+      EventBus().emit('payment_requests_changed');
       return true;
     } catch (e) {
       debugPrint('❌ PaymentRequest delete error: $e');
@@ -438,17 +497,41 @@ class PaymentRequestService {
       query = query.where('status', isEqualTo: statusFilter.name);
     }
 
-    query = query.orderBy('createdAt', descending: true).limit(limit.clamp(1, 20));
+    query = query
+        .orderBy('createdAt', descending: true)
+        .limit(limit.clamp(1, 20));
 
-    Future<List<PaymentRequest>> fetchOnce() async {
+    final effectiveLimit = limit.clamp(1, 20);
+    List<PaymentRequest> lastData = const <PaymentRequest>[];
+
+    Future<List<PaymentRequest>> fetchOnce(String reason) async {
+      _requestsFetchCount += 1;
+      debugPrint(
+        '[SYNC][FETCH] collection=payment_requests count=$_requestsFetchCount reason=$reason limit=$effectiveLimit',
+      );
       final snapshot = await query.get();
-      return snapshot.docs.map((doc) => PaymentRequest.fromSnapshot(doc)).toList();
+      return snapshot.docs
+          .map((doc) => PaymentRequest.fromSnapshot(doc))
+          .toList();
     }
 
-    yield await fetchOnce();
-    yield* Stream.periodic(
-      const Duration(seconds: 20),
-    ).asyncMap((_) => fetchOnce());
+    try {
+      lastData = await fetchOnce('initial_open');
+      yield lastData;
+    } catch (e) {
+      debugPrint('❌ PaymentRequest requestsStream initial fetch error: $e');
+      yield lastData;
+    }
+
+    await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+      try {
+        lastData = await fetchOnce(event);
+        yield lastData;
+      } catch (e) {
+        debugPrint('❌ PaymentRequest requestsStream refresh error: $e');
+        yield lastData;
+      }
+    }
   }
 
   /// Đếm yêu cầu chờ xử lý
@@ -459,7 +542,13 @@ class PaymentRequestService {
       return;
     }
 
-    Future<int> fetchCount() async {
+    int lastCount = 0;
+
+    Future<int> fetchCount(String reason) async {
+      _pendingFetchCount += 1;
+      debugPrint(
+        '[SYNC][FETCH] collection=payment_requests_pending_count count=$_pendingFetchCount reason=$reason limit=20',
+      );
       final snapshot = await _db
           .collection(_collection)
           .where('shopId', isEqualTo: shopId)
@@ -470,10 +559,23 @@ class PaymentRequestService {
       return snapshot.size;
     }
 
-    yield await fetchCount();
-    yield* Stream.periodic(
-      const Duration(seconds: 20),
-    ).asyncMap((_) => fetchCount());
+    try {
+      lastCount = await fetchCount('initial_open');
+      yield lastCount;
+    } catch (e) {
+      debugPrint('❌ PaymentRequest pendingCount initial fetch error: $e');
+      yield lastCount;
+    }
+
+    await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+      try {
+        lastCount = await fetchCount(event);
+        yield lastCount;
+      } catch (e) {
+        debugPrint('❌ PaymentRequest pendingCount refresh error: $e');
+        yield lastCount;
+      }
+    }
   }
 
   // ============== QUERIES ==============
@@ -508,7 +610,9 @@ class PaymentRequestService {
         final url = await ref.getDownloadURL();
         urls.add(url);
         if (compressed.path != images[i].path) {
-          try { await compressed.delete(); } catch (_) {}
+          try {
+            await compressed.delete();
+          } catch (_) {}
         }
       }
 
@@ -543,7 +647,9 @@ class PaymentRequestService {
         if (await compressed.length() < await file.length()) {
           return compressed;
         }
-        try { await compressed.delete(); } catch (_) {}
+        try {
+          await compressed.delete();
+        } catch (_) {}
       }
     } catch (e) {
       debugPrint('⚠️ PaymentRequest compress error: $e');
@@ -551,4 +657,3 @@ class PaymentRequestService {
     return file;
   }
 }
-

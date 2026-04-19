@@ -13,9 +13,21 @@ import 'encryption_service.dart';
 import 'financial_activity_service.dart';
 import 'money_validation_service.dart';
 import 'firestore_write_helper.dart';
+import 'event_bus.dart';
 
 class FirestoreService {
   static final _db = FirebaseFirestore.instance;
+  static int _expenseFetchCount = 0;
+  static int _attendanceFetchCount = 0;
+
+  static bool _isRefreshEvent(String event) {
+    return event == EventBus.dataRefresh ||
+        event == EventBus.shopChanged ||
+        event == 'sync_now_completed' ||
+        event == 'app_resumed' ||
+        event == 'expenses_changed' ||
+        event == 'attendance_changed';
+  }
 
   // --- THÔNG BÁO HỆ THỐNG ---
   static Future<void> _notifyAll(
@@ -575,12 +587,11 @@ class FirestoreService {
   }
 
   // --- SALVAGE PHONES (Kho máy xác) ---
-  static Future<void> addSalvagePhoneCloud(
-    Map<String, dynamic> data,
-  ) async {
+  static Future<void> addSalvagePhoneCloud(Map<String, dynamic> data) async {
     try {
       final shopId = await UserService.getCurrentShopId();
-      final String docId = data['firestoreId'] ??
+      final String docId =
+          data['firestoreId'] ??
           'sp_${data['createdAt']}_${data['deviceName'].hashCode}';
       data['shopId'] = shopId;
       data['firestoreId'] = docId;
@@ -595,9 +606,7 @@ class FirestoreService {
     }
   }
 
-  static Future<void> updateSalvagePhoneCloud(
-    Map<String, dynamic> data,
-  ) async {
+  static Future<void> updateSalvagePhoneCloud(Map<String, dynamic> data) async {
     if (data['firestoreId'] == null) return;
     try {
       final shopId = await UserService.getCurrentShopId();
@@ -633,9 +642,36 @@ class FirestoreService {
         query = query.where('shopId', isEqualTo: shopId);
       }
 
-      while (true) {
-        yield await query.orderBy('date', descending: true).limit(20).get();
-        await Future.delayed(const Duration(seconds: 20));
+      QuerySnapshot? lastSnapshot;
+
+      Future<QuerySnapshot> fetchOnce(String reason) async {
+        _expenseFetchCount += 1;
+        debugPrint(
+          '[SYNC][FETCH] collection=expenses count=$_expenseFetchCount reason=$reason limit=20',
+        );
+        return query.orderBy('date', descending: true).limit(20).get();
+      }
+
+      try {
+        lastSnapshot = await fetchOnce('initial_open');
+        yield lastSnapshot;
+      } catch (e) {
+        debugPrint('Firestore getExpenseStream initial fetch error: $e');
+        if (lastSnapshot != null) {
+          yield lastSnapshot;
+        }
+      }
+
+      await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+        try {
+          lastSnapshot = await fetchOnce(event);
+          yield lastSnapshot;
+        } catch (e) {
+          debugPrint('Firestore getExpenseStream refresh error: $e');
+          if (lastSnapshot != null) {
+            yield lastSnapshot;
+          }
+        }
       }
     } catch (e) {
       debugPrint('Firestore getExpenseStream error: $e');
@@ -767,9 +803,36 @@ class FirestoreService {
         query = query.where('dateKey', isEqualTo: dateKey);
       }
 
-      while (true) {
-        yield await query.orderBy('createdAt', descending: true).limit(20).get();
-        await Future.delayed(const Duration(seconds: 20));
+      QuerySnapshot? lastSnapshot;
+
+      Future<QuerySnapshot> fetchOnce(String reason) async {
+        _attendanceFetchCount += 1;
+        debugPrint(
+          '[SYNC][FETCH] collection=attendance count=$_attendanceFetchCount reason=$reason limit=20',
+        );
+        return query.orderBy('createdAt', descending: true).limit(20).get();
+      }
+
+      try {
+        lastSnapshot = await fetchOnce('initial_open');
+        yield lastSnapshot;
+      } catch (e) {
+        debugPrint('Firestore getAttendanceStream initial fetch error: $e');
+        if (lastSnapshot != null) {
+          yield lastSnapshot;
+        }
+      }
+
+      await for (final event in EventBus().stream.where(_isRefreshEvent)) {
+        try {
+          lastSnapshot = await fetchOnce(event);
+          yield lastSnapshot;
+        } catch (e) {
+          debugPrint('Firestore getAttendanceStream refresh error: $e');
+          if (lastSnapshot != null) {
+            yield lastSnapshot;
+          }
+        }
       }
     } catch (e) {
       debugPrint('Firestore getAttendanceStream error: $e');
@@ -1196,7 +1259,10 @@ class FirestoreService {
       });
     } catch (e) {
       try {
-        await _db.collection('partner_repair_history').doc(firestoreId).delete();
+        await _db
+            .collection('partner_repair_history')
+            .doc(firestoreId)
+            .delete();
       } catch (_) {}
       debugPrint('Firestore deletePartnerRepairHistoryByFirestoreId error: $e');
     }
@@ -1418,12 +1484,13 @@ class FirestoreService {
 
         // Lấy debtType từ debt để cash_closing có thể phân biệt thu nợ KH vs trả nợ shop
         debtType = debtData['type'] as String? ?? 'CUSTOMER_OWES';
-        personName = (debtData['personName'] ??
-                debtData['customerName'] ??
-                debtData['supplierName'] ??
-                debtData['name'] ??
-                'Không rõ')
-            .toString();
+        personName =
+            (debtData['personName'] ??
+                    debtData['customerName'] ??
+                    debtData['supplierName'] ??
+                    debtData['name'] ??
+                    'Không rõ')
+                .toString();
         phone = (debtData['phone'] ?? debtData['phoneNumber'] ?? '').toString();
 
         final paymentData = {
@@ -1943,8 +2010,10 @@ class FirestoreService {
   ) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      debugPrint('💾 saveShopDeductionSettings: shopId=$shopId, uid=${currentUser?.uid}, email=${currentUser?.email}');
-      
+      debugPrint(
+        '💾 saveShopDeductionSettings: shopId=$shopId, uid=${currentUser?.uid}, email=${currentUser?.email}',
+      );
+
       // Remove updatedAt from toMap() - will be replaced by serverTimestamp
       settings.remove('updatedAt');
       settings['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
@@ -1958,7 +2027,9 @@ class FirestoreService {
       debugPrint('✅ Saved shop deduction settings for shop: $shopId');
       return true;
     } catch (e) {
-      debugPrint('❌ Error saving shop deduction settings: shopId=$shopId, error=$e');
+      debugPrint(
+        '❌ Error saving shop deduction settings: shopId=$shopId, error=$e',
+      );
       rethrow; // Propagate error to caller for better UX
     }
   }
@@ -2098,4 +2169,3 @@ class FirestoreService {
     }
   }
 }
-
