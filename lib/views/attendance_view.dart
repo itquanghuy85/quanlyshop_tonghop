@@ -16,6 +16,7 @@ import '../services/notification_service.dart';
 import '../services/background_upload_service.dart';
 import '../services/osm_map_service.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
+import 'shift_swap_view.dart';
 import '../widgets/app_cached_image.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -442,6 +443,14 @@ class _AttendanceViewState extends State<AttendanceView>
             AppLocalizations.of(context)?.personalAttendanceDescription ??
             "Check-in/out và xem lịch sử chấm công cá nhân",
         actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz),
+            tooltip: 'Đổi ca',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ShiftSwapView()),
+            ),
+          ),
           if (_role == 'owner' || _role == 'manager')
             IconButton(
               icon: const Icon(Icons.file_download_outlined),

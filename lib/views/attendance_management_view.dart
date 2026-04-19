@@ -18,6 +18,7 @@ import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/app_cached_image.dart';
+import 'shift_swap_view.dart';
 
 /// Trang theo dõi chấm công nhân viên cho quản lý/chủ shop
 /// 3 Tab: Tổng quan | Duyệt chấm công | Xin nghỉ
@@ -235,6 +236,14 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
         title: loc.attendanceTracking,
         accentColor: AppBarAccents.staff,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.swap_horiz, color: Colors.white, size: 20),
+            tooltip: 'Quản lý đổi ca',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ShiftSwapView()),
+            ),
+          ),
           IconButton(
             icon: Icon(
               _viewMode == 'day' ? Icons.calendar_month : Icons.calendar_today,

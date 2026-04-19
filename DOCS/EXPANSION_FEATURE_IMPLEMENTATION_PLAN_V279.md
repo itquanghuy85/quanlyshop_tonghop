@@ -19,7 +19,7 @@ Checklist:
 - [x] Tích hợp điều hướng từ Sync Center
 - [x] Chạy test + build
 
-## Ưu tiên 2 - Module đổi ca (Shift Swap)
+## Ưu tiên 2 - Module đổi ca (Shift Swap) (HOÀN TẤT)
 
 Phạm vi dự kiến:
 - Danh sách yêu cầu đổi ca.
@@ -27,8 +27,11 @@ Phạm vi dự kiến:
 - Audit log và trạng thái realtime.
 - Chặn trùng lịch và quyền theo vai trò.
 
-Điều kiện bắt đầu:
-- Hoàn tất ưu tiên 1 và xác nhận ổn định build/test.
+Kết quả đã hoàn tất:
+- Đã có màn hình `ShiftSwapView` cho nhân viên tạo yêu cầu và quản lý duyệt/từ chối.
+- Đã có service shop-scoped `ShiftSwapService` (create/list/approve/reject/cancel).
+- Đã tích hợp điểm mở từ màn hình chấm công cá nhân và quản lý chấm công.
+- Đã chạy test + build debug thành công trước khi phát hành.
 
 ## Ưu tiên 3 - Màn hình Recent Activity độc lập
 
