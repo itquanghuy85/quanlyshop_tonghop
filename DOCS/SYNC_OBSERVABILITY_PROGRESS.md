@@ -10,7 +10,7 @@ Cập nhật: 2026-04-19
 ## Checklist phase
 - [x] Phase 1: Báo cáo theo domain từ queue + local unsynced + mismatch + mốc sync cloud.
 - [x] Phase 2: Ghi lịch sử sync bền vững (thành công/lỗi/retry) và hiển thị vào domain report.
-- [ ] Phase 3: Cảnh báo kẹt sync chủ động + xuất báo cáo vận hành.
+- [x] Phase 3: Cảnh báo kẹt sync chủ động + xuất báo cáo vận hành.
 
 ## Nhật ký thực thi
 ### Bước 0 - Chuyển nhánh làm việc
@@ -24,4 +24,11 @@ Cập nhật: 2026-04-19
 - [x] Nối dữ liệu audit vào Domain Sync Report (thống kê 24h + mốc gần nhất).
 - [x] Hiển thị thống kê success/lỗi/retry trong Sync Center.
 - [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
-- [ ] Commit + push bước Phase 2.
+- [x] Commit + push bước Phase 2.
+
+### Bước 2 - Triển khai Phase 3
+- [x] Bổ sung cảnh báo kẹt sync chủ động theo domain (pending/processing quá 20 phút).
+- [x] Hiển thị banner cảnh báo vận hành tổng hợp trong Sync Center.
+- [x] Tạo chức năng xuất báo cáo sync Markdown + mở/chia sẻ trực tiếp.
+- [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
+- [ ] Commit + push bước Phase 3.

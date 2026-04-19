@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import 'responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import '../services/sync_service.dart';
@@ -9,6 +12,7 @@ import '../services/sync_health_check.dart';
 import '../services/notification_service.dart';
 import '../services/data_migration_service.dart';
 import '../services/firestore_connectivity_service.dart';
+import '../services/sync_audit_service.dart';
 import '../services/sync_domain_report_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -314,6 +318,12 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
                           const SizedBox(height: 16),
 
+                          // Proactive stuck-sync alert banner
+                          _buildOperationalAlertCard(),
+
+                          if (_domainReport?.hasOperationalAlerts ?? false)
+                            const SizedBox(height: 16),
+
                           // Main actions
                           const Text(
                             'THAO TÁC ĐỒNG BỘ',
@@ -407,6 +417,15 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             title: 'Khôi phục dữ liệu',
                             subtitle: 'Tìm dữ liệu bị "lạc" do đổi shop',
                             onTap: _handleDataRecovery,
+                          ),
+
+                          _buildActionTile(
+                            icon: Icons.summarize,
+                            iconColor: Colors.deepPurple,
+                            title: 'Xuất báo cáo Sync',
+                            subtitle:
+                                'Tạo file Markdown trạng thái sync để gửi vận hành',
+                            onTap: _handleExportSyncReport,
                           ),
 
                           // Show retry/clear failed when there are failed items
@@ -752,6 +771,77 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                 color: Colors.green.shade700,
               ),
             ),
+          if (domain.hasStuckQueue)
+            Text(
+              'Canh bao ket sync: ${domain.stalePendingQueue} pending + ${domain.staleProcessingQueue} processing > ${SyncDomainReportService.stuckQueueThresholdMinutes} phut${domain.oldestQueueAgeMinutes != null ? ' (cu nhat ${domain.oldestQueueAgeMinutes} phut)' : ''}',
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.deepOrange.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOperationalAlertCard() {
+    final report = _domainReport;
+    if (report == null || !report.hasOperationalAlerts) {
+      return const SizedBox.shrink();
+    }
+
+    final alertDomains = report.alertDomains;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.deepOrange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.deepOrange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.deepOrange.shade700,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'CANH BAO VAN HANH SYNC',
+                style: TextStyle(
+                  color: Colors.deepOrange.shade800,
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTextStyles.subtitle1Size,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Phat hien ${report.totalStuckQueue} item ket > ${SyncDomainReportService.stuckQueueThresholdMinutes} phut va ${report.totalFailed} item failed trong queue.',
+            style: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
+              color: Colors.deepOrange.shade800,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...alertDomains.map(
+            (domain) => Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                '• ${domain.title}: failed=${domain.failedQueue}, ket=${domain.staleQueueTotal}',
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: Colors.deepOrange.shade700,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -759,12 +849,14 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
   Color _domainStatusColor(DomainSyncReport domain) {
     if (domain.hasError) return Colors.red;
+    if (domain.hasStuckQueue) return Colors.deepOrange;
     if (domain.hasPending) return Colors.orange;
     return Colors.green;
   }
 
   IconData _domainStatusIcon(DomainSyncReport domain) {
     if (domain.hasError) return Icons.cloud_off;
+    if (domain.hasStuckQueue) return Icons.warning_amber_rounded;
     if (domain.hasPending) return Icons.cloud_upload;
     return Icons.cloud_done;
   }
@@ -1200,6 +1292,190 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     } catch (e) {
       NotificationService.showSnackBar('❌ Lỗi: $e', color: Colors.red);
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleExportSyncReport() async {
+    setState(() {
+      _isLoading = true;
+      _loadingMessage = 'Đang tạo báo cáo sync...';
+    });
+
+    try {
+      final latestHealth =
+          _healthReport ?? await SyncHealthCheck.runFullCheck();
+      final latestDomainReport = await SyncDomainReportService.buildReport(
+        healthReport: latestHealth,
+      );
+      final latestQueueStats = await _orchestrator.getSyncStats();
+      final events = await SyncAuditService.getRecentEvents(limit: 80);
+      final markdown = _buildSyncOperationalMarkdown(
+        report: latestDomainReport,
+        queueStats: latestQueueStats,
+        events: events,
+      );
+
+      final reportPath = await SyncAuditService.writeMarkdownReport(
+        markdown: markdown,
+        prefix: 'sync_operational_report',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _healthReport = latestHealth;
+        _domainReport = latestDomainReport;
+        _syncQueueStats = latestQueueStats;
+      });
+
+      await _showReportExportDialog(reportPath);
+      NotificationService.showSnackBar(
+        '✅ Đã tạo báo cáo sync thành công',
+        color: Colors.green,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      NotificationService.showSnackBar(
+        '❌ Không thể xuất báo cáo sync: $e',
+        color: Colors.red,
+      );
+    }
+  }
+
+  String _buildSyncOperationalMarkdown({
+    required SyncDomainReportSnapshot report,
+    required Map<String, int> queueStats,
+    required List<SyncAuditEvent> events,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('# Báo cáo vận hành Sync');
+    buffer.writeln('');
+    buffer.writeln('- Thời gian tạo: ${_formatSyncTime(report.generatedAt)}');
+    buffer.writeln('- Tổng pending queue: ${queueStats['pending'] ?? 0}');
+    buffer.writeln('- Tổng processing queue: ${queueStats['processing'] ?? 0}');
+    buffer.writeln('- Tổng failed queue: ${queueStats['failed'] ?? 0}');
+    buffer.writeln('- Tổng cảnh báo kẹt queue: ${report.totalStuckQueue}');
+    buffer.writeln('');
+
+    buffer.writeln('## Trạng thái theo nghiệp vụ');
+    for (final domain in report.domains) {
+      buffer.writeln('');
+      buffer.writeln('### ${domain.title} (${domain.statusLabel})');
+      buffer.writeln(
+        '- Queue: pending=${domain.pendingQueue}, processing=${domain.processingQueue}, failed=${domain.failedQueue}',
+      );
+      buffer.writeln(
+        '- Queue kẹt: ${domain.staleQueueTotal} (pending=${domain.stalePendingQueue}, processing=${domain.staleProcessingQueue})',
+      );
+      buffer.writeln(
+        '- Local chưa sync: ${domain.unsyncedLocal}, lệch local-cloud: ${domain.mismatchCount}, tổng local: ${domain.totalLocalRecords}',
+      );
+      buffer.writeln(
+        '- 24h gần nhất: success=${domain.recentSuccessCount}, retry=${domain.recentRetryCount}, failed=${domain.recentFailedCount}',
+      );
+      buffer.writeln(
+        '- Mốc cloud gần nhất: ${domain.lastSyncAt != null ? _formatSyncTime(domain.lastSyncAt!) : 'chưa có'}',
+      );
+      buffer.writeln(
+        '- Lỗi gần nhất: ${domain.lastFailureAt != null ? _formatSyncTime(domain.lastFailureAt!) : 'không có'}',
+      );
+    }
+
+    buffer.writeln('');
+    buffer.writeln('## Nhật ký sự kiện sync gần nhất');
+    if (events.isEmpty) {
+      buffer.writeln('- Chưa có sự kiện trong bảng sync_audit_log.');
+    } else {
+      buffer.writeln('|Thời gian|Domain|Entity|Kết quả|Queue|Retry|Lỗi|');
+      buffer.writeln('|---|---|---|---|---|---:|---|');
+      for (final event in events.take(40)) {
+        final error = (event.errorMessage ?? '')
+            .replaceAll('\n', ' ')
+            .replaceAll('|', '/')
+            .trim();
+        buffer.writeln(
+          '|${_formatSyncTime(event.createdAt)}|${_domainTitleFromKey(event.domainKey)}|${event.entityType}#${event.entityId}|${event.outcome}|${event.queueStatus}|${event.retryCount}|${error.isEmpty ? '-' : error}|',
+        );
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  String _domainTitleFromKey(String key) {
+    switch (key) {
+      case 'financial':
+        return 'Tai chinh';
+      case 'repair':
+        return 'Don sua';
+      case 'inventory':
+        return 'Kho';
+      case 'sales':
+        return 'Ban hang';
+      default:
+        return key;
+    }
+  }
+
+  Future<void> _showReportExportDialog(String reportPath) async {
+    final normalizedPath = reportPath.replaceAll('\\', '/');
+    final fileName = normalizedPath.split('/').last;
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.description, color: Colors.indigo),
+            SizedBox(width: 8),
+            Text('BÁO CÁO SYNC ĐÃ TẠO'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File: $fileName'),
+            const SizedBox(height: 8),
+            Text(
+              reportPath,
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'close'),
+            child: const Text('Đóng'),
+          ),
+          if (!kIsWeb)
+            TextButton.icon(
+              onPressed: () => Navigator.pop(ctx, 'open'),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Mở'),
+            ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, 'share'),
+            icon: const Icon(Icons.share, size: 18),
+            label: const Text('Chia sẻ'),
+          ),
+        ],
+      ),
+    );
+
+    if (action == 'open') {
+      await OpenFilex.open(reportPath);
+      return;
+    }
+
+    if (action == 'share') {
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(reportPath)], title: fileName),
+      );
     }
   }
 

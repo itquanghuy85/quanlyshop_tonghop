@@ -12,6 +12,9 @@ class DomainSyncReport {
   final int pendingQueue;
   final int processingQueue;
   final int failedQueue;
+  final int stalePendingQueue;
+  final int staleProcessingQueue;
+  final int? oldestQueueAgeMinutes;
   final int unsyncedLocal;
   final int mismatchCount;
   final int totalLocalRecords;
@@ -28,6 +31,9 @@ class DomainSyncReport {
     required this.pendingQueue,
     required this.processingQueue,
     required this.failedQueue,
+    required this.stalePendingQueue,
+    required this.staleProcessingQueue,
+    required this.oldestQueueAgeMinutes,
     required this.unsyncedLocal,
     required this.mismatchCount,
     required this.totalLocalRecords,
@@ -40,6 +46,10 @@ class DomainSyncReport {
   });
 
   int get queueTotal => pendingQueue + processingQueue + failedQueue;
+
+  int get staleQueueTotal => stalePendingQueue + staleProcessingQueue;
+
+  bool get hasStuckQueue => staleQueueTotal > 0;
 
   bool get hasError => failedQueue > 0;
 
@@ -56,6 +66,7 @@ class DomainSyncReport {
 
   String get statusLabel {
     if (hasError) return 'Loi sync';
+    if (hasStuckQueue) return 'Canh bao ket sync';
     if (hasPending) return 'Chua sync het';
     return 'Da sync';
   }
@@ -81,6 +92,14 @@ class SyncDomainReportSnapshot {
         d.unsyncedLocal +
         d.mismatchCount,
   );
+
+  int get totalStuckQueue =>
+      domains.fold<int>(0, (sum, d) => sum + d.staleQueueTotal);
+
+  bool get hasOperationalAlerts => totalFailed > 0 || totalStuckQueue > 0;
+
+  List<DomainSyncReport> get alertDomains =>
+      domains.where((d) => d.hasError || d.hasStuckQueue).toList();
 }
 
 class _DomainConfig {
@@ -103,6 +122,7 @@ class _DomainConfig {
 
 class SyncDomainReportService {
   static const _lastSyncPrefix = 'lastSync_';
+  static const int stuckQueueThresholdMinutes = 20;
 
   static final List<_DomainConfig> _domainConfigs = [
     const _DomainConfig(
@@ -206,6 +226,8 @@ class SyncDomainReportService {
   static Future<SyncDomainReportSnapshot> buildReport({
     SyncHealthReport? healthReport,
   }) async {
+    final generatedAt = DateTime.now();
+    final generatedAtMs = generatedAt.millisecondsSinceEpoch;
     final db = await DBHelper().database;
     final prefs = await SharedPreferences.getInstance();
     final shopId = await UserService.getCurrentShopId();
@@ -217,7 +239,11 @@ class SyncDomainReportService {
     final reports = <DomainSyncReport>[];
 
     for (final config in _domainConfigs) {
-      final queueStats = await _countQueueStats(db, config.queueEntityTypes);
+      final queueStats = await _countQueueStats(
+        db,
+        config.queueEntityTypes,
+        nowMs: generatedAtMs,
+      );
       final unsyncedLocal = await _countLocalUnsynced(
         db,
         config.localTables,
@@ -246,6 +272,11 @@ class SyncDomainReportService {
             lastSuccessAt: null,
             lastFailureAt: null,
           );
+      final oldestQueueCreatedAt = _toInt(queueStats['oldestQueueCreatedAt']);
+      final oldestQueueAgeMinutes = _computeAgeMinutes(
+        generatedAtMs,
+        oldestQueueCreatedAt,
+      );
 
       reports.add(
         DomainSyncReport(
@@ -254,6 +285,9 @@ class SyncDomainReportService {
           pendingQueue: queueStats['pending'] ?? 0,
           processingQueue: queueStats['processing'] ?? 0,
           failedQueue: queueStats['failed'] ?? 0,
+          stalePendingQueue: queueStats['stalePending'] ?? 0,
+          staleProcessingQueue: queueStats['staleProcessing'] ?? 0,
+          oldestQueueAgeMinutes: oldestQueueAgeMinutes,
           unsyncedLocal: unsyncedLocal,
           mismatchCount: mismatchCount,
           totalLocalRecords: totalLocalRecords,
@@ -267,43 +301,62 @@ class SyncDomainReportService {
       );
     }
 
-    return SyncDomainReportSnapshot(
-      generatedAt: DateTime.now(),
-      domains: reports,
-    );
+    return SyncDomainReportSnapshot(generatedAt: generatedAt, domains: reports);
   }
 
   static Future<Map<String, int>> _countQueueStats(
     Database db,
-    List<String> entityTypes,
-  ) async {
+    List<String> entityTypes, {
+    required int nowMs,
+  }) async {
     if (entityTypes.isEmpty) {
-      return const {'pending': 0, 'processing': 0, 'failed': 0};
+      return const {
+        'pending': 0,
+        'processing': 0,
+        'failed': 0,
+        'stalePending': 0,
+        'staleProcessing': 0,
+        'oldestQueueCreatedAt': 0,
+      };
     }
 
     try {
+      final staleThresholdMs = nowMs - (stuckQueueThresholdMinutes * 60 * 1000);
       final placeholders = List.filled(entityTypes.length, '?').join(',');
-      final rows = await db.rawQuery('''
-        SELECT status, COUNT(*) as c
+      final rows = await db.rawQuery(
+        '''
+        SELECT
+          SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingCount,
+          SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processingCount,
+          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failedCount,
+          SUM(CASE WHEN status = 'pending' AND createdAt <= ? THEN 1 ELSE 0 END) as stalePendingCount,
+          SUM(CASE WHEN status = 'processing' AND createdAt <= ? THEN 1 ELSE 0 END) as staleProcessingCount,
+          MIN(CASE WHEN status IN ('pending', 'processing') THEN createdAt ELSE NULL END) as oldestQueueCreatedAt
         FROM sync_queue
         WHERE entityType IN ($placeholders)
           AND status IN ('pending', 'processing', 'failed')
-        GROUP BY status
-        ''', entityTypes);
+        ''',
+        [staleThresholdMs, staleThresholdMs, ...entityTypes],
+      );
 
-      final result = <String, int>{'pending': 0, 'processing': 0, 'failed': 0};
-
-      for (final row in rows) {
-        final status = row['status']?.toString();
-        final count = _toInt(row['c']);
-        if (status == null) continue;
-        if (!result.containsKey(status)) continue;
-        result[status] = count;
-      }
-
-      return result;
+      final row = rows.isNotEmpty ? rows.first : const <String, Object?>{};
+      return {
+        'pending': _toInt(row['pendingCount']),
+        'processing': _toInt(row['processingCount']),
+        'failed': _toInt(row['failedCount']),
+        'stalePending': _toInt(row['stalePendingCount']),
+        'staleProcessing': _toInt(row['staleProcessingCount']),
+        'oldestQueueCreatedAt': _toInt(row['oldestQueueCreatedAt']),
+      };
     } catch (_) {
-      return const {'pending': 0, 'processing': 0, 'failed': 0};
+      return const {
+        'pending': 0,
+        'processing': 0,
+        'failed': 0,
+        'stalePending': 0,
+        'staleProcessing': 0,
+        'oldestQueueCreatedAt': 0,
+      };
     }
   }
 
@@ -433,5 +486,11 @@ class SyncDomainReportService {
     if (value is num) return value.toInt();
     if (value is String) return int.tryParse(value) ?? 0;
     return 0;
+  }
+
+  static int? _computeAgeMinutes(int nowMs, int createdAtMs) {
+    if (createdAtMs <= 0) return null;
+    if (nowMs <= createdAtMs) return 0;
+    return ((nowMs - createdAtMs) / 60000).floor();
   }
 }
