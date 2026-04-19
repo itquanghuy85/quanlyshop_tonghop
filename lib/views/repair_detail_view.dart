@@ -531,6 +531,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             title: '$emoji $statusMsg',
             body: '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
             type: 'new_order',
+            data: {
+              'targetType': 'repair',
+              'targetId': key,
+              'repairId': key,
+            },
           );
 
           // Ghim vào chat nội bộ
@@ -773,6 +778,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       final user = FirebaseAuth.instance.currentUser;
       final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+      final key = r.firestoreId ?? "repair_${r.createdAt}";
 
       // Gửi notification cho quản lý
       await NotificationService.sendCloudNotification(
@@ -780,6 +786,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         body:
             '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ\n👷 $userName',
         type: 'approval_needed',
+        data: {
+          'targetType': 'repair',
+          'targetId': key,
+          'repairId': key,
+        },
       );
 
       // Log và chat
@@ -792,7 +803,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         desc: loc.requestDeliveryApprovalDesc(r.model, r.customerName),
       );
 
-      final key = r.firestoreId ?? "repair_${r.createdAt}";
       await FirestoreService.sendChat(
         message: loc.chatRequestDeliveryApproval(
           r.model,

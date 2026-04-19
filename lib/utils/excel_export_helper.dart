@@ -508,6 +508,7 @@ class ExcelExportHelper {
       'STT',
       'Ngày',
       'Loại',
+      'Phạm vi',
       'Tiêu đề',
       'Số tiền',
       'Danh mục',
@@ -521,6 +522,7 @@ class ExcelExportHelper {
         i + 1,
         _fmtDateTime(e.date),
         e.type == 'THU' ? 'Thu' : 'Chi',
+        e.scope == 'CA_NHAN' ? 'Cá nhân' : 'Shop',
         e.title,
         _fmtMoney(e.amount),
         e.category,
@@ -1820,15 +1822,19 @@ class ExcelExportHelper {
     if (expenses.isNotEmpty) {
       final eSheet = excel['Chi phí'];
       _writeHeaders(eSheet, [
-        'STT', 'Thời gian', 'Loại', 'Danh mục', 'Mô tả', 'Số tiền',
+        'STT', 'Thời gian', 'Loại', 'Phạm vi', 'Danh mục', 'Mô tả', 'Số tiền',
       ]);
       for (var i = 0; i < expenses.length; i++) {
         final e = expenses[i];
         final type = (e['type'] ?? 'CHI') == 'CHI' ? 'Chi' : 'Thu';
+        final scope = (e['scope'] ?? 'SHOP').toString().toUpperCase() == 'CA_NHAN'
+            ? 'Cá nhân'
+            : 'Shop';
         _writeRow(eSheet, i + 1, [
           '${i + 1}',
           _fmtDateTime(e['date'] as int?),
           type,
+          scope,
           e['category'] ?? '',
           e['title'] ?? e['description'] ?? e['note'] ?? '',
           _fmtMoney((e['amount'] as int?) ?? 0),

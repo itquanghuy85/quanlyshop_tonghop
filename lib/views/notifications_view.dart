@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/notification_item.dart';
 import '../theme/app_colors.dart';
 import 'notification_settings_view.dart';
@@ -86,20 +87,7 @@ class _NotificationsViewState extends State<NotificationsView> {
   void _handleNotificationTap(Map<String, dynamic> notification) {
     // Mark as read
     _markAsRead(notification['id']);
-
-    // Navigate based on type
-    final type = notification['type'];
-    final data = notification['data'] as Map<String, dynamic>?;
-
-    switch (type) {
-      case 'repair':
-        // Navigate to repair details
-        break;
-      case 'sale':
-        // Navigate to sale details
-        break;
-      // Add other types...
-    }
+    NotificationService.handleNavigationFromData(notification);
   }
 
   void _markAsRead(String notificationId) {

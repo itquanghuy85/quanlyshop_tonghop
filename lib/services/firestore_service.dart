@@ -988,6 +988,7 @@ class FirestoreService {
         body: body,
         type: type,
         targetUserId: userId,
+        data: data,
       );
     } catch (e) {
       debugPrint('Error creating notification: $e');

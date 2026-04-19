@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +33,8 @@ class NotificationService {
   static StreamSubscription? _notificationSubscription;
   // Track processed notification IDs to avoid showing same one twice
   static final Set<String> _processedNotificationIds = {};
+  static Future<void> Function(Map<String, dynamic>)? _navigationHandler;
+  static Map<String, dynamic>? _queuedNavigationData;
 
   // FCM Token management
   static DateTime? _lastTokenCheck;
@@ -54,7 +57,7 @@ class NotificationService {
       message.notification?.title ?? 'Thông báo mới',
       message.notification?.body ?? '',
       channelId: _getChannelId(message.data['type']),
-      payload: message.data.toString(),
+      payload: jsonEncode(message.data),
     );
   }
 
@@ -628,7 +631,7 @@ class NotificationService {
           title,
           body,
           channelId: _getChannelId(message.data['type']),
-          payload: message.data.toString(),
+          payload: jsonEncode(message.data),
         );
       }
     });
@@ -651,7 +654,14 @@ class NotificationService {
 
   static Map<String, dynamic> _parsePayload(String payload) {
     try {
-      // Simple parsing - in production, use proper JSON parsing
+      final decoded = jsonDecode(payload);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded as Map);
+      }
+    } catch (_) {}
+
+    try {
+      // Legacy fallback parser for non-JSON payload formats
       final Map<String, dynamic> data = {};
       final pairs = payload.replaceAll('{', '').replaceAll('}', '').split(', ');
       for (final pair in pairs) {
@@ -666,27 +676,91 @@ class NotificationService {
     }
   }
 
-  static void _handleNotificationNavigation(Map<String, dynamic> data) {
-    final type = data['type'];
-    final id = data['id'];
-
-    // Navigate based on notification type
-    switch (type) {
-      case 'new_order':
-        // Navigate to order details
-        debugPrint('Navigate to order: $id');
-        break;
-      case 'payment':
-        // Navigate to payment details
-        debugPrint('Navigate to payment: $id');
-        break;
-      case 'inventory':
-        // Navigate to inventory
-        debugPrint('Navigate to inventory');
-        break;
-      default:
-        debugPrint('Unknown notification type: $type');
+  static void registerNavigationHandler(
+    Future<void> Function(Map<String, dynamic>) handler,
+  ) {
+    _navigationHandler = handler;
+    final queued = _queuedNavigationData;
+    if (queued != null) {
+      _queuedNavigationData = null;
+      unawaited(handler(Map<String, dynamic>.from(queued)));
     }
+  }
+
+  static void unregisterNavigationHandler() {
+    _navigationHandler = null;
+  }
+
+  static void handleNavigationFromData(Map<String, dynamic> data) {
+    _handleNotificationNavigation(data);
+  }
+
+  static Map<String, dynamic> _extractNavigationData(
+    Map<String, dynamic> raw,
+  ) {
+    final normalized = <String, dynamic>{};
+    final nested = raw['data'];
+    if (nested is Map) {
+      normalized.addAll(Map<String, dynamic>.from(nested));
+    }
+    normalized.addAll(raw);
+
+    final type = (normalized['type'] ?? '').toString().toLowerCase();
+    String targetType =
+        (normalized['targetType'] ?? normalized['entityType'] ?? '')
+            .toString()
+            .toLowerCase();
+    String targetId =
+        (normalized['targetId'] ??
+                normalized['id'] ??
+                normalized['repairId'] ??
+                normalized['saleId'] ??
+                normalized['orderId'] ??
+                normalized['firestoreId'] ??
+                '')
+            .toString();
+
+    if (targetType.isEmpty) {
+      if (type == 'new_order' || type == 'repair' || type == 'approval_needed') {
+        targetType = 'repair';
+      } else if (type == 'payment' || type == 'sale') {
+        targetType = 'sale';
+      }
+    }
+
+    if (targetId.isNotEmpty) {
+      normalized['targetId'] = targetId;
+    }
+    if (targetType.isNotEmpty) {
+      normalized['targetType'] = targetType;
+    }
+    if (type.isNotEmpty) {
+      normalized['type'] = type;
+    }
+    return normalized;
+  }
+
+  static void _dispatchNotificationNavigation(Map<String, dynamic> data) {
+    final handler = _navigationHandler;
+    if (handler == null) {
+      _queuedNavigationData = data;
+      debugPrint('Notification navigation queued (handler not ready): $data');
+      return;
+    }
+    unawaited(handler(data));
+  }
+
+  static void _handleNotificationNavigation(Map<String, dynamic> data) {
+    final navigationData = _extractNavigationData(data);
+    final targetType = navigationData['targetType']?.toString() ?? '';
+    final targetId = navigationData['targetId']?.toString() ?? '';
+
+    if (targetType.isEmpty || targetId.isEmpty) {
+      debugPrint('Notification has no deep-link target: $navigationData');
+      return;
+    }
+
+    _dispatchNotificationNavigation(navigationData);
   }
 
   static String _getChannelId(String? type) {
@@ -768,10 +842,19 @@ class NotificationService {
                       if (isSelf && isSystem) {
                         onMessageReceived(title, body);
                       } else {
+                        final navData = _extractNavigationData(data);
+                        final payloadData = <String, dynamic>{};
+                        for (final key in ['type', 'targetType', 'targetId']) {
+                          final value = navData[key];
+                          if (value != null && value.toString().isNotEmpty) {
+                            payloadData[key] = value.toString();
+                          }
+                        }
                         _showLocalNotification(
                           title,
                           body,
                           channelId: _getChannelId(type),
+                          payload: jsonEncode(payloadData),
                         );
                         onMessageReceived(title, body);
                       }
@@ -791,6 +874,7 @@ class NotificationService {
     required String body,
     required String type,
     String? targetUserId,
+    Map<String, dynamic>? data,
   }) async {
     try {
       // Kiểm tra settings trước khi gửi
@@ -809,6 +893,10 @@ class NotificationService {
         'title': title,
         'body': body,
         'type': type,
+        'data': data ?? {},
+        if (data != null && data['targetType'] != null)
+          'targetType': data['targetType'],
+        if (data != null && data['targetId'] != null) 'targetId': data['targetId'],
         'senderId': user?.uid,
         'senderName': user?.email?.split('@').first.toUpperCase() ?? "NV",
         'createdAt': FieldValue.serverTimestamp(),
@@ -850,6 +938,7 @@ class NotificationService {
               'body': notificationData['body'],
               'type': notificationData['type'],
               'targetUserId': notificationData['targetUserId'],
+              'data': notificationData['data'] ?? {},
               'shopId': shopId,
             })
             .timeout(const Duration(seconds: 30)); // Add timeout
@@ -1229,7 +1318,16 @@ class NotificationService {
     ];
     final body = lines.join('\n');
 
-    await sendCloudNotification(title: title, body: body, type: 'new_order');
+    await sendCloudNotification(
+      title: title,
+      body: body,
+      type: 'new_order',
+      data: {
+        'targetType': 'repair',
+        'targetId': orderId,
+        'repairId': orderId,
+      },
+    );
   }
 
   // System maintenance notifications
@@ -1261,7 +1359,17 @@ class NotificationService {
     ];
     final body = lines.join('\n');
 
-    await sendCloudNotification(title: title, body: body, type: 'payment');
+    await sendCloudNotification(
+      title: title,
+      body: body,
+      type: 'payment',
+      data: {
+        'targetType': 'sale',
+        'targetId': orderId,
+        'saleId': orderId,
+        'orderId': orderId,
+      },
+    );
   }
 
   // Low inventory notifications - Admin & Technician roles

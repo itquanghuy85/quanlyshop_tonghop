@@ -799,6 +799,10 @@ exports.sendShopNotification = onCall(async (request) => {
   const body = (data.body || "").toString();
   const type = (data.type || "system").toString();
   const targetUserId = data.targetUserId; // optional, if null then broadcast to all shop users
+  const extraData =
+    data.data && typeof data.data === 'object' && !Array.isArray(data.data)
+      ? data.data
+      : {};
 
   // Get shopId from authenticated user's Firestore doc, fallback to data.shopId
   let shopId = data.shopId;
@@ -843,17 +847,23 @@ exports.sendShopNotification = onCall(async (request) => {
       return { success: true, sentCount: 0 };
     }
 
+    const fcmData = {
+      type: type,
+      shopId: shopId.toString(),
+      senderId: auth.uid,
+    };
+    Object.entries(extraData).forEach(([key, value]) => {
+      if (value === null || value === undefined) return;
+      fcmData[key] = typeof value === 'string' ? value : JSON.stringify(value);
+    });
+
     // Send FCM messages
     const payload = {
       notification: {
         title: title,
         body: body,
       },
-      data: {
-        type: type,
-        shopId: shopId,
-        senderId: auth.uid,
-      },
+      data: fcmData,
       android: {
         priority: getAndroidPriority(type),
         notification: {

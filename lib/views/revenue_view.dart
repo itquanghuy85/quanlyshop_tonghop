@@ -374,6 +374,22 @@ class _RevenueViewState extends State<RevenueView>
     }
   }
 
+  bool _isPersonalExpenseScope(Map<String, dynamic> expense) {
+    final scope = (expense['scope'] ?? 'SHOP').toString().toUpperCase();
+    return scope == 'CA_NHAN' || scope == 'CÁ NHÂN' || scope == 'PERSONAL';
+  }
+
+  bool _isBusinessOperatingExpense(Map<String, dynamic> expense) {
+    final eType = (expense['type'] ?? 'CHI').toString().toUpperCase();
+    if (eType == 'THU') return false;
+    if (_isPersonalExpenseScope(expense)) return false;
+    final category = (expense['category'] as String? ?? '').toUpperCase();
+    return !category.contains('NHẬP HÀNG') &&
+        !category.contains('PURCHASE') &&
+        !category.contains('STOCK') &&
+        !category.contains('ĐƠN NHẬP');
+  }
+
   String _getFilterLabel() {
     final now = DateTime.now();
     switch (_timeFilter) {
@@ -707,15 +723,7 @@ class _RevenueViewState extends State<RevenueView>
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int? ?? 0));
 
     int expenseOut = fExpenses
-        .where((e) {
-          final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
-          if (eType == 'THU') return false;
-          final category = (e['category'] as String? ?? '').toUpperCase();
-          return !category.contains('NHẬP HÀNG') &&
-              !category.contains('PURCHASE') &&
-              !category.contains('STOCK') &&
-              !category.contains('ĐƠN NHẬP');
-        })
+      .where(_isBusinessOperatingExpense)
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
 
     return _PeriodStats(
@@ -2851,15 +2859,7 @@ class _RevenueViewState extends State<RevenueView>
     totalIn += miscIncome;
 
     int totalOut = fExpenses
-        .where((e) {
-          final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
-          if (eType == 'THU') return false;
-          final category = (e['category'] as String? ?? '').toUpperCase();
-          return !category.contains('NHẬP HÀNG') &&
-              !category.contains('PURCHASE') &&
-              !category.contains('STOCK') &&
-              !category.contains('ĐƠN NHẬP');
-        })
+      .where(_isBusinessOperatingExpense)
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
 
     int totalCost = salesCost + repairsCost;

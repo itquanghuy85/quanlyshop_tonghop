@@ -18,6 +18,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../models/payment_intent_model.dart';
+import '../models/expense_model.dart';
 import '../data/db_helper.dart';
 import 'money_validation_service.dart';
 import 'money_transaction_service.dart';
@@ -726,6 +727,7 @@ class PaymentIntentService {
       case PaymentIntentType.otherExpense:
         // Insert expense record - FIX: use correct field names
         final shopId = UserService.getShopIdSync();
+        final scope = Expense.normalizeScope(intent.metadata?['scope']);
         await _db.insertExpense({
           'firestoreId': 'exp_${intent.id}',
           'amount': intent.amount,
@@ -736,6 +738,7 @@ class PaymentIntentService {
           'date': now,
           'createdAt': now,
           'category': intent.metadata?['category'] ?? 'KHÁC',
+          'scope': scope,
           'shopId': shopId,
           'isSynced': 0,
         });
@@ -755,6 +758,7 @@ class PaymentIntentService {
           'date': now,
           'createdAt': now,
           'category': 'LƯƠNG',
+          'scope': 'SHOP',
           'shopId': shopIdSalary,
           'isSynced': 0,
         });
@@ -809,6 +813,7 @@ class PaymentIntentService {
       case PaymentIntentType.otherIncome:
         // Thu phát sinh (miscellaneous income) - save as expense with type 'THU'
         final shopIdIncome = UserService.getShopIdSync();
+        final scope = Expense.normalizeScope(intent.metadata?['scope']);
         await _db.insertExpense({
           'firestoreId': 'inc_${intent.id}',
           'amount': intent.amount,
@@ -820,6 +825,7 @@ class PaymentIntentService {
           'createdAt': now,
           'category': intent.metadata?['category'] ?? 'PHÁT SINH',
           'type': 'THU',
+          'scope': scope,
           'shopId': shopIdIncome,
           'isSynced': 0,
         });

@@ -407,6 +407,7 @@ class _ExpenseViewState extends State<ExpenseView> {
     final noteC = TextEditingController();
     String category = "PHÁT SINH";
     String payMethod = "TIỀN MẶT";
+    String scope = "SHOP";
 
     showDialog(
       context: context,
@@ -504,6 +505,30 @@ class _ExpenseViewState extends State<ExpenseView> {
                           )
                           .toList(),
                     ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "PHẠM VI CHI",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: const [
+                        {'value': 'SHOP', 'label': 'SHOP'},
+                        {'value': 'CA_NHAN', 'label': 'CÁ NHÂN'},
+                      ].map((item) {
+                        final value = item['value']!;
+                        final label = item['label']!;
+                        return ChoiceChip(
+                          label: Text(label, style: AppTextStyles.caption),
+                          selected: scope == value,
+                          onSelected: (_) => setS(() => scope = value),
+                        );
+                      }).toList(),
+                    ),
                   ],
                 ),
               ),
@@ -537,7 +562,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                             ? PaymentMethod.transfer 
                             : PaymentMethod.cash;
                         final txRef =
-                          'expense_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
+                          'expense_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${scope}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
                             
                         navigator.pop(); // Close dialog first
                         
@@ -558,6 +583,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
                             'note': noteC.text,
+                            'scope': scope,
                           },
                         );
 
@@ -917,6 +943,7 @@ class _ExpenseViewState extends State<ExpenseView> {
     final noteC = TextEditingController();
     String category = "PHÁT SINH";
     String payMethod = "TIỀN MẶT";
+    String scope = "SHOP";
 
     showDialog(
       context: context,
@@ -1014,6 +1041,30 @@ class _ExpenseViewState extends State<ExpenseView> {
                           )
                           .toList(),
                     ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "PHẠM VI",
+                      style: AppTextStyles.overline.copyWith(
+                        color: AppColors.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: const [
+                        {'value': 'SHOP', 'label': 'SHOP'},
+                        {'value': 'CA_NHAN', 'label': 'CÁ NHÂN'},
+                      ].map((item) {
+                        final value = item['value']!;
+                        final label = item['label']!;
+                        return ChoiceChip(
+                          label: Text(label, style: AppTextStyles.caption),
+                          selected: scope == value,
+                          onSelected: (_) => setS(() => scope = value),
+                        );
+                      }).toList(),
+                    ),
                   ],
                 ),
               ),
@@ -1043,7 +1094,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                             ? PaymentMethod.transfer
                             : PaymentMethod.cash;
                         final txRef =
-                            'income_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
+                          'income_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${scope}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
 
                         navigator.pop(); // Close dialog first
 
@@ -1062,6 +1113,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                             'category': category,
                             'title': titleC.text.toUpperCase(),
                             'note': noteC.text,
+                            'scope': scope,
                           },
                         );
 
@@ -1298,6 +1350,11 @@ class _ExpenseViewState extends State<ExpenseView> {
   Widget _expenseProfessionalCard(Map<String, dynamic> e) {
     final cat = (e['category'] ?? 'KHÁC').toString();
     final isIncome = (e['type'] ?? 'CHI') == 'THU';
+    final rawScope = (e['scope'] ?? 'SHOP').toString().toUpperCase();
+    final scopeLabel =
+        (rawScope == 'CA_NHAN' || rawScope == 'CÁ NHÂN' || rawScope == 'PERSONAL')
+        ? 'CÁ NHÂN'
+        : 'SHOP';
     Color color;
     IconData icon;
 
@@ -1345,7 +1402,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  "$cat • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
+                  "$scopeLabel • $cat • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                 ),

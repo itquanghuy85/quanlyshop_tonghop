@@ -13,6 +13,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'firebase_options.dart';
 import 'views/home_view.dart';
 import 'views/login_view.dart';
+import 'views/repair_detail_view.dart';
+import 'views/sale_detail_view.dart';
 import 'views/splash_view.dart'; // Import màn hình Splash mới
 import 'views/shop_selector_view.dart'; // Màn hình chọn shop cho super admin
 import 'theme/app_theme.dart'; // Import theme thống nhất
@@ -227,6 +229,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    NotificationService.registerNavigationHandler(_handleNotificationNavigation);
     _loggedOutFallbackTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted) return;
       if (FirebaseAuth.instance.currentUser == null) {
@@ -261,8 +264,60 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   void dispose() {
     _loggedOutFallbackTimer?.cancel();
+    NotificationService.unregisterNavigationHandler();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Future<void> _handleNotificationNavigation(
+    Map<String, dynamic> payload,
+  ) async {
+    if (!mounted) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('Skip notification deep-link: user is not authenticated');
+      return;
+    }
+
+    final targetType = (payload['targetType'] ?? '').toString().toLowerCase();
+    final targetId = (payload['targetId'] ?? '').toString();
+
+    if (targetType.isEmpty || targetId.isEmpty) {
+      debugPrint('Skip notification deep-link: invalid payload $payload');
+      return;
+    }
+
+    final db = DBHelper();
+    if (targetType == 'repair') {
+      final repair = await db.getRepairByFirestoreId(targetId);
+      if (!mounted) return;
+      if (repair == null) {
+        NotificationService.showSnackBar(
+          'Không tìm thấy đơn sửa để mở nhanh.',
+          color: Colors.orange,
+        );
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => RepairDetailView(repair: repair)),
+      );
+      return;
+    }
+
+    if (targetType == 'sale') {
+      final sale = await db.getSaleByFirestoreId(targetId);
+      if (!mounted) return;
+      if (sale == null) {
+        NotificationService.showSnackBar(
+          'Không tìm thấy đơn bán để mở nhanh.',
+          color: Colors.orange,
+        );
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => SaleDetailView(sale: sale)),
+      );
+    }
   }
 
   @override
