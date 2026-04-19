@@ -30,6 +30,7 @@ Phạm vi dự kiến:
 Kết quả đã hoàn tất:
 - Đã có màn hình `ShiftSwapView` cho nhân viên tạo yêu cầu và quản lý duyệt/từ chối.
 - Đã có service shop-scoped `ShiftSwapService` (create/list/approve/reject/cancel).
+- Đã bổ sung Firestore Security Rules cho `shift_swap_requests` để tránh lỗi permission-denied runtime.
 - Đã tích hợp điểm mở từ màn hình chấm công cá nhân và quản lý chấm công.
 - Đã chạy test + build debug thành công trước khi phát hành.
 

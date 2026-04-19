@@ -20,7 +20,8 @@ service cloud.firestore {
     // ║              adjustment_entries                                  ║
     // ║  [SUPPLIER] suppliers, supplier_payments, purchase_orders        ║
     // ║  [PARTNER]  repair_partners, repair_partner_payments             ║
-    // ║  [HR]       attendance, work_schedules                            ║
+    // ║  [HR]       attendance, leave_requests, shift_swap_requests,      ║
+    // ║              work_schedules                                       ║
     // ║  [CHAT]     chats, chat_messages                                 ║
     // ║  [NOTIFY]   notifications, shop_notifications                    ║
     // ║  [SYSTEM]   audit_logs, quick_input_codes, repair_parts          ║
@@ -892,6 +893,38 @@ service cloud.firestore {
                                !changed('approvedBy') &&
                                !changed('approvedAt') &&
                                !changed('rejectReason')));
+
+            allow delete: if false;
+          }
+
+          // ═══════════ 7.1c SHIFT_SWAP_REQUESTS ═══════════
+          match /shift_swap_requests/{requestId} {
+            // READ: requester sees own, manager sees all in shop, target user can read assigned swaps
+            allow read: if isAuth() &&
+                           docInMyShop() &&
+                           (isManager() ||
+                            resource.data.requesterId == uid() ||
+                            (resource.data.targetUserId != null && resource.data.targetUserId == uid()));
+
+            // CREATE: employee/staff can create own request in own shop
+            allow create: if isAuth() &&
+                             newDocInMyShop() &&
+                             has(['requesterId', 'requestedDate', 'currentShift', 'desiredShift', 'status', 'createdAt', 'updatedAt', 'shopId']) &&
+                             request.resource.data.requesterId == uid();
+
+            // UPDATE:
+            // - Manager: approve/reject or adjust request
+            // - Requester: only allowed to cancel pending request
+            allow update: if isAuth() &&
+                             docInMyShop() &&
+                             shopIdLocked() &&
+                             (isManager() ||
+                              (resource.data.requesterId == uid() &&
+                               resource.data.status == 'pending' &&
+                               request.resource.data.status in ['pending', 'cancelled'] &&
+                               !changed('reviewedBy') &&
+                               !changed('reviewedByName') &&
+                               !changed('reviewedAt')));
 
             allow delete: if false;
           }
