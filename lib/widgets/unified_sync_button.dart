@@ -8,6 +8,7 @@ import '../services/sync_orchestrator.dart';
 import '../services/sync_health_check.dart';
 import '../services/notification_service.dart';
 import '../services/data_migration_service.dart';
+import '../services/firestore_connectivity_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
@@ -151,6 +152,7 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
   bool _isLoading = false;
   String _loadingMessage = '';
   SyncHealthReport? _healthReport;
+  FirestoreConnectivityReport? _firestoreConnectivityReport;
   Map<String, int>? _localStats;
   Map<String, int>? _syncQueueStats;
   bool _isRealtimeSyncActive = false;
@@ -192,6 +194,10 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
 
       // Load health check (quick)
       _healthReport = await SyncHealthCheck.runFullCheck();
+
+      // Load Firestore connectivity diagnostics
+      _firestoreConnectivityReport =
+          await FirestoreConnectivityService.runDiagnostics();
     } catch (e) {
       debugPrint('Error loading sync data: $e');
     } finally {
@@ -371,6 +377,16 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
                             title: 'Kiểm tra chi tiết',
                             subtitle: 'So sánh từng bảng Local vs Cloud',
                             onTap: _handleDetailedCheck,
+                          ),
+
+                          _buildActionTile(
+                            icon: Icons.wifi_find,
+                            iconColor: Colors.indigo,
+                            title: 'Kiểm tra kết nối Firestore',
+                            subtitle: _firestoreConnectivityReport == null
+                                ? 'Test mạng, auth và quyền đọc dữ liệu cloud'
+                                : _firestoreConnectivityReport!.summary,
+                            onTap: _handleFirestoreConnectivityTest,
                           ),
 
                           _buildActionTile(
@@ -939,6 +955,38 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
     }
   }
 
+  Future<void> _handleFirestoreConnectivityTest() async {
+    setState(() {
+      _isLoading = true;
+      _loadingMessage = 'Đang kiểm tra kết nối Firestore...';
+    });
+
+    try {
+      final report = await FirestoreConnectivityService.runDiagnostics();
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _firestoreConnectivityReport = report;
+      });
+
+      _showFirestoreConnectivityDialog(report);
+      NotificationService.showSnackBar(
+        report.isHealthy
+            ? '✅ Firestore kết nối ổn định'
+            : '⚠️ Firestore cần kiểm tra thêm',
+        color: report.isHealthy ? Colors.green : Colors.orange,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      NotificationService.showSnackBar(
+        '❌ Lỗi kiểm tra kết nối: $e',
+        color: Colors.red,
+      );
+    }
+  }
+
   Future<void> _handleDataRecovery() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -1023,6 +1071,174 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('ĐÓNG'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFirestoreConnectivityDialog(FirestoreConnectivityReport report) {
+    final statusColor = report.isHealthy ? Colors.green : Colors.orange;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              report.isHealthy ? Icons.wifi : Icons.wifi_off,
+              color: statusColor,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              report.isHealthy
+                  ? 'KẾT NỐI FIRESTORE TỐT'
+                  : 'FIRESTORE CẦN KIỂM TRA',
+              style: TextStyle(
+                color: statusColor,
+                fontSize: AppTextStyles.headline3.fontSize,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Tổng quan: ${report.summary}',
+                  style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                ),
+                const SizedBox(height: 8),
+                if (report.latencyMs > 0)
+                  Text(
+                    'Độ trễ trung bình: ${report.latencyMs} ms',
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                const Divider(height: 20),
+                _buildConnectivityCheckRow('Internet', report.hasNetwork),
+                _buildConnectivityCheckRow(
+                  'Đăng nhập Firebase Auth',
+                  report.hasAuthenticatedUser,
+                ),
+                _buildConnectivityCheckRow(
+                  'Kết nối Firestore server',
+                  report.canReachFirestoreServer,
+                ),
+                _buildConnectivityCheckRow(
+                  'Đọc hồ sơ người dùng',
+                  report.canReadCurrentUserDocument,
+                ),
+                _buildConnectivityCheckRow(
+                  report.hasShopContext
+                      ? 'Đọc dữ liệu theo shop'
+                      : 'Ngữ cảnh shop',
+                  report.hasShopContext ? report.canReadShopScopedData : true,
+                ),
+                if (report.warnings.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Cảnh báo:',
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                  ...report.warnings.map(
+                    (w) => Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '• $w',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (report.errors.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Lỗi phát hiện:',
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                  ...report.errors.map(
+                    (err) => Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '• $err',
+                        style: TextStyle(
+                          fontSize: AppTextStyles.body1.fontSize,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Text(
+                  'Khuyến nghị:',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                ...report.recommendations.map(
+                  (tip) => Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '• $tip',
+                      style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Đóng'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _handleFirestoreConnectivityTest();
+            },
+            child: const Text('Kiểm tra lại'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConnectivityCheckRow(String title, bool ok) {
+    final color = ok ? Colors.green : Colors.red;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(
+            ok ? Icons.check_circle : Icons.error_outline,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+            ),
           ),
         ],
       ),
