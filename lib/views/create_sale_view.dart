@@ -889,12 +889,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 : 'walkin');
       final String uniqueId =
           widget.editSale?.firestoreId ?? "sale_${now}_$safeTail";
-        final currentUser = FirebaseAuth.instance.currentUser;
-      String seller =
-          widget.editSale?.sellerName.isNotEmpty == true
+      final currentUser = FirebaseAuth.instance.currentUser;
+      String seller = widget.editSale?.sellerName.isNotEmpty == true
           ? widget.editSale!.sellerName
           : currentUser?.email?.split('@').first.toUpperCase() ?? "NV";
-        final sellerUid = widget.editSale?.sellerUid ?? currentUser?.uid;
+      final sellerUid = widget.editSale?.sellerUid ?? currentUser?.uid;
       int totalPrice = _parseCurrency(priceCtrl.text);
 
       // Parse discount và tính finalPrice (thành tiền sau giảm giá)
@@ -1539,6 +1538,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       // Notify other views about the new sale
       debugPrint('CreateSaleView: Emitting sales_changed event');
       EventBus().emit('sales_changed');
+      EventBus().emit('products_changed');
 
       // Ghi log hoạt động
       await AuditService.logAction(
@@ -3549,4 +3549,3 @@ class _GiftDiscountSheetContentState extends State<_GiftDiscountSheetContent> {
     Navigator.pop(context, {'action': 'discount', 'price': price});
   }
 }
-

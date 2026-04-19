@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -8,6 +10,7 @@ import '../services/notification_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
+import '../services/event_bus.dart';
 import '../services/user_service.dart';
 import '../models/shop_settings_model.dart';
 import '../widgets/gradient_fab.dart';
@@ -27,6 +30,8 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   final _service = StockEntryService();
   List<StockEntry> _entries = [];
   bool _isLoading = true;
+  StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
 
   // Filter
   String? _filterType;
@@ -45,11 +50,40 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   @override
   void initState() {
     super.initState();
+    _bindRefreshEvents();
     _loadData();
     // Hiển thị hướng dẫn cho người dùng mới
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showFirstTimeGuide();
     });
+  }
+
+  @override
+  void dispose() {
+    _reloadDebounce?.cancel();
+    _eventSub?.cancel();
+    super.dispose();
+  }
+
+  void _bindRefreshEvents() {
+    _eventSub?.cancel();
+    _eventSub = EventBus().stream
+        .where(
+          (event) =>
+              event == 'stock_entries_changed' ||
+              event == EventBus.dataRefresh ||
+              event == 'sync_now_completed' ||
+              event == 'app_resumed',
+        )
+        .listen((_) {
+          if (!mounted) return;
+          _reloadDebounce?.cancel();
+          _reloadDebounce = Timer(const Duration(milliseconds: 350), () {
+            if (mounted) {
+              _loadData();
+            }
+          });
+        });
   }
 
   /// Hiển thị hướng dẫn lần đầu

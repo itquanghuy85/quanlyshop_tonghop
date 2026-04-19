@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -15,6 +17,7 @@ import '../models/payment_intent_model.dart';
 import '../constants/financial_constants.dart';
 import 'create_sale_view.dart';
 import '../services/sync_orchestrator.dart';
+import '../services/sync_service.dart';
 import '../services/unified_printer_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
@@ -90,6 +93,19 @@ class _InventoryViewState extends State<InventoryView>
 
   // ScrollController for lazy loading
   final ScrollController _scrollController = ScrollController();
+  StreamSubscription<String>? _inventoryEventSub;
+  Timer? _inventoryRefreshDebounce;
+
+  final Set<String> _inventoryRefreshEvents = {
+    'sales_changed',
+    'sales_returns_changed',
+    'products_changed',
+    'stock_entries_changed',
+    'sync_now_completed',
+    'app_resumed',
+    EventBus.dataRefresh,
+    EventBus.shopChanged,
+  };
 
   /// Check if we need full data (for filtering)
   bool get _needsFullData =>
@@ -142,6 +158,7 @@ class _InventoryViewState extends State<InventoryView>
     super.initState();
     _filterType = widget.initialFilterType;
     _tabController = TabController(length: 1, vsync: this);
+    _bindInventoryRefreshEvents();
     _init(); // _init sẽ gọi _initCheckData sau khi load shop settings
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
@@ -194,11 +211,43 @@ class _InventoryViewState extends State<InventoryView>
 
   @override
   void dispose() {
+    _inventoryRefreshDebounce?.cancel();
+    _inventoryEventSub?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _tabController.dispose();
     _scannerController.dispose();
     super.dispose();
+  }
+
+  void _bindInventoryRefreshEvents() {
+    _inventoryEventSub?.cancel();
+    _inventoryEventSub = EventBus().stream
+        .where((event) => _inventoryRefreshEvents.contains(event))
+        .listen((event) {
+          if (!mounted) return;
+
+          final shouldRefreshCloud =
+              event == 'stock_entries_changed' ||
+              event == 'sales_returns_changed';
+          if (shouldRefreshCloud) {
+            unawaited(
+              SyncService.refreshCloudCollections(
+                reason: 'inventory_view_$event',
+                force: true,
+              ),
+            );
+          }
+
+          _inventoryRefreshDebounce?.cancel();
+          _inventoryRefreshDebounce = Timer(
+            Duration(milliseconds: shouldRefreshCloud ? 600 : 220),
+            () async {
+              if (!mounted) return;
+              await _refreshLocalData();
+            },
+          );
+        });
   }
 
   void _onScroll() {
@@ -4902,4 +4951,3 @@ class _InventoryViewState extends State<InventoryView>
     }
   }
 }
-

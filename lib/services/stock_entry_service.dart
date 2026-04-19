@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +11,7 @@ import '../services/event_bus.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/financial_activity_service.dart';
 import '../services/import_order_service.dart';
+import '../services/sync_service.dart';
 import '../data/db_helper.dart';
 
 /// Service quản lý phiếu nhập kho (Staging Inventory)
@@ -933,6 +936,13 @@ class StockEntryService {
       debugPrint('✅ confirmEntry: SUCCESS');
       _showSuccess('Đã xác nhận nhập kho');
       EventBus().emit('stock_entries_changed');
+      EventBus().emit('products_changed');
+      unawaited(
+        SyncService.refreshCloudCollections(
+          reason: 'stock_entry_confirmed',
+          force: true,
+        ),
+      );
       return result['success'] == true;
     } catch (e) {
       debugPrint('❌ confirmEntry ERROR: $e');

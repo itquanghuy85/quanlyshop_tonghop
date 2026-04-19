@@ -982,6 +982,7 @@ class _FastStockInViewState extends State<FastStockInView> {
 
       // Notify UI update for suppliers
       EventBus().emit('suppliers_changed');
+      EventBus().emit('products_changed');
 
       // Reset form
       _resetForm();
