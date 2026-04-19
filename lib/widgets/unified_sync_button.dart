@@ -718,6 +718,16 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
           ),
           const SizedBox(height: 2),
           Text(
+            '24h gan nhat: ${domain.recentSuccessCount} thanh cong | ${domain.recentRetryCount} retry | ${domain.recentFailedCount} loi',
+            style: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
+              color: domain.recentIssueCount > 0
+                  ? Colors.orange.shade800
+                  : Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
             domain.lastSyncAt != null
                 ? 'Cap nhat cloud gan nhat: ${_formatSyncTime(domain.lastSyncAt!)}'
                 : 'Cap nhat cloud gan nhat: chua co moc sync',
@@ -726,6 +736,22 @@ class _SyncCenterSheetState extends State<SyncCenterSheet> {
               color: Colors.grey.shade700,
             ),
           ),
+          if (domain.lastFailureAt != null)
+            Text(
+              'Lan loi gan nhat: ${_formatSyncTime(domain.lastFailureAt!)}',
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.red.shade700,
+              ),
+            )
+          else if (domain.lastSuccessAt != null)
+            Text(
+              'Lan thanh cong gan nhat: ${_formatSyncTime(domain.lastSuccessAt!)}',
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.green.shade700,
+              ),
+            ),
         ],
       ),
     );

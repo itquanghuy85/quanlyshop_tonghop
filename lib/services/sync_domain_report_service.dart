@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../data/db_helper.dart';
+import 'sync_audit_service.dart';
 import 'sync_health_check.dart';
 import 'user_service.dart';
 
@@ -15,6 +16,11 @@ class DomainSyncReport {
   final int mismatchCount;
   final int totalLocalRecords;
   final DateTime? lastSyncAt;
+  final int recentSuccessCount;
+  final int recentRetryCount;
+  final int recentFailedCount;
+  final DateTime? lastSuccessAt;
+  final DateTime? lastFailureAt;
 
   const DomainSyncReport({
     required this.key,
@@ -26,6 +32,11 @@ class DomainSyncReport {
     required this.mismatchCount,
     required this.totalLocalRecords,
     required this.lastSyncAt,
+    required this.recentSuccessCount,
+    required this.recentRetryCount,
+    required this.recentFailedCount,
+    required this.lastSuccessAt,
+    required this.lastFailureAt,
   });
 
   int get queueTotal => pendingQueue + processingQueue + failedQueue;
@@ -38,6 +49,8 @@ class DomainSyncReport {
           processingQueue > 0 ||
           unsyncedLocal > 0 ||
           mismatchCount > 0);
+
+  int get recentIssueCount => recentRetryCount + recentFailedCount;
 
   bool get isSynced => !hasError && !hasPending;
 
@@ -199,6 +212,7 @@ class SyncDomainReportService {
 
     final effectiveHealth =
         healthReport ?? await SyncHealthCheck.runFullCheck();
+    final auditStats = await SyncAuditService.getDomainStats();
 
     final reports = <DomainSyncReport>[];
 
@@ -223,6 +237,15 @@ class SyncDomainReportService {
         shopId,
         config.lastSyncCollections,
       );
+      final domainAuditStats =
+          auditStats[config.key] ??
+          const SyncAuditDomainStats(
+            successCount: 0,
+            retryCount: 0,
+            failedCount: 0,
+            lastSuccessAt: null,
+            lastFailureAt: null,
+          );
 
       reports.add(
         DomainSyncReport(
@@ -235,6 +258,11 @@ class SyncDomainReportService {
           mismatchCount: mismatchCount,
           totalLocalRecords: totalLocalRecords,
           lastSyncAt: lastSyncAt,
+          recentSuccessCount: domainAuditStats.successCount,
+          recentRetryCount: domainAuditStats.retryCount,
+          recentFailedCount: domainAuditStats.failedCount,
+          lastSuccessAt: domainAuditStats.lastSuccessAt,
+          lastFailureAt: domainAuditStats.lastFailureAt,
         ),
       );
     }

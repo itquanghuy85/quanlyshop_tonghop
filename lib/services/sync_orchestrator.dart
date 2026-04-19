@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../data/db_helper.dart';
 import 'storage_service.dart';
+import 'sync_audit_service.dart';
 import 'user_service.dart';
 
 /// Enum định nghĩa các loại entity được sync
@@ -259,7 +260,9 @@ class SyncOrchestrator {
     data['status'] = status;
   }
 
-  Future<void> _normalizeRepairImagePathsForCloud(Map<String, dynamic> data) async {
+  Future<void> _normalizeRepairImagePathsForCloud(
+    Map<String, dynamic> data,
+  ) async {
     final rawImagePath = data['imagePath'];
     if (rawImagePath == null) return;
 
@@ -277,8 +280,8 @@ class SyncOrchestrator {
       return;
     }
 
-    final folderSuffix = (data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch)
-        .toString();
+    final folderSuffix =
+        (data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch).toString();
     final uploadedUrls = await StorageService.uploadMultipleImages(
       localPaths,
       'repairs/$folderSuffix',
@@ -463,7 +466,16 @@ class SyncOrchestrator {
           debugPrint(
             '🔄 SyncOrchestrator: Failed to sync ${item.entityType.name}#${item.entityId}: $e',
           );
-          await _markItemFailed(item, e.toString());
+          final queueStatus = await _markItemFailed(item, e.toString());
+          await SyncAuditService.logFailure(
+            entityType: item.entityType.name,
+            entityId: item.entityId,
+            firestoreId: item.firestoreId,
+            operation: item.operation.name,
+            queueStatus: queueStatus,
+            retryCount: item.retryCount + 1,
+            errorMessage: e.toString(),
+          );
           failedCount++;
         }
       }
@@ -500,7 +512,9 @@ class SyncOrchestrator {
     // Retry logic cho shopId - shop mới có thể chưa có claims
     String? shopId = await UserService.getCurrentShopId();
     if (shopId == null) {
-      debugPrint('🔄 SyncOrchestrator: shopId null, retrying with claims refresh...');
+      debugPrint(
+        '🔄 SyncOrchestrator: shopId null, retrying with claims refresh...',
+      );
       // Thử refresh claims cho shop mới
       try {
         await UserService.syncUserInfo(
@@ -512,7 +526,7 @@ class SyncOrchestrator {
       } catch (e) {
         debugPrint('🔄 SyncOrchestrator: Claims refresh failed: $e');
       }
-      
+
       if (shopId == null) {
         throw Exception('No shopId available after retry');
       }
@@ -546,6 +560,13 @@ class SyncOrchestrator {
 
     // Mark local entity as synced
     await _markLocalAsSynced(item.entityType, item.entityId);
+
+    await SyncAuditService.logSuccess(
+      entityType: item.entityType.name,
+      entityId: item.entityId,
+      firestoreId: newFirestoreId ?? item.firestoreId,
+      operation: item.operation.name,
+    );
 
     debugPrint(
       '🔄 SyncOrchestrator: Successfully synced ${item.entityType.name}#${item.entityId}',
@@ -670,11 +691,13 @@ class SyncOrchestrator {
   }
 
   /// Mark item as failed
-  Future<void> _markItemFailed(SyncQueueItem item, String error) async {
+  Future<String> _markItemFailed(SyncQueueItem item, String error) async {
     final db = await _db.database;
     final newRetryCount = item.retryCount + 1;
     final shouldPermanentlyFail =
         _isPermanentSyncError(error) || newRetryCount >= maxRetries;
+
+    String nextStatus;
 
     if (shouldPermanentlyFail) {
       // Mark as permanently failed
@@ -684,6 +707,7 @@ class SyncOrchestrator {
         where: 'id = ?',
         whereArgs: [item.id],
       );
+      nextStatus = 'failed';
     } else {
       // Reset to pending for retry
       await db.update(
@@ -692,10 +716,12 @@ class SyncOrchestrator {
         where: 'id = ?',
         whereArgs: [item.id],
       );
+      nextStatus = 'pending';
     }
 
     await _refreshPendingCount();
     await _emitCurrentStatus();
+    return nextStatus;
   }
 
   /// Refresh pending count
