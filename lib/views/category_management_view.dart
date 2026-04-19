@@ -192,7 +192,7 @@ class _CategoryManagementViewState extends State<CategoryManagementView> {
     _categories.insert(newIndex, item);
     setState(() {});
 
-    // Update order in backend
+    // Update order in Firebase cloud
     for (var i = 0; i < _categories.length; i++) {
       await _categoryService.updateCategory(
         _categories[i].copyWith(sortOrder: i),

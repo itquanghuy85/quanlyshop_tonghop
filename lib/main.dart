@@ -38,11 +38,46 @@ import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 
 final Completer<void> _firebaseBootstrapCompleter = Completer<void>();
 
+const String _deprecatedLocalApiBaseUrl = String.fromEnvironment(
+  'LOCAL_API_BASE_URL',
+  defaultValue: '',
+);
+const String _deprecatedMongoUri = String.fromEnvironment(
+  'MONGODB_URI',
+  defaultValue: '',
+);
+const bool _deprecatedUseMongo = bool.fromEnvironment(
+  'USE_MONGO',
+  defaultValue: false,
+);
+
 Future<void> get firebaseBootstrapReady => _firebaseBootstrapCompleter.future;
 
 void _markFirebaseBootstrapReady() {
   if (!_firebaseBootstrapCompleter.isCompleted) {
     _firebaseBootstrapCompleter.complete();
+  }
+}
+
+void _enforceFirebaseOnlyMode() {
+  final hasLegacyMongoFlags =
+      _deprecatedLocalApiBaseUrl.trim().isNotEmpty ||
+      _deprecatedMongoUri.trim().isNotEmpty ||
+      _deprecatedUseMongo;
+
+  if (!hasLegacyMongoFlags) return;
+
+  debugPrint(
+      '⚠️ Firebase-only mode active: ignoring deprecated Mongo/API dart-defines.',
+  );
+  if (_deprecatedLocalApiBaseUrl.trim().isNotEmpty) {
+    debugPrint('   - LOCAL_API_BASE_URL is ignored');
+  }
+  if (_deprecatedMongoUri.trim().isNotEmpty) {
+    debugPrint('   - MONGODB_URI is ignored');
+  }
+  if (_deprecatedUseMongo) {
+    debugPrint('   - USE_MONGO is ignored');
   }
 }
 
@@ -93,6 +128,7 @@ Future<void> main() async {
         FlutterNativeSplash.preserve(widgetsBinding: binding);
       }
       await initializeDateFormatting('vi_VN');
+      _enforceFirebaseOnlyMode();
 
       // iOS-specific: Run app FIRST to show splash screen immediately
       // This prevents the "freeze" perception on iOS

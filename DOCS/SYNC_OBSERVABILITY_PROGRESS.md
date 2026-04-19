@@ -32,3 +32,10 @@ Cập nhật: 2026-04-19
 - [x] Tạo chức năng xuất báo cáo sync Markdown + mở/chia sẻ trực tiếp.
 - [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
 - [x] Commit + push bước Phase 3.
+
+### Bước 3 - Chốt Firebase-only (loại bỏ MongoDB)
+- [x] Xóa thư mục local `backend/` khỏi workspace để tránh chạy nhầm luồng Mongo/API cũ.
+- [x] Thêm guard runtime trong `main.dart` để cảnh báo và bỏ qua các `dart-define` cũ: `LOCAL_API_BASE_URL`, `MONGODB_URI`, `USE_MONGO`.
+- [x] Dọn wording gây hiểu nhầm backend trong luồng cập nhật danh mục.
+- [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
+- [x] Commit + push bước Firebase-only.
