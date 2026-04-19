@@ -31,4 +31,4 @@ Cập nhật: 2026-04-19
 - [x] Hiển thị banner cảnh báo vận hành tổng hợp trong Sync Center.
 - [x] Tạo chức năng xuất báo cáo sync Markdown + mở/chia sẻ trực tiếp.
 - [x] Build + test: `flutter test` (552 tests passed) + `flutter build apk --debug --no-pub` (thành công).
-- [ ] Commit + push bước Phase 3.
+- [x] Commit + push bước Phase 3.
