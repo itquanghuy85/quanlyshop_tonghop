@@ -113,7 +113,7 @@ Lenh de xuat tren macOS cho iOS release:
 
 1. Doi metadata version trong App Store Connect/Play:
 - Version name: 1.0.2
-- Build number: 292
+- Build number: 500
 2. Deploy web truoc khi submit de URL support/privacy co san.
 3. Chay smoke test 4 flow bat buoc:
 - Tao/Sua/Xoa don
