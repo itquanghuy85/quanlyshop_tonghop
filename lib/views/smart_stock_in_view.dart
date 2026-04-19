@@ -18,6 +18,7 @@ import '../theme/app_text_styles.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../data/db_helper.dart';
 import 'quick_input_codes_view.dart';
+import 'pending_stock_list_view.dart';
 
 /// Form nhập kho thông minh - hỗ trợ cả Nhập nhanh và Nhập tạm
 class SmartStockInView extends StatefulWidget {
@@ -43,13 +44,15 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
-  bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings == null;
+  bool get _isElectronics =>
+      _shopSettings?.businessType == 'electronics' || _shopSettings == null;
   bool get _isFood => _shopSettings?.businessType == 'food';
   bool get _isFashion => _shopSettings?.businessType == 'fashion';
   bool get _showImei => _shopSettings?.enableSerial ?? true;
-  
+
   /// Terminology động theo ngành
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   // Quick input code
   QuickInputCode? _currentQuickInputCode;
@@ -98,8 +101,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   final _units = ProductConstants.units;
   final _paymentMethods = ProductConstants.paymentMethods;
   // Fashion sizes - clothing (S/M/L) or numeric (28/29/30) based on product type
-  List<String> get _fashionSizes => _productType == 'GIAY_DEP' 
-      ? ProductConstants.numericSizes 
+  List<String> get _fashionSizes => _productType == 'GIAY_DEP'
+      ? ProductConstants.numericSizes
       : ProductConstants.clothingSizes;
 
   @override
@@ -119,7 +122,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     final category2 = _terms.category2;
     final category3 = _terms.category3;
     final serialLabel = _terms.specialField1Label;
-    
+
     await FirstTimeGuideService.showGuideIfNeeded(
       context: context,
       screenKey: FirstTimeGuideService.keySmartStockIn,
@@ -175,9 +178,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
       // Load shop settings for multi-industry support
       final settings = await CategoryService().getShopSettings();
-      debugPrint('📦 SmartStockIn: Loaded shop settings - businessType=${settings?.businessType}, enableSerial=${settings?.enableSerial}');
+      debugPrint(
+        '📦 SmartStockIn: Loaded shop settings - businessType=${settings?.businessType}, enableSerial=${settings?.enableSerial}',
+      );
       final suppliers = await _supplierService.getSuppliers();
-      
+
       // Apply all loaded data with setState to trigger UI rebuild
       setState(() {
         if (settings != null) {
@@ -190,7 +195,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           } else {
             _productType = 'DIEN_THOAI'; // Default for electronics
           }
-          debugPrint('📦 SmartStockIn: setState - _isElectronics=$_isElectronics, _isFood=$_isFood, _isFashion=$_isFashion, _productType=$_productType');
+          debugPrint(
+            '📦 SmartStockIn: setState - _isElectronics=$_isElectronics, _isFood=$_isFood, _isFashion=$_isFashion, _productType=$_productType',
+          );
         }
         _suppliers = suppliers.map((s) => s.toMap()).toList();
       });
@@ -210,12 +217,12 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   /// Load dữ liệu từ QuickInputCode để điền vào form
   void _loadQuickInputData() {
     final code = widget.quickInputCode!;
-    
+
     // Set loại sản phẩm
     _productType = code.type;
     _nameCtrl.text = code.name;
     _quantityCtrl.text = '1';
-    
+
     // Giá
     if (code.cost != null && code.cost! > 0) {
       _costCtrl.text = CurrencyTextField.formatDisplay(code.cost!.toInt());
@@ -223,7 +230,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     if (code.price != null && code.price! > 0) {
       _priceCtrl.text = CurrencyTextField.formatDisplay(code.price!.toInt());
     }
-    
+
     // Thông tin điện thoại
     if (code.type == 'DIEN_THOAI') {
       if (code.brand != null && _brands.contains(code.brand)) {
@@ -244,7 +251,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       }
       if (code.condition != null) {
         // Map condition về dạng short nếu cần (backward compatibility)
-        final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
+        final mappedCondition = ProductConstants.mapConditionShort(
+          code.condition!,
+        );
         if (_conditions.contains(mappedCondition)) {
           _selectedCondition = mappedCondition;
         } else if (_conditions.contains(code.condition)) {
@@ -253,21 +262,24 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       }
     }
     // Phụ kiện không có unit trong QuickInputCode
-    
+
     // Nhà cung cấp
     if (code.supplier != null && code.supplier!.isNotEmpty) {
-      final supplierMatch = _suppliers.where((s) => s['name'] == code.supplier).toList();
+      final supplierMatch = _suppliers
+          .where((s) => s['name'] == code.supplier)
+          .toList();
       if (supplierMatch.isNotEmpty) {
         _selectedSupplier = code.supplier;
         _selectedSupplierId = supplierMatch.first['firestoreId']?.toString();
       }
     }
-    
+
     // Phương thức thanh toán
-    if (code.paymentMethod != null && _paymentMethods.contains(code.paymentMethod)) {
+    if (code.paymentMethod != null &&
+        _paymentMethods.contains(code.paymentMethod)) {
       _selectedPaymentMethod = code.paymentMethod;
     }
-    
+
     // Ghi chú
     if (code.description != null && code.description!.isNotEmpty) {
       _notesCtrl.text = code.description!;
@@ -286,17 +298,33 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.blue.shade50, Colors.indigo.shade50]),
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade50, Colors.indigo.shade50],
+          ),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.blue.shade200),
         ),
-        child: Row(children: [
-          Icon(Icons.flash_on, color: Colors.blue.shade700, size: 20),
-          const SizedBox(width: 8),
-          Expanded(child: Text('Chọn mã nhập nhanh để điền tự động',
-            style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.w600, fontSize: 14))),
-          Icon(Icons.arrow_forward_ios, color: Colors.blue.shade400, size: 14),
-        ]),
+        child: Row(
+          children: [
+            Icon(Icons.flash_on, color: Colors.blue.shade700, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Chọn mã nhập nhanh để điền tự động',
+                style: TextStyle(
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.blue.shade400,
+              size: 14,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -308,8 +336,14 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     if (!mounted) return;
 
     if (activeCodes.isEmpty) {
-      NotificationService.showSnackBar('Chưa có mã nhập nhanh nào. Hãy tạo mã mới.', color: Colors.orange);
-      final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputCodesView()));
+      NotificationService.showSnackBar(
+        'Chưa có mã nhập nhanh nào. Hãy tạo mã mới.',
+        color: Colors.orange,
+      );
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const QuickInputCodesView()),
+      );
       if (result is QuickInputCode) {
         _applyQuickInputCode(result);
       }
@@ -335,20 +369,38 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               final code = activeCodes[i];
               final isPhone = code.type == 'DIEN_THOAI';
               return ListTile(
-                leading: Icon(isPhone ? Icons.phone_android : Icons.category, color: isPhone ? Colors.blue : Colors.green),
-                title: Text(code.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: Text(isPhone ? '${code.brand ?? ''} ${code.model ?? ''}'.trim() : code.description ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                leading: Icon(
+                  isPhone ? Icons.phone_android : Icons.category,
+                  color: isPhone ? Colors.blue : Colors.green,
+                ),
+                title: Text(
+                  code.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  isPhone
+                      ? '${code.brand ?? ''} ${code.model ?? ''}'.trim()
+                      : code.description ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 onTap: () => Navigator.pop(ctx, code),
               );
             },
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickInputCodesView()));
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QuickInputCodesView()),
+              );
               if (result is QuickInputCode) {
                 _applyQuickInputCode(result);
               }
@@ -385,25 +437,34 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         }
         if (code.color != null) {
           final mappedColor = ProductConstants.mapColor(code.color);
-          if (_colors.contains(mappedColor)) _selectedColor = mappedColor;
-          else if (_colors.contains(code.color)) _selectedColor = code.color;
+          if (_colors.contains(mappedColor))
+            _selectedColor = mappedColor;
+          else if (_colors.contains(code.color))
+            _selectedColor = code.color;
         }
         if (code.condition != null) {
-          final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
-          if (_conditions.contains(mappedCondition)) _selectedCondition = mappedCondition;
-          else if (_conditions.contains(code.condition)) _selectedCondition = code.condition;
+          final mappedCondition = ProductConstants.mapConditionShort(
+            code.condition!,
+          );
+          if (_conditions.contains(mappedCondition))
+            _selectedCondition = mappedCondition;
+          else if (_conditions.contains(code.condition))
+            _selectedCondition = code.condition;
         }
       }
 
       if (code.supplier != null && code.supplier!.isNotEmpty) {
-        final match = _suppliers.where((s) => s['name'] == code.supplier).toList();
+        final match = _suppliers
+            .where((s) => s['name'] == code.supplier)
+            .toList();
         if (match.isNotEmpty) {
           _selectedSupplier = code.supplier;
           _selectedSupplierId = match.first['firestoreId']?.toString();
         }
       }
 
-      if (code.paymentMethod != null && _paymentMethods.contains(code.paymentMethod)) {
+      if (code.paymentMethod != null &&
+          _paymentMethods.contains(code.paymentMethod)) {
         _selectedPaymentMethod = code.paymentMethod;
       }
 
@@ -414,7 +475,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         _labelInfoCtrl.text = code.labelInfo!;
       }
     });
-    NotificationService.showSnackBar('✅ Đã áp dụng: ${code.name}', color: Colors.green);
+    NotificationService.showSnackBar(
+      '✅ Đã áp dụng: ${code.name}',
+      color: Colors.green,
+    );
   }
 
   void _loadEditData() {
@@ -455,7 +519,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         }
         // Validate condition - map về dạng short nếu cần (backward compatibility)
         if (item.condition != null) {
-          final mappedCondition = ProductConstants.mapConditionShort(item.condition!);
+          final mappedCondition = ProductConstants.mapConditionShort(
+            item.condition!,
+          );
           if (_conditions.contains(mappedCondition)) {
             _selectedCondition = mappedCondition;
           } else if (_conditions.contains(item.condition)) {
@@ -500,7 +566,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       }
     }
     // Validate payment method - chỉ set nếu có trong list
-    if (entry.paymentMethod != null && _paymentMethods.contains(entry.paymentMethod)) {
+    if (entry.paymentMethod != null &&
+        _paymentMethods.contains(entry.paymentMethod)) {
       _selectedPaymentMethod = entry.paymentMethod;
     }
     _notesCtrl.text = entry.notes ?? '';
@@ -523,9 +590,12 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   }
 
   bool get _isPhone => _productType == 'DIEN_THOAI';
-  
+
   /// Kiểm tra nếu là sản phẩm thời trang (quần áo, giày dép, phụ kiện thời trang)
-  bool get _isFashionProduct => _productType == 'QUAN_AO' || _productType == 'GIAY_DEP' || _productType == 'PHU_KIEN_THOI_TRANG';
+  bool get _isFashionProduct =>
+      _productType == 'QUAN_AO' ||
+      _productType == 'GIAY_DEP' ||
+      _productType == 'PHU_KIEN_THOI_TRANG';
 
   /// Kiểm tra nếu điện thoại có IMEI thì số lượng phải = 1
   bool get _hasIMEIConflict {
@@ -539,7 +609,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   bool get _canConfirmNow {
     if (_nameCtrl.text.trim().isEmpty) return false;
     // Sử dụng CurrencyTextField.getValue() để check giá vốn đúng cách
-    if (_canViewCostPrice && CurrencyTextField.getValue(_costCtrl) <= 0) return false;
+    if (_canViewCostPrice && CurrencyTextField.getValue(_costCtrl) <= 0)
+      return false;
     if (_selectedSupplier == null) return false;
     if (_selectedPaymentMethod == null) return false;
     if (_hasIMEIConflict) return false; // Có IMEI nhưng SL != 1
@@ -551,7 +622,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       if (_selectedColor == null) return false;
       if (_selectedCondition == null) return false;
     }
-    
+
     // Thời trang phải có: Size, Màu sắc
     if (_isFashionProduct) {
       if (_selectedSize == null) return false;
@@ -564,7 +635,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   List<String> get _missingConfirmInfo {
     final missing = <String>[];
     if (_nameCtrl.text.trim().isEmpty) missing.add('Tên sản phẩm');
-    if (_canViewCostPrice && CurrencyTextField.getValue(_costCtrl) <= 0) missing.add('Giá vốn');
+    if (_canViewCostPrice && CurrencyTextField.getValue(_costCtrl) <= 0)
+      missing.add('Giá vốn');
     if (_selectedSupplier == null) missing.add('Nhà cung cấp');
     if (_selectedPaymentMethod == null) missing.add('Phương thức TT');
     if (_isPhone) {
@@ -612,7 +684,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
     // Tạo tên sản phẩm chuẩn nếu là điện thoại
     String productName;
-    if (_isPhone && (_selectedBrand != null || _modelCtrl.text.trim().isNotEmpty)) {
+    if (_isPhone &&
+        (_selectedBrand != null || _modelCtrl.text.trim().isNotEmpty)) {
       // Ưu tiên dùng tên chuẩn từ các field
       productName = ProductConstants.generateProductName(
         brand: _selectedBrand,
@@ -631,7 +704,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     }
 
     // Check if fashion product type
-    final bool isFashionProduct = _productType == 'QUAN_AO' || _productType == 'GIAY_DEP' || _productType == 'PHU_KIEN_THOI_TRANG';
+    final bool isFashionProduct =
+        _productType == 'QUAN_AO' ||
+        _productType == 'GIAY_DEP' ||
+        _productType == 'PHU_KIEN_THOI_TRANG';
 
     return StockEntryItem(
       name: productName,
@@ -640,17 +716,25 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       price: price,
       productType: _productType,
       labelInfo: _labelInfoCtrl.text.trim(),
-      labelNote: _labelNoteCtrl.text.trim().isNotEmpty ? _labelNoteCtrl.text.trim().toUpperCase() : null,
+      labelNote: _labelNoteCtrl.text.trim().isNotEmpty
+          ? _labelNoteCtrl.text.trim().toUpperCase()
+          : null,
       // Điện thoại
       imei: _isPhone ? _imeiCtrl.text.trim() : null,
       brand: _isPhone ? _selectedBrand : null,
       model: _isPhone ? _modelCtrl.text.trim().toUpperCase() : null,
       capacity: _isPhone ? _selectedCapacity : null,
-      color: _isPhone ? _selectedColor : (isFashionProduct ? _selectedColor : null),
+      color: _isPhone
+          ? _selectedColor
+          : (isFashionProduct ? _selectedColor : null),
       condition: _isPhone ? _selectedCondition : null,
       // Phụ kiện / Thời trang
       sku: !_isPhone ? _skuCtrl.text.trim().toUpperCase() : null,
-      unit: !_isPhone ? (_selectedUnit == 'Khác' ? _customUnitCtrl.text.trim() : _selectedUnit) : null,
+      unit: !_isPhone
+          ? (_selectedUnit == 'Khác'
+                ? _customUnitCtrl.text.trim()
+                : _selectedUnit)
+          : null,
       // Fashion
       size: isFashionProduct ? _selectedSize : null,
     );
@@ -721,7 +805,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
   }
 
   /// Lưu đầy đủ thông tin - TẤT CẢ đều qua HÀNG CHỜ XÁC NHẬN
-  /// Theo yêu cầu: Dù nhập đầy đủ thông tin vẫn phải qua "HÀNG CHỜ XÁC NHẬN" 
+  /// Theo yêu cầu: Dù nhập đầy đủ thông tin vẫn phải qua "HÀNG CHỜ XÁC NHẬN"
   /// mới vào kho chính và ghi nhận số liệu tài chính liên quan
   Future<void> _saveAndConfirm() async {
     if (_hasIMEIConflict) {
@@ -765,10 +849,49 @@ class _SmartStockInViewState extends State<SmartStockInView> {
       }
 
       if (success && mounted) {
-        NotificationService.showSnackBar(
-          'Đã lưu vào hàng chờ xác nhận nhập vào kho. Vui lòng xác nhận để nhập kho chính.',
-          color: Colors.green,
+        if (widget.editEntry != null) {
+          NotificationService.showSnackBar(
+            'Đã cập nhật phiếu trong hàng chờ xác nhận.',
+            color: Colors.green,
+          );
+          Navigator.pop(context, true);
+          return;
+        }
+
+        final openPendingNow = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Lưu thành công'),
+            content: const Text(
+              'Phiếu đã được lưu vào hàng chờ xác nhận nhập kho.\n\nMở danh sách chờ ngay bây giờ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Để sau'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(ctx, true),
+                icon: const Icon(Icons.pending_actions, size: 18),
+                label: const Text('Mở danh sách chờ'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
         );
+
+        if (!mounted) return;
+        if (openPendingNow == true) {
+          await Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const PendingStockListView()),
+          );
+          return;
+        }
+
         Navigator.pop(context, true);
       }
     } finally {
@@ -787,6 +910,16 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         // Auto set quantity = 1 khi có serial
         _quantityCtrl.text = '1';
       });
+    }
+  }
+
+  Future<void> _openPendingStockList() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const PendingStockListView()),
+    );
+    if (result == true && mounted) {
+      await _loadData();
     }
   }
 
@@ -814,66 +947,75 @@ class _SmartStockInViewState extends State<SmartStockInView> {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: _openPendingStockList,
+            tooltip: 'Mở hàng chờ xác nhận',
+            icon: const Icon(Icons.pending_actions),
+          ),
+        ],
       ),
       body: ResponsiveCenter(
         maxWidth: 800,
         child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Chọn loại sản phẩm
-                          _buildProductTypeSelector(),
-                          const SizedBox(height: 12),
-                          _buildQuickInputPicker(),
-                          const SizedBox(height: 16),
+            ? const Center(child: CircularProgressIndicator())
+            : Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Chọn loại sản phẩm
+                            _buildProductTypeSelector(),
+                            const SizedBox(height: 12),
+                            _buildQuickInputPicker(),
+                            const SizedBox(height: 16),
 
-                          // Form theo loại
-                          if (_isPhone)
-                            _buildPhoneForm()
-                          else
-                            _buildAccessoryForm(),
+                            // Form theo loại
+                            if (_isPhone)
+                              _buildPhoneForm()
+                            else
+                              _buildAccessoryForm(),
 
-                          const Divider(height: 24),
+                            const Divider(height: 24),
 
-                          // Thông tin kế toán
-                          _buildAccountingSection(),
+                            // Thông tin kế toán
+                            _buildAccountingSection(),
 
-                          const SizedBox(height: 16),
+                            const SizedBox(height: 16),
 
-                          // Ghi chú
-                          TextFormField(
-                            controller: _notesCtrl,
-                            maxLines: 2,
-                            textCapitalization: TextCapitalization.characters,
-                            decoration: const InputDecoration(
-                              labelText: 'Ghi chú',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.note, size: 20),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
+                            // Ghi chú
+                            TextFormField(
+                              controller: _notesCtrl,
+                              maxLines: 2,
+                              textCapitalization: TextCapitalization.characters,
+                              decoration: const InputDecoration(
+                                labelText: 'Ghi chú',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.note, size: 20),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                              ),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.headline5.fontSize,
                               ),
                             ),
-                            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
-                  // Nút hành động
-                  _buildActionButtons(),
-                ],
+                    // Nút hành động
+                    _buildActionButtons(),
+                  ],
+                ),
               ),
-            ),
       ),
     );
   }
@@ -911,7 +1053,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           children: [
             Text(
               'Loại sản phẩm',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline5.fontSize),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: AppTextStyles.headline5.fontSize,
+              ),
             ),
             const SizedBox(height: 8),
             Row(
@@ -920,7 +1065,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 return Expanded(
                   child: Row(
                     children: [
-                      Expanded(child: _buildTypeChip(pt['type']!, pt['label']!)),
+                      Expanded(
+                        child: _buildTypeChip(pt['type']!, pt['label']!),
+                      ),
                       if (!isLast) const SizedBox(width: 8),
                     ],
                   ),
@@ -990,7 +1137,6 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             ),
             const SizedBox(height: 12),
 
-
             TextFormField(
               controller: _labelInfoCtrl,
               decoration: const InputDecoration(
@@ -1047,7 +1193,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           vertical: 8,
                         ),
                       ),
-                      style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.headline5.fontSize,
+                      ),
                       onChanged: (value) {
                         // Nếu có IMEI thì số lượng phải = 1
                         if (value.isNotEmpty) {
@@ -1064,7 +1212,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                     color: Colors.blue,
                     tooltip: 'Quét ${_terms.specialField1Label}',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                   ),
                 ],
               ),
@@ -1091,13 +1242,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: b,
                             child: Text(
                               b,
-                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
+                              ),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedBrand = v),
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1114,7 +1270,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                         vertical: 8,
                       ),
                     ),
-                    style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline5.fontSize,
+                    ),
                   ),
                 ),
               ],
@@ -1141,13 +1299,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
-                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
+                              ),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedCapacity = v),
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1168,13 +1331,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
-                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
+                              ),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedColor = v),
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
               ],
@@ -1201,13 +1369,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
-                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
+                              ),
                             ),
                           ),
                         )
                         .toList(),
                     onChanged: (v) => setState(() => _selectedCondition = v),
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1232,7 +1405,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           filled: _imeiCtrl.text.trim().isNotEmpty,
                           fillColor: Colors.grey.shade200,
                         ),
-                        style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+                        style: TextStyle(
+                          fontSize: AppTextStyles.headline5.fontSize,
+                        ),
                         onChanged: (v) {
                           // Nếu có IMEI, ép số lượng = 1
                           if (_imeiCtrl.text.trim().isNotEmpty && v != '1') {
@@ -1250,7 +1425,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           padding: EdgeInsets.only(top: 2),
                           child: Text(
                             '(có IMEI)',
-                            style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.grey),
+                            style: TextStyle(
+                              fontSize: AppTextStyles.overlineSize,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
                       // Hiển thị ghi chú nhập lô
@@ -1268,7 +1446,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                           ),
                           child: const Text(
                             '📦 Nhập lô',
-                            style: TextStyle(fontSize: AppTextStyles.overlineSize, color: Colors.blue),
+                            style: TextStyle(
+                              fontSize: AppTextStyles.overlineSize,
+                              color: Colors.blue,
+                            ),
                           ),
                         ),
                     ],
@@ -1318,19 +1499,21 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     String productLabel;
     String productHint;
     IconData productIcon;
-    
+
     if (_isFood) {
       productLabel = 'Tên sản phẩm *';
-      productHint = _productType == 'DO_UONG' 
+      productHint = _productType == 'DO_UONG'
           ? 'VD: COCA COLA 330ML'
           : 'VD: BÁNH MÌ SANDWICH';
       productIcon = Icons.restaurant;
     } else if (_isFashion) {
       productLabel = 'Tên sản phẩm *';
       productHint = _productType == 'GIAY_DEP'
-          ? 'VD: GIÀY SNEAKER NIKE'  
+          ? 'VD: GIÀY SNEAKER NIKE'
           : 'VD: ÁO THUN NAM SIZE L';
-      productIcon = _productType == 'GIAY_DEP' ? Icons.roller_skating : Icons.checkroom;
+      productIcon = _productType == 'GIAY_DEP'
+          ? Icons.roller_skating
+          : Icons.checkroom;
     } else {
       productLabel = 'Tên sản phẩm *';
       productHint = _productType == 'PHU_KIEN'
@@ -1338,7 +1521,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
           : 'VD: MÀN HÌNH IPHONE 15';
       productIcon = _productType == 'PHU_KIEN' ? Icons.headphones : Icons.build;
     }
-    
+
     return Card(
       elevation: 1,
       child: Padding(
@@ -1373,10 +1556,14 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                     child: DropdownButtonFormField<String>(
                       value: _selectedSize,
                       decoration: InputDecoration(
-                        labelText: _productType == 'GIAY_DEP' ? 'Size giày *' : 'Size *',
+                        labelText: _productType == 'GIAY_DEP'
+                            ? 'Size giày *'
+                            : 'Size *',
                         border: const OutlineInputBorder(),
                         prefixIcon: Icon(
-                          _productType == 'GIAY_DEP' ? Icons.roller_skating : Icons.straighten,
+                          _productType == 'GIAY_DEP'
+                              ? Icons.roller_skating
+                              : Icons.straighten,
                           size: 20,
                           color: Colors.deepPurple,
                         ),
@@ -1393,13 +1580,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                               value: s,
                               child: Text(
                                 s,
-                                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.subtitle1.fontSize,
+                                ),
                               ),
                             ),
                           )
                           .toList(),
                       onChanged: (v) => setState(() => _selectedSize = v),
-                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1410,7 +1602,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                       decoration: InputDecoration(
                         labelText: 'Màu sắc *',
                         border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.palette, size: 20, color: Colors.deepPurple),
+                        prefixIcon: const Icon(
+                          Icons.palette,
+                          size: 20,
+                          color: Colors.deepPurple,
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 8,
@@ -1424,13 +1620,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                               value: c,
                               child: Text(
                                 c,
-                                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.subtitle1.fontSize,
+                                ),
                               ),
                             ),
                           )
                           .toList(),
                       onChanged: (v) => setState(() => _selectedColor = v),
-                      style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                 ],
@@ -1448,14 +1649,18 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                     textCapitalization: TextCapitalization.characters,
                     decoration: InputDecoration(
                       labelText: _isFood ? 'Mã sản phẩm' : 'Mã SKU',
-                      hintText: _isFood ? 'VD: TP-001' : (_isFashion ? 'VD: AO-001' : 'VD: PK-CAP-001'),
+                      hintText: _isFood
+                          ? 'VD: TP-001'
+                          : (_isFashion ? 'VD: AO-001' : 'VD: PK-CAP-001'),
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 8,
                       ),
                     ),
-                    style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline5.fontSize,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1476,7 +1681,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: u,
                             child: Text(
                               u,
-                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
+                              ),
                             ),
                           ),
                         )
@@ -1485,7 +1692,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                       _selectedUnit = v;
                       if (v != 'Khác') _customUnitCtrl.clear();
                     }),
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
               ],
@@ -1560,7 +1770,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 const Spacer(),
                 Text(
                   '(Để trống nếu chưa biết)',
-                  style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
+                    color: Colors.grey.shade600,
+                  ),
                 ),
               ],
             ),
@@ -1570,16 +1783,15 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             Row(
               children: [
                 if (_canViewCostPrice)
-                Expanded(
-                  child: CurrencyTextField(
-                    controller: _costCtrl,
-                    label: 'Giá vốn (VNĐ)',
-                    icon: Icons.attach_money,
-                    onChanged: (_) => setState(() {}),
+                  Expanded(
+                    child: CurrencyTextField(
+                      controller: _costCtrl,
+                      label: 'Giá vốn (VNĐ)',
+                      icon: Icons.attach_money,
+                      onChanged: (_) => setState(() {}),
+                    ),
                   ),
-                ),
-                if (_canViewCostPrice)
-                const SizedBox(width: 8),
+                if (_canViewCostPrice) const SizedBox(width: 8),
                 Expanded(
                   child: CurrencyTextField(
                     controller: _priceCtrl,
@@ -1624,7 +1836,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: s['name'] as String,
                             child: Text(
                               s['name'] ?? '',
-                              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.subtitle1.fontSize,
+                              ),
                             ),
                           ),
                         )
@@ -1640,7 +1854,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                         _selectedSupplierLocalId = supplier['id'] as int?;
                       });
                     },
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.black87),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1660,7 +1877,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             // Phương thức thanh toán
             Text(
               'Phương thức thanh toán',
-              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: AppTextStyles.subtitle1.fontSize,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 4),
             Wrap(
@@ -1668,7 +1888,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: _paymentMethods.map((method) {
                 final isSelected = _selectedPaymentMethod == method;
                 return ChoiceChip(
-                  label: Text(method, style: TextStyle(fontSize: AppTextStyles.body1.fontSize)),
+                  label: Text(
+                    method,
+                    style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                  ),
                   selected: isSelected,
                   onSelected: (selected) {
                     setState(
@@ -1804,7 +2027,10 @@ class _SmartStockInViewState extends State<SmartStockInView> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Thêm NCC mới', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
+        title: Text(
+          'Thêm NCC mới',
+          style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1876,9 +2102,9 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 // === IMEI Scanner Dialog ===
 class _IMEIScannerDialog extends StatefulWidget {
   final String serialLabel;
-  
+
   const _IMEIScannerDialog({required this.serialLabel});
-  
+
   @override
   State<_IMEIScannerDialog> createState() => _IMEIScannerDialogState();
 }
@@ -1900,7 +2126,10 @@ class _IMEIScannerDialogState extends State<_IMEIScannerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Quét ${widget.serialLabel}', style: TextStyle(fontSize: AppTextStyles.headline4.fontSize)),
+      title: Text(
+        'Quét ${widget.serialLabel}',
+        style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
+      ),
       content: SizedBox(
         width: 300,
         height: 300,
