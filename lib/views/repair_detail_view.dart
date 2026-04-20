@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -71,6 +72,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   // ignore: unused_field
   ShopSettings? _shopSettings;
 
+  StreamSubscription<String>? _repairEventSub;
+  Timer? _repairReloadDebounce;
+
   AppLocalizations get loc => AppLocalizations.of(context)!;
 
   @override
@@ -81,6 +85,44 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     _checkPermission();
     _loadShopInfo();
     _loadPartners();
+    _bindRepairEvents();
+  }
+
+  /// Lắng nghe EventBus để tải lại đơn từ local DB khi SyncService nhận dữ liệu mới.
+  void _bindRepairEvents() {
+    _repairEventSub = EventBus().stream.listen((event) {
+      if (event == 'repairs_changed' || event == 'parts_changed') {
+        debugPrint('🔧 [RepairDetailView] Nhận event "$event" → debounce reload từ local DB');
+        _repairReloadDebounce?.cancel();
+        _repairReloadDebounce = Timer(const Duration(milliseconds: 400), () {
+          if (mounted) _reloadRepairFromDb();
+        });
+      }
+    });
+  }
+
+  /// Tải lại dữ liệu đơn sửa từ local DB.
+  /// Chỉ cập nhật nếu đơn không đang trong quá trình sửa (_isUpdating).
+  Future<void> _reloadRepairFromDb() async {
+    if (_isUpdating) return; // Tránh ghi đè khi user đang thao tác
+    final fid = r.firestoreId;
+    if (fid == null) return;
+    try {
+      final updated = await db.getRepairByFirestoreId(fid);
+      if (updated != null && mounted) {
+        debugPrint('✅ [RepairDetailView] Reload từ local DB: ${updated.customerName} (status ${updated.status})');
+        setState(() => r = updated);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [RepairDetailView] _reloadRepairFromDb lỗi: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _repairEventSub?.cancel();
+    _repairReloadDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadShopSettings() async {

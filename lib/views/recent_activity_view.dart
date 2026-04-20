@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/utils/money_utils.dart';
+import '../services/event_bus.dart';
 import '../services/recent_activity_service.dart';
 
 class RecentActivityView extends StatefulWidget {
@@ -19,10 +22,32 @@ class _RecentActivityViewState extends State<RecentActivityView> {
   String _sourceFilter = RecentActivitySource.all;
   Duration _window = const Duration(hours: 24);
 
+  StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _eventSub = EventBus().stream.listen((event) {
+      if (event == 'repairs_changed' ||
+          event == 'sales_changed' ||
+          event == 'expenses_changed' ||
+          event == EventBus.shopChanged) {
+        debugPrint('📋 [RecentActivityView] Nhận event "$event" → debounce reload');
+        _reloadDebounce?.cancel();
+        _reloadDebounce = Timer(const Duration(milliseconds: 400), () {
+          if (mounted) _load();
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _eventSub?.cancel();
+    _reloadDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {

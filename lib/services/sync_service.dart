@@ -1646,7 +1646,6 @@ class SyncService {
         },
         onBatchDone: () {
           debugPrint('✅ [SyncService] Sync xong repair_parts → emit parts_changed');
-          onDataChanged();
           EventBus().emit('parts_changed');
         },
       );
