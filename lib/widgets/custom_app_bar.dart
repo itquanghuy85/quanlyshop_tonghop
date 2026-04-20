@@ -773,8 +773,8 @@ class AppBarAccents {
   /// Default - Xanh dương
   static const Color primary = CustomAppBar.kPrimaryColor;
 
-  /// Sales - Xanh dương đậm
-  static const Color sales = Color(0xFF0D47A1);
+  /// Sales - Xanh lá
+  static const Color sales = Color(0xFF2E7D32);
 
   /// Repairs - Cam
   static const Color repairs = CustomAppBar.kAccentOrange;

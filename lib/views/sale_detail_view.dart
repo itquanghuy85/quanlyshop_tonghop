@@ -60,14 +60,16 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   bool get _isInstallmentNH => s.paymentMethod.toUpperCase() == "TRẢ GÓP (NH)";
   bool _managerUnlocked = false;
   bool _checkingManager = false;
-  
+  bool _canViewCostPrice = false;
+
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   // Theme colors cho màn hình chi tiết đơn bán hàng
-  final Color _primaryColor = Colors.indigo; // Đồng bộ với create_sale_view
-  final Color _accentColor = Colors.indigo.shade600;
+  final Color _primaryColor = const Color(0xFF2E7D32); // Xanh lá - đồng bộ bán hàng
+  final Color _accentColor = const Color(0xFF388E3C);
   final Color _backgroundColor = const Color(0xFFF8FAFF);
 
   // Return info
@@ -82,20 +84,39 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     s = widget.sale;
     _loadShopInfo();
     _loadReturnInfo();
+    _loadCostPermission();
+  }
+
+  Future<void> _loadCostPermission() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    final isSuper = UserService.isCurrentUserSuperAdmin();
+    if (!mounted) return;
+    setState(() {
+      _canViewCostPrice = isSuper || (perms['allowViewCostPrice'] ?? false);
+    });
   }
 
   Future<void> _loadReturnInfo() async {
     try {
       final returns = await SalesReturnService.getReturns();
-      final matches = returns.where((r) =>
-          r.salesOrderFirestoreId == s.firestoreId ||
-          r.salesOrderId == s.id).toList();
-      final totalReturned = matches.fold<int>(0, (sum, r) => sum + r.totalReturnAmount);
+      final matches = returns
+          .where(
+            (r) =>
+                r.salesOrderFirestoreId == s.firestoreId ||
+                r.salesOrderId == s.id,
+          )
+          .toList();
+      final totalReturned = matches.fold<int>(
+        0,
+        (sum, r) => sum + r.totalReturnAmount,
+      );
 
       // Check if all items are fully returned
       bool allReturned = false;
       if (matches.isNotEmpty && s.id != null && s.id! > 0) {
-        final returnedMap = await DBHelper().getReturnedQuantitiesForSale(s.id!);
+        final returnedMap = await DBHelper().getReturnedQuantitiesForSale(
+          s.id!,
+        );
         if (returnedMap.isNotEmpty) {
           // Parse original items and compare
           final names = s.productNames.split(RegExp(r',\s*'));
@@ -113,9 +134,13 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               origQty = int.tryParse(qtyMatch.group(2)!) ?? 1;
             }
             if (imei.toUpperCase().startsWith('PKX')) {
-              origQty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
+              origQty =
+                  int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
             }
-            final isPhone = imei.isNotEmpty && !imei.toUpperCase().startsWith('PKX') && imei != 'NO_IMEI';
+            final isPhone =
+                imei.isNotEmpty &&
+                !imei.toUpperCase().startsWith('PKX') &&
+                imei != 'NO_IMEI';
             final key = isPhone ? imei.toUpperCase() : cleanName.toUpperCase();
             final returned = returnedMap[key] ?? 0;
             if (returned < origQty) {
@@ -405,6 +430,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
 
     EventBus().emit('sales_changed');
+    EventBus().emit('products_changed');
 
     // Tạo PaymentIntent cho khoản thu từ ngân hàng tất toán (status = completed vì đã nhận tiền)
     final user = FirebaseAuth.instance.currentUser;
@@ -414,7 +440,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       type: PaymentIntentType.saleInstallment,
       status: PaymentIntentStatus.completed,
       amount: received,
-      personName: [s.bankName, if (s.bankName2 != null && s.bankName2!.isNotEmpty) s.bankName2].whereType<String>().join(' + '),
+      personName: [
+        s.bankName,
+        if (s.bankName2 != null && s.bankName2!.isNotEmpty) s.bankName2,
+      ].whereType<String>().join(' + '),
       personPhone: '',
       description:
           'Ngân hàng ${[s.bankName ?? "", if (s.bankName2 != null && s.bankName2!.isNotEmpty) s.bankName2!].join(" + ")} tất toán - KH: ${s.customerName}',
@@ -456,7 +485,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       entityType: 'sale',
       entityId: s.firestoreId ?? "sale_${s.soldAt}",
       summary: "Nhận ${MoneyUtils.formatCurrency(received)} đ từ NH",
-      payload: {'fee': fee, 'bank': s.bankName, if (s.bankName2 != null && s.bankName2!.isNotEmpty) 'bank2': s.bankName2},
+      payload: {
+        'fee': fee,
+        'bank': s.bankName,
+        if (s.bankName2 != null && s.bankName2!.isNotEmpty)
+          'bank2': s.bankName2,
+      },
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("ĐÃ GHI NHẬN TIỀN NGÂN HÀNG CHUYỂN")),
@@ -507,12 +541,16 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 ),
                 TextFormField(
                   controller: imeis,
-                  decoration: InputDecoration(labelText: _terms.specialField1Label),
+                  decoration: InputDecoration(
+                    labelText: _terms.specialField1Label,
+                  ),
                 ),
                 // Các trường số tiền đã bị vô hiệu hóa để bảo vệ dữ liệu tài chính
                 DropdownButtonFormField<String>(
                   initialValue: warranty,
-                  decoration: InputDecoration(labelText: _terms.specialField2Label),
+                  decoration: InputDecoration(
+                    labelText: _terms.specialField2Label,
+                  ),
                   items: warranties
                       .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                       .toList(),
@@ -690,6 +728,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     // Emit event và thông báo
     EventBus().emit('sales_changed');
+    EventBus().emit('products_changed');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -706,9 +745,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     // === BƯỚC 1: XÁC NHẬN TRƯỚC KHI XÓA ===
     final saleRef = s.firestoreId ?? 'sale_${s.soldAt}';
     final finalPrice = s.finalPrice;
-    final hasDebt = s.paymentMethod == 'CÔNG NỢ' || 
-                    (s.paymentMethod == 'TRẢ GÓP (NH)' && s.remainingDebt > 0);
-    
+    final hasDebt =
+        s.paymentMethod == 'CÔNG NỢ' ||
+        (s.paymentMethod == 'TRẢ GÓP (NH)' && s.remainingDebt > 0);
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -732,7 +772,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             const SizedBox(height: 8),
             Text(
               'Giá trị: ${NumberFormat('#,###', 'vi').format(finalPrice)}đ',
-              style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 12),
             Container(
@@ -751,7 +794,11 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   ),
                   const SizedBox(height: 4),
                   _infoRow(Icons.inventory, 'Khôi phục số lượng kho'),
-                  if (hasDebt) _infoRow(Icons.account_balance_wallet, 'Xóa công nợ liên quan'),
+                  if (hasDebt)
+                    _infoRow(
+                      Icons.account_balance_wallet,
+                      'Xóa công nợ liên quan',
+                    ),
                   _infoRow(Icons.receipt_long, 'Xóa bản ghi thanh toán'),
                   _infoRow(Icons.person, 'Cập nhật lại chi tiêu KH'),
                 ],
@@ -789,7 +836,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       int restoredCount = 0;
       int debtDeleted = 0;
       int intentDeleted = 0;
-      
+
       // 2A: Khôi phục inventory
       final imeis = s.productImeis.split(', ');
       final names = s.productNames.split(', ');
@@ -803,19 +850,30 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         if (imei.toUpperCase().startsWith("PKX") || imei == "NO_IMEI") {
           // Phụ kiện (PKxN) hoặc sản phẩm không có IMEI → tìm theo tên
           if (imei.toUpperCase().startsWith("PKX")) {
-            qtyToRestore = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
+            qtyToRestore =
+                int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
           }
           // Tách tên sản phẩm từ productNames (bỏ " xN"/" XN", "(Tặng)", "(Giảm ...)")
           if (i < names.length) {
             final nameEntry = names[i].trim();
             // Regex case-insensitive: match "Tên SP x2" hoặc "Tên SP X2"
             final nameMatch = RegExp(r'^(.+?)\s+[xX]\d+').firstMatch(nameEntry);
-            var productName = nameMatch != null ? nameMatch.group(1)!.trim() : nameEntry;
+            var productName = nameMatch != null
+                ? nameMatch.group(1)!.trim()
+                : nameEntry;
             // Bỏ hậu tố (TẶNG) hoặc (GIẢM ...) nếu còn dính
-            productName = productName.replaceAll(RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false), '');
-            productName = productName.replaceAll(RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false), '');
+            productName = productName.replaceAll(
+              RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false),
+              '',
+            );
+            productName = productName.replaceAll(
+              RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false),
+              '',
+            );
             productName = productName.trim();
-            debugPrint('🔍 Tìm sản phẩm theo tên: "$productName" (từ: "$nameEntry")');
+            debugPrint(
+              '🔍 Tìm sản phẩm theo tên: "$productName" (từ: "$nameEntry")',
+            );
             product = await db.getProductByName(productName);
             if (product == null) {
               debugPrint('⚠️ Không tìm thấy sản phẩm theo tên: $productName');
@@ -840,11 +898,13 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   .collection('products')
                   .doc(product.firestoreId)
                   .update({
-                'quantity': product.quantity,
-                'status': product.status,
-                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
-              });
-              debugPrint('☁️ Synced product quantity to cloud: ${product.firestoreId}');
+                    'quantity': product.quantity,
+                    'status': product.status,
+                    'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
+                  });
+              debugPrint(
+                '☁️ Synced product quantity to cloud: ${product.firestoreId}',
+              );
             } catch (e) {
               debugPrint('⚠️ Cloud sync failed, queueing: $e');
               await SyncOrchestrator().enqueue(
@@ -857,7 +917,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
             }
           }
           restoredCount += qtyToRestore;
-          debugPrint('✅ Khôi phục kho: ${product.name} +$qtyToRestore (tổng: ${product.quantity})');
+          debugPrint(
+            '✅ Khôi phục kho: ${product.name} +$qtyToRestore (tổng: ${product.quantity})',
+          );
         }
       }
 
@@ -886,7 +948,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       // 2C: Xóa PaymentIntents liên quan
       try {
         intentDeleted = await db.deletePaymentIntentsByReferenceId(saleRef);
-        debugPrint('🗑️ Deleted $intentDeleted payment intents for sale $saleRef');
+        debugPrint(
+          '🗑️ Deleted $intentDeleted payment intents for sale $saleRef',
+        );
       } catch (e) {
         debugPrint('⚠️ Failed to delete payment intents: $e');
       }
@@ -898,10 +962,14 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           final customerService = CustomerService();
           final customer = await customerService.getCustomerByPhone(phone);
           if (customer != null && finalPrice > 0) {
-            final newTotal = (customer.totalSpent - finalPrice).clamp(0, double.maxFinite).toInt();
+            final newTotal = (customer.totalSpent - finalPrice)
+                .clamp(0, double.maxFinite)
+                .toInt();
             final updated = customer.copyWith(totalSpent: newTotal);
             await customerService.updateCustomer(updated);
-            debugPrint('📊 Reverted customer totalSpent: ${customer.totalSpent} → $newTotal');
+            debugPrint(
+              '📊 Reverted customer totalSpent: ${customer.totalSpent} → $newTotal',
+            );
           }
         }
       } catch (e) {
@@ -990,7 +1058,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           Icon(icon, size: 14, color: Colors.blue.shade700),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(text, style: TextStyle(fontSize: 13, color: Colors.blue.shade800)),
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13, color: Colors.blue.shade800),
+            ),
           ),
         ],
       ),
@@ -1005,7 +1076,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
+              colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -1086,7 +1157,11 @@ class _SaleDetailViewState extends State<SaleDetailView> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _bottomAction(Icons.sms_rounded, 'SMS', _sendSmsToCustomer),
-                _bottomAction(Icons.chat_bubble_outline_rounded, 'Chat', _sendToChat),
+                _bottomAction(
+                  Icons.chat_bubble_outline_rounded,
+                  'Chat',
+                  _sendToChat,
+                ),
                 _bottomAction(Icons.preview, 'Xem trước', () {
                   Navigator.push(
                     context,
@@ -1099,22 +1174,29 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                   );
                 }),
                 _bottomAction(Icons.print_rounded, 'In', _printWifi),
-                _bottomAction(Icons.assignment_return_rounded,
+                _bottomAction(
+                  Icons.assignment_return_rounded,
                   _allItemsReturned ? 'Đã trả hết' : 'Trả hàng',
-                  _allItemsReturned ? null : () async {
-                  final result = await Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CreateSalesReturnView(sale: s),
-                    ),
-                  );
-                  if (result == true && mounted) {
-                    _loadReturnInfo();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Trả hàng thành công!'), backgroundColor: Colors.green),
-                    );
-                  }
-                }),
+                  _allItemsReturned
+                      ? null
+                      : () async {
+                          final result = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CreateSalesReturnView(sale: s),
+                            ),
+                          );
+                          if (result == true && mounted) {
+                            _loadReturnInfo();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Trả hàng thành công!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        },
+                ),
                 _bottomAction(Icons.design_services, 'Mẫu in', () {
                   Navigator.push(
                     context,
@@ -1131,146 +1213,189 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       body: ResponsiveCenter(
         maxWidth: 800,
         child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (_isInstallmentNH && (s.settlementReceivedAt == null || s.settlementAmount < s.loanAmount + s.loanAmount2))
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: _openSettlementDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _accentColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.account_balance_wallet_outlined),
-                  label: Text(s.settlementReceivedAt != null
-                      ? "CẬP NHẬT TẤT TOÁN (còn ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2 - s.settlementAmount)} đ)"
-                      : "NHẬN TIỀN TỪ NGÂN HÀNG"),
-                ),
-              ),
-            if (_isInstallmentNH) const SizedBox(height: 10),
-
-            // Return indicator
-            if (_allReturns.isNotEmpty)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _allItemsReturned ? Colors.grey.shade100 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _allItemsReturned ? Colors.grey.shade400 : Colors.red.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.assignment_return,
-                      color: _allItemsReturned ? Colors.grey.shade700 : Colors.red.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _allItemsReturned
-                                ? 'ĐÃ TRẢ TOÀN BỘ — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ'
-                                : 'ĐÃ TRẢ 1 PHẦN — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ (${_allReturns.length} lần)',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
-                              color: _allItemsReturned ? Colors.grey.shade700 : Colors.red.shade700),
-                          ),
-                          ..._allReturns.map((r) => Text(
-                            '${r.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.returnDate))} • ${MoneyUtils.formatCurrency(r.totalReturnAmount)}đ${r.note != null && r.note!.isNotEmpty ? ' • ${r.note}' : ''}',
-                            style: TextStyle(fontSize: 13, color: _allItemsReturned ? Colors.grey.shade600 : Colors.red.shade600),
-                          )),
-                        ],
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              if (_isInstallmentNH &&
+                  (s.settlementReceivedAt == null ||
+                      s.settlementAmount < s.loanAmount + s.loanAmount2))
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _openSettlementDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _accentColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                  ],
+                    icon: const Icon(Icons.account_balance_wallet_outlined),
+                    label: Text(
+                      s.settlementReceivedAt != null
+                          ? "CẬP NHẬT TẤT TOÁN (còn ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2 - s.settlementAmount)} đ)"
+                          : "NHẬN TIỀN TỪ NGÂN HÀNG",
+                    ),
+                  ),
                 ),
-              ),
+              if (_isInstallmentNH) const SizedBox(height: 10),
 
-            _card("GIAO DỊCH", [
-              _item("Khách hàng", s.customerName),
-              _item("Số điện thoại", s.phone),
-              _item("Địa chỉ", s.address.isEmpty ? "---" : s.address),
-              _item("Sản phẩm", s.productNames),
-              _item("IMEI", s.productImeis),
-              _item("Bảo hành", s.warranty.isNotEmpty ? s.warranty : "KO BH"),
-              _item("Nhân viên", s.sellerName),
-              _item("Thời gian", _fmtDate(s.soldAt)),
-              _item("Hình thức", s.paymentMethod),
-              // Hiển thị chi tiết kết hợp thanh toán
-              if (s.paymentMethod.toUpperCase() == 'KẾT HỢP' && (s.cashAmount > 0 || s.transferAmount > 0)) ...[
-                _item(
-                  "💵 Tiền mặt",
-                  "${MoneyUtils.formatCurrency(s.cashAmount)} Đ",
-                  color: Colors.green,
+              // Return indicator
+              if (_allReturns.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _allItemsReturned
+                        ? Colors.grey.shade100
+                        : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _allItemsReturned
+                          ? Colors.grey.shade400
+                          : Colors.red.shade200,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.assignment_return,
+                        color: _allItemsReturned
+                            ? Colors.grey.shade700
+                            : Colors.red.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _allItemsReturned
+                                  ? 'ĐÃ TRẢ TOÀN BỘ — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ'
+                                  : 'ĐÃ TRẢ 1 PHẦN — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ (${_allReturns.length} lần)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: _allItemsReturned
+                                    ? Colors.grey.shade700
+                                    : Colors.red.shade700,
+                              ),
+                            ),
+                            ..._allReturns.map(
+                              (r) => Text(
+                                '${r.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.returnDate))} • ${MoneyUtils.formatCurrency(r.totalReturnAmount)}đ${r.note != null && r.note!.isNotEmpty ? ' • ${r.note}' : ''}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: _allItemsReturned
+                                      ? Colors.grey.shade600
+                                      : Colors.red.shade600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                _item(
-                  "🏦 Chuyển khoản",
-                  "${MoneyUtils.formatCurrency(s.transferAmount)} Đ",
-                  color: Colors.blue,
-                ),
-              ],
-              if (s.notes != null && s.notes!.isNotEmpty)
-                _item("Ghi chú", s.notes!),
-              if (s.discount > 0)
-                _item(
-                  "Giảm giá",
-                  "-${MoneyUtils.formatCurrency(s.discount)} Đ",
-                  color: Colors.orange,
-                ),
-              _item(
-                "Tổng tiền",
-                "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
-                color: Colors.red,
-              ),
-            ]),
-            if (_isInstallmentNH)
-              _card("TRẢ GÓP - NGÂN HÀNG", [
-                _item(
-                  "Down payment",
-                  "${MoneyUtils.formatCurrency(s.downPayment)} đ",
-                ),
-                _item("NH 1 giải ngân", s.bankName ?? "---"),
-                _item(
-                  "Số tiền NH 1",
-                  "${MoneyUtils.formatCurrency(s.loanAmount)} đ",
-                ),
-                if (s.bankName2 != null && s.bankName2!.isNotEmpty) ...[                  _item("NH 2 giải ngân", s.bankName2!),
+
+              _card("GIAO DỊCH", [
+                _item("Khách hàng", s.customerName),
+                _item("Số điện thoại", s.phone),
+                _item("Địa chỉ", s.address.isEmpty ? "---" : s.address),
+                _item("Sản phẩm", s.productNames),
+                _item("IMEI", s.productImeis),
+                _item("Bảo hành", s.warranty.isNotEmpty ? s.warranty : "KO BH"),
+                _item("Nhân viên", s.sellerName),
+                _item("Thời gian", _fmtDate(s.soldAt)),
+                _item("Hình thức", s.paymentMethod),
+                // Hiển thị chi tiết kết hợp thanh toán
+                if (s.paymentMethod.toUpperCase() == 'KẾT HỢP' &&
+                    (s.cashAmount > 0 || s.transferAmount > 0)) ...[
                   _item(
-                    "Số tiền NH 2",
-                    "${MoneyUtils.formatCurrency(s.loanAmount2)} đ",
+                    "💵 Tiền mặt",
+                    "${MoneyUtils.formatCurrency(s.cashAmount)} Đ",
+                    color: Colors.green,
+                  ),
+                  _item(
+                    "🏦 Chuyển khoản",
+                    "${MoneyUtils.formatCurrency(s.transferAmount)} Đ",
+                    color: Colors.blue,
                   ),
                 ],
-                _item(
-                  "Tổng vay NH",
-                  "${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
-                ),
-                _item("Ngày dự kiến", _fmtShort(s.settlementPlannedAt)),
-                _item("Mã hồ sơ", s.settlementCode ?? "---"),
-                _item("Ghi chú", s.settlementNote ?? "---"),
-                _item(
-                  "Tất toán",
-                  s.settlementReceivedAt == null
-                      ? "Chưa nhận"
-                      : s.settlementAmount >= s.loanAmount + s.loanAmount2
-                          ? "Đã nhận đủ ${_fmtShort(s.settlementReceivedAt)}"
-                          : "Đã nhận ${MoneyUtils.formatCurrency(s.settlementAmount)} đ / ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
-                ),
-                if (s.settlementFee > 0)
+                if (s.notes != null && s.notes!.isNotEmpty)
+                  _item("Ghi chú", s.notes!),
+                if (s.discount > 0)
                   _item(
-                    "Phí NH",
-                    "${MoneyUtils.formatCurrency(s.settlementFee)} đ",
+                    "Giảm giá",
+                    "-${MoneyUtils.formatCurrency(s.discount)} Đ",
                     color: Colors.orange,
                   ),
+                _item(
+                  "Tổng tiền",
+                  "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
+                  color: Colors.red,
+                ),
+                if (_canViewCostPrice && s.totalCost > 0) ...[
+                  _item(
+                    "Giá vốn",
+                    "${MoneyUtils.formatCurrency(s.totalCost)} Đ",
+                    color: Colors.orange.shade700,
+                  ),
+                  _item(
+                    "Lợi nhuận",
+                    "${s.finalPrice - s.totalCost >= 0 ? '+' : ''}${MoneyUtils.formatCurrency(s.finalPrice - s.totalCost)} Đ",
+                    color: s.finalPrice - s.totalCost >= 0
+                        ? Colors.green.shade700
+                        : Colors.red,
+                  ),
+                ],
               ]),
-          ],
+              if (_isInstallmentNH)
+                _card("TRẢ GÓP - NGÂN HÀNG", [
+                  _item(
+                    "Down payment",
+                    "${MoneyUtils.formatCurrency(s.downPayment)} đ",
+                  ),
+                  _item("NH 1 giải ngân", s.bankName ?? "---"),
+                  _item(
+                    "Số tiền NH 1",
+                    "${MoneyUtils.formatCurrency(s.loanAmount)} đ",
+                  ),
+                  if (s.bankName2 != null && s.bankName2!.isNotEmpty) ...[
+                    _item("NH 2 giải ngân", s.bankName2!),
+                    _item(
+                      "Số tiền NH 2",
+                      "${MoneyUtils.formatCurrency(s.loanAmount2)} đ",
+                    ),
+                  ],
+                  _item(
+                    "Tổng vay NH",
+                    "${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
+                  ),
+                  _item("Ngày dự kiến", _fmtShort(s.settlementPlannedAt)),
+                  _item("Mã hồ sơ", s.settlementCode ?? "---"),
+                  _item("Ghi chú", s.settlementNote ?? "---"),
+                  _item(
+                    "Tất toán",
+                    s.settlementReceivedAt == null
+                        ? "Chưa nhận"
+                        : s.settlementAmount >= s.loanAmount + s.loanAmount2
+                        ? "Đã nhận đủ ${_fmtShort(s.settlementReceivedAt)}"
+                        : "Đã nhận ${MoneyUtils.formatCurrency(s.settlementAmount)} đ / ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
+                  ),
+                  if (s.settlementFee > 0)
+                    _item(
+                      "Phí NH",
+                      "${MoneyUtils.formatCurrency(s.settlementFee)} đ",
+                      color: Colors.orange,
+                    ),
+                ]),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1351,11 +1476,18 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 22, color: isDisabled ? Colors.grey : const Color(0xFF0068FF)),
+            Icon(
+              icon,
+              size: 22,
+              color: isDisabled ? Colors.grey : const Color(0xFF0068FF),
+            ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(fontSize: 12, color: isDisabled ? Colors.grey : const Color(0xFF0068FF)),
+              style: TextStyle(
+                fontSize: 12,
+                color: isDisabled ? Colors.grey : const Color(0xFF0068FF),
+              ),
             ),
           ],
         ),
@@ -1437,4 +1569,3 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
   }
 }
-

@@ -1582,7 +1582,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
+                colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1611,7 +1611,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
+              colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

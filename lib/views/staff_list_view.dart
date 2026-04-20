@@ -1885,24 +1885,44 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
       print('Updating user info for ${widget.uid}');
 
-      // Legacy users có thể thiếu shopId -> gán tự động trước khi cập nhật để tránh PERMISSION_DENIED.
+      // Đảm bảo luôn có shopId tươi nhất từ Firestore (không dùng cache cũ)
+      // để Firestore rules có thể xác minh quyền chủ shop khi ghi.
+      if (!widget.isSuperAdmin && _currentUserShopId == null) {
+        final freshId = await UserService.getCurrentShopId();
+        if (mounted && freshId != null) {
+          setState(() => _currentUserShopId = freshId);
+        }
+      }
+
       final hasCurrentShop =
           _currentUserShopId != null && _currentUserShopId!.trim().isNotEmpty;
       final currentShop = _currentUserShopId?.trim();
       final staffShop = _staffShopId?.trim();
-      final needsShopAssign =
-          !widget.isSuperAdmin &&
-          hasCurrentShop &&
-          (staffShop == null || staffShop.isEmpty || staffShop != currentShop);
-      if (needsShopAssign) {
-        debugPrint(
-          'ℹ️ Staff ${widget.uid} shopId mismatch/missing, assigning to current shop before save',
-        );
+
+      // Luôn gán shopId cho nhân viên khi chủ shop lưu - đảm bảo Firestore doc
+      // có trường shopId hợp lệ để rules xác minh quyền, kể cả khi local state đúng
+      // nhưng Firestore doc bị thiếu shopId (sync gap).
+      if (!widget.isSuperAdmin && hasCurrentShop) {
+        final needsShopAssign =
+            staffShop == null || staffShop.isEmpty || staffShop != currentShop;
+        if (needsShopAssign) {
+          debugPrint(
+            'ℹ️ Staff ${widget.uid} shopId mismatch/missing, assigning to current shop before save',
+          );
+        } else {
+          debugPrint(
+            'ℹ️ Pre-assigning shopId for ${widget.uid} to ensure Firestore doc is up to date',
+          );
+        }
         await UserService.assignUserToCurrentShop(widget.uid);
         if (!mounted) return;
         setState(() {
           _staffShopId = _currentUserShopId;
         });
+        // Làm mới ID token để Firestore rules nhận được claims mới nhất
+        try {
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
+        } catch (_) {}
       }
 
       // Only owner/superAdmin can change role. Normalize to valid roles for writes.
