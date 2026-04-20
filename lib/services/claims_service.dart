@@ -158,9 +158,16 @@ class ClaimsService {
       final claims = idTokenResult.claims;
       
       if (claims != null) {
+        final rawShopId = claims['shopId'];
+        final normalizedShopId = rawShopId?.toString().trim();
         _cachedClaims = {
           'role': claims['role'] ?? 'user',
-          'shopId': claims['shopId'] ?? user.uid,
+          // Do not guess shopId from uid when token claim is missing.
+          // A wrong fallback shopId can isolate data and break cross-device sync.
+          'shopId':
+              (normalizedShopId == null || normalizedShopId.isEmpty)
+              ? null
+              : normalizedShopId,
           'isSuperAdmin': claims['isSuperAdmin'] == true,
         };
         _cacheTime = DateTime.now();

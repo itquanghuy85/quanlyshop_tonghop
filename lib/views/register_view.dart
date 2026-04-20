@@ -156,13 +156,19 @@ class _RegisterViewState extends State<RegisterView> {
 
         // Registration is complete. Keep the authenticated session and simply
         // close this route so AuthGate can reveal HomeView underneath.
-        await cred.user!.reload();
+        try {
+          await cred.user!.reload();
+        } catch (e) {
+          debugPrint('RegisterView: user reload failed (non-fatal): $e');
+        }
       }
       if (!mounted) return;
       setState(() {
         _loading = false;
       });
-      Navigator.pop(context, true);
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       final errorMsg = _formatError(e);
       setState(() { _error = errorMsg; _loading = false; });

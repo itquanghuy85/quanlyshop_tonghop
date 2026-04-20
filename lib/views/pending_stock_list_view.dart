@@ -255,8 +255,9 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   }
 
   Future<void> _openInventoryShortcut() async {
-    String role = (await UserService.getCachedRole()) ?? 'staff';
     final user = FirebaseAuth.instance.currentUser;
+    String role =
+        (await UserService.getCachedRole(forUid: user?.uid)) ?? 'staff';
     if (user != null) {
       try {
         role = await UserService.getUserRole(user.uid);

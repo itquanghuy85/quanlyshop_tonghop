@@ -474,7 +474,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
       UserService.updateCachedShopId(shopId);
 
-      String? role = await UserService.getCachedRole();
+      String? role = await UserService.getCachedRole(forUid: uid);
       role ??= await UserService.getRoleFast().timeout(
         const Duration(seconds: 2),
         onTimeout: () => 'user',
@@ -492,7 +492,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         debugPrint('⚠️ fast bootstrap CurrentShopService.init failed: $e');
       }
 
-      UserService.saveAuthCache(role: role);
+      UserService.saveAuthCache(role: role, forUid: uid);
       _startBackgroundUserWarmup(uid, email);
       debugPrint('⚡ Fast mobile bootstrap success: role=$role, shopId=$shopId');
       return {'role': role, 'isSuperAdmin': false};
@@ -520,7 +520,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
 
     if (!kIsWeb && hasLocalCache) {
-      final cachedRole = await UserService.getCachedRole();
+      final cachedRole = await UserService.getCachedRole(forUid: uid);
       final cachedShopId = UserService.getShopIdSync();
       if (cachedRole != null &&
           cachedRole.isNotEmpty &&
@@ -702,7 +702,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     // ═══════════ STEP 5: Lấy role ═══════════
     // Ưu tiên cached role từ syncUserInfo (vừa set chính xác ở trên)
     String role = 'user';
-    final cachedRole = await UserService.getCachedRole();
+    final cachedRole = await UserService.getCachedRole(forUid: uid);
     if (cachedRole != null && cachedRole.isNotEmpty && cachedRole != 'user') {
       role = cachedRole;
       debugPrint('⚡ Step 5: Using cached role from syncUserInfo: $role');
@@ -721,7 +721,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }
 
     // Lưu role vào prefs cho lần sau
-    UserService.saveAuthCache(role: role);
+    UserService.saveAuthCache(role: role, forUid: uid);
 
     PerfMonitor.stop('_getRoleAfterSync');
     return {'role': role, 'isSuperAdmin': false};

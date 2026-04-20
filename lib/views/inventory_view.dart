@@ -2825,8 +2825,8 @@ class _InventoryViewState extends State<InventoryView>
 
   Widget _buildInventorySummary(int qty, int capital) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF1A237E), Color(0xFF2962FF)],
@@ -2948,7 +2948,7 @@ class _InventoryViewState extends State<InventoryView>
       children: [
         // Search box và toggle hết hàng
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Row(
             children: [
               Expanded(
@@ -2976,7 +2976,7 @@ class _InventoryViewState extends State<InventoryView>
                       borderRadius: BorderRadius.circular(18),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
               ),
@@ -2987,8 +2987,8 @@ class _InventoryViewState extends State<InventoryView>
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 10,
+                    horizontal: 8,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: _showOutOfStock
@@ -3129,9 +3129,9 @@ class _InventoryViewState extends State<InventoryView>
               : (p.quantity <= 0 ? Colors.red.shade200 : Colors.grey.shade200));
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 2),
+      margin: const EdgeInsets.only(bottom: 1),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(7),
         side: BorderSide(color: borderColor, width: isSelected ? 2 : 1),
       ),
       elevation: 1,
@@ -3149,9 +3149,9 @@ class _InventoryViewState extends State<InventoryView>
         },
         onTap: () =>
             _isSelectionMode ? _toggleSelection(p.id!) : _showProductDetail(p),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(7),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3161,14 +3161,14 @@ class _InventoryViewState extends State<InventoryView>
                   // STT + Type icon
                   if (index != null)
                     Container(
-                      width: 20,
-                      height: 20,
-                      margin: const EdgeInsets.only(right: 5),
+                      width: 18,
+                      height: 18,
+                      margin: const EdgeInsets.only(right: 4),
                       decoration: BoxDecoration(
                         color: isPending
                             ? Colors.orange.withOpacity(0.2)
                             : AppColors.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                       child: Center(
                         child: Text(
@@ -3182,8 +3182,8 @@ class _InventoryViewState extends State<InventoryView>
                         ),
                       ),
                     ),
-                  Text(typeIcon, style: const TextStyle(fontSize: 16)),
-                  const SizedBox(width: 6),
+                  Text(typeIcon, style: const TextStyle(fontSize: 14)),
+                  const SizedBox(width: 5),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3193,10 +3193,10 @@ class _InventoryViewState extends State<InventoryView>
                             if (isPending)
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                  vertical: 1,
+                                  horizontal: 3,
+                                  vertical: 0,
                                 ),
-                                margin: const EdgeInsets.only(right: 4),
+                                margin: const EdgeInsets.only(right: 3),
                                 decoration: BoxDecoration(
                                   color: Colors.orange,
                                   borderRadius: BorderRadius.circular(3),
@@ -3205,7 +3205,7 @@ class _InventoryViewState extends State<InventoryView>
                                   'TẠM',
                                   style: AppTextStyles.overline.copyWith(
                                     color: Colors.white,
-                                    fontSize: 10,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -3213,7 +3213,7 @@ class _InventoryViewState extends State<InventoryView>
                             Expanded(
                               child: Text(
                                 ProductConstants.cleanProductName(p.name),
-                                style: AppTextStyles.subtitle1.copyWith(
+                                style: AppTextStyles.body2.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: isPending
                                       ? Colors.orange.shade800
@@ -3243,7 +3243,10 @@ class _InventoryViewState extends State<InventoryView>
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 0,
+                        ),
                         decoration: BoxDecoration(
                           color: p.quantity > 0
                               ? Colors.blue.shade50
@@ -3252,7 +3255,7 @@ class _InventoryViewState extends State<InventoryView>
                         ),
                         child: Text(
                           'x${p.quantity}',
-                          style: AppTextStyles.body1.copyWith(
+                          style: AppTextStyles.body2.copyWith(
                             fontWeight: FontWeight.bold,
                             color: p.quantity > 0
                                 ? Colors.blue.shade700
@@ -3263,8 +3266,8 @@ class _InventoryViewState extends State<InventoryView>
                     ],
                   ),
                   if (isSelected) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.check_circle, color: Colors.red, size: 20),
+                    const SizedBox(width: 5),
+                    const Icon(Icons.check_circle, color: Colors.red, size: 18),
                   ],
                 ],
               ),

@@ -171,17 +171,24 @@ class UserService {
 
   /// Lưu shopId + role vào SharedPreferences để lần đăng nhập sau
   /// không cần chờ Firestore/claims — dùng ngay từ local.
-  static Future<void> saveAuthCache({String? role}) async {
-    if (_cachedShopId == null || _cachedUid == null) return;
+  static Future<void> saveAuthCache({String? role, String? forUid}) async {
+    final effectiveUid =
+        (forUid ?? _cachedUid ?? FirebaseAuth.instance.currentUser?.uid)
+            ?.trim();
+    final effectiveShopId = _cachedShopId?.trim();
+    if (effectiveUid == null || effectiveUid.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_cache_shopId', _cachedShopId!);
-      await prefs.setString('auth_cache_uid', _cachedUid!);
-      if (role != null) {
-        await prefs.setString('auth_cache_role', role);
+      if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+        await prefs.setString('auth_cache_shopId', effectiveShopId);
+        await prefs.setString('auth_cache_uid', effectiveUid);
+      }
+      if (role != null && role.trim().isNotEmpty) {
+        await prefs.setString('auth_cache_role', role.trim());
+        await prefs.setString('auth_cache_role_uid', effectiveUid);
       }
       debugPrint(
-        '💾 saveAuthCache: shopId=$_cachedShopId, uid=$_cachedUid, role=$role',
+        '💾 saveAuthCache: shopId=$effectiveShopId, uid=$effectiveUid, role=$role',
       );
     } catch (e) {
       debugPrint('⚠️ saveAuthCache error: $e');
@@ -201,6 +208,17 @@ class UserService {
       final prefs = await SharedPreferences.getInstance();
       final savedUid = prefs.getString('auth_cache_uid');
       final savedShopId = prefs.getString('auth_cache_shopId');
+      if (savedUid != null && savedUid != currentUid) {
+        await prefs.remove('auth_cache_uid');
+        await prefs.remove('auth_cache_shopId');
+      }
+
+      final roleUid = prefs.getString('auth_cache_role_uid');
+      if (roleUid != null && roleUid != currentUid) {
+        await prefs.remove('auth_cache_role');
+        await prefs.remove('auth_cache_role_uid');
+      }
+
       if (savedUid == currentUid &&
           savedShopId != null &&
           savedShopId.isNotEmpty) {
@@ -218,10 +236,33 @@ class UserService {
   }
 
   /// Lấy role đã lưu từ SharedPreferences (fallback khi Firestore timeout)
-  static Future<String?> getCachedRole() async {
+  static Future<String?> getCachedRole({String? forUid}) async {
+    final effectiveUid =
+        (forUid ?? FirebaseAuth.instance.currentUser?.uid)?.trim();
+    if (effectiveUid == null || effectiveUid.isEmpty) {
+      return null;
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('auth_cache_role');
+      final cachedRole = prefs.getString('auth_cache_role');
+      if (cachedRole == null || cachedRole.trim().isEmpty) {
+        return null;
+      }
+
+      final cachedRoleUid = prefs.getString('auth_cache_role_uid');
+      if (cachedRoleUid == null || cachedRoleUid.trim().isEmpty) {
+        return cachedRole.trim();
+      }
+
+      if (cachedRoleUid.trim() == effectiveUid) {
+        return cachedRole.trim();
+      }
+
+      debugPrint(
+        '⚠️ getCachedRole: ignore stale role cache for uid=$cachedRoleUid when current uid=$effectiveUid',
+      );
+      return null;
     } catch (_) {
       return null;
     }
@@ -244,6 +285,7 @@ class UserService {
           prefs.remove('auth_cache_shopId');
           prefs.remove('auth_cache_uid');
           prefs.remove('auth_cache_role');
+          prefs.remove('auth_cache_role_uid');
         })
         .catchError((_) {});
   }
@@ -807,97 +849,120 @@ class UserService {
     // 1) ưu tiên dùng shop đang sở hữu (nếu có) để tránh rơi vào shop mới rỗng,
     // 2) nếu không có mới tạo shop mới trùng uid.
     if (!isSuperAdmin && (shopId == null || shopId.trim().isEmpty)) {
+      final roleFromDoc = (data['role'] ?? '').toString().trim().toLowerCase();
+      final hasExplicitShopName =
+          (extra?['shopName']?.toString().trim().isNotEmpty ?? false);
+      final canAutoCreateNewShop =
+          !userDoc.exists ||
+          roleFromDoc.isEmpty ||
+          roleFromDoc == 'owner' ||
+          hasExplicitShopName;
+
       final claimsShopId = await ClaimsService().getShopIdFromClaims();
       if (claimsShopId != null && claimsShopId.trim().isNotEmpty) {
-        shopId = claimsShopId;
+        shopId = claimsShopId.trim();
         debugPrint('🔁 syncUserInfo: Reusing claims shopId=$shopId');
       } else {
-        // Force refresh token/claims once before deciding to create a new shop.
-        // This avoids creating an empty shop when claims sync is delayed.
+        // Try to force claims sync before deciding any fallback.
         try {
-          await ClaimsService().forceRefresh();
-          final freshClaims = await ClaimsService().getClaimsFromToken(
-            forceRefresh: true,
-          );
-          final freshClaimsShopId = freshClaims?['shopId']?.toString();
-          if (freshClaimsShopId != null &&
-              freshClaimsShopId.trim().isNotEmpty) {
-            shopId = freshClaimsShopId.trim();
-            debugPrint('🔁 syncUserInfo: Reusing FRESH claims shopId=$shopId');
-          }
+          await ClaimsService().refreshMyClaims();
         } catch (e) {
-          debugPrint('⚠️ syncUserInfo: force refresh claims failed: $e');
+          debugPrint('⚠️ syncUserInfo: refreshMyClaims failed: $e');
         }
 
-        if (shopId != null && shopId.trim().isNotEmpty) {
-          // Persist recovered shopId for stable future logins.
-          await userRef.set({
-            'shopId': shopId,
-            'lastRecoveredAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        } else {
-          final ownedShopId = await _findOwnedActiveShopId(uid);
-          if (ownedShopId != null && ownedShopId.isNotEmpty) {
-            shopId = ownedShopId;
-            debugPrint(
-              '🔁 syncUserInfo: Reusing existing owned shopId=$shopId',
+        for (int retry = 0; retry < 3; retry++) {
+          try {
+            await ClaimsService().forceRefresh();
+            final freshClaims = await ClaimsService().getClaimsFromToken(
+              forceRefresh: true,
             );
-          } else {
-            shopId = uid;
-            isNewShop = true;
-            debugPrint(
-              '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
-            );
-
-            // CRITICAL: Tạo shop document trước và đợi hoàn thành
-            try {
-              await _db.collection('shops').doc(shopId).set({
-                'shopId': shopId,
-                'ownerUid': uid,
-                'ownerEmail': email,
-                'name': extra?['shopName'] ?? 'Cửa hàng mới',
-                'businessType': 'electronics', // Default cho shop mới
-                'createdAt': FieldValue.serverTimestamp(),
-              }, SetOptions(merge: true));
-              debugPrint('✅ syncUserInfo: Shop document created successfully');
-
-              // Tạo shop_settings subcollection doc cho shop mới
-              try {
-                final settings = {
-                  'shopId': shopId,
-                  'businessType': 'electronics',
-                  'businessTypeName': 'Điện thoại & Điện tử',
-                  'enableRepair': true,
-                  'enableSerial': true,
-                  'enableWarranty': true,
-                  'enableExpiry': false,
-                  'enableVariants': false,
-                  'enableBatch': false,
-                  'defaultUnit': 'cái',
-                  'expiryWarningDays': 7,
-                  'lowStockWarning': 5,
-                  'createdAt': DateTime.now().toIso8601String(),
-                  'updatedAt': DateTime.now().toIso8601String(),
-                };
-                await _db
-                    .collection('shops')
-                    .doc(shopId)
-                    .collection('settings')
-                    .doc('shop_settings')
-                    .set(settings);
-                debugPrint(
-                  '✅ syncUserInfo: shop_settings created for new shop',
-                );
-              } catch (e) {
-                debugPrint(
-                  '⚠️ syncUserInfo: Failed to create shop_settings: $e',
-                );
-                // Non-critical, CategoryService will auto-create from shop doc businessType
-              }
-            } catch (e) {
-              debugPrint('❌ syncUserInfo: Failed to create shop: $e');
-              rethrow; // Không tiếp tục nếu không tạo được shop
+            final freshClaimsShopId = freshClaims?['shopId']?.toString().trim();
+            if (freshClaimsShopId != null && freshClaimsShopId.isNotEmpty) {
+              shopId = freshClaimsShopId;
+              debugPrint(
+                '🔁 syncUserInfo: Reusing FRESH claims shopId=$shopId (retry=${retry + 1})',
+              );
+              break;
             }
+          } catch (e) {
+            debugPrint(
+              '⚠️ syncUserInfo: force refresh claims retry ${retry + 1} failed: $e',
+            );
+          }
+          if (retry < 2) {
+            await Future.delayed(const Duration(milliseconds: 800));
+          }
+        }
+      }
+
+      if (shopId != null && shopId.trim().isNotEmpty) {
+        // Persist recovered shopId for stable future logins.
+        await userRef.set({
+          'shopId': shopId,
+          'lastRecoveredAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } else {
+        final ownedShopId = await _findOwnedActiveShopId(uid);
+        if (ownedShopId != null && ownedShopId.isNotEmpty) {
+          shopId = ownedShopId;
+          debugPrint('🔁 syncUserInfo: Reusing existing owned shopId=$shopId');
+        } else {
+          if (!canAutoCreateNewShop) {
+            throw Exception(
+              'Tài khoản chưa được gán cửa hàng. Vui lòng liên hệ chủ shop để thêm bạn vào cửa hàng trước khi đăng nhập.',
+            );
+          }
+
+          shopId = uid;
+          isNewShop = true;
+          debugPrint(
+            '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
+          );
+
+          // CRITICAL: Tạo shop document trước và đợi hoàn thành
+          try {
+            await _db.collection('shops').doc(shopId).set({
+              'shopId': shopId,
+              'ownerUid': uid,
+              'ownerEmail': email,
+              'name': extra?['shopName'] ?? 'Cửa hàng mới',
+              'businessType': 'electronics', // Default cho shop mới
+              'createdAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+            debugPrint('✅ syncUserInfo: Shop document created successfully');
+
+            // Tạo shop_settings subcollection doc cho shop mới
+            try {
+              final settings = {
+                'shopId': shopId,
+                'businessType': 'electronics',
+                'businessTypeName': 'Điện thoại & Điện tử',
+                'enableRepair': true,
+                'enableSerial': true,
+                'enableWarranty': true,
+                'enableExpiry': false,
+                'enableVariants': false,
+                'enableBatch': false,
+                'defaultUnit': 'cái',
+                'expiryWarningDays': 7,
+                'lowStockWarning': 5,
+                'createdAt': DateTime.now().toIso8601String(),
+                'updatedAt': DateTime.now().toIso8601String(),
+              };
+              await _db
+                  .collection('shops')
+                  .doc(shopId)
+                  .collection('settings')
+                  .doc('shop_settings')
+                  .set(settings);
+              debugPrint('✅ syncUserInfo: shop_settings created for new shop');
+            } catch (e) {
+              debugPrint('⚠️ syncUserInfo: Failed to create shop_settings: $e');
+              // Non-critical, CategoryService will auto-create from shop doc businessType
+            }
+          } catch (e) {
+            debugPrint('❌ syncUserInfo: Failed to create shop: $e');
+            rethrow; // Không tiếp tục nếu không tạo được shop
           }
         }
       }
@@ -957,7 +1022,7 @@ class UserService {
 
     // Cache role ngay sau khi write để _getRoleAfterSync có thể dùng
     final resolvedRole = userData['role'] as String;
-    saveAuthCache(role: resolvedRole);
+    saveAuthCache(role: resolvedRole, forUid: uid);
     debugPrint('💾 syncUserInfo: cached role=$resolvedRole for uid=$uid');
 
     // Đợi Cloud Function syncUserClaims trigger và set claims
@@ -1041,27 +1106,95 @@ class UserService {
     debugPrint('✅ syncUserInfo: COMPLETE for uid=$uid, shopId=$shopId');
   }
 
+  static bool _isPermissionDeniedError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('permission-denied') ||
+        message.contains('permission denied') ||
+        message.contains('insufficient permissions');
+  }
+
+  static Future<String> _resolveTargetRoleForShopAssignment(
+    String targetUid,
+  ) async {
+    try {
+      final snap = await _db.collection('users').doc(targetUid).get();
+      final role = snap.data()?['role']?.toString().trim().toLowerCase();
+      if (role == null || role.isEmpty) return 'employee';
+
+      const allowedRoles = {
+        'admin',
+        'owner',
+        'manager',
+        'employee',
+        'technician',
+        'user',
+      };
+      if (!allowedRoles.contains(role)) return 'employee';
+      return role == 'user' ? 'employee' : role;
+    } catch (e) {
+      debugPrint(
+        'assignUserToCurrentShop: cannot resolve target role for $targetUid: $e',
+      );
+      return 'employee';
+    }
+  }
+
+  static Future<void> _assignUserToShopViaCallable({
+    required String targetUid,
+    required String shopId,
+    required String role,
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'asia-southeast1',
+    ).httpsCallable('addUserToShop');
+    await callable.call({'userId': targetUid, 'shopId': shopId, 'role': role});
+  }
+
   /// GÁN một nhân viên vào cùng cửa hàng với user hiện tại
   static Future<void> assignUserToCurrentShop(String targetUid) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
-    if (_isSuperAdmin(currentUser)) {
-      // Super admin cố tình gán shop nên vẫn cho phép, nhưng cần có shopId hiện tại
-      // Nếu chưa có shopId cache thì không làm gì để tránh gán nhầm.
-      final currentShop = _cachedShopId;
-      if (currentShop == null || currentShop.trim().isEmpty) return;
-      await _db.collection('users').doc(targetUid).set({
-        'shopId': currentShop,
-      }, SetOptions(merge: true));
-      return;
-    }
 
-    final shopId = await getCurrentShopId();
+    final shopId = _isSuperAdmin(currentUser)
+        ? (_cachedShopId ?? await getCurrentShopId())
+        : await getCurrentShopId();
     if (shopId == null || shopId.trim().isEmpty) return;
 
-    await _db.collection('users').doc(targetUid).set({
-      'shopId': shopId,
-    }, SetOptions(merge: true));
+    final targetRole = await _resolveTargetRoleForShopAssignment(targetUid);
+
+    try {
+      await _db.collection('users').doc(targetUid).set({
+        'shopId': shopId,
+        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
+      }, SetOptions(merge: true));
+      debugPrint(
+        '✅ assignUserToCurrentShop: assigned uid=$targetUid to shop=$shopId via direct write',
+      );
+    } catch (e) {
+      if (!_isPermissionDeniedError(e)) {
+        rethrow;
+      }
+
+      debugPrint(
+        '⚠️ assignUserToCurrentShop: direct write denied, fallback callable addUserToShop for uid=$targetUid',
+      );
+      await _assignUserToShopViaCallable(
+        targetUid: targetUid,
+        shopId: shopId,
+        role: targetRole,
+      );
+      debugPrint(
+        '✅ assignUserToCurrentShop: assigned uid=$targetUid to shop=$shopId via callable',
+      );
+    }
+
+    try {
+      await ClaimsService().syncUserClaims(targetUid);
+    } catch (e) {
+      debugPrint('⚠️ assignUserToCurrentShop: syncUserClaims failed: $e');
+    }
+
+    EventBus().emit('users_changed');
   }
 
   /// Lấy quyền xem các màn hình nhạy cảm (doanh thu, chi phí, công nợ) của tài khoản hiện tại
