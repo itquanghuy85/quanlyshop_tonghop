@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,6 +38,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 
 final Completer<void> _firebaseBootstrapCompleter = Completer<void>();
+bool _appCheckActivated = false;
 
 const String _deprecatedLocalApiBaseUrl = String.fromEnvironment(
   'LOCAL_API_BASE_URL',
@@ -56,6 +58,42 @@ Future<void> get firebaseBootstrapReady => _firebaseBootstrapCompleter.future;
 void _markFirebaseBootstrapReady() {
   if (!_firebaseBootstrapCompleter.isCompleted) {
     _firebaseBootstrapCompleter.complete();
+  }
+}
+
+Future<void> _activateFirebaseAppCheck() async {
+  if (kIsWeb || _appCheckActivated) return;
+
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
+      appleProvider: kDebugMode
+          ? AppleProvider.debug
+          : AppleProvider.deviceCheck,
+    );
+    _appCheckActivated = true;
+
+    debugPrint(
+      '✅ Firebase App Check activated (mode=${kDebugMode ? 'debug' : 'release'})',
+    );
+
+    // Trong debug cần lấy token để đăng ký vào App Check console cho thiết bị test.
+    if (kDebugMode) {
+      try {
+        final token = await FirebaseAppCheck.instance.getToken(true);
+        if (token != null && token.isNotEmpty) {
+          debugPrint('🧪 APP_CHECK_DEBUG_TOKEN: $token');
+        } else {
+          debugPrint('⚠️ App Check token empty in debug mode');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Could not fetch App Check debug token: $e');
+      }
+    }
+  } catch (e) {
+    debugPrint('⚠️ Firebase App Check activation failed: $e');
   }
 }
 
@@ -86,6 +124,8 @@ Future<void> _initializeDeferredAppServices() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    await _activateFirebaseAppCheck();
 
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     _markFirebaseBootstrapReady();
@@ -144,6 +184,8 @@ Future<void> main() async {
           await Firebase.initializeApp(
             options: DefaultFirebaseOptions.currentPlatform,
           );
+
+          await _activateFirebaseAppCheck();
 
           // Set up Firebase Messaging background handler
           FirebaseMessaging.onBackgroundMessage(
@@ -889,9 +931,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
                         prefs.setBool('claims_refreshed', true);
                         debugPrint('🔑 Claims refreshed for test account');
                       })
-                      .catchError(
-                        (e) => debugPrint('⚠️ Claims refresh failed: $e'),
-                      );
+                      .catchError((e) {
+                        debugPrint('⚠️ Claims refresh failed: $e');
+                        return null;
+                      });
                 }
               });
             }

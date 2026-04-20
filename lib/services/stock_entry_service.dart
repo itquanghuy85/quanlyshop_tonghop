@@ -937,6 +937,9 @@ class StockEntryService {
       _showSuccess('Đã xác nhận nhập kho');
       EventBus().emit('stock_entries_changed');
       EventBus().emit('products_changed');
+      // Emit parts_changed: phiếu có thể chứa LINH_KIEN → cập nhật parts_inventory_view
+      EventBus().emit('parts_changed');
+      debugPrint('✅ [StockEntryService] Đã emit: stock_entries_changed, products_changed, parts_changed');
       await SyncService.refreshCloudCollections(
         reason: 'stock_entry_confirmed',
         force: true,

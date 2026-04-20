@@ -49,6 +49,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   bool _showOutOfStock = false;
   String _sortBy = 'name'; // name, quantity, cost
   StreamSubscription? _eventBusSub;
+  Timer? _partsRefreshDebounce;
   
   // Dynamic terminology
   ShopSettings? _shopSettings;
@@ -82,10 +83,24 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     _loadPermissions();
     _refreshParts();
     _loadSuppliers();
-    // Listen for changes
-    _eventBusSub = EventBus().stream.listen((event) {
-      if (event == 'parts_changed' && mounted) _refreshParts();
-    });
+    // Lắng nghe events: parts_changed, stock_entries_changed, dataRefresh, shopChanged
+    _eventBusSub = EventBus().stream
+        .where(
+          (e) =>
+              e == 'parts_changed' ||
+              e == 'stock_entries_changed' ||
+              e == EventBus.dataRefresh ||
+              e == EventBus.shopChanged,
+        )
+        .listen((event) {
+          if (!mounted) return;
+          debugPrint('🔧 [PartsInventoryView] Nhận event "$event" → refresh local DB');
+          _partsRefreshDebounce?.cancel();
+          _partsRefreshDebounce = Timer(
+            const Duration(milliseconds: 300),
+            () { if (mounted) _refreshParts(); },
+          );
+        });
     // Scroll controller listener for scroll-to-top button
     _scrollController.addListener(_onScroll);
   }
@@ -108,6 +123,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   
   @override
   void dispose() {
+    _partsRefreshDebounce?.cancel();
     _eventBusSub?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -133,24 +149,25 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
 
   Future<void> _refreshParts() async {
     if (!mounted) return;
+    debugPrint('🔧 [PartsInventoryView] Bắt đầu tải linh kiện từ local DB...');
     setState(() => _isLoading = true);
     try {
       var data = await db.getAllParts();
-      debugPrint('PartsInventoryViewContent._refreshParts: local DB returned ${data.length} parts');
+      debugPrint('🔧 [PartsInventoryView] Local DB trả về ${data.length} linh kiện');
 
-      // If local DB is empty, fix stuck deleted and retry
+      // Nếu local DB trống, thử sửa bản ghi bị stuck-deleted và đọc lại
       if (data.isEmpty) {
         final fixed = await db.fixStuckDeletedRepairParts();
         if (fixed > 0) {
-          debugPrint('PartsInventoryViewContent: fixed $fixed stuck-deleted parts, retrying');
+          debugPrint('🔧 [PartsInventoryView] Đã sửa $fixed linh kiện stuck-deleted, đọc lại...');
           data = await db.getAllParts();
         }
       }
 
-      // If still empty, fallback to Firestore
+      // Nếu vẫn trống sau fix: SyncService sẽ tự đồng bộ từ cloud theo chu kỳ polling.
+      // Không đọc Firestore trực tiếp tại đây để đảm bảo Single Source of Truth = local DB.
       if (data.isEmpty) {
-        debugPrint('PartsInventoryViewContent: local DB empty, fetching from Firestore...');
-        data = await _fetchPartsFromFirestore();
+        debugPrint('🔧 [PartsInventoryView] Local DB trống — chờ SyncService đồng bộ từ cloud');
       }
 
       if (!mounted) return;
@@ -160,47 +177,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('PartsInventoryViewContent._refreshParts error: $e');
+      debugPrint('🔧 [PartsInventoryView] Lỗi tải linh kiện: $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
-    }
-  }
-
-  /// Fetch parts from Firestore when local DB is empty
-  Future<List<Map<String, dynamic>>> _fetchPartsFromFirestore() async {
-    try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return [];
-      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-          .collection('repair_parts')
-          .where('shopId', isEqualTo: shopId);
-      final snapshot = await query.get();
-      debugPrint('PartsInventoryViewContent: Firestore returned ${snapshot.docs.length} parts');
-      final List<Map<String, dynamic>> result = [];
-      for (final doc in snapshot.docs) {
-        final data = Map<String, dynamic>.from(doc.data());
-        if (data['deleted'] == true) continue; // Skip deleted
-        // Convert Timestamp fields
-        if (data['createdAt'] is Timestamp) {
-          data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
-        }
-        if (data['updatedAt'] is Timestamp) {
-          data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
-        }
-        data['firestoreId'] = doc.id;
-        data['isSynced'] = 1;
-        // Cache to local DB
-        await db.upsertRepairPart(data);
-        result.add(data);
-      }
-      // Re-read from local DB for consistent format
-      if (result.isNotEmpty) {
-        return await db.getAllParts();
-      }
-      return [];
-    } catch (e) {
-      debugPrint('PartsInventoryViewContent: Firestore fallback error: $e');
-      return [];
     }
   }
 
@@ -1975,6 +1954,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
   bool _isAdmin = false;
   bool _canViewCostPrice = false; // Phân quyền xem giá vốn
 
+  StreamSubscription? _eventBusSub2;
+  Timer? _partsRefreshDebounce2;
+
   // Multi-select mode
   bool _isSelectionMode = false;
   final Set<int> _selectedIds = {};
@@ -1994,11 +1976,24 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     _loadPermissions();
     _refreshParts();
     _loadSuppliers();
-  }
-
-  @override
-  void dispose() {
-    searchCtrl.dispose();
+    // Lắng nghe events inventory cho _PartsInventoryViewState
+    _eventBusSub2 = EventBus().stream
+        .where(
+          (e) =>
+              e == 'parts_changed' ||
+              e == 'stock_entries_changed' ||
+              e == EventBus.dataRefresh ||
+              e == EventBus.shopChanged,
+        )
+        .listen((event) {
+          if (!mounted) return;
+          debugPrint('🔧 [PartsInventoryView] Nhận event "$event" → refresh local DB');
+          _partsRefreshDebounce2?.cancel();
+          _partsRefreshDebounce2 = Timer(
+            const Duration(milliseconds: 300),
+            () { if (mounted) _refreshParts(); },
+          );
+        });
     super.dispose();
   }
 
@@ -2020,24 +2015,23 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
   Future<void> _refreshParts() async {
     if (!mounted) return;
+    debugPrint('🔧 [PartsInventoryView] Bắt đầu tải linh kiện từ local DB...');
     setState(() => _isLoading = true);
     try {
       var data = await db.getAllParts();
-      debugPrint('PartsInventoryView._refreshParts: local DB returned ${data.length} parts');
+      debugPrint('🔧 [PartsInventoryView] Local DB trả về ${data.length} linh kiện');
 
-      // If local DB is empty, fix stuck deleted and retry
       if (data.isEmpty) {
         final fixed = await db.fixStuckDeletedRepairParts();
         if (fixed > 0) {
-          debugPrint('PartsInventoryView: fixed $fixed stuck-deleted parts, retrying');
+          debugPrint('🔧 [PartsInventoryView] Đã sửa $fixed linh kiện stuck-deleted, đọc lại...');
           data = await db.getAllParts();
         }
       }
 
-      // If still empty, fallback to Firestore
+      // Nếu vẫn trống: SyncService sẽ tự đồng bộ từ cloud theo chu kỳ polling.
       if (data.isEmpty) {
-        debugPrint('PartsInventoryView: local DB empty, fetching from Firestore...');
-        data = await _fetchPartsFromFirestore();
+        debugPrint('🔧 [PartsInventoryView] Local DB trống — chờ SyncService đồng bộ từ cloud');
       }
 
       if (!mounted) return;
@@ -2047,47 +2041,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('PartsInventoryView._refreshParts error: $e');
+      debugPrint('🔧 [PartsInventoryView] Lỗi tải linh kiện: $e');
       if (!mounted) return;
       setState(() => _isLoading = false);
-    }
-  }
-
-  /// Fetch parts from Firestore when local DB is empty
-  Future<List<Map<String, dynamic>>> _fetchPartsFromFirestore() async {
-    try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return [];
-      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-          .collection('repair_parts')
-          .where('shopId', isEqualTo: shopId);
-      final snapshot = await query.get();
-      debugPrint('PartsInventoryView: Firestore returned ${snapshot.docs.length} parts');
-      final List<Map<String, dynamic>> result = [];
-      for (final doc in snapshot.docs) {
-        final data = Map<String, dynamic>.from(doc.data());
-        if (data['deleted'] == true) continue; // Skip deleted
-        // Convert Timestamp fields
-        if (data['createdAt'] is Timestamp) {
-          data['createdAt'] = (data['createdAt'] as Timestamp).millisecondsSinceEpoch;
-        }
-        if (data['updatedAt'] is Timestamp) {
-          data['updatedAt'] = (data['updatedAt'] as Timestamp).millisecondsSinceEpoch;
-        }
-        data['firestoreId'] = doc.id;
-        data['isSynced'] = 1;
-        // Cache to local DB
-        await db.upsertRepairPart(data);
-        result.add(data);
-      }
-      // Re-read from local DB for consistent format
-      if (result.isNotEmpty) {
-        return await db.getAllParts();
-      }
-      return [];
-    } catch (e) {
-      debugPrint('PartsInventoryView: Firestore fallback error: $e');
-      return [];
     }
   }
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
@@ -41,6 +42,30 @@ class CashClosingNotifier {
 
   /// Khởi tạo realtime listener
   Future<void> init() async {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null) {
+      debugPrint('CashClosingNotifier: No authenticated user, skipping init');
+      return;
+    }
+
+    try {
+      final role = (await UserService.getUserRole(currentUid)).toLowerCase();
+      final canReadCashClosing =
+          role == 'admin' || role == 'owner' || role == 'manager';
+      if (!canReadCashClosing) {
+        _eventBusSub?.cancel();
+        debugPrint(
+          'CashClosingNotifier: Skip init for role=$role (no read permission on cash_closings)',
+        );
+        return;
+      }
+    } catch (e) {
+      // Safe fallback: nếu không xác định được quyền thì không poll để tránh spam permission-denied.
+      _eventBusSub?.cancel();
+      debugPrint('CashClosingNotifier: role check failed, skipping init: $e');
+      return;
+    }
+
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) {
       debugPrint('CashClosingNotifier: No shopId, skipping init');

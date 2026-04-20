@@ -60,6 +60,7 @@ dependencies:
   printing: ^5.14.0
   http: ^1.2.2
   cached_network_image: ^3.4.1
+  firebase_app_check: ^0.3.2+10
 
 dependency_overrides:
   image: ^4.0.0

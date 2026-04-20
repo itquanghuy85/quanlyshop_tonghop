@@ -832,11 +832,68 @@ class UserService {
       EventBus().emit('users_changed');
     } catch (e) {
       debugPrint('UserService.updateUserInfo: error for uid=$uid: $e');
+
+      // Fallback: xử lý các trường hợp resource.data.shopId lệch/thiếu khiến rules
+      // chặn update dù caller có quyền owner/manager trong cùng shop.
+      if (_isPermissionDeniedError(e)) {
+        debugPrint(
+          '⚠️ updateUserInfo permission denied, fallback to callable updateUserProfileSecure for uid=$uid',
+        );
+        try {
+          await _updateUserInfoViaCallable(
+            uid: uid,
+            name: name,
+            phone: phone,
+            address: address,
+            role: normalizedRole,
+            photoUrl: photoUrl,
+          );
+          debugPrint(
+            '✅ updateUserInfo fallback callable success for uid=$uid',
+          );
+          EventBus().emit('users_changed');
+          return;
+        } catch (callableErr) {
+          debugPrint(
+            '❌ updateUserInfo callable fallback failed for uid=$uid: $callableErr',
+          );
+        }
+      }
+
       rethrow;
     }
 
     // Đồng bộ dữ liệu liên quan (ví dụ: cập nhật tên, số điện thoại ở các bảng khác nếu cần)
     // TODO: Nếu có bảng orders, repair_orders,... thì cập nhật thông tin liên quan ở đó
+  }
+
+  static Future<void> _updateUserInfoViaCallable({
+    required String uid,
+    required String name,
+    required String phone,
+    required String address,
+    String? role,
+    String? photoUrl,
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'asia-southeast1',
+    ).httpsCallable('updateUserProfileSecure');
+
+    final payload = <String, dynamic>{
+      'userId': uid,
+      'displayName': name.trim(),
+      'phone': phone.trim(),
+      'address': address.trim(),
+    };
+
+    if (role != null && role.trim().isNotEmpty) {
+      payload['role'] = role.trim().toLowerCase();
+    }
+    if (photoUrl != null && photoUrl.trim().isNotEmpty) {
+      payload['photoUrl'] = photoUrl.trim();
+    }
+
+    await callable.call(payload);
   }
 
   static Future<void> syncUserInfo(

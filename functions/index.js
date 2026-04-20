@@ -335,6 +335,118 @@ exports.addUserToShop = onCall(async (request) => {
 });
 
 /**
+ * 🧩 SECURE: UPDATE USER PROFILE (fallback for permission-denied on client writes)
+ * Allows owner/manager of same shop to update basic profile fields.
+ * Role change is limited to owner/super admin.
+ */
+exports.updateUserProfileSecure = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const data = request.data || {};
+  const targetUserId = (data.userId || "").toString().trim();
+  const displayName = (data.displayName || "").toString().trim();
+  const phone = (data.phone || "").toString().trim();
+  const address = (data.address || "").toString().trim();
+  const photoUrl = (data.photoUrl || "").toString().trim();
+  const requestedRole = (data.role || "").toString().trim().toLowerCase();
+  const requestedShopId = (data.shopId || "").toString().trim();
+
+  if (!targetUserId) {
+    throw new HttpsError("invalid-argument", "Thiếu userId");
+  }
+
+  if (!displayName) {
+    throw new HttpsError("invalid-argument", "Tên nhân viên không được để trống");
+  }
+
+  if (phone && !/^\d{9,12}$/.test(phone.replace(/\D/g, ""))) {
+    throw new HttpsError("invalid-argument", "Số điện thoại không hợp lệ");
+  }
+
+  if (requestedRole && !VALID_ROLES.includes(requestedRole)) {
+    throw new HttpsError("invalid-argument", `Role không hợp lệ: ${requestedRole}`);
+  }
+
+  const callerEmail = auth.token.email || "";
+  const callerIsSuperAdmin = checkIsSuperAdmin(callerEmail);
+
+  const callerDoc = await admin.firestore().doc(`users/${auth.uid}`).get();
+  const callerData = callerDoc.data() || {};
+  const callerRole = callerIsSuperAdmin ? "admin" : (callerData.role || "user");
+  const callerShopId = callerData.shopId || null;
+
+  const targetDoc = await admin.firestore().doc(`users/${targetUserId}`).get();
+  if (!targetDoc.exists) {
+    throw new HttpsError("not-found", "Không tìm thấy người dùng");
+  }
+  const targetData = targetDoc.data() || {};
+  const targetShopId = targetData.shopId || null;
+
+  // === PERMISSION CHECKS ===
+  if (!callerIsSuperAdmin) {
+    if (!["owner", "manager"].includes(callerRole)) {
+      throw new HttpsError("permission-denied", "Chỉ owner/manager mới có thể cập nhật nhân viên");
+    }
+
+    if (!callerShopId) {
+      throw new HttpsError("failed-precondition", "Không tìm thấy shop hiện tại của tài khoản");
+    }
+
+    // Không cho phép cập nhật nhân viên thuộc shop khác.
+    if (targetShopId && targetShopId !== callerShopId) {
+      throw new HttpsError("permission-denied", "Không thể cập nhật nhân viên khác shop");
+    }
+
+    // Manager không được đổi role.
+    if (requestedRole && callerRole !== "owner") {
+      throw new HttpsError("permission-denied", "Chỉ owner mới có thể đổi vai trò");
+    }
+
+    // Owner không được tự nâng/ngáng ngoài phạm vi trong hàm này.
+    if (requestedRole === "owner" && callerRole !== "owner") {
+      throw new HttpsError("permission-denied", "Không có quyền gán role owner");
+    }
+  }
+
+  const updateData = {
+    displayName: displayName.toUpperCase(),
+    name: displayName.toUpperCase(),
+    phone: phone,
+    address: address.toUpperCase(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (photoUrl) {
+    updateData.photoUrl = photoUrl;
+  }
+
+  if (requestedRole) {
+    updateData.role = requestedRole;
+  }
+
+  // Tự healing shopId thiếu: gán cùng shop caller để các lần update sau đi thẳng rules.
+  if (!targetShopId) {
+    if (callerIsSuperAdmin && requestedShopId) {
+      updateData.shopId = requestedShopId;
+    } else if (callerShopId) {
+      updateData.shopId = callerShopId;
+    }
+  }
+
+  await targetDoc.ref.set(updateData, { merge: true });
+
+  console.log(`✅ updateUserProfileSecure: updated ${targetUserId} by ${auth.uid}`);
+  return {
+    success: true,
+    userId: targetUserId,
+    message: "Đã cập nhật hồ sơ nhân viên",
+  };
+});
+
+/**
  * 🚪 ADMIN: REMOVE USER FROM SHOP
  * Removes user from shop (sets shopId to null)
  */

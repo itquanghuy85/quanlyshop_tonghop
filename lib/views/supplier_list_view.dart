@@ -99,9 +99,15 @@ class _SupplierListViewState extends State<SupplierListView>
     _load();
     _loadPartners();
     _eventBusSub = EventBus().stream
-        .where((e) => e == 'suppliers_changed' || e == 'debts_changed')
-        .listen((_) {
+        .where((e) =>
+            e == 'suppliers_changed' ||
+            e == 'debts_changed' ||
+            e == 'repair_partners_changed' ||
+            e == EventBus.dataRefresh ||
+            e == EventBus.shopChanged)
+        .listen((event) {
           if (!mounted) return;
+          debugPrint('🏢 [SupplierListView] Nhận event "$event" → debounce reload');
           _debouncedReload();
         });
     // Hiển thị hướng dẫn cho người dùng mới
