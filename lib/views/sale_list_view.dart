@@ -18,6 +18,7 @@ import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/sales_return_service.dart';
+import '../services/user_service.dart';
 import 'create_sales_return_view.dart';
 import 'debt_view.dart';
 import 'monthly_profit_report_view.dart';
@@ -52,6 +53,9 @@ class _SaleListViewState extends State<SaleListView> {
   // Return tracking: saleId -> return summary
   Map<int, _SaleReturnInfo> _returnInfoMap = {};
 
+  // Permission
+  bool _canViewCostPrice = false;
+
   // EventBus subscriptions & debounce
   StreamSubscription<String>? _saleChangedSub;
   StreamSubscription<String>? _saleReturnSub;
@@ -74,6 +78,7 @@ class _SaleListViewState extends State<SaleListView> {
       _timeFilter = 'today';
     }
     _refresh();
+    _loadPermissions();
     
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
@@ -97,6 +102,16 @@ class _SaleListViewState extends State<SaleListView> {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPermissions() async {
+    try {
+      final perms = await UserService.getCurrentUserPermissions();
+      if (!mounted) return;
+      setState(() {
+        _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+      });
+    } catch (_) {}
   }
 
   void _debouncedRefresh() {
@@ -539,6 +554,27 @@ class _SaleListViewState extends State<SaleListView> {
         accentColor: AppBarAccents.sales,
         centerTitle: false,
         actions: [
+          // Tạo đơn bán
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CreateSaleView()),
+            ).then((_) => _refresh()),
+            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
+            tooltip: 'Tạo đơn bán',
+          ),
+          // Xuất Excel
+          IconButton(
+            onPressed: () async {
+              final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
+              if (result == null) return;
+              if (!mounted) return;
+              await ExcelExportHelper.exportSales(context, startMs: result['startMs'], endMs: result['endMs']);
+            },
+            icon: const Icon(Icons.file_download_outlined, color: Colors.white),
+            tooltip: 'Xuất Excel',
+          ),
+          // Bộ lọc
           Stack(
             children: [
               IconButton(
@@ -739,12 +775,21 @@ class _SaleListViewState extends State<SaleListView> {
                                 ? Colors.grey.shade300
                                 : (isPaid ? Colors.green.shade200 : Colors.orange.shade300);
 
-                            // Compact secondary info line (giống inventory)
+                            // Chi tiết tài chính + khách hàng
+                            final cFmt = NumberFormat.compact(locale: 'vi');
                             final metaParts = <String>[];
-                            if (s.finalPrice > 0) metaParts.add('${fmt.format(s.finalPrice)}đ');
+                            if (s.customerName.isNotEmpty) metaParts.add('👤 ${s.customerName}');
+                            if (_canViewCostPrice && s.totalCost > 0)
+                              metaParts.add('Vốn ${cFmt.format(s.totalCost)}đ');
+                            if (s.finalPrice > 0) metaParts.add('Bán ${cFmt.format(s.finalPrice)}đ');
+                            if (_canViewCostPrice && s.totalCost > 0 && s.finalPrice > 0) {
+                              final profit = s.finalPrice - s.totalCost;
+                              metaParts.add(profit >= 0
+                                  ? 'Lãi ${cFmt.format(profit)}đ'
+                                  : 'Lỗ ${cFmt.format(profit.abs())}đ');
+                            }
                             if (remain > 0) metaParts.add('Nợ ${fmt.format(remain)}đ');
                             if (s.sellerName.isNotEmpty) metaParts.add(s.sellerName);
-                            if (s.customerName.isNotEmpty) metaParts.add(s.customerName);
                             if (returnInfo != null) {
                               metaParts.add(isFullyReturned
                                   ? 'Trả hết ${fmt.format(returnInfo.totalReturnedAmount)}đ'
@@ -886,59 +931,6 @@ class _SaleListViewState extends State<SaleListView> {
               ],
             ),
             ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, -1))],
-        ),
-        padding: const EdgeInsets.only(top: 6, bottom: 6, left: 4, right: 4),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _bottomBarItem(Icons.add_shopping_cart_rounded, 'Tạo đơn', Colors.green, () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateSaleView())).then((_) => _refresh());
-              }),
-              _bottomBarItem(Icons.people_outline, 'Khách hàng', Colors.blue, () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerManagementView()));
-              }),
-              _bottomBarItem(Icons.account_balance_wallet_outlined, 'Công nợ', Colors.orange, () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const DebtView()));
-              }),
-              _bottomBarItem(Icons.bar_chart_rounded, 'Lợi nhuận', Colors.purple, () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const MonthlyProfitReportView()));
-              }),
-              _bottomBarItem(Icons.file_download_outlined, 'Excel', Colors.blueGrey, () async {
-                final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
-                if (result == null) return;
-                if (!mounted) return;
-                await ExcelExportHelper.exportSales(context, startMs: result['startMs'], endMs: result['endMs']);
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _bottomBarItem(IconData icon, String label, Color color, VoidCallback onTap) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 2),
-              Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

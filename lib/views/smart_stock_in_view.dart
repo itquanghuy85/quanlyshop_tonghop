@@ -1082,12 +1082,11 @@ class _SmartStockInViewState extends State<SmartStockInView> {
 
   Widget _buildTypeChip(String type, String label) {
     final isSelected = _productType == type;
-    return Expanded(
-      child: InkWell(
-        onTap: widget.editEntry == null
-            ? () => setState(() => _productType = type)
-            : null,
-        child: Container(
+    return InkWell(
+      onTap: widget.editEntry == null
+          ? () => setState(() => _productType = type)
+          : null,
+      child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected ? Colors.blue.shade100 : Colors.grey.shade100,
@@ -1107,7 +1106,6 @@ class _SmartStockInViewState extends State<SmartStockInView> {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -1227,7 +1225,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedBrand,
+                    value: _selectedBrand,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Hãng',
                       border: OutlineInputBorder(),
@@ -1242,6 +1241,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: b,
                             child: Text(
                               b,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
@@ -1284,7 +1285,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedCapacity,
+                    value: _selectedCapacity,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Dung lượng',
                       border: OutlineInputBorder(),
@@ -1299,6 +1301,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
@@ -1316,7 +1320,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedColor,
+                    value: _selectedColor,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Màu sắc',
                       border: OutlineInputBorder(),
@@ -1331,6 +1336,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
@@ -1354,7 +1361,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedCondition,
+                    value: _selectedCondition,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Tình trạng',
                       border: OutlineInputBorder(),
@@ -1369,6 +1377,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: c,
                             child: Text(
                               c,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
@@ -1555,6 +1565,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedSize,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: _productType == 'GIAY_DEP'
                             ? 'Size giày *'
@@ -1580,6 +1591,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                               value: s,
                               child: Text(
                                 s,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: AppTextStyles.subtitle1.fontSize,
                                 ),
@@ -1599,6 +1612,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                   Expanded(
                     child: DropdownButtonFormField<String>(
                       value: _selectedColor,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Màu sắc *',
                         border: const OutlineInputBorder(),
@@ -1620,6 +1634,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                               value: c,
                               child: Text(
                                 c,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: AppTextStyles.subtitle1.fontSize,
                                 ),
@@ -1667,6 +1683,7 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     value: _selectedUnit ?? 'Cái',
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Đơn vị',
                       border: OutlineInputBorder(),
@@ -1681,6 +1698,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: u,
                             child: Text(
                               u,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTextStyles.subtitle1.fontSize,
                               ),
@@ -1836,6 +1855,8 @@ class _SmartStockInViewState extends State<SmartStockInView> {
                             value: s['name'] as String,
                             child: Text(
                               s['name'] ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: AppTextStyles.subtitle1.fontSize,
                               ),

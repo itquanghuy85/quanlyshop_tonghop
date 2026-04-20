@@ -2728,12 +2728,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       const SizedBox(height: 6),
                       // Info rows - hiển thị trực tiếp, không ẩn trong dropdown
                       _compactInfoRow(loc.deviceIssueLabel, r.issue),
-                      _compactInfoRow('Người nhận', _staffLabel(r.createdBy)),
-                      _compactInfoRow(
-                        'Người sửa xong',
-                        _staffLabel(r.repairedBy),
-                      ),
-                      _compactInfoRow('Người giao', _staffLabel(r.deliveredBy)),
+                      // Staff inline: Nhận • Sửa • Giao
+                      _compactStaffRow(r),
                       if (r.accessories.isNotEmpty)
                         _compactInfoRow("PK", r.accessories),
                       if (r.warranty.isNotEmpty)
@@ -3013,6 +3009,29 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
   }
 
+  /// Hiển thị nhận • sửa • giao trên một dòng
+  Widget _compactStaffRow(Repair rep) {
+    final receiver = _staffLabel(rep.createdBy);
+    final repairer = _staffLabel(rep.repairedBy);
+    final deliverer = _staffLabel(rep.deliveredBy);
+    final parts = <String>[];
+    if (receiver.isNotEmpty) parts.add('Nhận: $receiver');
+    if (repairer.isNotEmpty) parts.add('Sửa: $repairer');
+    if (deliverer.isNotEmpty) parts.add('Giao: $deliverer');
+    if (parts.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Text(
+        parts.join('  '),
+        style: AppTextStyles.caption.copyWith(
+          color: AppColors.onSurface.withOpacity(0.75),
+        ),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
   Widget _buildStatusCard() {
     Color color;
     IconData icon;
@@ -3216,29 +3235,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
     }
 
-    // Status < 3: hiện nút ĐANG SỬA và ĐÃ XONG
+    // Status < 3: hiện nút ĐÃ XONG (bỏ nút ĐANG SỬA)
     return Column(
       children: [
         if (r.status < 3)
           Row(
             children: [
-              // Nút ĐANG SỬA - chỉ hiện khi status = 1 (Tiếp nhận)
-              if (r.status == 1)
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _updateStatus(2),
-                    icon: const Icon(Icons.build, size: 18),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
-                    label: Text(
-                      loc.repairingButton,
-                      style: AppTextStyles.button,
-                    ),
-                  ),
-                ),
-              if (r.status == 1) const SizedBox(width: 10),
               // Nút ĐÃ XONG - sau khi bấm sẽ tự động chờ duyệt
               Expanded(
                 child: ElevatedButton.icon(
@@ -3542,9 +3544,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         _infoRow(loc.customerLabel, r.customerName),
         _phoneRow(loc.phoneNumberLabel, r.phone),
         _infoRow(loc.deviceIssueLabel, r.issue),
-        _infoRow('Người nhận', _staffLabel(r.createdBy)),
-        _infoRow('Người sửa xong', _staffLabel(r.repairedBy)),
-        _infoRow('Người giao', _staffLabel(r.deliveredBy)),
+        _infoRow('Nhận', _staffLabel(r.createdBy)),
+        _infoRow('Sửa', _staffLabel(r.repairedBy)),
+        _infoRow('Giao', _staffLabel(r.deliveredBy)),
         _infoRow(
           loc.accessoriesLabel,
           r.accessories.isEmpty ? loc.noAccessories : r.accessories,
@@ -4602,9 +4604,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           _infoRow(loc.customerLabel, r.customerName),
           _phoneRow(loc.phoneNumberLabel, r.phone),
           _infoRow(loc.deviceIssueLabel, r.issue),
-          _infoRow('Người nhận', _staffLabel(r.createdBy)),
-          _infoRow('Người sửa xong', _staffLabel(r.repairedBy)),
-          _infoRow('Người giao', _staffLabel(r.deliveredBy)),
+          _infoRow('Nhận', _staffLabel(r.createdBy)),
+          _infoRow('Sửa', _staffLabel(r.repairedBy)),
+          _infoRow('Giao', _staffLabel(r.deliveredBy)),
           _infoRow(
             loc.accessoriesLabel,
             r.accessories.isEmpty ? loc.noAccessories : r.accessories,
