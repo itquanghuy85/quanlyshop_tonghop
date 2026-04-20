@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +15,7 @@ import '../theme/app_button_styles.dart';
 import '../widgets/custom_app_bar.dart';
 import 'hr/add_custom_adjustment_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../services/event_bus.dart';
 
 class PayrollView extends StatefulWidget {
   const PayrollView({super.key});
@@ -33,6 +35,8 @@ class _PayrollViewState extends State<PayrollView> {
   String _role = 'user';
   bool _monthLocked = false;
   bool _hasPermission = false;
+  StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
 
   Map<String, double> _basePerDay = {}; // staff -> base per day
   Map<String, double> _hoursPerDay = {}; // staff -> expected hours
@@ -46,6 +50,28 @@ class _PayrollViewState extends State<PayrollView> {
     _load();
     _loadPrefs();
     _refreshLockState();
+    _setupEventSubscription();
+  }
+
+  void _setupEventSubscription() {
+    _eventSub = EventBus().stream.listen((event) {
+      if (event == 'attendance_changed' ||
+          event == 'leave_requests_changed' ||
+          event == 'employee_salary_settings_changed' ||
+          event == 'work_schedules_changed' ||
+          event == EventBus.shopChanged) {
+        _debouncedReload();
+      }
+    });
+  }
+
+  void _debouncedReload() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _load();
+      _refreshLockState();
+    });
   }
 
   Future<void> _checkPermission() async {
@@ -56,6 +82,8 @@ class _PayrollViewState extends State<PayrollView> {
 
   @override
   void dispose() {
+    _eventSub?.cancel();
+    _reloadDebounce?.cancel();
     _customStaff.dispose();
     super.dispose();
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -13,6 +14,7 @@ import '../services/osm_map_service.dart';
 import '../services/attendance_approval_service.dart';
 import '../services/attendance_summary_service.dart';
 import '../services/notification_service.dart';
+import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
@@ -46,6 +48,8 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
 
   String? _currentShopId;
   String _viewMode = 'day'; // 'day' or 'month'
+  StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
 
   @override
   void initState() {
@@ -54,11 +58,35 @@ class _AttendanceManagementViewState extends State<AttendanceManagementView>
     _tabCtrl.addListener(() {
       if (!_tabCtrl.indexIsChanging && mounted) setState(() {});
     });
+    _setupEventSubscription();
     _loadData();
+  }
+
+  void _setupEventSubscription() {
+    _eventSub = EventBus().stream.listen((event) {
+      if (event == 'attendance_changed' ||
+          event == 'leave_requests_changed' ||
+          event == 'work_schedules_changed' ||
+          event == 'users_changed' ||
+          event == EventBus.shopChanged ||
+          event == 'sync_now_completed') {
+        _debouncedLoadData();
+      }
+    });
+  }
+
+  void _debouncedLoadData() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      _loadData();
+    });
   }
 
   @override
   void dispose() {
+    _eventSub?.cancel();
+    _reloadDebounce?.cancel();
     _tabCtrl.dispose();
     super.dispose();
   }

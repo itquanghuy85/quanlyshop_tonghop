@@ -7,6 +7,7 @@ import '../models/attendance_model.dart';
 import '../models/leave_request_model.dart';
 import '../services/user_service.dart';
 import '../services/encryption_service.dart';
+import 'event_bus.dart';
 
 /// Service for managing attendance approval, leave requests, overtime editing.
 /// Only owner/manager roles can approve/reject.
@@ -32,6 +33,7 @@ class AttendanceApprovalService {
 
       await _dbHelper.upsertAttendance(record);
       await _syncAttendanceToCloud(record);
+      EventBus().emit('attendance_changed');
       return true;
     } catch (e) {
       debugPrint('Error approving attendance: $e');
@@ -54,6 +56,7 @@ class AttendanceApprovalService {
 
       await _dbHelper.upsertAttendance(record);
       await _syncAttendanceToCloud(record);
+      EventBus().emit('attendance_changed');
       return true;
     } catch (e) {
       debugPrint('Error rejecting attendance: $e');
@@ -118,11 +121,13 @@ class AttendanceApprovalService {
         existing.isSynced = false;
         await _dbHelper.upsertAttendance(existing);
         await _syncAttendanceToCloud(existing);
+        EventBus().emit('attendance_changed');
       } else {
         final map = record.toMap();
         map['shopId'] = shopId;
         await _dbHelper.upsertAttendance(Attendance.fromMap(map));
         await _syncAttendanceToCloud(record);
+        EventBus().emit('attendance_changed');
       }
       return true;
     } catch (e) {
@@ -156,6 +161,7 @@ class AttendanceApprovalService {
 
       await _dbHelper.upsertAttendance(record);
       await _syncAttendanceToCloud(record);
+      EventBus().emit('attendance_changed');
       return true;
     } catch (e) {
       debugPrint('Error editing overtime: $e');
@@ -182,6 +188,7 @@ class AttendanceApprovalService {
 
       await _dbHelper.upsertAttendance(record);
       await _syncAttendanceToCloud(record);
+      EventBus().emit('attendance_changed');
       return true;
     } catch (e) {
       debugPrint('Error editing attendance times: $e');
@@ -201,6 +208,7 @@ class AttendanceApprovalService {
       request.firestoreId ??= "lr_${request.userId}_${request.startDate}_${request.createdAt}";
       await _dbHelper.upsertLeaveRequest(request);
       await _syncLeaveRequestToCloud(request);
+      EventBus().emit('leave_requests_changed');
       return true;
     } catch (e) {
       debugPrint('Error creating leave request: $e');
@@ -222,6 +230,7 @@ class AttendanceApprovalService {
 
       await _dbHelper.upsertLeaveRequest(request);
       await _syncLeaveRequestToCloud(request);
+      EventBus().emit('leave_requests_changed');
       return true;
     } catch (e) {
       debugPrint('Error approving leave request: $e');
@@ -244,6 +253,7 @@ class AttendanceApprovalService {
 
       await _dbHelper.upsertLeaveRequest(request);
       await _syncLeaveRequestToCloud(request);
+      EventBus().emit('leave_requests_changed');
       return true;
     } catch (e) {
       debugPrint('Error rejecting leave request: $e');

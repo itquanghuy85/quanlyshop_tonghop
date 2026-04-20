@@ -306,6 +306,7 @@ class FirestoreService {
 
       await docRef.set(encryptedData, SetOptions(merge: true));
       debugPrint('✅ addSale: success docId=$docId');
+      EventBus().emit('sales_changed');
 
       _notifyAll(
         "🎉 BÁN HÀNG THÀNH CÔNG",
@@ -349,6 +350,7 @@ class FirestoreService {
           .collection('sales')
           .doc(s.firestoreId)
           .set(encryptedData, SetOptions(merge: true));
+      EventBus().emit('sales_changed');
     } catch (e) {
       debugPrint('Firestore updateSaleCloud error: $e');
     }
@@ -360,6 +362,7 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
+      EventBus().emit('sales_changed');
     } catch (e) {
       debugPrint('Firestore deleteSale error: $e');
     }
@@ -496,6 +499,7 @@ class FirestoreService {
           .collection('debts')
           .doc(docId)
           .set(encryptedData, SetOptions(merge: true));
+      EventBus().emit('debts_changed');
     } catch (e) {
       debugPrint('Error adding debt to cloud: $e');
       rethrow; // Re-throw để caller biết có lỗi
@@ -535,6 +539,8 @@ class FirestoreService {
           .collection('debt_payments')
           .doc(docId)
           .set(encryptedData, SetOptions(merge: true));
+      EventBus().emit('debt_payments_changed');
+      EventBus().emit('debts_changed');
     } catch (e) {
       debugPrint('Error adding debt payment to cloud: $e');
     }
@@ -556,6 +562,7 @@ class FirestoreService {
           .collection('expenses')
           .doc(docId)
           .set(encryptedData, SetOptions(merge: true));
+      EventBus().emit('expenses_changed');
     } catch (_) {}
   }
 
@@ -570,6 +577,7 @@ class FirestoreService {
           .collection('expenses')
           .doc(expData['firestoreId'])
           .set(encryptedData, SetOptions(merge: true));
+      EventBus().emit('expenses_changed');
     } catch (e) {
       debugPrint('Firestore updateExpenseCloud error: $e');
     }
@@ -581,6 +589,7 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
+      EventBus().emit('expenses_changed');
     } catch (e) {
       debugPrint('Firestore deleteExpenseCloud error: $e');
     }
@@ -698,6 +707,7 @@ class FirestoreService {
       data['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       final encryptedData = EncryptionService.encryptMap(data);
       await docRef.set(encryptedData, SetOptions(merge: true));
+      EventBus().emit('attendance_changed');
       return docId;
     } catch (e) {
       debugPrint('Firestore addAttendance error: $e');
@@ -717,6 +727,7 @@ class FirestoreService {
           .collection('attendance')
           .doc(attendance.firestoreId)
           .set(encryptedData, SetOptions(merge: true));
+      EventBus().emit('attendance_changed');
     } catch (e) {
       debugPrint('Firestore updateAttendanceCloud error: $e');
     }
@@ -728,6 +739,7 @@ class FirestoreService {
         'deleted': true,
         'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
       });
+      EventBus().emit('attendance_changed');
     } catch (e) {
       debugPrint('Firestore deleteAttendance error: $e');
     }
@@ -1856,6 +1868,7 @@ class FirestoreService {
           .doc(docId)
           .set(settings, SetOptions(merge: true));
 
+      EventBus().emit('employee_salary_settings_changed');
       debugPrint('✅ Saved employee salary settings for $staffId');
       return docId;
     } catch (e) {
@@ -1883,6 +1896,7 @@ class FirestoreService {
         });
       }
 
+      EventBus().emit('employee_salary_settings_changed');
       debugPrint('✅ Deleted employee salary settings for $staffId');
       return true;
     } catch (e) {
@@ -1927,6 +1941,7 @@ class FirestoreService {
           .doc(shopId)
           .set(settings, SetOptions(merge: true));
 
+      EventBus().emit('employee_salary_settings_changed');
       debugPrint('✅ Saved shop default salary settings');
       return true;
     } catch (e) {

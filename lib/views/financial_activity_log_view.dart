@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -7,6 +8,7 @@ import '../widgets/custom_app_bar.dart';
 import '../theme/app_text_styles.dart';
 import '../utils/excel_export_helper.dart';
 import '../services/user_service.dart';
+import '../services/event_bus.dart';
 
 /// Trang theo dõi nhật ký tài chính
 /// Chỉ xem, không sửa - có tìm kiếm
@@ -34,12 +36,38 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
 
   String _searchQuery = '';
   final _searchController = TextEditingController();
+  StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
 
   @override
   void initState() {
     super.initState();
     _checkPermission();
+    _setupEventSubscription();
     _loadActivities();
+  }
+
+  void _setupEventSubscription() {
+    _eventSub = EventBus().stream.listen((event) {
+      if (event == 'financial_activity_changed' ||
+          event == 'sales_changed' ||
+          event == 'repairs_changed' ||
+          event == 'expenses_changed' ||
+          event == 'debts_changed' ||
+          event == 'debt_payments_changed' ||
+          event == EventBus.shopChanged ||
+          event == 'sync_now_completed') {
+        _debouncedReloadActivities();
+      }
+    });
+  }
+
+  void _debouncedReloadActivities() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _loadActivities();
+    });
   }
 
   Future<void> _checkPermission() async {
@@ -50,6 +78,8 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
 
   @override
   void dispose() {
+    _eventSub?.cancel();
+    _reloadDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }

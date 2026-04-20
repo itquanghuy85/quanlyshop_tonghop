@@ -16,6 +16,7 @@ import '../services/notification_service.dart';
 import '../services/background_upload_service.dart';
 import '../services/osm_map_service.dart';
 import '../services/firestore_write_helper.dart';
+import '../services/event_bus.dart';
 import 'work_schedule_settings_view.dart'; // Import màn hình cài đặt lịch
 import 'shift_swap_view.dart';
 import '../widgets/app_cached_image.dart';
@@ -41,6 +42,8 @@ class _AttendanceViewState extends State<AttendanceView>
   String _role = 'employee';
   late TabController _tabController;
   Timer? _clockTimer;
+  StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
   DateTime _clockNow = DateTime.now();
   String _userName = '';
 
@@ -56,15 +59,38 @@ class _AttendanceViewState extends State<AttendanceView>
   @override
   void initState() {
     super.initState();
+    _setupEventSubscription();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _clockNow = DateTime.now());
     });
     _loadInitialData();
   }
 
+  void _setupEventSubscription() {
+    _eventSub = EventBus().stream.listen((event) {
+      if (event == 'attendance_changed' ||
+          event == 'leave_requests_changed' ||
+          event == 'work_schedules_changed' ||
+          event == EventBus.shopChanged ||
+          event == 'sync_now_completed') {
+        _debouncedRefreshAttendance();
+      }
+    });
+  }
+
+  void _debouncedRefreshAttendance() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      _refreshAttendanceData();
+    });
+  }
+
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _eventSub?.cancel();
+    _reloadDebounce?.cancel();
     _tabController.dispose();
     super.dispose();
   }

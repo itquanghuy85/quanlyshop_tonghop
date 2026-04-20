@@ -9,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../data/db_helper.dart';
 import '../models/attendance_model.dart';
 import '../services/user_service.dart';
+import '../services/event_bus.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
 
@@ -590,6 +591,8 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
             .doc('shop_general_$shopId')
             .set(scheduleData, SetOptions(merge: true));
       }
+
+      EventBus().emit('work_schedules_changed');
 
       messenger.showSnackBar(
         SnackBar(content: Text(loc.workScheduleSaved)),
@@ -1653,6 +1656,8 @@ class _WorkScheduleSettingsViewState extends State<WorkScheduleSettingsView> {
                       .doc('staff_${staff['id']}_$_currentShopId')
                       .set(newSchedule, SetOptions(merge: true));
                 }
+
+                EventBus().emit('work_schedules_changed');
 
                 // Cập nhật state ngay lập tức
                 _staffWorkSchedules[staff['id'] as String] = newSchedule;

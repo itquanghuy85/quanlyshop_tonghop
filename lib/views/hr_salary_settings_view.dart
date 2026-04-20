@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -10,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
 import '../l10n/app_localizations.dart';
+import '../services/event_bus.dart';
 
 /// Trang quản lý cài đặt lương và hoa hồng nhân viên
 /// Tích hợp: lương cơ bản, hoa hồng bán hàng, hoa hồng sửa chữa, phụ cấp, thưởng doanh số
@@ -30,6 +32,8 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
   bool _loadingShops = false;
   List<Map<String, dynamic>> _allShops = [];
   String? _selectedShopId;
+  StreamSubscription<String>? _eventSub;
+  Timer? _reloadDebounce;
 
   // Danh sách nhân viên
   List<Map<String, dynamic>> _staffList = [];
@@ -66,11 +70,33 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
     _tabController = TabController(length: 2, vsync: this);
     _checkPermission();
     _initAdminShopSelector();
+    _setupEventSubscription();
     _loadData();
+  }
+
+  void _setupEventSubscription() {
+    _eventSub = EventBus().stream.listen((event) {
+      if (event == 'employee_salary_settings_changed' ||
+          event == 'users_changed' ||
+          event == EventBus.shopChanged ||
+          event == 'sync_now_completed') {
+        _debouncedReload();
+      }
+    });
+  }
+
+  void _debouncedReload() {
+    _reloadDebounce?.cancel();
+    _reloadDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      _loadData();
+    });
   }
 
   @override
   void dispose() {
+    _eventSub?.cancel();
+    _reloadDebounce?.cancel();
     _tabController.dispose();
     super.dispose();
   }
