@@ -1227,10 +1227,23 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             '📦 Local-only sale: Deducted ${p.name} quantity by $quantity',
           );
         } else {
-          // Firestore transaction đã cập nhật cloud, sync sẽ tự động cập nhật local
-          debugPrint(
-            '☁️ Cloud sale: ${p.name} quantity will be synced from Firestore',
-          );
+          // Cập nhật local SQLite ngay lập tức sau khi transaction cloud thành công.
+          // Không chờ Firestore sync (có thể trễ 1-5s) → inventory view sẽ hiển thị
+          // đúng ngay khi nhận event sales_changed.
+          // isSynced = 1 vì cloud đã có giá trị chính xác sau transaction.
+          final newQty = (p.quantity - quantity).clamp(0, p.quantity);
+          final newStatus = (p.type == 'DIEN_THOAI' || newQty <= 0) ? 0 : 1;
+          try {
+            await (await db.database).rawUpdate(
+              'UPDATE products SET quantity = ?, status = ?, updatedAt = ?, isSynced = 1 WHERE id = ?',
+              [newQty, newStatus, DateTime.now().millisecondsSinceEpoch, p.id],
+            );
+            debugPrint(
+              '✅ Cloud+Local: ${p.name} qty=$newQty status=$newStatus (isSynced=1)',
+            );
+          } catch (e) {
+            debugPrint('⚠️ Local product update after cloud sale failed: $e');
+          }
         }
 
         // Cập nhật local object cho UI

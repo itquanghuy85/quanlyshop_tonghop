@@ -1135,6 +1135,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         linkedSummary: summary,
       );
 
+      // Push notification khi giao máy (status 4)
+      try {
+        await NotificationService.sendCloudNotification(
+          title: '🚀 ĐÃ GIAO MÁY',
+          body:
+              '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
+          type: 'new_order',
+          data: {'targetType': 'repair', 'targetId': key, 'repairId': key},
+        );
+      } catch (e) {
+        debugPrint('Failed to send delivery notification: $e');
+      }
+
       NotificationService.showSnackBar(
         loc.approvedAndCompletedDelivery,
         color: Colors.green,
