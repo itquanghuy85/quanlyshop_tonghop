@@ -318,7 +318,6 @@ class StorageService {
       final normalizedExt = ext.isEmpty ? '.jpg' : ext;
       final fileName =
           "${DateTime.now().millisecondsSinceEpoch}_${path.basenameWithoutExtension(picked.name.isEmpty ? 'image' : picked.name)}$normalizedExt";
-      final ref = _storage.ref().child(uploadFolder).child(fileName);
 
       if (kIsWeb) {
         final bytes = await picked.readAsBytes();
