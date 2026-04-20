@@ -13,7 +13,6 @@ import '../models/expense_model.dart';
 import '../models/debt_model.dart';
 import '../models/attendance_model.dart';
 import '../models/leave_request_model.dart';
-import '../models/customer_model.dart';
 import '../models/quick_input_code_model.dart';
 import 'storage_service.dart';
 import 'user_service.dart';
@@ -1447,6 +1446,7 @@ class SyncService {
             if (data['deleted'] == true) {
               await db.deleteCustomerByFirestoreId(docId);
             } else {
+              _convertTimestampFields(data);
               data['firestoreId'] = docId;
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
               await db.upsertCustomer(data);
@@ -4337,14 +4337,12 @@ class SyncService {
       for (var doc in querySnapshot.docs) {
         try {
           final data = doc.data() as Map<String, dynamic>;
+          _convertTimestampFields(data);
           data['firestoreId'] = doc.id;
-          data['isSynced'] = true; // Đánh dấu đã sync
-
-          // Chuyển đổi thành Customer model và upsert
-          final customer = Customer.fromMap(data);
-          await dbHelper.upsertCustomer(customer.toMap());
+          data['isSynced'] = 1; // Đánh dấu đã sync
+          await dbHelper.upsertCustomer(data);
           debugPrint(
-            "syncCustomersFromCloud: Đã upsert customer ${customer.name} (${doc.id})",
+            "syncCustomersFromCloud: Đã upsert customer ${data['name'] ?? ''} (${doc.id})",
           );
         } catch (e) {
           debugPrint(

@@ -6399,6 +6399,14 @@ class DBHelper {
   Future<void> clearAllData() async {
     final db = await database;
     await db.transaction((txn) async {
+      final existingTablesRows = await txn.rawQuery(
+        "SELECT name FROM sqlite_master WHERE type = 'table'",
+      );
+      final existingTables = existingTablesRows
+          .map((row) => row['name']?.toString() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toSet();
+
       // All tables in the database - MUST be kept in sync with onCreate
       final tables = [
         'repairs',
@@ -6433,12 +6441,10 @@ class DBHelper {
         'payment_requests',
       ];
       for (var t in tables) {
-        try {
-          await txn.delete(t);
-        } catch (e) {
-          // Table may not exist in older DB versions, ignore
-          debugPrint('clearAllData: table $t not found or error: $e');
+        if (!existingTables.contains(t)) {
+          continue;
         }
+        await txn.delete(t);
       }
     });
   }

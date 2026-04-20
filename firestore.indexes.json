@@ -132,6 +132,14 @@
       ]
     },
     {
+      "collectionId": "cash_closings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "shopId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionId": "stock_entries",
       "queryScope": "COLLECTION",
       "fields": [

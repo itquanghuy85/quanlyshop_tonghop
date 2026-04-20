@@ -71,7 +71,7 @@ Future<void> _activateFirebaseAppCheck() async {
           : AndroidProvider.playIntegrity,
       appleProvider: kDebugMode
           ? AppleProvider.debug
-          : AppleProvider.deviceCheck,
+        : AppleProvider.appAttestWithDeviceCheckFallback,
     );
     _appCheckActivated = true;
 
