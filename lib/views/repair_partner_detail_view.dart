@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -39,6 +41,9 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
   Map<String, dynamic> _stats = {};
   bool _loading = true;
 
+  StreamSubscription<String>? _eventSub;
+  Timer? _loadDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -47,15 +52,21 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
       if (mounted) setState(() {});
     });
     _load();
-    EventBus().stream
-        .where((e) => e == 'repair_partners_changed' || e == 'debts_changed')
-        .listen((_) {
+    _eventSub = EventBus().stream.listen((event) {
+      if (event == 'repair_partners_changed' || event == 'debts_changed') {
+        debugPrint('🔧 [RepairPartnerDetailView] Nhận event "$event" → debounce reload');
+        _loadDebounce?.cancel();
+        _loadDebounce = Timer(const Duration(milliseconds: 300), () {
           if (mounted) _load();
         });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _eventSub?.cancel();
+    _loadDebounce?.cancel();
     _tab.dispose();
     super.dispose();
   }

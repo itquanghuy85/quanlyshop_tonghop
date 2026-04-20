@@ -1969,6 +1969,13 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           '⚠️ Permission denied on save, retrying after assignUserToCurrentShop for ${widget.uid}',
         );
         await UserService.assignUserToCurrentShop(widget.uid);
+        // Buộc làm mới ID token để Firestore rules nhận được claims mới nhất
+        try {
+          await FirebaseAuth.instance.currentUser?.getIdToken(true);
+          debugPrint('✅ Force-refreshed ID token after assignUserToCurrentShop');
+        } catch (tokenErr) {
+          debugPrint('⚠️ Token refresh failed: $tokenErr');
+        }
         if (!mounted) return;
         setState(() {
           _staffShopId = _currentUserShopId;
