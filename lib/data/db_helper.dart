@@ -4671,7 +4671,7 @@ class DBHelper {
     final shopId = data['shopId'] as String?;
 
     // Loại bỏ id vì SQLite auto-generate và _encrypted vì không có trong schema
-    final cleanData = Map<String, dynamic>.from(data);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(data));
     cleanData.remove('id');
     cleanData.remove('_encrypted');
     cleanData.remove('email'); // Loại bỏ email nếu có
