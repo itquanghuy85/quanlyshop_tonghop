@@ -132,12 +132,12 @@ class _CashClosingViewState extends State<CashClosingView>
     super.dispose();
   }
 
-  /// Debounced reload - tránh load quá nhiều lần
+  /// Debounced reload — chỉ đọc local DB (SyncService đã sync Firestore → local)
   void _scheduleReload() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      if (mounted && !_isLoadingFromFirestore) {
-        _loadAllDataFromFirestore();
+      if (mounted) {
+        _loadAllDataFromLocalDB();
       }
     });
   }
@@ -146,14 +146,20 @@ class _CashClosingViewState extends State<CashClosingView>
     final shopId = await UserService.getCurrentShopId();
     if (shopId == null) return;
 
-    // Các collection khác đã được SyncService sync + emit EventBus
+    // Các collection đã được SyncService sync + emit EventBus
     // → sử dụng EventBus thay vì tạo duplicate Firestore listeners
     _eventBusSub = EventBus().stream.listen((event) {
       if (event == 'sales_changed' ||
           event == 'repairs_changed' ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
-          event == 'cash_closings_changed') {
+          event == 'cash_closings_changed' ||
+          event == 'sales_returns_changed' ||
+          event == 'payment_requests_changed' ||
+          event == 'repair_partner_payments_changed' ||
+          event == 'debt_payments_changed' ||
+          event == EventBus.shopChanged) {
+        debugPrint('💰 [CashClosingView] Nhận event "$event" → debounce reload local DB');
         _scheduleReload();
       }
     });
@@ -520,35 +526,13 @@ class _CashClosingViewState extends State<CashClosingView>
   }
 
   /// Fallback: Load từ local DB khi offline
-  /// Lưu ý: supplier_import_history vẫn load từ Firestore nếu có thể để sync
   Future<void> _loadAllDataFromLocalDB() async {
     final sales = await db.getAllSales();
     final repairs = await db.getAllRepairs();
     final expenses = await db.getAllExpenses();
     final debtPayments = await db.getAllDebtPaymentsWithDetails();
-    // FIX BUG-007: Ưu tiên load supplier imports từ Firestore, fallback SQLite
-    List<Map<String, dynamic>> supplierImports = [];
-    try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId != null) {
-        final snapshot = await FirebaseFirestore.instance
-            .collection('supplier_import_history')
-            .where('shopId', isEqualTo: shopId)
-            .get();
-        supplierImports = snapshot.docs
-            .where((doc) => doc.data()['deleted'] != true)
-            .map((doc) {
-              final data = doc.data();
-              data['firestoreId'] = doc.id;
-              _convertTimestampFields(data);
-              return data;
-            })
-            .toList();
-      }
-    } catch (e) {
-      debugPrint('Fallback to SQLite for supplier_import_history: $e');
-      supplierImports = await db.getAllSupplierImportHistory();
-    }
+    // Đọc supplier_import_history từ local DB (SyncService đã sync Firestore → local)
+    final supplierImports = await db.getAllSupplierImportHistory();
     final supplierPayments = await db.getAllSupplierPayments();
     // FIX: Load repair_partner_payments từ local DB (trước đây bỏ sót → _repairPartnerPayments luôn rỗng khi offline)
     final repairPartnerPayments = await db.getRepairPartnerPaymentsForSync();

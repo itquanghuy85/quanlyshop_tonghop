@@ -50,6 +50,7 @@ class OrderListViewState extends State<OrderListView> {
   final db = DBHelper();
   final ScrollController _scrollController = ScrollController();
   StreamSubscription? _eventSubscription;
+  Timer? _repairRefreshDebounce;
 
   AppLocalizations get loc => AppLocalizations.of(context)!;
 
@@ -118,11 +119,14 @@ class OrderListViewState extends State<OrderListView> {
 
     // Listen for repairs_changed events to refresh list
     _eventSubscription = EventBus().stream.listen((event) {
-      if (event == 'repairs_changed' && mounted) {
-        debugPrint(
-          'OrderListView: Received repairs_changed event, reloading...',
-        );
-        _loadInitialData();
+      if ((event == 'repairs_changed' ||
+           event == EventBus.shopChanged ||
+           event == EventBus.dataRefresh) && mounted) {
+        debugPrint('🔧 [OrderListView] Nhận event "$event" → debounce refresh local DB');
+        _repairRefreshDebounce?.cancel();
+        _repairRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
+          if (mounted) _loadInitialData();
+        });
       }
     });
   }
@@ -162,6 +166,7 @@ class OrderListViewState extends State<OrderListView> {
   @override
   void dispose() {
     _eventSubscription?.cancel();
+    _repairRefreshDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();

@@ -930,6 +930,7 @@ class SyncService {
         onBatchDone: () {
           // Chỉ emit EventBus — HomeView + các view khác đã listen EventBus
           // (bỏ onDataChanged() để tránh double-hit reload)
+          debugPrint('✅ [SyncService] Sync xong repairs → emit repairs_changed');
           EventBus().emit('repairs_changed');
         },
       );
@@ -975,6 +976,7 @@ class SyncService {
         },
         onBatchDone: () {
           // Chỉ emit EventBus — tránh double-hit reload
+          debugPrint('✅ [SyncService] Sync xong sales → emit sales_changed');
           EventBus().emit('sales_changed');
         },
       );
@@ -1038,6 +1040,7 @@ class SyncService {
           }
         },
         onBatchDone: () {
+          debugPrint('✅ [SyncService] Sync xong products → emit products_changed');
           onDataChanged();
           EventBus().emit('products_changed');
         },
@@ -1488,6 +1491,7 @@ class SyncService {
           }
         },
         onBatchDone: () {
+          debugPrint('✅ [SyncService] Sync xong suppliers → emit suppliers_changed');
           onDataChanged();
           EventBus().emit('suppliers_changed');
         },
@@ -1641,6 +1645,7 @@ class SyncService {
           }
         },
         onBatchDone: () {
+          debugPrint('✅ [SyncService] Sync xong repair_parts → emit parts_changed');
           onDataChanged();
           EventBus().emit('parts_changed');
         },
@@ -1915,7 +1920,7 @@ class SyncService {
           }
         },
         onBatchDone: () {
-          onDataChanged();
+          debugPrint('✅ [SyncService] Sync xong payment_requests → emit payment_requests_changed');
           EventBus().emit('payment_requests_changed');
         },
       );
@@ -2167,7 +2172,7 @@ class SyncService {
           }
         },
         onBatchDone: () {
-          onDataChanged();
+          debugPrint('✅ [SyncService] Sync xong sales_returns → emit sales_returns_changed');
           EventBus().emit('sales_returns_changed');
         },
       );

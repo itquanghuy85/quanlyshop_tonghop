@@ -134,7 +134,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
           event == 'repairs_changed' ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
-          event == 'debt_payments_changed') {
+          event == 'debt_payments_changed' ||
+          event == 'sales_returns_changed' ||
+          event == 'payment_requests_changed' ||
+          event == EventBus.shopChanged) {
+        debugPrint('📊 [FinancialReportView] Nhận event "$event" → debounce tải lại báo cáo');
         _debouncedLoadData();
       }
     });

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/db_helper.dart';
 import '../models/repair_model.dart';
 import '../models/sale_order_model.dart';
@@ -49,9 +48,6 @@ class _RevenueViewState extends State<RevenueView>
   bool _isSyncing = false;
   String _syncStatus = 'Đã đồng bộ';
 
-  // Real-time listener cho cash_closings
-  StreamSubscription<DocumentSnapshot>? _closingSubscription;
-  
   // EventBus subscription để nghe thay đổi data
   StreamSubscription? _eventBusSubscription;
   
@@ -82,7 +78,6 @@ class _RevenueViewState extends State<RevenueView>
     _loadPermissions();
     _loadShopSettings();
     _loadAllData();
-    _initClosingRealTimeSync();
     // Lắng nghe event bus thay vì gọi initRealTimeSync trực tiếp
     // Sử dụng debounce để tránh reload quá nhiều
     _eventBusSubscription = EventBus().stream.listen((event) {
@@ -92,7 +87,9 @@ class _RevenueViewState extends State<RevenueView>
           event == 'repairs_changed' || 
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
-          event == 'cash_closings_changed') {
+          event == 'cash_closings_changed' ||
+          event == 'supplier_import_history_changed') {
+        debugPrint('📊 [RevenueView] Nhận event "$event" → debounce reload');
         _debouncedReload();
       }
     });
@@ -110,72 +107,12 @@ class _RevenueViewState extends State<RevenueView>
 
   @override
   void dispose() {
-    _closingSubscription?.cancel();
     _eventBusSubscription?.cancel();
     _reloadDebounceTimer?.cancel();
     _tabController.dispose();
     cashEndCtrl.dispose();
     bankEndCtrl.dispose();
     super.dispose();
-  }
-
-  /// Khởi tạo real-time sync cho cash_closings để các máy khác nhận được update
-  Future<void> _initClosingRealTimeSync() async {
-    final todayKey = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final shopId = await UserService.getCurrentShopId();
-    if (shopId == null) return;
-
-    final docId = "closing_${shopId}_$todayKey";
-
-    _closingSubscription = FirebaseFirestore.instance
-        .collection('cash_closings')
-        .doc(docId)
-        .snapshots()
-        .listen((snapshot) async {
-          if (snapshot.exists && mounted) {
-            final cloudData = snapshot.data()!;
-            final cloudIsLocked = cloudData['isLocked'];
-            final localIsLocked = _todayClosing?['isLocked'];
-
-            // Nếu trạng thái khóa khác nhau, cập nhật local DB và UI
-            if (cloudIsLocked != localIsLocked) {
-              debugPrint(
-                'Cash closing sync: Cloud isLocked=$cloudIsLocked, Local isLocked=$localIsLocked',
-              );
-
-              // Cập nhật local DB
-              final dbRaw = await db.database;
-              await dbRaw.update(
-                'cash_closings',
-                {
-                  'isLocked': cloudIsLocked == true || cloudIsLocked == 1
-                      ? 1
-                      : 0,
-                  'lockedBy': cloudData['lockedBy'],
-                  'lockedAt': cloudData['lockedAt'],
-                  'unlockedBy': cloudData['unlockedBy'],
-                  'unlockedAt': cloudData['unlockedAt'],
-                  'cashEnd': cloudData['cashEnd'],
-                  'bankEnd': cloudData['bankEnd'],
-                },
-                where: 'dateKey = ?',
-                whereArgs: [todayKey],
-              );
-
-              // Reload UI
-              await _loadAllData();
-
-              // Hiển thị thông báo
-              final isNowLocked = cloudIsLocked == true || cloudIsLocked == 1;
-              NotificationService.showSnackBar(
-                isNowLocked
-                    ? "🔒 Quỹ hôm nay đã được ${cloudData['lockedBy']} chốt!"
-                    : "🔓 Quỹ hôm nay đã được ${cloudData['unlockedBy']} mở khóa!",
-                color: isNowLocked ? Colors.green : Colors.orange,
-              );
-            }
-          }
-        });
   }
 
   Future<void> _loadPermissions() async {
@@ -211,29 +148,9 @@ class _RevenueViewState extends State<RevenueView>
     final sales = await db.getSalesByDateRange(startMs, endMs);
     final expenses = await db.getExpensesByDateRange(startMs, endMs);
     final debtPayments = await db.getDebtPaymentsWithDebtInfoByDateRange(startMs, endMs);
-    // FIX BUG-007: Load supplier imports từ Firestore để sync giữa các thiết bị
+    // Đọc supplier_import_history từ local DB (SyncService đã đồng bộ Firestore → local)
+    final supplierImports = await db.getAllSupplierImportHistoryByDateRange(startMs, endMs);
     final shopId = await UserService.getCurrentShopId();
-    List<Map<String, dynamic>> supplierImports = [];
-    if (shopId != null) {
-      try {
-        final snapshot = await FirebaseFirestore.instance
-            .collection('supplier_import_history')
-            .where('shopId', isEqualTo: shopId)
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromMillisecondsSinceEpoch(startMs))
-            .get();
-        supplierImports = snapshot.docs
-            .where((doc) => doc.data()['deleted'] != true)
-            .map((doc) {
-              final data = doc.data();
-              data['firestoreId'] = doc.id;
-              return data;
-            })
-            .toList();
-      } catch (e) {
-        debugPrint('Error loading supplier imports from Firestore: $e');
-        supplierImports = await db.getAllSupplierImportHistoryByDateRange(startMs, endMs);
-      }
-    }
     final supplierPayments = await db.getSupplierPaymentsByDateRange(startMs, endMs);
     final repairPartnerPayments = await db.getRepairPartnerPaymentsByDateRange(startMs, endMs);
 

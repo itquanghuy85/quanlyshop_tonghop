@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
@@ -51,6 +52,11 @@ class _SaleListViewState extends State<SaleListView> {
   // Return tracking: saleId -> return summary
   Map<int, _SaleReturnInfo> _returnInfoMap = {};
 
+  // EventBus subscriptions & debounce
+  StreamSubscription<String>? _saleChangedSub;
+  StreamSubscription<String>? _saleReturnSub;
+  Timer? _saleRefreshDebounce;
+
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
   BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
@@ -73,20 +79,31 @@ class _SaleListViewState extends State<SaleListView> {
     _scrollController.addListener(_onScroll);
     
     // Listen to sales changes (e.g., when settlement is received)
-    EventBus().on('sales_changed', (_) {
-      if (mounted) _refresh();
+    _saleChangedSub = EventBus().on('sales_changed', (event) {
+      debugPrint('🛒 [SaleListView] Nhận event "$event" → refresh local DB');
+      _debouncedRefresh();
     });
-    EventBus().on('sales_returns_changed', (_) {
-      if (mounted) _refresh();
+    _saleReturnSub = EventBus().on('sales_returns_changed', (event) {
+      debugPrint('🛒 [SaleListView] Nhận event "$event" → refresh local DB');
+      _debouncedRefresh();
     });
   }
 
   @override
   void dispose() {
+    _saleChangedSub?.cancel();
+    _saleReturnSub?.cancel();
+    _saleRefreshDebounce?.cancel();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-    // EventBus auto-manages listeners via weak references
     super.dispose();
+  }
+
+  void _debouncedRefresh() {
+    _saleRefreshDebounce?.cancel();
+    _saleRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) _refresh();
+    });
   }
   
   void _onScroll() {
