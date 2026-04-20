@@ -490,8 +490,7 @@ class PaymentRequestService {
 
     Query<Map<String, dynamic>> query = _db
         .collection(_collection)
-        .where('shopId', isEqualTo: shopId)
-        .where('deleted', isEqualTo: false);
+      .where('shopId', isEqualTo: shopId);
 
     if (statusFilter != null) {
       query = query.where('status', isEqualTo: statusFilter.name);
@@ -499,9 +498,9 @@ class PaymentRequestService {
 
     query = query
         .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 20));
+      .limit(limit.clamp(1, 200));
 
-    final effectiveLimit = limit.clamp(1, 20);
+    final effectiveLimit = limit.clamp(1, 200);
     List<PaymentRequest> lastData = const <PaymentRequest>[];
 
     Future<List<PaymentRequest>> fetchOnce(String reason) async {
@@ -510,9 +509,17 @@ class PaymentRequestService {
         '[SYNC][FETCH] collection=payment_requests count=$_requestsFetchCount reason=$reason limit=$effectiveLimit',
       );
       final snapshot = await query.get();
-      return snapshot.docs
-          .map((doc) => PaymentRequest.fromSnapshot(doc))
-          .toList();
+      final parsed = <PaymentRequest>[];
+      for (final doc in snapshot.docs) {
+        try {
+          final req = PaymentRequest.fromSnapshot(doc);
+          if (req.deleted) continue;
+          parsed.add(req);
+        } catch (e) {
+          debugPrint('❌ PaymentRequest parse error (${doc.id}): $e');
+        }
+      }
+      return parsed;
     }
 
     try {
@@ -547,16 +554,21 @@ class PaymentRequestService {
     Future<int> fetchCount(String reason) async {
       _pendingFetchCount += 1;
       debugPrint(
-        '[SYNC][FETCH] collection=payment_requests_pending_count count=$_pendingFetchCount reason=$reason limit=20',
+        '[SYNC][FETCH] collection=payment_requests_pending_count count=$_pendingFetchCount reason=$reason limit=200',
       );
       final snapshot = await _db
           .collection(_collection)
           .where('shopId', isEqualTo: shopId)
-          .where('deleted', isEqualTo: false)
           .where('status', isEqualTo: PaymentRequestStatus.pending.name)
-          .limit(20)
+          .limit(200)
           .get();
-      return snapshot.size;
+      var count = 0;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if ((data['deleted'] ?? false) == true) continue;
+        count++;
+      }
+      return count;
     }
 
     try {

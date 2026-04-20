@@ -322,14 +322,19 @@ class _PendingStockListViewState extends State<PendingStockListView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 8,
         title: Row(
           children: [
-            Text(
-              'HÀNG CHỜ XÁC NHẬN NHẬP VÀO KHO',
-              style: TextStyle(
-                fontSize: AppTextStyles.headline3.fontSize,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+            Expanded(
+              child: Text(
+                'HÀNG CHỜ XÁC NHẬN NHẬP VÀO KHO',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline3.fontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -453,21 +458,24 @@ class _PendingStockListViewState extends State<PendingStockListView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       color: Colors.grey.shade100,
-      child: Row(
-        children: [
-          Text(
-            'Lọc: ',
-            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
-          ),
-          const SizedBox(width: 8),
-          _buildFilterChip(null, 'Tất cả'),
-          const SizedBox(width: 6),
-          _buildFilterChip('DIEN_THOAI', '📱 ĐT'),
-          const SizedBox(width: 6),
-          _buildFilterChip('PHU_KIEN', '🎧 PK'),
-          const SizedBox(width: 6),
-          _buildFilterChip('LINH_KIEN', '🔧 LK'),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            Text(
+              'Lọc: ',
+              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+            ),
+            const SizedBox(width: 8),
+            _buildFilterChip(null, 'Tất cả'),
+            const SizedBox(width: 6),
+            _buildFilterChip('DIEN_THOAI', '📱 ĐT'),
+            const SizedBox(width: 6),
+            _buildFilterChip('PHU_KIEN', '🎧 PK'),
+            const SizedBox(width: 6),
+            _buildFilterChip('LINH_KIEN', '🔧 LK'),
+          ],
+        ),
       ),
     );
   }

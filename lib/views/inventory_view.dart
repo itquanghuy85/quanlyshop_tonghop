@@ -2516,7 +2516,7 @@ class _InventoryViewState extends State<InventoryView>
                       ), // Kéo refresh = force sync Firestore
                       child: ListView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 92),
                         itemCount:
                             filteredList.length + (_isLoadingMore ? 1 : 0),
                         itemBuilder: (ctx, i) {
@@ -3128,7 +3128,7 @@ class _InventoryViewState extends State<InventoryView>
               : (p.quantity <= 0 ? Colors.red.shade200 : Colors.grey.shade200));
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(bottom: 4),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: borderColor, width: isSelected ? 2 : 1),
@@ -3150,7 +3150,7 @@ class _InventoryViewState extends State<InventoryView>
             _isSelectionMode ? _toggleSelection(p.id!) : _showProductDetail(p),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3160,8 +3160,8 @@ class _InventoryViewState extends State<InventoryView>
                   // STT + Type icon
                   if (index != null)
                     Container(
-                      width: 24,
-                      height: 24,
+                      width: 22,
+                      height: 22,
                       margin: const EdgeInsets.only(right: 6),
                       decoration: BoxDecoration(
                         color: isPending
@@ -3181,7 +3181,7 @@ class _InventoryViewState extends State<InventoryView>
                         ),
                       ),
                     ),
-                  Text(typeIcon, style: const TextStyle(fontSize: 18)),
+                  Text(typeIcon, style: const TextStyle(fontSize: 16)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Column(
@@ -3280,12 +3280,12 @@ class _InventoryViewState extends State<InventoryView>
                 ],
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
 
               // Info chips row - removed color/condition since they're in name
               Wrap(
                 spacing: 4,
-                runSpacing: 4,
+                runSpacing: 3,
                 children: [
                   if (_canViewCostPrice && !isPending && p.cost > 0)
                     _compactChip(
@@ -3627,6 +3627,13 @@ class _InventoryViewState extends State<InventoryView>
                 }
               }
 
+              // Final sync pass after all related records are enqueued.
+              try {
+                await SyncOrchestrator().syncAll();
+              } catch (e) {
+                debugPrint('Inventory saveProcess sync warning: $e');
+              }
+
               HapticFeedback.lightImpact();
               if (next) {
                 imeiC.clear();
@@ -3641,6 +3648,7 @@ class _InventoryViewState extends State<InventoryView>
               } else {
                 if (mounted) {
                   EventBus().emit('suppliers_changed');
+                  EventBus().emit('products_changed');
                   Navigator.of(context).pop();
                   _refresh();
                   NotificationService.showSnackBar(
@@ -4039,8 +4047,6 @@ class _InventoryViewState extends State<InventoryView>
                   operation: SyncOperation.update,
                   data: updatedP.toMap(),
                 );
-                // Sync ngay lập tức để tránh race condition với realtime sync
-                await SyncOrchestrator().syncAll();
               }
 
               // 2. Lưu lịch sử nhập hàng từ nhà cung cấp
@@ -4111,6 +4117,13 @@ class _InventoryViewState extends State<InventoryView>
                 );
               }
 
+              // Final sync pass after product + supplier import history are enqueued.
+              try {
+                await SyncOrchestrator().syncAll();
+              } catch (e) {
+                debugPrint('Inventory confirmCost sync warning: $e');
+              }
+
               // 3. Xử lý thanh toán
               // NOTE: Direct insertExpense/upsertDebt for staging confirm BLOCKED
               // Payment must go through PaymentIntentService -> UnifiedPaymentPage
@@ -4139,6 +4152,7 @@ class _InventoryViewState extends State<InventoryView>
               );
 
               EventBus().emit('suppliers_changed');
+              EventBus().emit('products_changed');
 
               if (mounted) {
                 Navigator.pop(ctx);

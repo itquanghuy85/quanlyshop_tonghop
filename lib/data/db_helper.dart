@@ -229,6 +229,110 @@ class DBHelper {
     }
   }
 
+  Future<void> _ensurePayrollSettingsColumns(
+    DatabaseExecutor executor, {
+    String logScope = 'DB',
+  }) async {
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'saleCommType',
+      definition: 'TEXT DEFAULT "percent"',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'saleCommTier1Max',
+      definition: 'REAL DEFAULT 10000000',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'saleCommTier1Value',
+      definition: 'REAL DEFAULT 20000',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'saleCommTier2Max',
+      definition: 'REAL DEFAULT 50000000',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'saleCommTier2Value',
+      definition: 'REAL DEFAULT 50000',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'saleCommTier3Value',
+      definition: 'REAL DEFAULT 100000',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'repairCommType',
+      definition: 'TEXT DEFAULT "percent"',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'transportAllowance',
+      definition: 'REAL DEFAULT 0',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'mealAllowance',
+      definition: 'REAL DEFAULT 0',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'phoneAllowance',
+      definition: 'REAL DEFAULT 0',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'otherAllowance',
+      definition: 'REAL DEFAULT 0',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'otherAllowanceNote',
+      definition: 'TEXT',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'targetBonus',
+      definition: 'REAL DEFAULT 0',
+      logScope: logScope,
+    );
+    await _ensureColumnExists(
+      executor: executor,
+      table: 'payroll_settings',
+      column: 'monthlyTarget',
+      definition: 'REAL DEFAULT 0',
+      logScope: logScope,
+    );
+  }
+
   Future<Database> _initDB() async {
     _ensureDatabaseFactoryInitialized();
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
@@ -303,7 +407,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS cash_closings(id INTEGER PRIMARY KEY AUTOINCREMENT, dateKey TEXT UNIQUE, cashStart INTEGER DEFAULT 0, bankStart INTEGER DEFAULT 0, cashEnd INTEGER DEFAULT 0, bankEnd INTEGER DEFAULT 0, expectedCashDelta INTEGER DEFAULT 0, expectedBankDelta INTEGER DEFAULT 0, note TEXT, createdAt INTEGER)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS payroll_settings(id INTEGER PRIMARY KEY AUTOINCREMENT, baseSalary INTEGER DEFAULT 0, saleCommPercent REAL DEFAULT 1.0, repairProfitPercent REAL DEFAULT 10.0, updatedAt INTEGER)',
+          'CREATE TABLE IF NOT EXISTS payroll_settings(id INTEGER PRIMARY KEY AUTOINCREMENT, baseSalary INTEGER DEFAULT 0, saleCommPercent REAL DEFAULT 1.0, saleCommType TEXT DEFAULT "percent", saleCommTier1Max REAL DEFAULT 10000000, saleCommTier1Value REAL DEFAULT 20000, saleCommTier2Max REAL DEFAULT 50000000, saleCommTier2Value REAL DEFAULT 50000, saleCommTier3Value REAL DEFAULT 100000, repairProfitPercent REAL DEFAULT 10.0, repairCommType TEXT DEFAULT "percent", transportAllowance REAL DEFAULT 0, mealAllowance REAL DEFAULT 0, phoneAllowance REAL DEFAULT 0, otherAllowance REAL DEFAULT 0, otherAllowanceNote TEXT, targetBonus REAL DEFAULT 0, monthlyTarget REAL DEFAULT 0, updatedAt INTEGER)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS payroll_locks(id INTEGER PRIMARY KEY AUTOINCREMENT, monthKey TEXT UNIQUE, locked INTEGER DEFAULT 0, lockedBy TEXT, lockedAt INTEGER, note TEXT)',
@@ -2923,6 +3027,13 @@ class DBHelper {
           }
         } catch (e) {
           debugPrint('DB onOpen check error: $e');
+        }
+
+        // Ensure payroll_settings schema is complete for all app versions.
+        try {
+          await _ensurePayrollSettingsColumns(db, logScope: 'DB onOpen');
+        } catch (e) {
+          debugPrint('DB onOpen check error (payroll_settings): $e');
         }
 
         // Ensure labelInfo column exists in quick_input_codes table
@@ -5874,17 +5985,25 @@ class DBHelper {
   // --- PAYROLL SETTINGS ---
   Future<Map<String, dynamic>> getPayrollSettings() async {
     final db = await database;
+    await _ensurePayrollSettingsColumns(db, logScope: 'getPayrollSettings');
     final res = await db.query('payroll_settings', limit: 1);
     if (res.isEmpty) {
       return {
         'baseSalary': 0,
         'saleCommPercent': 1.0,
         'saleCommType': 'percent',
+        'saleCommTier1Max': 10000000,
+        'saleCommTier1Value': 20000,
+        'saleCommTier2Max': 50000000,
+        'saleCommTier2Value': 50000,
+        'saleCommTier3Value': 100000,
         'repairProfitPercent': 10.0,
         'repairCommType': 'percent',
         'transportAllowance': 0,
         'mealAllowance': 0,
         'phoneAllowance': 0,
+        'otherAllowance': 0,
+        'otherAllowanceNote': '',
         'targetBonus': 0,
         'monthlyTarget': 0,
       };
@@ -5894,8 +6013,16 @@ class DBHelper {
 
   Future<void> savePayrollSettings(Map<String, dynamic> data) async {
     final db = await database;
-    await db.delete('payroll_settings');
-    await db.insert('payroll_settings', data);
+    await _ensurePayrollSettingsColumns(db, logScope: 'savePayrollSettings');
+
+    final payload = _sanitizeForSqlite(Map<String, dynamic>.from(data));
+    await _filterToTableColumns('payroll_settings', payload, executor: db);
+    payload['updatedAt'] ??= DateTime.now().millisecondsSinceEpoch;
+
+    await db.transaction((txn) async {
+      await txn.delete('payroll_settings');
+      await txn.insert('payroll_settings', payload);
+    });
   }
 
   // --- PAYROLL LOCKS ---
@@ -8729,7 +8856,7 @@ class DBHelper {
     }
     return await db.query(
       'payment_intents',
-      where: 'status = ? AND shopId = ?',
+      where: 'UPPER(status) = ? AND shopId = ?',
       whereArgs: [
         'PENDING',
         shopId,
@@ -8750,8 +8877,8 @@ class DBHelper {
     }
     return await db.query(
       'payment_intents',
-      where: 'status = ? AND shopId = ?',
-      whereArgs: [status, shopId],
+      where: 'UPPER(status) = ? AND shopId = ?',
+      whereArgs: [status.toUpperCase().trim(), shopId],
       orderBy: 'createdAt DESC',
     );
   }
@@ -8796,7 +8923,8 @@ class DBHelper {
   }) async {
     final db = await database;
     await _ensurePaymentIntentsSchema(db);
-    final data = <String, dynamic>{'status': status};
+    final normalizedStatus = status.toUpperCase().trim();
+    final data = <String, dynamic>{'status': normalizedStatus};
     if (paidBy != null) data['paidBy'] = paidBy;
     if (paidAt != null) data['paidAt'] = paidAt;
     if (paymentMethod != null) data['paymentMethod'] = paymentMethod;
@@ -8843,7 +8971,7 @@ class DBHelper {
     }
     return await db.query(
       'payment_intents',
-      where: 'status != ? AND shopId = ?',
+      where: 'UPPER(status) != ? AND shopId = ?',
       whereArgs: [
         'PENDING',
         shopId,
@@ -8867,8 +8995,8 @@ class DBHelper {
     if (status != null) {
       return await db.query(
         'payment_intents',
-        where: 'type = ? AND status = ? AND shopId = ?',
-        whereArgs: [type, status, shopId],
+        where: 'type = ? AND UPPER(status) = ? AND shopId = ?',
+        whereArgs: [type, status.toUpperCase().trim(), shopId],
         orderBy: 'createdAt DESC',
       );
     }

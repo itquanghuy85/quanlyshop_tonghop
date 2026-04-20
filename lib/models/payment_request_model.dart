@@ -138,7 +138,7 @@ class PaymentRequest {
       accountNumber: map['accountNumber'],
       bankName: map['bankName'],
       description: map['description'],
-      imageUrls: (map['imageUrls'] as List?)?.cast<String>() ?? [],
+      imageUrls: _parseImageUrls(map['imageUrls']),
       customerPaymentMethod: map['customerPaymentMethod'],
       status: _parseStatus(map['status']),
       processedBy: map['processedBy'],
@@ -158,8 +158,9 @@ class PaymentRequest {
 
   static PaymentType _parsePaymentType(dynamic val) {
     if (val is String) {
+      final normalized = val.trim().toLowerCase();
       return PaymentType.values.firstWhere(
-        (e) => e.name == val,
+        (e) => e.name.toLowerCase() == normalized,
         orElse: () => PaymentType.other,
       );
     }
@@ -168,12 +169,33 @@ class PaymentRequest {
 
   static PaymentRequestStatus _parseStatus(dynamic val) {
     if (val is String) {
+      final normalized = val.trim().toLowerCase();
       return PaymentRequestStatus.values.firstWhere(
-        (e) => e.name == val,
+        (e) => e.name.toLowerCase() == normalized,
         orElse: () => PaymentRequestStatus.pending,
       );
     }
     return PaymentRequestStatus.pending;
+  }
+
+  static List<String> _parseImageUrls(dynamic raw) {
+    if (raw == null) return const [];
+
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString().trim() ?? '')
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+
+    final text = raw.toString().trim();
+    if (text.isEmpty) return const [];
+
+    return text
+        .split(RegExp(r'[,;\n]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   /// Label hiển thị loại thanh toán

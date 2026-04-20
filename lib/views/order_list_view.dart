@@ -1608,7 +1608,10 @@ class OrderListViewState extends State<OrderListView> {
       }
     }
 
-    return result.where(StorageService.isResolvableDisplayPath).toList();
+    return result.where((path) {
+      if (StorageService.isResolvableDisplayPath(path)) return true;
+      return !kIsWeb;
+    }).toList();
   }
 
   String _pickBestPreviewImage(List<String> images) {

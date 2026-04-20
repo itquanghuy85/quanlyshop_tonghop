@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../models/payment_request_model.dart';
 import '../models/customer_model.dart';
 import '../services/payment_request_service.dart';
+import '../services/storage_service.dart';
 import '../services/user_service.dart';
 import '../services/customer_service.dart';
 import '../widgets/custom_app_bar.dart';
@@ -708,27 +709,117 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   }
 
   Widget _buildImageGrid(List<String> urls) {
+    final safeUrls = _sanitizeImageUrls(urls);
+    if (safeUrls.isEmpty) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
       child: Wrap(
         spacing: 4,
         runSpacing: 4,
-        children: urls.map((url) {
+        children: safeUrls.map((url) {
           return GestureDetector(
             onTap: () => _showFullImage(url),
-            child: AppCachedImage(
-                imageUrl: url,
-                width: 80,
-                height: 80,
-                fit: BoxFit.cover,
-                borderRadius: BorderRadius.circular(6),
-                memCacheWidth: 200,
-                memCacheHeight: 200,
-              ),
+            child: _buildAttachmentImage(
+              url,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+              borderRadius: BorderRadius.circular(6),
+              memCacheWidth: 200,
+              memCacheHeight: 200,
+            ),
           );
         }).toList(),
       ),
     );
+  }
+
+  List<String> _sanitizeImageUrls(List<String> urls) {
+    final out = <String>[];
+    for (final raw in urls) {
+      final s = raw.trim();
+      if (s.isEmpty) continue;
+      if (!out.contains(s)) out.add(s);
+    }
+    return out;
+  }
+
+  bool _isNetworkLike(String path) {
+    final lower = path.toLowerCase();
+    return lower.startsWith('http://') ||
+        lower.startsWith('https://') ||
+        lower.startsWith('blob:') ||
+        lower.startsWith('data:');
+  }
+
+  Widget _brokenAttachment({double? width, double? height}) {
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey.shade200,
+      child: Icon(Icons.broken_image, color: Colors.grey.shade400),
+    );
+  }
+
+  Widget _buildAttachmentImage(
+    String path, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+    BorderRadius? borderRadius,
+    int? memCacheWidth,
+    int? memCacheHeight,
+  }) {
+    final normalized = path.trim();
+    if (normalized.isEmpty) {
+      return _brokenAttachment(width: width, height: height);
+    }
+
+    Widget child;
+    if (_isNetworkLike(normalized)) {
+      child = AppCachedImage(
+        imageUrl: normalized,
+        width: width,
+        height: height,
+        fit: fit,
+        memCacheWidth: memCacheWidth,
+        memCacheHeight: memCacheHeight,
+      );
+    } else if (StorageService.isGsStoragePath(normalized) ||
+        StorageService.isStorageRelativePath(normalized)) {
+      child = FutureBuilder<String?>(
+        future: StorageService.resolveDisplayUrl(normalized),
+        builder: (context, snapshot) {
+          final resolved = snapshot.data;
+          if (resolved == null || resolved.isEmpty) {
+            return _brokenAttachment(width: width, height: height);
+          }
+          return AppCachedImage(
+            imageUrl: resolved,
+            width: width,
+            height: height,
+            fit: fit,
+            memCacheWidth: memCacheWidth,
+            memCacheHeight: memCacheHeight,
+          );
+        },
+      );
+    } else if (!kIsWeb) {
+      final file = File(normalized);
+      if (file.existsSync()) {
+        child = Image.file(file, width: width, height: height, fit: fit);
+      } else {
+        child = _brokenAttachment(width: width, height: height);
+      }
+    } else {
+      child = _brokenAttachment(width: width, height: height);
+    }
+
+    if (borderRadius != null) {
+      return ClipRRect(borderRadius: borderRadius, child: child);
+    }
+    return child;
   }
 
   Widget _buildActionButtons(PaymentRequest req) {
@@ -1010,11 +1101,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: req.imageUrls.map((url) {
+                  children: _sanitizeImageUrls(req.imageUrls).map((url) {
                     return GestureDetector(
                       onTap: () => _showFullImage(url),
-                      child: AppCachedImage(
-                        imageUrl: url,
+                      child: _buildAttachmentImage(
+                        url,
                         width: 100,
                         height: 100,
                         fit: BoxFit.cover,
@@ -1060,8 +1151,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white)),
           body: Center(
             child: InteractiveViewer(
-              child: AppCachedImage(
-                imageUrl: url,
+              child: _buildAttachmentImage(
+                url,
                 fit: BoxFit.contain,
               ),
             ),

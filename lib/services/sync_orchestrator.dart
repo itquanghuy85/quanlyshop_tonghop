@@ -154,6 +154,7 @@ class SyncOrchestrator {
   // Is syncing flag
   bool _isSyncing = false;
   bool get isSyncing => _isSyncing;
+  bool _syncRequestedWhileSyncing = false;
 
   static List<String> _splitImagePaths(String? csv) {
     if (csv == null) return const [];
@@ -408,6 +409,11 @@ class SyncOrchestrator {
 
     await _refreshPendingCount();
     await _emitCurrentStatus();
+
+    // Ensure new queue items added during an active batch are not left behind.
+    if (_isSyncing) {
+      _syncRequestedWhileSyncing = true;
+    }
   }
 
   /// Lấy số lượng pending
@@ -434,6 +440,7 @@ class SyncOrchestrator {
   /// Sync tất cả pending items
   Future<SyncResult> syncAll() async {
     if (_isSyncing) {
+      _syncRequestedWhileSyncing = true;
       debugPrint('🔄 SyncOrchestrator: Already syncing, skipping...');
       return SyncResult(success: 0, failed: 0, total: 0, skipped: true);
     }
@@ -495,6 +502,14 @@ class SyncOrchestrator {
       );
     } finally {
       _isSyncing = false;
+
+      final shouldRunAgain = _syncRequestedWhileSyncing;
+      _syncRequestedWhileSyncing = false;
+      if (shouldRunAgain) {
+        debugPrint('🔄 SyncOrchestrator: Running deferred sync pass...');
+        // ignore: unawaited_futures
+        unawaited(syncAll());
+      }
     }
   }
 

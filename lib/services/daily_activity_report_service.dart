@@ -131,7 +131,7 @@ class DailyActivityReportService {
       // 3: Created repairs today
       db.query('repairs', where: 'createdAt >= ? AND createdAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'createdAt DESC'),
       // 4: Expenses today
-      db.query('expenses', where: 'date >= ? AND date < ?$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'date DESC'),
+      db.query('expenses', where: 'COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) < ? AND COALESCE(deleted, 0) != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'COALESCE(date, createdAt) DESC'),
       // 5: Debt payments
       _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs),
       // 6: Partner payments

@@ -63,7 +63,7 @@ class _ExpenseViewState extends State<ExpenseView> {
   String _scopeFilter = 'TAT_CA'; // TAT_CA, SHOP, CA_NHAN
 
   // Filter options
-  String _filterType = 'THÁNG'; // NGÀY, TUẦN, THÁNG
+  String _filterType = 'NGÀY'; // NGÀY, TUẦN, THÁNG
   DateTime _selectedDate = DateTime.now();
   bool _hasOpenedInitialDialog = false;
 

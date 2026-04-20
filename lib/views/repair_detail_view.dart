@@ -193,7 +193,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final normalized = images
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
-        .where(StorageService.isResolvableDisplayPath)
+        .where((path) {
+          if (StorageService.isResolvableDisplayPath(path)) return true;
+          return !kIsWeb;
+        })
         .toList();
     if (!kIsWeb) return normalized;
     final web = normalized.where(_isWebImageSource).toList();
@@ -768,9 +771,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           data: r.toMap(),
         );
 
-        // Best-effort: push ngay để các thiết bị khác nhận update nhanh và đồng nhất
-        // ignore: unawaited_futures
-        SyncOrchestrator().syncAll();
+        // Await sync để tránh trạng thái pending kéo dài (nút sync vàng).
+        try {
+          await SyncOrchestrator().syncAll();
+        } catch (_) {}
         // FIX: Also trigger targeted repair sync for reliability
         // ignore: unawaited_futures
         SyncService.syncRepairData();
@@ -1047,9 +1051,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           data: r.toMap(),
         );
 
-        // Best-effort: push ngay để các thiết bị khác nhận update nhanh
-        // ignore: unawaited_futures
-        SyncOrchestrator().syncAll();
+        // Await sync để tránh trạng thái pending kéo dài (nút sync vàng).
+        try {
+          await SyncOrchestrator().syncAll();
+        } catch (_) {}
         // FIX: Also trigger targeted repair sync for reliability
         // ignore: unawaited_futures
         SyncService.syncRepairData();
@@ -1131,9 +1136,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           data: r.toMap(),
         );
 
-        // Best-effort: push ngay để các thiết bị khác nhận update nhanh
-        // ignore: unawaited_futures
-        SyncOrchestrator().syncAll();
+        // Await sync để tránh trạng thái pending kéo dài (nút sync vàng).
+        try {
+          await SyncOrchestrator().syncAll();
+        } catch (_) {}
         // FIX: Also trigger targeted repair sync for reliability
         // ignore: unawaited_futures
         SyncService.syncRepairData();
@@ -1424,12 +1430,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         await db.updateRepair(r);
 
         if (r.firestoreId != null && r.id != null) {
-          SyncOrchestrator().enqueue(
+          await SyncOrchestrator().enqueue(
             entityType: SyncEntityType.repair,
             entityId: r.id!,
             firestoreId: r.firestoreId,
             operation: SyncOperation.update,
+            data: r.toMap(),
           );
+          try {
+            await SyncOrchestrator().syncAll();
+          } catch (_) {}
           // FIX: Also trigger targeted repair sync for reliability
           // ignore: unawaited_futures
           SyncService.syncRepairData();
@@ -1713,12 +1723,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     // 5. Sync
     if (r.firestoreId != null && r.id != null) {
-      SyncOrchestrator().enqueue(
+      await SyncOrchestrator().enqueue(
         entityType: SyncEntityType.repair,
         entityId: r.id!,
         firestoreId: r.firestoreId,
         operation: SyncOperation.update,
+        data: r.toMap(),
       );
+      try {
+        await SyncOrchestrator().syncAll();
+      } catch (_) {}
     }
 
     // 6. Log audit
@@ -1740,6 +1754,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       'Đã xóa $removedPart${restored ? " và trả lại kho" : ""}',
       color: Colors.green,
     );
+    EventBus().emit('repairs_changed');
 
     if (mounted) setState(() {});
   }
@@ -1863,6 +1878,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     r.cost = (r.cost - removedCost).clamp(0, r.cost);
     r.isSynced = false;
     await db.updateRepair(r);
+
+    if (r.firestoreId != null && r.id != null) {
+      await SyncOrchestrator().enqueue(
+        entityType: SyncEntityType.repair,
+        entityId: r.id!,
+        firestoreId: r.firestoreId,
+        operation: SyncOperation.update,
+        data: r.toMap(),
+      );
+      try {
+        await SyncOrchestrator().syncAll();
+      } catch (_) {}
+    }
 
     // Log xóa
     await AuditService.logAction(

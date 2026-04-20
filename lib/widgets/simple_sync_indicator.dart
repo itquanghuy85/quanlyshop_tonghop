@@ -80,6 +80,10 @@ class _SimpleSyncIndicatorState extends State<SimpleSyncIndicator>
     if (_isSyncing) return;
 
     try {
+      // Drain orchestrator queue first so pending badge can clear correctly.
+      if (_pendingCount > 0) {
+        await _orchestrator.syncAll();
+      }
       // Chỉ push local changes — real-time listeners handle downloads
       await SyncService.syncAllToCloud();
     } catch (e) {
@@ -97,6 +101,7 @@ class _SimpleSyncIndicatorState extends State<SimpleSyncIndicator>
       if (_status == SyncStatus.error) {
         await _orchestrator.retryFailedItems();
       }
+      await _orchestrator.syncAll();
       // Upload local changes
       await SyncService.syncAllToCloud();
       // Download from cloud (user-triggered)

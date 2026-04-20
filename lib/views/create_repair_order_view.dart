@@ -466,7 +466,6 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         entityId: savedRepair.id!,
         firestoreId: r.firestoreId,
         operation: SyncOperation.create,
-        data: r.toMap(),
       );
 
       // Trigger sync ngay và chờ kết quả

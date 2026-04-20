@@ -14,6 +14,35 @@ class BackgroundUploadService {
 
   static final _db = FirebaseFirestore.instance;
 
+  static List<String> _splitPaths(String? csv) {
+    if (csv == null) return const [];
+    return csv
+        .split(RegExp(r'[,;\n]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  static bool _isCloudPath(String path) {
+    final p = path.trim().toLowerCase();
+    return p.startsWith('http://') ||
+        p.startsWith('https://') ||
+        p.startsWith('gs://') ||
+        p.startsWith('blob:') ||
+        p.startsWith('data:');
+  }
+
+  static Future<bool> _hasPendingRepairQueue(
+    DatabaseExecutor dbConn,
+    int localRepairId,
+  ) async {
+    final rows = await dbConn.rawQuery(
+      "SELECT 1 FROM sync_queue WHERE entityType = 'repair' AND entityId = ? AND status IN ('pending', 'processing', 'failed') LIMIT 1",
+      [localRepairId],
+    );
+    return rows.isNotEmpty;
+  }
+
   /// Upload repair images in background, then update local DB + Firestore.
   static void uploadRepairImages({
     required int localRepairId,
@@ -30,6 +59,37 @@ class BackgroundUploadService {
     List<XFile> images,
   ) async {
     try {
+      final dbHelper = DBHelper();
+      final dbConn = await dbHelper.database;
+
+      final currentRows = await dbConn.query(
+        'repairs',
+        columns: ['imagePath', 'isSynced'],
+        where: 'id = ?',
+        whereArgs: [localRepairId],
+        limit: 1,
+      );
+
+      if (currentRows.isNotEmpty) {
+        final current = currentRows.first;
+        final alreadySynced = (current['isSynced'] as int? ?? 0) == 1;
+        if (alreadySynced) {
+          debugPrint(
+            '📸 BackgroundUpload: Skip upload because repair is already synced',
+          );
+          return;
+        }
+
+        final currentPaths = _splitPaths((current['imagePath'] ?? '').toString());
+        final hasLocalPath = currentPaths.any((p) => !_isCloudPath(p));
+        if (!hasLocalPath && currentPaths.isNotEmpty) {
+          debugPrint(
+            '📸 BackgroundUpload: Skip upload because local paths are already replaced',
+          );
+          return;
+        }
+      }
+
       debugPrint('📸 BackgroundUpload: Starting ${images.length} repair image(s)...');
       final uploadedUrls = <String>[];
       for (final picked in images) {
@@ -46,26 +106,36 @@ class BackgroundUploadService {
 
       final cloudPaths = uploadedUrls.join(',');
 
-      // Update local DB
-      final dbHelper = DBHelper();
-      final dbConn = await dbHelper.database;
+      // Always persist cloud paths locally.
       await dbConn.update(
         'repairs',
-        {'imagePath': cloudPaths, 'isSynced': 0},
+        {'imagePath': cloudPaths},
         where: 'id = ?',
         whereArgs: [localRepairId],
       );
 
       // Update Firestore directly
+      var cloudUpdated = false;
       try {
         final encData = EncryptionService.encryptMap({
           'imagePath': cloudPaths,
           'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
         });
         await _db.collection('repairs').doc(firestoreId).update(encData);
+        cloudUpdated = true;
       } catch (e) {
         debugPrint('📸 BackgroundUpload: Firestore update failed (will sync later): $e');
       }
+
+      final hasPendingQueue = await _hasPendingRepairQueue(dbConn, localRepairId);
+      await dbConn.update(
+        'repairs',
+        {
+          'isSynced': cloudUpdated && !hasPendingQueue ? 1 : 0,
+        },
+        where: 'id = ?',
+        whereArgs: [localRepairId],
+      );
 
       debugPrint('📸 BackgroundUpload: Repair images done (${uploadedUrls.length})');
     } catch (e) {
