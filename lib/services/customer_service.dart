@@ -2,6 +2,7 @@ import '../data/db_helper.dart';
 import '../models/customer_model.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
+import 'event_bus.dart';
 
 class CustomerService {
   final db = DBHelper();
@@ -28,9 +29,11 @@ class CustomerService {
     try {
       final id = await db.insertCustomer(customerMap);
       if (id > 0) {
+        EventBus().emit('customers_changed');
         final firestoreId = await FirestoreService.addCustomer(customerMap);
         if (firestoreId != null) {
           await db.updateCustomer(id, {'firestoreId': firestoreId});
+          EventBus().emit('customers_changed');
           return customer.copyWith(id: id, firestoreId: firestoreId);
         }
         return customer.copyWith(id: id);
@@ -52,6 +55,7 @@ class CustomerService {
               'updatedAt': customerMap['updatedAt'],
               'deleted': 0,
             });
+            EventBus().emit('customers_changed');
             return customer.copyWith(id: existingId, firestoreId: existing.first['firestoreId'] as String?);
           }
         }
@@ -68,6 +72,7 @@ class CustomerService {
 
     final result = await db.updateCustomer(customer.id!, customerMap);
     if (result > 0) {
+      EventBus().emit('customers_changed');
       await FirestoreService.updateCustomer(customerMap);
       return true;
     }
@@ -80,6 +85,7 @@ class CustomerService {
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     });
     if (result > 0) {
+      EventBus().emit('customers_changed');
       await FirestoreService.deleteCustomerById(customerId);
       return true;
     }

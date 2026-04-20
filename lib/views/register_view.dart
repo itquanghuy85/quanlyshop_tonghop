@@ -162,7 +162,7 @@ class _RegisterViewState extends State<RegisterView> {
       setState(() {
         _loading = false;
       });
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } catch (e) {
       final errorMsg = _formatError(e);
       setState(() { _error = errorMsg; _loading = false; });

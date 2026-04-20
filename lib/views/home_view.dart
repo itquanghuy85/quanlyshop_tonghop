@@ -1768,6 +1768,11 @@ class _HomeViewState extends State<HomeView>
       debugPrint('🏠 HomeView: Loading settings for shopId=$shopId');
 
       final settings = await CategoryService().getShopSettings();
+      final effectiveSettings =
+          settings ??
+          (!hasFullAccess && shopId != null
+              ? ShopSettings.electronics(shopId)
+              : null);
       debugPrint('🏠 HomeView: Loaded shop settings:');
       debugPrint('   - businessType: ${settings?.businessType}');
       debugPrint('   - enableRepair: ${settings?.enableRepair}');
@@ -1793,7 +1798,7 @@ class _HomeViewState extends State<HomeView>
       }
 
       setState(() {
-        _shopSettings = settings;
+        _shopSettings = effectiveSettings;
         _expiryStats = expiryStats;
         _variantWarnings = variantWarnings;
         debugPrint(
@@ -1806,12 +1811,18 @@ class _HomeViewState extends State<HomeView>
 
       // CRITICAL: Nếu chưa có settings, hiện wizard để chọn loại hình kinh doanh
       // Guard để tránh hiện wizard nhiều lần (do EventBus + onShopChanged cùng gọi)
-      if (settings == null && mounted && !_isShowingBusinessTypeWizard) {
-        debugPrint(
-          '🏠 HomeView: No settings found - showing business type wizard',
-        );
-        _isShowingBusinessTypeWizard = true;
-        _showBusinessTypeSetupDialog();
+      if (settings == null && mounted) {
+        if (hasFullAccess && !_isShowingBusinessTypeWizard) {
+          debugPrint(
+            '🏠 HomeView: No settings found - showing business type wizard',
+          );
+          _isShowingBusinessTypeWizard = true;
+          _showBusinessTypeSetupDialog();
+        } else {
+          debugPrint(
+            '🏠 HomeView: settings missing for staff role -> skip business type wizard',
+          );
+        }
       }
     } catch (e, stack) {
       debugPrint('Error loading shop settings: $e');

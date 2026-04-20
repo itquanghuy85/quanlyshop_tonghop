@@ -49,13 +49,19 @@ service cloud.firestore {
     }
 
     // ═══════════ 1.3 MULTI-TENANT ISOLATION ═══════════
-    // shopId from Custom Claims first, fallback to users collection
+    // Ưu tiên user document vì claims có thể bị stale ngắn hạn sau đổi shop/role.
+    // claims vẫn được dùng fallback khi user doc chưa sẵn sàng.
+    function myUserShopId() {
+      return isAuth() &&
+             exists(/databases/$(database)/documents/users/$(uid()))
+             ? get(/databases/$(database)/documents/users/$(uid())).data.shopId
+             : null;
+    }
+
     function myShopId() {
-      // Ưu tiên claims (nhanh hơn, không cần read)
-      // Nếu claims chưa có thì fallback về users collection
-      return request.auth.token.shopId != null 
-             ? request.auth.token.shopId 
-             : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.shopId;
+      return myUserShopId() != null
+             ? myUserShopId()
+             : request.auth.token.shopId;
     }
     
     // Check if user owns a specific shop (for multi-shop owners)
@@ -111,13 +117,17 @@ service cloud.firestore {
     }
 
     // ═══════════ 1.4 ROLE-BASED ACCESS ═══════════
-    // role from Custom Claims first, fallback to users collection
+    function myUserRole() {
+      return isAuth() &&
+             exists(/databases/$(database)/documents/users/$(uid()))
+             ? get(/databases/$(database)/documents/users/$(uid())).data.role
+             : null;
+    }
+
     function myRole() {
-      // Ưu tiên claims (nhanh hơn, không cần read)
-      // Nếu claims chưa có thì fallback về users collection
-      return request.auth.token.role != null 
-             ? request.auth.token.role 
-             : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return myUserRole() != null
+             ? myUserRole()
+             : request.auth.token.role;
     }
     
     function isOwner() {

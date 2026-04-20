@@ -937,11 +937,9 @@ class StockEntryService {
       _showSuccess('Đã xác nhận nhập kho');
       EventBus().emit('stock_entries_changed');
       EventBus().emit('products_changed');
-      unawaited(
-        SyncService.refreshCloudCollections(
-          reason: 'stock_entry_confirmed',
-          force: true,
-        ),
+      await SyncService.refreshCloudCollections(
+        reason: 'stock_entry_confirmed',
+        force: true,
       );
       return result['success'] == true;
     } catch (e) {

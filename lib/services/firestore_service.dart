@@ -937,6 +937,7 @@ class FirestoreService {
   static Future<void> deleteCustomer(String firestoreId) async {
     try {
       await _db.collection('customers').doc(firestoreId).delete();
+      EventBus().emit('customers_changed');
     } catch (_) {}
   }
 
@@ -1381,6 +1382,7 @@ class FirestoreService {
       customerData['firestoreId'] = docRef.id;
       customerData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       await docRef.set(customerData, SetOptions(merge: true));
+      EventBus().emit('customers_changed');
       return docRef.id;
     } catch (e) {
       debugPrint('Firestore addCustomer error: $e');
@@ -1397,6 +1399,7 @@ class FirestoreService {
       customerData['shopId'] = shopId;
       customerData['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
       await _db.collection('customers').doc(firestoreId).update(customerData);
+      EventBus().emit('customers_changed');
       return true;
     } catch (e) {
       debugPrint('Firestore updateCustomer error: $e');
@@ -1420,6 +1423,7 @@ class FirestoreService {
               });
             }
           });
+      EventBus().emit('customers_changed');
       return true;
     } catch (e) {
       debugPrint('Firestore deleteCustomer error: $e');

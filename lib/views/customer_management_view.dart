@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/customer_model.dart';
 import '../services/customer_service.dart';
 import '../services/sync_service.dart';
+import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/global_search_bar.dart';
@@ -30,18 +33,41 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
   static const int _pageSize = 50;
   bool _hasMore = true;
   final ScrollController _scrollController = ScrollController();
+  StreamSubscription<String>? _customerEventSub;
+  Timer? _customerRefreshDebounce;
+  final Set<String> _customerRefreshEvents = {
+    'customers_changed',
+    EventBus.dataRefresh,
+    EventBus.shopChanged,
+  };
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _bindCustomerRefreshEvents();
     _loadCustomers();
   }
 
   @override
   void dispose() {
+    _customerRefreshDebounce?.cancel();
+    _customerEventSub?.cancel();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _bindCustomerRefreshEvents() {
+    _customerEventSub?.cancel();
+    _customerEventSub = EventBus().stream
+        .where((event) => _customerRefreshEvents.contains(event))
+        .listen((event) {
+          _customerRefreshDebounce?.cancel();
+          _customerRefreshDebounce = Timer(const Duration(milliseconds: 280), () {
+            if (!mounted) return;
+            _reloadCustomersQuiet();
+          });
+        });
   }
 
   void _onScroll() {
@@ -96,11 +122,32 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
   Future<void> _reloadCustomersQuiet() async {
     try {
       final customers = await _customerService.getCustomers();
-      if (mounted && customers.length != _customers.length) {
+      if (mounted && _hasCustomerListChanged(customers)) {
         _customers = customers;
         _filterCustomers(_searchQuery);
       }
     } catch (_) {}
+  }
+
+  bool _hasCustomerListChanged(List<Customer> next) {
+    if (next.length != _customers.length) return true;
+
+    Map<String, String> fingerprint(List<Customer> items) {
+      return {
+        for (final c in items)
+          (c.firestoreId ?? 'local_${c.id ?? 0}'):
+              '${c.updatedAt ?? c.createdAt}|${c.name}|${c.phone}|${c.address ?? ''}|${c.totalSpent}|${c.totalRepairs}|${c.totalRepairCost}|${c.deleted ? 1 : 0}',
+      };
+    }
+
+    final oldMap = fingerprint(_customers);
+    final newMap = fingerprint(next);
+    if (oldMap.length != newMap.length) return true;
+
+    for (final entry in newMap.entries) {
+      if (oldMap[entry.key] != entry.value) return true;
+    }
+    return false;
   }
 
   void _filterCustomers(String query) {

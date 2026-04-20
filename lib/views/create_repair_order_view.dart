@@ -472,6 +472,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       debugPrint('🔧 Triggering immediate sync for new repair...');
       final syncResult = await SyncOrchestrator().syncAll();
       debugPrint('🔧 Sync result: success=${syncResult.success}, failed=${syncResult.failed}');
+      bool syncedToCloud = !syncResult.noNetwork && syncResult.failed == 0;
       
       // Nếu sync thất bại, thử upload trực tiếp lên Firestore.
       // Guard: không push local image path lên cloud vì web sẽ không render được.
@@ -494,6 +495,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             final firestoreId = await FirestoreService.addRepair(savedRepair);
             if (firestoreId != null) {
               debugPrint('🔧 Direct upload successful: $firestoreId');
+              syncedToCloud = true;
             }
           }
         } catch (e) {
@@ -631,18 +633,43 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         }
       }
 
-      // Trigger new order notification
-      try {
-        await NotificationService.sendNewOrderNotification(
-          rWithCloudId.firestoreId!,
-          r.customerName,
-          r.price,
-          model: r.model,
-          phone: r.phone,
+      if (syncedToCloud) {
+        // Đẩy chat nhóm khi đơn sửa đã có trên cloud để thiết bị khác thấy ngay.
+        try {
+          final chatUser = FirebaseAuth.instance.currentUser;
+          final repairKey = rWithCloudId.firestoreId!;
+          final summary =
+              'ĐƠN SỬA - ${r.customerName} - ${r.phone} - ${r.model} - ${MoneyUtils.formatCurrency(r.price)} đ';
+          final msg = '🔧 ĐƠN MỚI: $summary';
+          await FirestoreService.sendChat(
+            message: msg,
+            senderId: chatUser?.uid ?? 'guest',
+            senderName: chatUser?.email?.split('@').first.toUpperCase() ?? 'NV',
+            linkedType: 'repair',
+            linkedKey: repairKey,
+            linkedSummary: summary,
+          );
+        } catch (e) {
+          debugPrint('Failed to send repair chat notification: $e');
+        }
+
+        // Trigger new order push notification after cloud sync success.
+        try {
+          await NotificationService.sendNewOrderNotification(
+            rWithCloudId.firestoreId!,
+            r.customerName,
+            r.price,
+            model: r.model,
+            phone: r.phone,
+          );
+        } catch (e) {
+          debugPrint('Failed to send new order notification: $e');
+          // Don't fail the repair creation if notification fails
+        }
+      } else {
+        debugPrint(
+          'ℹ️ Skipped repair chat/push because repair is local-only and not synced to cloud yet',
         );
-      } catch (e) {
-        debugPrint('Failed to send new order notification: $e');
-        // Don't fail the repair creation if notification fails
       }
 
       // Update customer stats (tổng số lần sửa chữa)

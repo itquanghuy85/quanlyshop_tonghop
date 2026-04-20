@@ -3112,6 +3112,7 @@ class _InventoryViewState extends State<InventoryView>
   Widget _buildProfessionalCard(Product p, [int? index]) {
     final bool isSelected = _selectedIds.contains(p.id);
     final bool isPending = p.isPending; // Kho tạm
+    final metaLine = _buildCompactMetaLine(p, isPending);
 
     // Type icon like pending_stock_list_view
     String typeIcon = p.type == 'DIEN_THOAI' ? '📱' : '🎧';
@@ -3128,7 +3129,7 @@ class _InventoryViewState extends State<InventoryView>
               : (p.quantity <= 0 ? Colors.red.shade200 : Colors.grey.shade200));
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: 2),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: borderColor, width: isSelected ? 2 : 1),
@@ -3150,7 +3151,7 @@ class _InventoryViewState extends State<InventoryView>
             _isSelectionMode ? _toggleSelection(p.id!) : _showProductDetail(p),
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3160,9 +3161,9 @@ class _InventoryViewState extends State<InventoryView>
                   // STT + Type icon
                   if (index != null)
                     Container(
-                      width: 22,
-                      height: 22,
-                      margin: const EdgeInsets.only(right: 6),
+                      width: 20,
+                      height: 20,
+                      margin: const EdgeInsets.only(right: 5),
                       decoration: BoxDecoration(
                         color: isPending
                             ? Colors.orange.withOpacity(0.2)
@@ -3218,7 +3219,7 @@ class _InventoryViewState extends State<InventoryView>
                                       ? Colors.orange.shade800
                                       : const Color(0xFF1A237E),
                                 ),
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -3242,10 +3243,7 @@ class _InventoryViewState extends State<InventoryView>
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
                           color: p.quantity > 0
                               ? Colors.blue.shade50
@@ -3262,15 +3260,6 @@ class _InventoryViewState extends State<InventoryView>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        DateFormat('dd/MM HH:mm').format(
-                          DateTime.fromMillisecondsSinceEpoch(p.createdAt),
-                        ),
-                        style: AppTextStyles.overline.copyWith(
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
                     ],
                   ),
                   if (isSelected) ...[
@@ -3280,35 +3269,25 @@ class _InventoryViewState extends State<InventoryView>
                 ],
               ),
 
-              const SizedBox(height: 4),
-
-              // Info chips row - removed color/condition since they're in name
-              Wrap(
-                spacing: 4,
-                runSpacing: 3,
-                children: [
-                  if (_canViewCostPrice && !isPending && p.cost > 0)
-                    _compactChip(
-                      'Vốn: ${NumberFormat.compact(locale: 'vi').format(p.cost)}đ',
-                      Colors.orange.shade100,
-                    ),
-                  if (!isPending)
-                    _compactChip(
-                      'Bán: ${NumberFormat.compact(locale: 'vi').format(p.price)}đ',
-                      Colors.green.shade100,
-                    ),
-                  if (p.supplier != null && p.supplier!.isNotEmpty)
-                    _compactChip('🏭 ${p.supplier}', Colors.blue.shade50),
-                  if (isPending)
-                    _compactChip('⏳ Chờ giá', Colors.yellow.shade100),
-                  // Show variant stock badge for fashion products
-                  if (_enableVariants && p.firestoreId != null)
-                    VariantStockWidget(
-                      productId: p.firestoreId!,
-                      variantService: _variantService,
-                    ),
-                ],
-              ),
+              if (metaLine.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  metaLine,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.overline.copyWith(
+                    color: isPending ? Colors.orange.shade700 : Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+              if (_enableVariants && p.firestoreId != null) ...[
+                const SizedBox(height: 3),
+                VariantStockWidget(
+                  productId: p.firestoreId!,
+                  variantService: _variantService,
+                ),
+              ],
             ],
           ),
         ),
@@ -3316,18 +3295,21 @@ class _InventoryViewState extends State<InventoryView>
     );
   }
 
-  Widget _compactChip(String label, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: AppTextStyles.overline.copyWith(fontWeight: FontWeight.w500),
-      ),
-    );
+  String _buildCompactMetaLine(Product p, bool isPending) {
+    final parts = <String>[];
+    if (_canViewCostPrice && !isPending && p.cost > 0) {
+      parts.add('Vốn ${NumberFormat.compact(locale: 'vi').format(p.cost)}đ');
+    }
+    if (!isPending) {
+      parts.add('Bán ${NumberFormat.compact(locale: 'vi').format(p.price)}đ');
+    }
+    if (p.supplier != null && p.supplier!.trim().isNotEmpty) {
+      parts.add(p.supplier!.trim());
+    }
+    if (isPending) {
+      parts.add('Chờ giá');
+    }
+    return parts.join(' • ');
   }
 
   void _showAddProductDialog() {

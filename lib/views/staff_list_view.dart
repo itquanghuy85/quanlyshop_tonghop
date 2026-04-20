@@ -1786,8 +1786,37 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       }
 
       print('Updating user info for ${widget.uid}');
-      // Only send role if owner/superAdmin changed it (managers can't change roles per Firestore rules)
-      final roleToSave = _canChangeRole ? _selectedRole : widget.role;
+
+      // Legacy users có thể thiếu shopId -> gán tự động trước khi cập nhật để tránh PERMISSION_DENIED.
+      final hasCurrentShop =
+          _currentUserShopId != null && _currentUserShopId!.trim().isNotEmpty;
+      final hasStaffShop = _staffShopId != null && _staffShopId!.trim().isNotEmpty;
+      if (!hasStaffShop && hasCurrentShop) {
+        debugPrint(
+          'ℹ️ Staff ${widget.uid} missing shopId, assigning to current shop before save',
+        );
+        await UserService.assignUserToCurrentShop(widget.uid);
+        if (!mounted) return;
+        setState(() {
+          _staffShopId = _currentUserShopId;
+        });
+      }
+
+      // Only owner/superAdmin can change role. Normalize to valid roles for writes.
+      const validRoles = {'owner', 'manager', 'employee', 'technician'};
+      String roleToSave;
+      if (_canChangeRole) {
+        if (validRoles.contains(_selectedRole)) {
+          roleToSave = _selectedRole;
+        } else if (validRoles.contains(widget.role)) {
+          roleToSave = widget.role;
+        } else {
+          roleToSave = 'employee';
+        }
+      } else {
+        roleToSave = widget.role;
+      }
+
       try {
         await UserService.updateUserInfo(
           uid: widget.uid,
@@ -1843,7 +1872,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       String errorMsg = 'Lỗi khi cập nhật: ';
       if (e.toString().contains('PERMISSION_DENIED')) {
         errorMsg += 'Bạn không có quyền thực hiện thao tác này. '
-            'Chỉ chủ shop mới được đổi chức vụ nhân viên.';
+            'Hãy kiểm tra nhân viên đã được gán đúng shop và quyền đổi vai trò.';
       } else {
         errorMsg += '$e';
       }

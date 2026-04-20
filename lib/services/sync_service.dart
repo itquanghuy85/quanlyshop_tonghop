@@ -1422,6 +1422,7 @@ class SyncService {
 
     // 12. Đồng bộ CUSTOMERS
     try {
+      bool customerBatchChanged = false;
       _subscribeToCollection(
         collection: 'customers',
         shopId: shopId,
@@ -1438,11 +1439,18 @@ class SyncService {
               data['isSynced'] = 1; // Đánh dấu đã sync từ cloud
               await db.upsertCustomer(data);
             }
+            customerBatchChanged = true;
           } catch (e) {
             debugPrint("Lỗi sync customer $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          if (customerBatchChanged) {
+            EventBus().emit('customers_changed');
+            customerBatchChanged = false;
+          }
+          onDataChanged();
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo customers sync: $e");
