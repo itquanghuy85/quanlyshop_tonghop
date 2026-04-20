@@ -962,7 +962,9 @@ class _StaffListViewState extends State<StaffListView> {
       backgroundColor: AppColors.background,
       appBar: CustomAppBar.build(
         title: 'QUẢN LÝ NHÂN VIÊN',
-        subtitle: _currentRole != null ? 'Vai trò: ${_currentRole!.toUpperCase()}' : null,
+        subtitle: _currentRole != null
+            ? 'Vai trò: ${_currentRole!.toUpperCase()}'
+            : null,
         accentColor: AppBarAccents.staff,
       ),
       floatingActionButton: _canManageStaff
@@ -974,292 +976,302 @@ class _StaffListViewState extends State<StaffListView> {
           : null,
       body: ResponsiveCenter(
         child: _loadingRole
-          ? const Center(child: CircularProgressIndicator())
-          : _currentShopId == null && !_isSuperAdmin
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 64,
-                    color: AppColors.warning,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "Chưa có thông tin shop\nVui lòng đăng xuất và đăng nhập lại",
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.body1.copyWith(
+            ? const Center(child: CircularProgressIndicator())
+            : _currentShopId == null && !_isSuperAdmin
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 64,
                       color: AppColors.warning,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Thử load lại shopId
-                      final shopId = await UserService.getCurrentShopId();
-                      if (shopId != null && mounted) {
-                        setState(() => _currentShopId = shopId);
-                      }
-                    },
-                    child: const Text('Thử lại'),
-                  ),
-                ],
-              ),
-            )
-          : StreamBuilder<QuerySnapshot>(
-              stream: _isSuperAdmin
-                  ? UserService.getAllUsersStream()
-                  : (_currentShopId != null
-                        ? UserService.getUsersStreamByShopId(_currentShopId!)
-                        : UserService.getAllUsersStream()),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text(
-                      "Lỗi tải dữ liệu: ${snapshot.error}\nShopId: $_currentShopId",
+                    const SizedBox(height: 16),
+                    Text(
+                      "Chưa có thông tin shop\nVui lòng đăng xuất và đăng nhập lại",
                       textAlign: TextAlign.center,
                       style: AppTextStyles.body1.copyWith(
-                        color: AppColors.error,
+                        color: AppColors.warning,
                       ),
                     ),
-                  );
-                }
-
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final allDocs = snapshot.data!.docs;
-                // Hide super admin from non-super-admin users
-                final users = _isSuperAdmin
-                    ? allDocs
-                    : allDocs.where((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final email = (data['email'] ?? '').toString().toLowerCase();
-                        return email != 'admin@huluca.com';
-                      }).toList();
-                if (users.isEmpty) {
-                  return Center(
-                    child: Text(
-                      "Chưa có dữ liệu nhân viên\nMỗi tài khoản sẽ tự xuất hiện sau khi đăng nhập",
-                      textAlign: TextAlign.center,
-                      style: AppTextStyles.body1.copyWith(
-                        color: AppColors.inactive,
-                      ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () async {
+                        // Thử load lại shopId
+                        final shopId = await UserService.getCurrentShopId();
+                        if (shopId != null && mounted) {
+                          setState(() => _currentShopId = shopId);
+                        }
+                      },
+                      child: const Text('Thử lại'),
                     ),
-                  );
-                }
+                  ],
+                ),
+              )
+            : StreamBuilder<QuerySnapshot>(
+                stream: _isSuperAdmin
+                    ? UserService.getAllUsersStream()
+                    : (_currentShopId != null
+                          ? UserService.getUsersStreamByShopId(_currentShopId!)
+                          : UserService.getAllUsersStream()),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(15),
-                  itemCount: users.length,
-                  itemBuilder: (ctx, i) {
-                    final userData = users[i].data() as Map<String, dynamic>;
-                    final uid = users[i].id;
-                    final email = userData['email'] ?? "Chưa có email";
-                    final role = userData['role'] ?? 'user';
-                    final displayName =
-                        userData['displayName'] ??
-                        email.split('@').first.toUpperCase();
-                    final phone = userData['phone'] ?? "Chưa có SĐT";
-                    final photoUrl = userData['photoUrl'];
-                    final shopId = userData['shopId'];
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      elevation: 1,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        leading: CircleAvatar(
-                          backgroundImage: _safeImageProvider(photoUrl),
-                          backgroundColor: role == 'owner'
-                              ? AppColors.primary.withOpacity(0.1)
-                              : role == 'manager'
-                              ? AppColors.secondary.withOpacity(0.1)
-                              : role == 'employee'
-                              ? AppColors.info.withOpacity(0.1)
-                              : role == 'technician'
-                              ? AppColors.success.withOpacity(0.1)
-                              : role == 'admin'
-                              ? AppColors.error.withOpacity(0.1)
-                              : AppColors.inactive.withOpacity(0.1),
-                          child: photoUrl == null
-                              ? Icon(
-                                  role == 'owner'
-                                      ? Icons.business
-                                      : role == 'manager'
-                                      ? Icons.supervisor_account
-                                      : role == 'employee'
-                                      ? Icons.work
-                                      : role == 'technician'
-                                      ? Icons.build
-                                      : role == 'admin'
-                                      ? Icons.admin_panel_settings
-                                      : Icons.person,
-                                  color: role == 'owner'
-                                      ? AppColors.primary
-                                      : role == 'manager'
-                                      ? AppColors.secondary
-                                      : role == 'employee'
-                                      ? AppColors.info
-                                      : role == 'technician'
-                                      ? AppColors.success
-                                      : role == 'admin'
-                                      ? AppColors.error
-                                      : AppColors.inactive,
-                                )
-                              : null,
-                        ),
-                        title: Text(
-                          displayName,
-                          style: AppTextStyles.headline6,
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              email,
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: AppTextStyles.body1.fontSize,
-                              ),
-                            ),
-                            Text(
-                              "SĐT: $phone",
-                              style: AppTextStyles.caption.copyWith(
-                                fontSize: AppTextStyles.body1.fontSize,
-                              ),
-                            ),
-                            role == 'admin'
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      "Vai trò: Admin",
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: AppTextStyles.body1.fontSize,
-                                        color: AppColors.warning,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  )
-                                : Text(
-                                    "Vai trò: ${role == 'owner'
-                                        ? 'Chủ shop'
-                                        : role == 'manager'
-                                        ? 'Quản lý'
-                                        : role == 'employee'
-                                        ? 'Nhân viên'
-                                        : role == 'technician'
-                                        ? 'Kỹ thuật'
-                                        : role == 'admin'
-                                        ? 'Admin'
-                                        : role == 'user'
-                                        ? 'Người dùng'
-                                        : role}",
-                                    style: AppTextStyles.caption.copyWith(
-                                      fontSize: AppTextStyles.body1.fontSize,
-                                    ),
-                                  ),
-                            if (shopId != null)
-                              FutureBuilder<DocumentSnapshot>(
-                                future: FirebaseFirestore.instance
-                                    .collection('shops')
-                                    .doc(shopId)
-                                    .get(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return Text(
-                                      "Shop: Đang tải...",
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: AppTextStyles.body1.fontSize,
-                                        color: AppColors.secondary,
-                                      ),
-                                    );
-                                  }
-                                  if (snapshot.hasData &&
-                                      snapshot.data!.exists) {
-                                    final shopData =
-                                        snapshot.data!.data()
-                                            as Map<String, dynamic>;
-                                    final shopName =
-                                        shopData['name'] ?? 'Shop không tên';
-                                    return Text(
-                                      "Shop: $shopName",
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: AppTextStyles.body1.fontSize,
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    );
-                                  } else if (snapshot.hasError) {
-                                    // Permission denied hoặc lỗi khác - hiển thị shop ID thay vì lỗi
-                                    final shortId = shopId.length > 8
-                                        ? '${shopId.substring(0, 8)}...'
-                                        : shopId;
-                                    return Text(
-                                      "Shop: $shortId",
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: AppTextStyles.body1.fontSize,
-                                        color: AppColors.secondary,
-                                      ),
-                                    );
-                                  } else {
-                                    final shortId = shopId.length > 8
-                                        ? '${shopId.substring(0, 8)}...'
-                                        : shopId;
-                                    return Text(
-                                      "Shop: $shortId",
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: AppTextStyles.body1.fontSize,
-                                        color: AppColors.primary,
-                                      ),
-                                    );
-                                  }
-                                },
-                              )
-                            else
-                              Text(
-                                "Shop: Chưa gán",
-                                style: AppTextStyles.caption.copyWith(
-                                  fontSize: AppTextStyles.body1.fontSize,
-                                  color: AppColors.secondary,
-                                ),
-                              ),
-                          ],
-                        ),
-                        isThreeLine: true,
-                        trailing: const Icon(
-                          Icons.edit_note_rounded,
-                          color: Colors.blueAccent,
-                        ),
-                        onTap: () => _showStaffActivityCenter(
-                          uid,
-                          displayName,
-                          email,
-                          role,
-                          userData,
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text(
+                        "Lỗi tải dữ liệu: ${snapshot.error}\nShopId: $_currentShopId",
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.body1.copyWith(
+                          color: AppColors.error,
                         ),
                       ),
                     );
-                  },
-                );
-              },
-            ),
+                  }
+
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final allDocs = snapshot.data!.docs;
+                  // Hide super admin from non-super-admin users
+                  final users = _isSuperAdmin
+                      ? allDocs
+                      : allDocs.where((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final email = (data['email'] ?? '')
+                              .toString()
+                              .toLowerCase();
+                          return email != 'admin@huluca.com';
+                        }).toList();
+                  if (users.isEmpty) {
+                    return Center(
+                      child: Text(
+                        "Chưa có dữ liệu nhân viên\nMỗi tài khoản sẽ tự xuất hiện sau khi đăng nhập",
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.body1.copyWith(
+                          color: AppColors.inactive,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(15),
+                    itemCount: users.length,
+                    itemBuilder: (ctx, i) {
+                      final userData = users[i].data() as Map<String, dynamic>;
+                      final uid = users[i].id;
+                      final email = userData['email'] ?? "Chưa có email";
+                      final role = userData['role'] ?? 'user';
+                      final displayName =
+                          userData['displayName'] ??
+                          email.split('@').first.toUpperCase();
+                      final phone = userData['phone'] ?? "Chưa có SĐT";
+                      final photoUrl = userData['photoUrl'];
+                      final shopId = userData['shopId'];
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundImage: _safeImageProvider(photoUrl),
+                            backgroundColor: role == 'owner'
+                                ? AppColors.primary.withOpacity(0.1)
+                                : role == 'manager'
+                                ? AppColors.secondary.withOpacity(0.1)
+                                : role == 'employee'
+                                ? AppColors.info.withOpacity(0.1)
+                                : role == 'technician'
+                                ? AppColors.success.withOpacity(0.1)
+                                : role == 'admin'
+                                ? AppColors.error.withOpacity(0.1)
+                                : AppColors.inactive.withOpacity(0.1),
+                            child: photoUrl == null
+                                ? Icon(
+                                    role == 'owner'
+                                        ? Icons.business
+                                        : role == 'manager'
+                                        ? Icons.supervisor_account
+                                        : role == 'employee'
+                                        ? Icons.work
+                                        : role == 'technician'
+                                        ? Icons.build
+                                        : role == 'admin'
+                                        ? Icons.admin_panel_settings
+                                        : Icons.person,
+                                    color: role == 'owner'
+                                        ? AppColors.primary
+                                        : role == 'manager'
+                                        ? AppColors.secondary
+                                        : role == 'employee'
+                                        ? AppColors.info
+                                        : role == 'technician'
+                                        ? AppColors.success
+                                        : role == 'admin'
+                                        ? AppColors.error
+                                        : AppColors.inactive,
+                                  )
+                                : null,
+                          ),
+                          title: Text(
+                            displayName,
+                            style: AppTextStyles.headline6,
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                email,
+                                style: AppTextStyles.caption.copyWith(
+                                  fontSize: AppTextStyles.body1.fontSize,
+                                ),
+                              ),
+                              Text(
+                                "SĐT: $phone",
+                                style: AppTextStyles.caption.copyWith(
+                                  fontSize: AppTextStyles.body1.fontSize,
+                                ),
+                              ),
+                              role == 'admin'
+                                  ? Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.error,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        "Vai trò: Admin",
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize:
+                                              AppTextStyles.body1.fontSize,
+                                          color: AppColors.warning,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                  : Text(
+                                      "Vai trò: ${role == 'owner'
+                                          ? 'Chủ shop'
+                                          : role == 'manager'
+                                          ? 'Quản lý'
+                                          : role == 'employee'
+                                          ? 'Nhân viên'
+                                          : role == 'technician'
+                                          ? 'Kỹ thuật'
+                                          : role == 'admin'
+                                          ? 'Admin'
+                                          : role == 'user'
+                                          ? 'Người dùng'
+                                          : role}",
+                                      style: AppTextStyles.caption.copyWith(
+                                        fontSize: AppTextStyles.body1.fontSize,
+                                      ),
+                                    ),
+                              if (shopId != null)
+                                FutureBuilder<DocumentSnapshot>(
+                                  future: FirebaseFirestore.instance
+                                      .collection('shops')
+                                      .doc(shopId)
+                                      .get(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.waiting) {
+                                      return Text(
+                                        "Shop: Đang tải...",
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize:
+                                              AppTextStyles.body1.fontSize,
+                                          color: AppColors.secondary,
+                                        ),
+                                      );
+                                    }
+                                    if (snapshot.hasData &&
+                                        snapshot.data!.exists) {
+                                      final shopData =
+                                          snapshot.data!.data()
+                                              as Map<String, dynamic>;
+                                      final shopName =
+                                          shopData['name'] ?? 'Shop không tên';
+                                      return Text(
+                                        "Shop: $shopName",
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize:
+                                              AppTextStyles.body1.fontSize,
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      );
+                                    } else if (snapshot.hasError) {
+                                      // Permission denied hoặc lỗi khác - hiển thị shop ID thay vì lỗi
+                                      final shortId = shopId.length > 8
+                                          ? '${shopId.substring(0, 8)}...'
+                                          : shopId;
+                                      return Text(
+                                        "Shop: $shortId",
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize:
+                                              AppTextStyles.body1.fontSize,
+                                          color: AppColors.secondary,
+                                        ),
+                                      );
+                                    } else {
+                                      final shortId = shopId.length > 8
+                                          ? '${shopId.substring(0, 8)}...'
+                                          : shopId;
+                                      return Text(
+                                        "Shop: $shortId",
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize:
+                                              AppTextStyles.body1.fontSize,
+                                          color: AppColors.primary,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                )
+                              else
+                                Text(
+                                  "Shop: Chưa gán",
+                                  style: AppTextStyles.caption.copyWith(
+                                    fontSize: AppTextStyles.body1.fontSize,
+                                    color: AppColors.secondary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          isThreeLine: true,
+                          trailing: const Icon(
+                            Icons.edit_note_rounded,
+                            color: Colors.blueAccent,
+                          ),
+                          onTap: () => _showStaffActivityCenter(
+                            uid,
+                            displayName,
+                            email,
+                            role,
+                            userData,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
       ),
     );
   }
@@ -1318,11 +1330,16 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
   String _roleLabel(String role) {
     switch (role) {
-      case 'owner': return 'CHỦ SHOP';
-      case 'manager': return 'QUẢN LÝ';
-      case 'employee': return 'NHÂN VIÊN';
-      case 'technician': return 'KỸ THUẬT';
-      default: return role.toUpperCase();
+      case 'owner':
+        return 'CHỦ SHOP';
+      case 'manager':
+        return 'QUẢN LÝ';
+      case 'employee':
+        return 'NHÂN VIÊN';
+      case 'technician':
+        return 'KỸ THUẬT';
+      default:
+        return role.toUpperCase();
     }
   }
 
@@ -1440,7 +1457,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     }
   }
 
-  int get _tabCount => _enableRepair ? 3 : 2; // repair: ĐÃ SỬA, ĐÃ BÁN, LỊCH; no repair: ĐÃ BÁN, LỊCH
+  int get _tabCount => _enableRepair
+      ? 3
+      : 2; // repair: ĐÃ SỬA, ĐÃ BÁN, LỊCH; no repair: ĐÃ BÁN, LỊCH
 
   Future<void> _loadShopSettings() async {
     final settings = await CategoryService().getShopSettings();
@@ -1503,20 +1522,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       }
 
       setState(() {
-        _repairsCompleted = allR
-            .where((r) {
-              // Match by repairedBy (explicitly assigned repairer)
-              if (matchesStaff(r.repairedBy)) return true;
-              // Fallback: for old repairs where repairedBy wasn't tracked,
-              // match by createdBy if repair is completed (status >= 3)
-              if ((r.repairedBy == null || r.repairedBy!.isEmpty) &&
-                  r.status >= 3 &&
-                  matchesStaff(r.createdBy)) {
-                return true;
-              }
-              return false;
-            })
-            .toList();
+        _repairsCompleted = allR.where((r) {
+          // Match by repairedBy (explicitly assigned repairer)
+          if (matchesStaff(r.repairedBy)) return true;
+          // Fallback: for old repairs where repairedBy wasn't tracked,
+          // match by createdBy if repair is completed (status >= 3)
+          if ((r.repairedBy == null || r.repairedBy!.isEmpty) &&
+              r.status >= 3 &&
+              matchesStaff(r.createdBy)) {
+            return true;
+          }
+          return false;
+        }).toList();
         _sales = allS.where((s) => matchesStaff(s.sellerName)).toList();
       });
       debugPrint(
@@ -1535,7 +1552,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   Future<void> _loadWorkSchedule() async {
     try {
       Map<String, dynamic>? schedule;
-      
+
       // Thử tải từ Firestore trước
       final shopId = await UserService.getCurrentShopId();
       if (shopId != null && shopId.isNotEmpty) {
@@ -1550,10 +1567,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           await db.upsertWorkSchedule(widget.uid, schedule!);
         }
       }
-      
+
       // Nếu không có trên Firestore, dùng local DB
       schedule ??= await db.getWorkSchedule(widget.uid);
-      
+
       if (!mounted) return;
       setState(() => _workSchedule = schedule);
     } catch (e) {
@@ -1618,7 +1635,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                 ),
                 TextField(
                   controller: breakTimeCtrl,
-                  decoration: const InputDecoration(labelText: 'Giờ nghỉ (giờ)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Giờ nghỉ (giờ)',
+                  ),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
@@ -1631,35 +1650,93 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                 const SizedBox(height: 16),
                 const Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Ngày làm việc trong tuần:', 
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: Text(
+                    'Ngày làm việc trong tuần:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 4,
                   children: [
-                    _buildDayChip(1, 'T2', selectedDays, (v) => setDialogState(() {
-                      if (v) selectedDays.add(1); else selectedDays.remove(1);
-                    })),
-                    _buildDayChip(2, 'T3', selectedDays, (v) => setDialogState(() {
-                      if (v) selectedDays.add(2); else selectedDays.remove(2);
-                    })),
-                    _buildDayChip(3, 'T4', selectedDays, (v) => setDialogState(() {
-                      if (v) selectedDays.add(3); else selectedDays.remove(3);
-                    })),
-                    _buildDayChip(4, 'T5', selectedDays, (v) => setDialogState(() {
-                      if (v) selectedDays.add(4); else selectedDays.remove(4);
-                    })),
-                    _buildDayChip(5, 'T6', selectedDays, (v) => setDialogState(() {
-                      if (v) selectedDays.add(5); else selectedDays.remove(5);
-                    })),
-                    _buildDayChip(6, 'T7', selectedDays, (v) => setDialogState(() {
-                      if (v) selectedDays.add(6); else selectedDays.remove(6);
-                    })),
-                    _buildDayChip(7, 'CN', selectedDays, (v) => setDialogState(() {
-                      if (v) selectedDays.add(7); else selectedDays.remove(7);
-                    })),
+                    _buildDayChip(
+                      1,
+                      'T2',
+                      selectedDays,
+                      (v) => setDialogState(() {
+                        if (v)
+                          selectedDays.add(1);
+                        else
+                          selectedDays.remove(1);
+                      }),
+                    ),
+                    _buildDayChip(
+                      2,
+                      'T3',
+                      selectedDays,
+                      (v) => setDialogState(() {
+                        if (v)
+                          selectedDays.add(2);
+                        else
+                          selectedDays.remove(2);
+                      }),
+                    ),
+                    _buildDayChip(
+                      3,
+                      'T4',
+                      selectedDays,
+                      (v) => setDialogState(() {
+                        if (v)
+                          selectedDays.add(3);
+                        else
+                          selectedDays.remove(3);
+                      }),
+                    ),
+                    _buildDayChip(
+                      4,
+                      'T5',
+                      selectedDays,
+                      (v) => setDialogState(() {
+                        if (v)
+                          selectedDays.add(4);
+                        else
+                          selectedDays.remove(4);
+                      }),
+                    ),
+                    _buildDayChip(
+                      5,
+                      'T6',
+                      selectedDays,
+                      (v) => setDialogState(() {
+                        if (v)
+                          selectedDays.add(5);
+                        else
+                          selectedDays.remove(5);
+                      }),
+                    ),
+                    _buildDayChip(
+                      6,
+                      'T7',
+                      selectedDays,
+                      (v) => setDialogState(() {
+                        if (v)
+                          selectedDays.add(6);
+                        else
+                          selectedDays.remove(6);
+                      }),
+                    ),
+                    _buildDayChip(
+                      7,
+                      'CN',
+                      selectedDays,
+                      (v) => setDialogState(() {
+                        if (v)
+                          selectedDays.add(7);
+                        else
+                          selectedDays.remove(7);
+                      }),
+                    ),
                   ],
                 ),
               ],
@@ -1703,7 +1780,12 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     );
   }
 
-  Widget _buildDayChip(int day, String label, List<int> selectedDays, Function(bool) onChanged) {
+  Widget _buildDayChip(
+    int day,
+    String label,
+    List<int> selectedDays,
+    Function(bool) onChanged,
+  ) {
     final isSelected = selectedDays.contains(day);
     return FilterChip(
       label: Text(label),
@@ -1734,9 +1816,18 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       }
     }
     days.sort();
-    
-    final dayNames = {0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 7: 'CN'};
-    
+
+    final dayNames = {
+      0: 'CN',
+      1: 'T2',
+      2: 'T3',
+      3: 'T4',
+      4: 'T5',
+      5: 'T6',
+      6: 'T7',
+      7: 'CN',
+    };
+
     // Check if consecutive
     if (days.isNotEmpty) {
       bool isConsecutive = true;
@@ -1750,7 +1841,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         return '${dayNames[days.first]} - ${dayNames[days.last]}';
       }
     }
-    
+
     // Non-consecutive, list all
     return days.map((d) => dayNames[d]).join(', ');
   }
@@ -1761,6 +1852,13 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       imageQuality: 50,
     );
     if (f != null) setState(() => _photoPath = f.path);
+  }
+
+  bool _isPermissionDeniedError(Object e) {
+    final message = e.toString().toLowerCase();
+    return message.contains('permission_denied') ||
+        message.contains('permission-denied') ||
+        message.contains('insufficient permissions');
   }
 
   Future<void> _saveStaffInfo() async {
@@ -1790,10 +1888,15 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       // Legacy users có thể thiếu shopId -> gán tự động trước khi cập nhật để tránh PERMISSION_DENIED.
       final hasCurrentShop =
           _currentUserShopId != null && _currentUserShopId!.trim().isNotEmpty;
-      final hasStaffShop = _staffShopId != null && _staffShopId!.trim().isNotEmpty;
-      if (!hasStaffShop && hasCurrentShop) {
+      final currentShop = _currentUserShopId?.trim();
+      final staffShop = _staffShopId?.trim();
+      final needsShopAssign =
+          !widget.isSuperAdmin &&
+          hasCurrentShop &&
+          (staffShop == null || staffShop.isEmpty || staffShop != currentShop);
+      if (needsShopAssign) {
         debugPrint(
-          'ℹ️ Staff ${widget.uid} missing shopId, assigning to current shop before save',
+          'ℹ️ Staff ${widget.uid} shopId mismatch/missing, assigning to current shop before save',
         );
         await UserService.assignUserToCurrentShop(widget.uid);
         if (!mounted) return;
@@ -1804,7 +1907,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
       // Only owner/superAdmin can change role. Normalize to valid roles for writes.
       const validRoles = {'owner', 'manager', 'employee', 'technician'};
-      String roleToSave;
+      String? roleToSave;
       if (_canChangeRole) {
         if (validRoles.contains(_selectedRole)) {
           roleToSave = _selectedRole;
@@ -1813,11 +1916,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         } else {
           roleToSave = 'employee';
         }
-      } else {
-        roleToSave = widget.role;
       }
 
-      try {
+      Future<void> saveProfileAndPermissions() async {
         await UserService.updateUserInfo(
           uid: widget.uid,
           name: nameCtrl.text,
@@ -1828,14 +1929,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           photoUrl: photoUrl,
         );
         debugPrint('✅ updateUserInfo success for ${widget.uid}');
-      } catch (e) {
-        debugPrint('❌ updateUserInfo failed: $e');
-        rethrow;
-      }
 
-      print('Updating user permissions for ${widget.uid}');
-      // Lưu cấu hình phân quyền hiển thị nội dung
-      try {
+        print('Updating user permissions for ${widget.uid}');
+        // Lưu cấu hình phân quyền hiển thị nội dung
         await UserService.updateUserPermissions(
           uid: widget.uid,
           allowViewSales: _canViewSales,
@@ -1856,9 +1952,28 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           allowViewSettings: _canViewSettingsPerm,
         );
         debugPrint('✅ updateUserPermissions success for ${widget.uid}');
+      }
+
+      try {
+        await saveProfileAndPermissions();
       } catch (e) {
-        debugPrint('❌ updateUserPermissions failed: $e');
-        rethrow;
+        debugPrint('❌ saveProfileAndPermissions failed: $e');
+        if (!_isPermissionDeniedError(e) ||
+            widget.isSuperAdmin ||
+            !hasCurrentShop) {
+          rethrow;
+        }
+
+        // Retry one time after force-assigning staff to current shop.
+        debugPrint(
+          '⚠️ Permission denied on save, retrying after assignUserToCurrentShop for ${widget.uid}',
+        );
+        await UserService.assignUserToCurrentShop(widget.uid);
+        if (!mounted) return;
+        setState(() {
+          _staffShopId = _currentUserShopId;
+        });
+        await saveProfileAndPermissions();
       }
 
       if (!mounted) return;
@@ -1870,17 +1985,20 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       debugPrint('Error saving staff info: $e');
       if (!mounted) return;
       String errorMsg = 'Lỗi khi cập nhật: ';
-      if (e.toString().contains('PERMISSION_DENIED')) {
-        errorMsg += 'Bạn không có quyền thực hiện thao tác này. '
+      if (_isPermissionDeniedError(e)) {
+        errorMsg +=
+            'Bạn không có quyền thực hiện thao tác này. '
             'Hãy kiểm tra nhân viên đã được gán đúng shop và quyền đổi vai trò.';
       } else {
         errorMsg += '$e';
       }
-      messenger.showSnackBar(SnackBar(
-        content: Text(errorMsg),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 5),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -2166,7 +2284,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     ),
                               label: Text(
                                 "GÁN VÀO SHOP CỦA TÔI",
-                                style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.body1.fontSize,
+                                ),
                               ),
                             ),
                         ],
@@ -2207,20 +2327,22 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               )
                             else ...[
                               Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    "MÀN HÌNH NGHIỆP VỤ",
-                                    style: TextStyle(
-                                      fontSize: AppTextStyles.body1.fontSize,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blueGrey,
-                                    ),
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  "MÀN HÌNH NGHIỆP VỤ",
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.body1.fontSize,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blueGrey,
                                   ),
+                                ),
                               ),
                               SwitchListTile(
                                 title: Text(
                                   "BÁN HÀNG",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Xem và tạo đơn bán máy / phụ kiện",
@@ -2238,7 +2360,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                 SwitchListTile(
                                   title: Text(
                                     "SỬA CHỮA",
-                                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                    style: TextStyle(
+                                      fontSize:
+                                          AppTextStyles.subtitle1.fontSize,
+                                    ),
                                   ),
                                   subtitle: Text(
                                     "Xem danh sách đơn sửa, tạo đơn mới",
@@ -2254,7 +2379,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "KHO",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Xem hàng tồn kho và phụ kiện",
@@ -2268,26 +2395,31 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                                     setState(() => _canViewInventory = v),
                               ),
                               if (_enableRepair)
-                              SwitchListTile(
-                                title: Text(
-                                  "KHO LINH KIỆN SỬA CHỮA",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
-                                ),
-                                subtitle: Text(
-                                  "Quản lý linh kiện dùng cho sửa chữa",
-                                  style: TextStyle(
-                                    fontSize: AppTextStyles.body1.fontSize,
-                                    color: Colors.grey,
+                                SwitchListTile(
+                                  title: Text(
+                                    "KHO LINH KIỆN SỬA CHỮA",
+                                    style: TextStyle(
+                                      fontSize:
+                                          AppTextStyles.subtitle1.fontSize,
+                                    ),
                                   ),
+                                  subtitle: Text(
+                                    "Quản lý linh kiện dùng cho sửa chữa",
+                                    style: TextStyle(
+                                      fontSize: AppTextStyles.body1.fontSize,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  value: _canViewParts,
+                                  onChanged: (v) =>
+                                      setState(() => _canViewParts = v),
                                 ),
-                                value: _canViewParts,
-                                onChanged: (v) =>
-                                    setState(() => _canViewParts = v),
-                              ),
                               SwitchListTile(
                                 title: Text(
                                   "NHÀ CUNG CẤP",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Xem sổ nhà phân phối, lịch sử nhập hàng",
@@ -2303,7 +2435,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "KHÁCH HÀNG",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Xem danh sách khách và lịch sử mua/sửa",
@@ -2319,7 +2453,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "BẢO HÀNH",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Truy cập sổ bảo hành của cửa hàng",
@@ -2335,7 +2471,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "CHAT NỘI BỘ",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Cho phép sử dụng phòng chat trong cửa hàng",
@@ -2351,7 +2489,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "CHẤM CÔNG",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Cho phép chấm công và xem báo cáo chấm công",
@@ -2367,7 +2507,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "CẤU HÌNH MÁY IN",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Kết nối và in hóa đơn qua Bluetooth",
@@ -2401,7 +2543,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "Cho phép xem màn DOANH THU",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Bao gồm báo cáo lời/lỗ, doanh số bán và sửa",
@@ -2417,7 +2561,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "Cho phép xem màn CHI PHÍ",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Xem và quản lý các khoản chi ra của cửa hàng",
@@ -2433,7 +2579,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "Cho phép xem SỔ CÔNG NỢ",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Bao gồm khách nợ shop và shop nợ nhà cung cấp",
@@ -2467,7 +2615,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "QUẢN LÝ NHÂN VIÊN",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Xem danh sách và phân quyền nhân viên",
@@ -2483,7 +2633,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                               SwitchListTile(
                                 title: Text(
                                   "CÀI ĐẶT HỆ THỐNG",
-                                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                                  style: TextStyle(
+                                    fontSize: AppTextStyles.subtitle1.fontSize,
+                                  ),
                                 ),
                                 subtitle: Text(
                                   "Truy cập màn hình cài đặt cửa hàng",
@@ -2517,7 +2669,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        final result = await ExportDateFilterDialog.show(context, title: 'Xuất máy đã sửa');
+                        final result = await ExportDateFilterDialog.show(
+                          context,
+                          title: 'Xuất máy đã sửa',
+                        );
                         if (result == null || !mounted) return;
                         await ExcelExportHelper.exportStaffRepairs(
                           context,
@@ -2528,9 +2683,15 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                         );
                       },
                       icon: const Icon(Icons.file_download_outlined, size: 16),
-                      label: const Text('Xuất đơn sửa', style: TextStyle(fontSize: 14)),
+                      label: const Text(
+                        'Xuất đơn sửa',
+                        style: TextStyle(fontSize: 14),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -2539,7 +2700,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () async {
-                      final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
+                      final result = await ExportDateFilterDialog.show(
+                        context,
+                        title: 'Xuất đơn bán',
+                      );
                       if (result == null || !mounted) return;
                       await ExcelExportHelper.exportStaffSales(
                         context,
@@ -2550,9 +2714,15 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       );
                     },
                     icon: const Icon(Icons.file_download_outlined, size: 16),
-                    label: const Text('Xuất đơn bán', style: TextStyle(fontSize: 14)),
+                    label: const Text(
+                      'Xuất đơn bán',
+                      style: TextStyle(fontSize: 14),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
@@ -2575,12 +2745,22 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.red,
+                          ),
                         )
-                      : const Icon(Icons.person_remove, size: 18, color: Colors.red),
+                      : const Icon(
+                          Icons.person_remove,
+                          size: 18,
+                          color: Colors.red,
+                        ),
                   label: Text(
                     'XÓA NHÂN VIÊN KHỎI SHOP',
-                    style: TextStyle(color: Colors.red, fontSize: AppTextStyles.body1.fontSize),
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: AppTextStyles.body1.fontSize,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.red),
@@ -2608,7 +2788,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                 text: "ĐÃ BÁN",
                 icon: Icon(Icons.shopping_cart_checkout_rounded, size: 20),
               ),
-              const Tab(text: "LỊCH LÀM VIỆC", icon: Icon(Icons.schedule, size: 20)),
+              const Tab(
+                text: "LỊCH LÀM VIỆC",
+                icon: Icon(Icons.schedule, size: 20),
+              ),
             ],
           ),
 
@@ -2638,7 +2821,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       child: TextField(
         controller: ctrl,
         keyboardType: type,
-        style: TextStyle(fontSize: AppTextStyles.headline4.fontSize, color: Colors.black),
+        style: TextStyle(
+          fontSize: AppTextStyles.headline4.fontSize,
+          color: Colors.black,
+        ),
         decoration: InputDecoration(
           labelText: label,
           prefixIcon: Icon(icon, size: 18, color: Colors.blueAccent),
@@ -2670,7 +2856,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       return Center(
         child: Text(
           "Không có dữ liệu",
-          style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: AppTextStyles.subtitle1.fontSize,
+          ),
         ),
       );
     }
@@ -2683,8 +2872,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         final statusColor = _repairStatusColor(r.status);
         final deliveredAt = r.deliveredAt ?? 0;
         final time = deliveredAt > 0 ? deliveredAt : r.createdAt;
-        final dateStr = DateFormat('dd/MM HH:mm')
-          .format(DateTime.fromMillisecondsSinceEpoch(time));
+        final dateStr = DateFormat(
+          'dd/MM HH:mm',
+        ).format(DateTime.fromMillisecondsSinceEpoch(time));
 
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
@@ -2794,7 +2984,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       return Center(
         child: Text(
           "Không có dữ liệu",
-          style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: AppTextStyles.subtitle1.fontSize,
+          ),
         ),
       );
     }
@@ -2806,8 +2999,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         final s = list[i];
         final isPaid = s.isPaid;
         final remain = s.remainingDebt;
-        final date = DateFormat('dd/MM HH:mm')
-            .format(DateTime.fromMillisecondsSinceEpoch(s.soldAt));
+        final date = DateFormat(
+          'dd/MM HH:mm',
+        ).format(DateTime.fromMillisecondsSinceEpoch(s.soldAt));
 
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
@@ -2911,10 +3105,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                         '💳 ${s.paymentMethod}',
                         _getPayColor(s.paymentMethod).withAlpha(40),
                       ),
-                      _saleInfoChip(
-                        '👤 ${s.sellerName}',
-                        Colors.blue.shade100,
-                      ),
+                      _saleInfoChip('👤 ${s.sellerName}', Colors.blue.shade100),
                     ],
                   ),
                 ],
@@ -3003,7 +3194,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       return Center(
         child: Text(
           "Chưa có lịch làm việc\nNhấn nút 'Chỉnh sửa' để thiết lập",
-          style: TextStyle(color: Colors.grey, fontSize: AppTextStyles.subtitle1.fontSize),
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: AppTextStyles.subtitle1.fontSize,
+          ),
           textAlign: TextAlign.center,
         ),
       );
@@ -3019,7 +3213,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
             Flexible(
               child: Text(
                 "Lịch làm việc hiện tại",
-                style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline3.fontSize,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             TextButton.icon(
@@ -3068,7 +3265,12 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     );
   }
 
-  Widget _buildScheduleRow(IconData icon, Color color, String text, {bool bold = false}) {
+  Widget _buildScheduleRow(
+    IconData icon,
+    Color color,
+    String text, {
+    bool bold = false,
+  }) {
     return Row(
       children: [
         Icon(icon, color: color, size: 20),
@@ -3077,7 +3279,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           child: Text(
             text,
             style: TextStyle(
-              fontSize: bold ? AppTextStyles.headline3.fontSize : AppTextStyles.headline4.fontSize,
+              fontSize: bold
+                  ? AppTextStyles.headline3.fontSize
+                  : AppTextStyles.headline4.fontSize,
               fontWeight: bold ? FontWeight.w500 : FontWeight.normal,
             ),
           ),

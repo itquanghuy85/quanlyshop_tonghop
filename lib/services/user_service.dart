@@ -237,8 +237,8 @@ class UserService {
 
   /// Lấy role đã lưu từ SharedPreferences (fallback khi Firestore timeout)
   static Future<String?> getCachedRole({String? forUid}) async {
-    final effectiveUid =
-        (forUid ?? FirebaseAuth.instance.currentUser?.uid)?.trim();
+    final effectiveUid = (forUid ?? FirebaseAuth.instance.currentUser?.uid)
+        ?.trim();
     if (effectiveUid == null || effectiveUid.isEmpty) {
       return null;
     }
@@ -765,7 +765,7 @@ class UserService {
     required String name,
     required String phone,
     required String address,
-    required String role,
+    String? role,
     required AppLocalizations loc,
     String? photoUrl,
     String? shopId,
@@ -798,10 +798,20 @@ class UserService {
       'name': name.toUpperCase(), // Thêm name field cho compatibility
       'phone': phone,
       'address': address.toUpperCase(),
-      'role': role, // Owner có thể thay đổi role theo rules
-      'photoUrl': photoUrl,
       'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     };
+
+    if (photoUrl != null && photoUrl.trim().isNotEmpty) {
+      updateData['photoUrl'] = photoUrl;
+    }
+
+    final normalizedRole = role?.trim().toLowerCase();
+    const validRoles = {'owner', 'manager', 'employee', 'technician', 'user'};
+    if (normalizedRole != null && validRoles.contains(normalizedRole)) {
+      // Owner/super admin có thể đổi role theo rules; các luồng khác có thể bỏ trống role
+      // để tránh ghi đè role không cần thiết gây permission-denied.
+      updateData['role'] = normalizedRole;
+    }
 
     // Chỉ SuperAdmin mới được cập nhật shopId
     final currentUser = FirebaseAuth.instance.currentUser;

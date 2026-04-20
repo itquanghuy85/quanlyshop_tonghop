@@ -1037,7 +1037,10 @@ class SyncService {
             debugPrint("Lỗi sync product $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('products_changed');
+        },
       );
 
       // 4. Đồng bộ EXPENSES
@@ -1293,7 +1296,10 @@ class SyncService {
             debugPrint("Lỗi sync attendance $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('attendance_changed');
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo attendance sync: $e");
@@ -1327,7 +1333,10 @@ class SyncService {
             debugPrint("Lỗi sync leave_request $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('leave_requests_changed');
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo leave_requests sync: $e");
@@ -1478,7 +1487,10 @@ class SyncService {
             debugPrint("Lỗi sync supplier $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('suppliers_changed');
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo suppliers sync: $e");
@@ -1506,7 +1518,10 @@ class SyncService {
             debugPrint("Lỗi sync repair_partner $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('repair_partners_changed');
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo repair_partners sync: $e");
@@ -1625,7 +1640,10 @@ class SyncService {
             debugPrint("Lỗi sync repair_part $docId: $e");
           }
         },
-        onBatchDone: onDataChanged,
+        onBatchDone: () {
+          onDataChanged();
+          EventBus().emit('parts_changed');
+        },
       );
     } catch (e) {
       debugPrint("Lỗi khởi tạo repair_parts sync: $e");

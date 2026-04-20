@@ -532,13 +532,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           // Gửi push notification cho mọi người
           await NotificationService.sendCloudNotification(
             title: '$emoji $statusMsg',
-            body: '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
+            body:
+                '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
             type: 'new_order',
-            data: {
-              'targetType': 'repair',
-              'targetId': key,
-              'repairId': key,
-            },
+            data: {'targetType': 'repair', 'targetId': key, 'repairId': key},
           );
 
           // Ghim vào chat nội bộ
@@ -790,11 +787,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         body:
             '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ\n👷 $userName',
         type: 'approval_needed',
-        data: {
-          'targetType': 'repair',
-          'targetId': key,
-          'repairId': key,
-        },
+        data: {'targetType': 'repair', 'targetId': key, 'repairId': key},
       );
 
       // Log và chat
@@ -1957,16 +1950,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     ),
                   ),
                   if (_canViewCostPrice) ...[
-                  const SizedBox(height: 12),
-                  CurrencyTextField(
-                    controller: costC,
-                    label: dialogLoc.partsCostVnd,
-                    validator: (v) => MoneyUtils.validateAmount(
-                      v ?? '',
-                      min: 0,
-                      fieldName: dialogLoc.partsCost,
+                    const SizedBox(height: 12),
+                    CurrencyTextField(
+                      controller: costC,
+                      label: dialogLoc.partsCostVnd,
+                      validator: (v) => MoneyUtils.validateAmount(
+                        v ?? '',
+                        min: 0,
+                        fieldName: dialogLoc.partsCost,
+                      ),
                     ),
-                  ),
                   ],
                 ],
               ),
@@ -2438,54 +2431,56 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       Row(
                         children: [
                           if (_canViewCostPrice)
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    ((r.price - r.cost) >= 0
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      ((r.price - r.cost) >= 0
+                                              ? AppColors.success
+                                              : AppColors.error)
+                                          .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      loc.profitLabel,
+                                      style: AppTextStyles.overline.copyWith(
+                                        color: (r.price - r.cost) >= 0
                                             ? AppColors.success
-                                            : AppColors.error)
-                                        .withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    loc.profitLabel,
-                                    style: AppTextStyles.overline.copyWith(
-                                      color: (r.price - r.cost) >= 0
-                                          ? AppColors.success
-                                          : AppColors.error,
+                                            : AppColors.error,
+                                      ),
                                     ),
-                                  ),
-                                  Text(
-                                    "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-                                    style: AppTextStyles.body2.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: (r.price - r.cost) >= 0
-                                          ? AppColors.success
-                                          : AppColors.error,
+                                    Text(
+                                      "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                                      style: AppTextStyles.body2.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: (r.price - r.cost) >= 0
+                                            ? AppColors.success
+                                            : AppColors.error,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          if (_canViewCostPrice)
-                          const SizedBox(width: 8),
+                          if (_canViewCostPrice) const SizedBox(width: 8),
                           _miniFinCompact("THU", r.price, AppColors.primary),
-                          if (_canViewCostPrice) ...[                          const SizedBox(width: 8),
-                          _miniFinCompact("VỐN", r.cost, AppColors.warning),
+                          if (_canViewCostPrice) ...[
+                            const SizedBox(width: 8),
+                            _miniFinCompact("VỐN", r.cost, AppColors.warning),
                           ],
                         ],
                       ),
                       // Indicator: cost recorded in fund
-                      if (_canViewCostPrice && r.costRecordedInFund && r.cost > 0) ...[
+                      if (_canViewCostPrice &&
+                          r.costRecordedInFund &&
+                          r.cost > 0) ...[
                         const SizedBox(height: 4),
                         Row(
                           children: [
@@ -2691,6 +2686,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       const SizedBox(height: 6),
                       // Info rows - hiển thị trực tiếp, không ẩn trong dropdown
                       _compactInfoRow(loc.deviceIssueLabel, r.issue),
+                      _compactInfoRow('Người nhận', _staffLabel(r.createdBy)),
+                      _compactInfoRow(
+                        'Người sửa xong',
+                        _staffLabel(r.repairedBy),
+                      ),
+                      _compactInfoRow('Người giao', _staffLabel(r.deliveredBy)),
                       if (r.accessories.isNotEmpty)
                         _compactInfoRow("PK", r.accessories),
                       if (r.warranty.isNotEmpty)
@@ -3221,29 +3222,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     return Column(
       children: [
         if (_canViewCostPrice)
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              loc.expectedProfit,
-              style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.bold),
-            ),
-            Text(
-              "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-              style: AppTextStyles.headline5.copyWith(
-                color: (r.price - r.cost) >= 0
-                    ? AppColors.success
-                    : AppColors.error,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                loc.expectedProfit,
+                style: AppTextStyles.body1.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
-        ),
+              Text(
+                "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                style: AppTextStyles.headline5.copyWith(
+                  color: (r.price - r.cost) >= 0
+                      ? AppColors.success
+                      : AppColors.error,
+                ),
+              ),
+            ],
+          ),
         const Divider(height: 25),
         Row(
           children: [
             _miniFin(loc.priceLabel, r.price, AppColors.primary),
             if (_canViewCostPrice)
-            _miniFin(loc.costLabel, r.cost, AppColors.warning),
+              _miniFin(loc.costLabel, r.cost, AppColors.warning),
           ],
         ),
         const SizedBox(height: 10),
@@ -3497,6 +3500,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         _infoRow(loc.customerLabel, r.customerName),
         _phoneRow(loc.phoneNumberLabel, r.phone),
         _infoRow(loc.deviceIssueLabel, r.issue),
+        _infoRow('Người nhận', _staffLabel(r.createdBy)),
+        _infoRow('Người sửa xong', _staffLabel(r.repairedBy)),
+        _infoRow('Người giao', _staffLabel(r.deliveredBy)),
         _infoRow(
           loc.accessoriesLabel,
           r.accessories.isEmpty ? loc.noAccessories : r.accessories,
@@ -3525,31 +3531,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       child: Column(
         children: [
           if (_canViewCostPrice)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                loc.expectedProfit,
-                style: AppTextStyles.body1.copyWith(
-                  fontWeight: FontWeight.bold,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  loc.expectedProfit,
+                  style: AppTextStyles.body1.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              Text(
-                "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-                style: AppTextStyles.headline5.copyWith(
-                  color: (r.price - r.cost) >= 0
-                      ? AppColors.success
-                      : AppColors.error,
+                Text(
+                  "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                  style: AppTextStyles.headline5.copyWith(
+                    color: (r.price - r.cost) >= 0
+                        ? AppColors.success
+                        : AppColors.error,
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           const Divider(height: 25),
           Row(
             children: [
               _miniFin(loc.priceLabel, r.price, AppColors.primary),
               if (_canViewCostPrice)
-              _miniFin(loc.costLabel, r.cost, AppColors.warning),
+                _miniFin(loc.costLabel, r.cost, AppColors.warning),
             ],
           ),
           const SizedBox(height: 10),
@@ -4517,8 +4523,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           path.startsWith('data:'))
                       ? CachedNetworkImageProvider(path) as ImageProvider
                       : kIsWeb
-                          ? CachedNetworkImageProvider(path) as ImageProvider
-                          : FileImage(File(path)),
+                      ? CachedNetworkImageProvider(path) as ImageProvider
+                      : FileImage(File(path)),
                   initialScale: PhotoViewComputedScale.contained,
                   minScale: PhotoViewComputedScale.contained,
                   maxScale: PhotoViewComputedScale.covered * 3,
@@ -4554,6 +4560,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           _infoRow(loc.customerLabel, r.customerName),
           _phoneRow(loc.phoneNumberLabel, r.phone),
           _infoRow(loc.deviceIssueLabel, r.issue),
+          _infoRow('Người nhận', _staffLabel(r.createdBy)),
+          _infoRow('Người sửa xong', _staffLabel(r.repairedBy)),
+          _infoRow('Người giao', _staffLabel(r.deliveredBy)),
           _infoRow(
             loc.accessoriesLabel,
             r.accessories.isEmpty ? loc.noAccessories : r.accessories,
@@ -4630,6 +4639,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     ),
   );
 
+  String _staffLabel(String? raw) {
+    final value = raw?.trim();
+    if (value == null || value.isEmpty) return '---';
+    if (value.contains('@')) {
+      return value.split('@').first.toUpperCase();
+    }
+    return value.toUpperCase();
+  }
+
   Future<void> _dialPhone(String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
     final url = Uri.parse('tel:$cleanPhone');
@@ -4645,11 +4663,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Widget _buildBottomActions() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(13), blurRadius: 10),
+          BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 8),
         ],
       ),
       child: SafeArea(
@@ -4660,70 +4678,76 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 onPressed: _isUpdating ? null : _saveData,
                 icon: _isUpdating
                     ? const SizedBox(
-                        width: 15,
-                        height: 15,
+                        width: 14,
+                        height: 14,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.save_rounded),
+                    : const Icon(Icons.save_rounded, size: 16),
                 label: const Text(
-                  "LƯU ĐƠN",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  "LƯU",
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                 ),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _isPrinting ? null : _printReceipt,
                 icon: _isPrinting
                     ? const SizedBox(
-                        width: 15,
-                        height: 15,
+                        width: 14,
+                        height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.print, color: Colors.white),
+                    : const Icon(Icons.print, color: Colors.white, size: 16),
                 label: const Text(
-                  "IN PHIẾU",
+                  "IN",
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2962FF),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: _shareToZalo,
-                icon: const Icon(Icons.send_rounded, color: Colors.white),
+                icon: const Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 16,
+                ),
                 label: const Text(
                   "ZALO",
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade600,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),

@@ -27,14 +27,11 @@ import '../services/firestore_service.dart';
 import '../services/first_time_guide_service.dart';
 import '../services/payment_intent_service.dart';
 import '../services/variant_service.dart';
-import 'supplier_list_view.dart';
 import '../utils/sku_generator.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../widgets/variant_selector.dart';
 import '../models/printer_types.dart';
 import 'smart_stock_in_view.dart';
-import 'global_search_view.dart';
-import 'fast_stock_in_view.dart';
 import 'parts_inventory_view.dart';
 import 'pty_print_designer_view.dart';
 import '../widgets/currency_text_field.dart';
@@ -2230,18 +2227,67 @@ class _InventoryViewState extends State<InventoryView>
         accentColor: AppBarAccents.inventory,
         actions: [
           IconButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GlobalSearchView(role: widget.role),
-              ),
-            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SmartStockInView()),
+              ).then((_) => _refresh());
+            },
             icon: const Icon(
-              Icons.search_rounded,
+              Icons.add_box_rounded,
               color: AppBarAccents.inventory,
               size: 22,
             ),
-            tooltip: 'Tìm kiếm',
+            tooltip: 'Nhập kho',
+            splashRadius: 20,
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PtyPrintDesignerView()),
+              );
+            },
+            icon: const Icon(
+              Icons.qr_code_2_rounded,
+              color: AppBarAccents.inventory,
+              size: 22,
+            ),
+            tooltip: 'In tem',
+            splashRadius: 20,
+          ),
+          IconButton(
+            onPressed: () async {
+              if (_filterType == 'LINH_KIEN') {
+                final result = await ExportDateFilterDialog.show(
+                  context,
+                  title: 'Xuất kho linh kiện',
+                );
+                if (result == null || !mounted) return;
+                await ExcelExportHelper.exportRepairParts(
+                  context,
+                  startMs: result['startMs'],
+                  endMs: result['endMs'],
+                );
+              } else {
+                final result = await ExportDateFilterDialog.show(
+                  context,
+                  title: 'Xuất kho hàng',
+                );
+                if (result == null || !mounted) return;
+                await ExcelExportHelper.exportProducts(
+                  context,
+                  startMs: result['startMs'],
+                  endMs: result['endMs'],
+                );
+              }
+            },
+            icon: const Icon(
+              Icons.file_download_outlined,
+              color: AppBarAccents.inventory,
+              size: 22,
+            ),
+            tooltip: 'Excel',
             splashRadius: 20,
           ),
           IconButton(
@@ -2266,166 +2312,7 @@ class _InventoryViewState extends State<InventoryView>
                   ? const PartsInventoryViewContent()
                   : _buildInventoryTab(),
             ),
-            // Unified bottom bar with labels
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 4,
-                    offset: const Offset(0, -1),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.only(
-                top: 6,
-                bottom: 6,
-                left: 4,
-                right: 4,
-              ),
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _bottomBarItem(
-                      Icons.add_box_rounded,
-                      'Nhập kho',
-                      Colors.green,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SmartStockInView(),
-                          ),
-                        ).then((_) => _refresh());
-                      },
-                    ),
-                    if (_businessType == 'electronics')
-                      _bottomBarItem(
-                        Icons.flash_on,
-                        'Nhanh',
-                        Colors.orange,
-                        () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const FastStockInView(),
-                            ),
-                          ).then((_) => _refresh());
-                        },
-                      ),
-
-                    _bottomBarItem(
-                      Icons.shopping_cart_checkout_rounded,
-                      'Bán hàng',
-                      Colors.teal,
-                      () {
-                        HapticFeedback.mediumImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CreateSaleView(),
-                          ),
-                        ).then((_) => _refresh());
-                      },
-                    ),
-                    _bottomBarItem(
-                      Icons.business_center,
-                      'NCC',
-                      Colors.indigo,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const SupplierListView(),
-                          ),
-                        );
-                      },
-                    ),
-                    _bottomBarItem(
-                      Icons.qr_code_2_rounded,
-                      'In tem',
-                      Colors.purple,
-                      () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const PtyPrintDesignerView(),
-                          ),
-                        );
-                      },
-                    ),
-                    _bottomBarItem(
-                      Icons.file_download_outlined,
-                      'Excel',
-                      Colors.blueGrey,
-                      () async {
-                        if (_filterType == 'LINH_KIEN') {
-                          final result = await ExportDateFilterDialog.show(
-                            context,
-                            title: 'Xuất kho linh kiện',
-                          );
-                          if (result == null || !mounted) return;
-                          await ExcelExportHelper.exportRepairParts(
-                            context,
-                            startMs: result['startMs'],
-                            endMs: result['endMs'],
-                          );
-                        } else {
-                          final result = await ExportDateFilterDialog.show(
-                            context,
-                            title: 'Xuất kho hàng',
-                          );
-                          if (result == null || !mounted) return;
-                          await ExcelExportHelper.exportProducts(
-                            context,
-                            startMs: result['startMs'],
-                            endMs: result['endMs'],
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bottomBarItem(
-    IconData icon,
-    String label,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -3279,7 +3166,9 @@ class _InventoryViewState extends State<InventoryView>
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.overline.copyWith(
-                    color: isPending ? Colors.orange.shade700 : Colors.grey.shade700,
+                    color: isPending
+                        ? Colors.orange.shade700
+                        : Colors.grey.shade700,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
