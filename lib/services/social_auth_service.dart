@@ -13,9 +13,7 @@ class SocialAuthService {
   static final _auth = FirebaseAuth.instance;
 
   // Singleton GoogleSignIn — tránh tạo nhiều instance gây channel-error
-  static final _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-  );
+  static final _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
   // ─── GOOGLE ────────────────────────────────────
 
@@ -40,7 +38,9 @@ class SocialAuthService {
 
       // Mobile/Desktop: Use google_sign_in plugin (singleton)
       // Disconnect trước để đảm bảo hiển thị account picker
-      try { await _googleSignIn.signOut(); } catch (_) {}
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
       final GoogleSignInAccount? gUser = await _googleSignIn.signIn();
       if (gUser == null) return null; // user cancelled
 
@@ -81,20 +81,26 @@ class SocialAuthService {
         return await user.linkWithPopup(provider);
       } on FirebaseAuthException catch (e) {
         if (e.code == 'credential-already-in-use') {
-          throw Exception('Tài khoản Google này đã được liên kết với tài khoản khác.');
+          throw Exception(
+            'Tài khoản Google này đã được liên kết với tài khoản khác.',
+          );
         }
         if (e.code == 'provider-already-linked') {
           throw Exception('Google đã được liên kết với tài khoản này rồi.');
         }
         if (e.code == 'requires-recent-login') {
-          throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.');
+          throw Exception(
+            'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.',
+          );
         }
         rethrow;
       }
     }
 
     // Mobile/Desktop (singleton)
-    try { await _googleSignIn.signOut(); } catch (_) {}
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     final GoogleSignInAccount? gUser = await _googleSignIn.signIn();
     if (gUser == null) return null; // user cancelled
 
@@ -108,13 +114,17 @@ class SocialAuthService {
       return await user.linkWithCredential(credential);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'credential-already-in-use') {
-        throw Exception('Tài khoản Google này đã được liên kết với tài khoản khác.');
+        throw Exception(
+          'Tài khoản Google này đã được liên kết với tài khoản khác.',
+        );
       }
       if (e.code == 'provider-already-linked') {
         throw Exception('Google đã được liên kết với tài khoản này rồi.');
       }
       if (e.code == 'requires-recent-login') {
-        throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.');
+        throw Exception(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.',
+        );
       }
       rethrow;
     } catch (e) {
@@ -140,7 +150,9 @@ class SocialAuthService {
       await user.unlink(GoogleAuthProvider.PROVIDER_ID);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
-        throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại.');
+        throw Exception(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại.',
+        );
       }
       rethrow;
     }
@@ -175,7 +187,7 @@ class SocialAuthService {
           'Đăng nhập Apple không khả dụng trên thiết bị này. '
           'Vui lòng kiểm tra:\n'
           '• Thiết bị chạy iOS 13+ hoặc macOS 10.15+\n'
-          '• Đã đăng nhập Apple ID trong Cài đặt'
+          '• Đã đăng nhập Apple ID trong Cài đặt',
         );
       }
 
@@ -191,8 +203,8 @@ class SocialAuthService {
         nonce: nonce,
       );
 
-      final oauthCredential = OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
+      final oauthCredential = _buildAppleOAuthCredential(
+        appleCredential: appleCredential,
         rawNonce: rawNonce,
       );
 
@@ -217,7 +229,19 @@ class SocialAuthService {
       if (e.code == AuthorizationErrorCode.canceled) {
         return null; // user cancelled — not an error
       }
-      debugPrint('❌ SocialAuth: Apple authorization error: ${e.code} ${e.message}');
+      debugPrint(
+        '❌ SocialAuth: Apple authorization error: ${e.code} ${e.message}',
+      );
+      rethrow;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'invalid-credential' &&
+          (e.message?.contains('Invalid OAuth response from apple.com') ??
+              false)) {
+        throw Exception(
+          'Apple trả về OAuth không hợp lệ. Vui lòng kiểm tra cấu hình '
+          'Apple Sign-In trong Apple Developer và Firebase Auth rồi thử lại.',
+        );
+      }
       rethrow;
     } catch (e) {
       debugPrint('❌ SocialAuth: Apple sign-in error: $e');
@@ -241,16 +265,28 @@ class SocialAuthService {
         return await user.linkWithPopup(provider);
       } on FirebaseAuthException catch (e) {
         if (e.code == 'credential-already-in-use') {
-          throw Exception('Tài khoản Apple này đã được liên kết với tài khoản khác.');
+          throw Exception(
+            'Tài khoản Apple này đã được liên kết với tài khoản khác.',
+          );
         }
         if (e.code == 'provider-already-linked') {
           throw Exception('Apple đã được liên kết với tài khoản này rồi.');
         }
         if (e.code == 'requires-recent-login') {
-          throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.');
+          throw Exception(
+            'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.',
+          );
         }
         rethrow;
       }
+    }
+
+    final isAvailable = await SignInWithApple.isAvailable();
+    if (!isAvailable) {
+      throw Exception(
+        'Đăng nhập Apple không khả dụng trên thiết bị này. '
+        'Vui lòng kiểm tra thiết bị đã đăng nhập Apple ID.',
+      );
     }
 
     // Mobile/Desktop: native Apple Sign-In
@@ -265,22 +301,34 @@ class SocialAuthService {
       nonce: nonce,
     );
 
-    final oauthCredential = OAuthProvider('apple.com').credential(
-      idToken: appleCredential.identityToken,
+    final oauthCredential = _buildAppleOAuthCredential(
+      appleCredential: appleCredential,
       rawNonce: rawNonce,
     );
 
     try {
       return await user.linkWithCredential(oauthCredential);
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'invalid-credential' &&
+          (e.message?.contains('Invalid OAuth response from apple.com') ??
+              false)) {
+        throw Exception(
+          'Apple trả về OAuth không hợp lệ. Vui lòng kiểm tra cấu hình '
+          'Apple Sign-In trong Apple Developer và Firebase Auth rồi thử lại.',
+        );
+      }
       if (e.code == 'credential-already-in-use') {
-        throw Exception('Tài khoản Apple này đã được liên kết với tài khoản khác.');
+        throw Exception(
+          'Tài khoản Apple này đã được liên kết với tài khoản khác.',
+        );
       }
       if (e.code == 'provider-already-linked') {
         throw Exception('Apple đã được liên kết với tài khoản này rồi.');
       }
       if (e.code == 'requires-recent-login') {
-        throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.');
+        throw Exception(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại để liên kết.',
+        );
       }
       rethrow;
     }
@@ -294,7 +342,9 @@ class SocialAuthService {
       await user.unlink('apple.com');
     } on FirebaseAuthException catch (e) {
       if (e.code == 'requires-recent-login') {
-        throw Exception('Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại.');
+        throw Exception(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất rồi đăng nhập lại.',
+        );
       }
       rethrow;
     }
@@ -312,8 +362,7 @@ class SocialAuthService {
   static bool isGoogleLinked() =>
       getLinkedProviders().contains(GoogleAuthProvider.PROVIDER_ID);
 
-  static bool isAppleLinked() =>
-      getLinkedProviders().contains('apple.com');
+  static bool isAppleLinked() => getLinkedProviders().contains('apple.com');
 
   static bool isPasswordLinked() =>
       getLinkedProviders().contains(EmailAuthProvider.PROVIDER_ID);
@@ -353,9 +402,7 @@ class SocialAuthService {
       // Google/Apple that has the SAME email → need to link instead
       if (e.code == 'account-exists-with-different-credential' &&
           e.email != null) {
-        debugPrint(
-          '⚠️ Account exists for ${e.email}, prompting link flow',
-        );
+        debugPrint('⚠️ Account exists for ${e.email}, prompting link flow');
         // Re-throw with clear message for UI to handle
         throw FirebaseAuthException(
           code: 'account-exists-with-different-credential',
@@ -374,8 +421,10 @@ class SocialAuthService {
     const charset =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
     final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
-        .join();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
   }
 
   /// SHA256 hash for Apple nonce
@@ -383,5 +432,24 @@ class SocialAuthService {
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);
     return digest.toString();
+  }
+
+  static OAuthCredential _buildAppleOAuthCredential({
+    required AuthorizationCredentialAppleID appleCredential,
+    required String rawNonce,
+  }) {
+    final idToken = appleCredential.identityToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception(
+        'Không nhận được idToken từ Apple. Vui lòng thử lại và kiểm tra Apple ID.',
+      );
+    }
+
+    final authCode = appleCredential.authorizationCode;
+    return OAuthProvider('apple.com').credential(
+      idToken: idToken,
+      rawNonce: rawNonce,
+      accessToken: authCode.isNotEmpty ? authCode : null,
+    );
   }
 }

@@ -1,4 +1,4 @@
-package com.huluca.shop
+package com.huluca.shopmanager
 
 import io.flutter.embedding.android.FlutterActivity
 

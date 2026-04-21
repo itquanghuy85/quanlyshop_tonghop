@@ -3701,7 +3701,7 @@ class _HomeViewState extends State<HomeView>
                       Row(
                         children: [
                           Text(
-                            "CHAT NHÓM",
+                            "CHAT NỘI BỘ",
                             style: AppTextStyles.body2.copyWith(
                               color: Colors.cyan.shade700,
                               fontWeight: FontWeight.bold,
