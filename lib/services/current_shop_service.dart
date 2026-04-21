@@ -1,4 +1,4 @@
-mimport 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -77,7 +77,9 @@ class CurrentShopService {
         return data;
       }
     } catch (e) {
-      debugPrint('CurrentShopService: profile name fallback error for $shopId: $e');
+      debugPrint(
+        'CurrentShopService: profile name fallback error for $shopId: $e',
+      );
     }
 
     data['name'] = 'Cửa hàng chưa đặt tên';
@@ -105,7 +107,10 @@ class CurrentShopService {
         if (_activeShopId != null && _activeShopId!.isNotEmpty) {
           bool isValid = false;
           try {
-            final shopDoc = await _db.collection('shops').doc(_activeShopId).get();
+            final shopDoc = await _db
+                .collection('shops')
+                .doc(_activeShopId)
+                .get();
             if (shopDoc.exists && shopDoc.data()?['deleted'] != true) {
               final userShopId = await UserService.getCurrentShopId();
               final ownerUid = shopDoc.data()?['ownerUid']?.toString();
@@ -116,7 +121,9 @@ class CurrentShopService {
           }
 
           if (!isValid) {
-            debugPrint('CurrentShopService: stale activeShopId=$_activeShopId, clearing');
+            debugPrint(
+              'CurrentShopService: stale activeShopId=$_activeShopId, clearing',
+            );
             _activeShopId = null;
             UserService.updateCachedShopId(null);
             await prefs.remove(_prefKey);
@@ -221,15 +228,16 @@ class CurrentShopService {
           .where('ownerUid', isEqualTo: currentUser.uid)
           .get();
 
-      final rawShops = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).where((shop) => shop['deleted'] != true).toList();
+      final rawShops = snapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          })
+          .where((shop) => shop['deleted'] != true)
+          .toList();
 
-      _cachedShops = await Future.wait(
-        rawShops.map(_enrichShopDisplayName),
-      );
+      _cachedShops = await Future.wait(rawShops.map(_enrichShopDisplayName));
 
       debugPrint(
         'CurrentShopService: Found ${_cachedShops!.length} shops by ownerUid',
@@ -309,7 +317,7 @@ class CurrentShopService {
 
       // 5. Clear local SQLite to prevent stale data
       await _clearLocalCache();
-      
+
       // 5.1. Clear all caches (shop settings, business type, labels)
       CategoryService().clearCache();
       BusinessTypeHelper().clearCache();
@@ -393,28 +401,28 @@ class CurrentShopService {
     try {
       // 1. Cancel sync subscriptions
       await SyncService.cancelAllSubscriptions();
-      
+
       // 2. Clear in-memory cache
       _activeShopId = null;
       _activeShopUid = null;
       _cachedShops = null;
-      
+
       // 3. Clear SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_prefKey);
       await prefs.remove(_prefKeyUid);
-      
+
       // 4. Clear UserService cache
       UserService.updateCachedShopId(null);
-      
+
       // 5. Clear local SQLite
       await _clearLocalCache();
-      
+
       // 6. Clear other caches
       CategoryService().clearCache();
       BusinessTypeHelper().clearCache();
       LabelSettingsService().clearCache();
-      
+
       debugPrint('CurrentShopService: Active shop cleared');
     } catch (e) {
       debugPrint('CurrentShopService clearActiveShop error: $e');

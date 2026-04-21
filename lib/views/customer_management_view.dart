@@ -63,15 +63,21 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
         .where((event) => _customerRefreshEvents.contains(event))
         .listen((event) {
           _customerRefreshDebounce?.cancel();
-          _customerRefreshDebounce = Timer(const Duration(milliseconds: 280), () {
-            if (!mounted) return;
-            _reloadCustomersQuiet();
-          });
+          _customerRefreshDebounce = Timer(
+            const Duration(milliseconds: 280),
+            () {
+              if (!mounted) return;
+              _reloadCustomersQuiet();
+            },
+          );
         });
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 && _hasMore && !_isLoading) {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        _hasMore &&
+        !_isLoading) {
       _loadMoreItems();
     }
   }
@@ -82,7 +88,10 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
       setState(() => _hasMore = false);
       return;
     }
-    final nextBatch = _filteredCustomers.skip(currentLen).take(_pageSize).toList();
+    final nextBatch = _filteredCustomers
+        .skip(currentLen)
+        .take(_pageSize)
+        .toList();
     setState(() {
       _displayedCustomers.addAll(nextBatch);
       _hasMore = _displayedCustomers.length < _filteredCustomers.length;
@@ -93,13 +102,15 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
     setState(() => _isLoading = true);
     try {
       // Sync customers from cloud (non-blocking, chạy nền)
-      SyncService.syncCustomersFromCloud().catchError((e) {
-        debugPrint('Sync customers error (ignored): $e');
-      }).then((_) {
-        // Sau khi sync xong, reload lại nếu có data mới
-        if (mounted) _reloadCustomersQuiet();
-      });
-      
+      SyncService.syncCustomersFromCloud()
+          .catchError((e) {
+            debugPrint('Sync customers error (ignored): $e');
+          })
+          .then((_) {
+            // Sau khi sync xong, reload lại nếu có data mới
+            if (mounted) _reloadCustomersQuiet();
+          });
+
       final customers = await _customerService.getCustomers();
       setState(() {
         _customers = customers;
@@ -112,7 +123,11 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.errorLoadingCustomers(e.toString()))),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.errorLoadingCustomers(e.toString()),
+            ),
+          ),
         );
       }
     }
@@ -158,8 +173,8 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
       } else {
         _filteredCustomers = _customers.where((customer) {
           return VietnameseUtils.containsVietnamese(customer.name, query) ||
-                 customer.phone.contains(query) ||
-                 VietnameseUtils.containsVietnamese(customer.address ?? '', query);
+              customer.phone.contains(query) ||
+              VietnameseUtils.containsVietnamese(customer.address ?? '', query);
         }).toList();
       }
       _displayedCustomers = _filteredCustomers.take(_pageSize).toList();
@@ -181,7 +196,10 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
 
   Future<void> _editCustomer(Customer customer) async {
     // Verify owner password first
-    if (!await _verifyOwnerPassword(AppLocalizations.of(context)!.editCustomerAction)) return;
+    if (!await _verifyOwnerPassword(
+      AppLocalizations.of(context)!.editCustomerAction,
+    ))
+      return;
 
     final result = await showDialog<Customer>(
       context: context,
@@ -196,13 +214,18 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
 
   Future<void> _deleteCustomer(Customer customer) async {
     // Verify owner password first
-    if (!await _verifyOwnerPassword(AppLocalizations.of(context)!.deleteCustomerAction)) return;
+    if (!await _verifyOwnerPassword(
+      AppLocalizations.of(context)!.deleteCustomerAction,
+    ))
+      return;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.confirmDeleteTitle),
-        content: Text(AppLocalizations.of(context)!.confirmDeleteCustomer(customer.name)),
+        content: Text(
+          AppLocalizations.of(context)!.confirmDeleteCustomer(customer.name),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -246,7 +269,10 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(AppLocalizations.of(context)!.cancel),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, password),
             child: Text(AppLocalizations.of(context)!.confirmBtn),
@@ -278,7 +304,9 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.incorrectPassword)),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.incorrectPassword),
+          ),
         );
       }
       return false;
@@ -292,10 +320,8 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
 
     showDialog(
       context: context,
-      builder: (context) => CustomerHistoryDialog(
-        customer: customer,
-        history: history,
-      ),
+      builder: (context) =>
+          CustomerHistoryDialog(customer: customer, history: history),
     );
   }
 
@@ -312,7 +338,13 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
             ),
           ),
         ),
-        title: Text(AppLocalizations.of(context)!.customerManagement, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(
+          AppLocalizations.of(context)!.customerManagement,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -326,7 +358,10 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
             icon: const Icon(Icons.file_download_outlined),
             tooltip: 'Xuất Excel khách hàng',
             onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất khách hàng');
+              final result = await ExportDateFilterDialog.show(
+                context,
+                title: 'Xuất khách hàng',
+              );
               if (result == null) return;
               if (!mounted) return;
               await ExcelExportHelper.exportCustomers(
@@ -340,64 +375,69 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
       ),
       body: ResponsiveCenter(
         child: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: GlobalSearchBar(
-              hintText: AppLocalizations.of(context)!.searchCustomers,
-              onSearch: _filterCustomers,
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: GlobalSearchBar(
+                hintText: AppLocalizations.of(context)!.searchCustomers,
+                onSearch: _filterCustomers,
+              ),
             ),
-          ),
 
-          // Customer list
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredCustomers.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 64,
-                              color: Colors.grey.shade400,
+            // Customer list
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredCustomers.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.people_outline,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _searchQuery.isEmpty
+                                ? AppLocalizations.of(context)!.noCustomersYet
+                                : AppLocalizations.of(
+                                    context,
+                                  )!.customerNotFound,
+                            style: AppTextStyles.body1.copyWith(
+                              color: Colors.grey.shade600,
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _searchQuery.isEmpty
-                                  ? AppLocalizations.of(context)!.noCustomersYet
-                                  : AppLocalizations.of(context)!.customerNotFound,
-                              style: AppTextStyles.body1.copyWith(
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _displayedCustomers.length + (_hasMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          if (index >= _displayedCustomers.length) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                            );
-                          }
-                          final customer = _displayedCustomers[index];
-                          return CustomerListItem(
-                            customer: customer,
-                            onEdit: () => _editCustomer(customer),
-                            onDelete: () => _deleteCustomer(customer),
-                            onViewHistory: () => _viewCustomerHistory(customer),
-                          );
-                        },
+                          ),
+                        ],
                       ),
-          ),
-        ],
-      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      itemCount:
+                          _displayedCustomers.length + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= _displayedCustomers.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        final customer = _displayedCustomers[index];
+                        return CustomerListItem(
+                          customer: customer,
+                          onEdit: () => _editCustomer(customer),
+                          onDelete: () => _deleteCustomer(customer),
+                          onViewHistory: () => _viewCustomerHistory(customer),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -439,34 +479,41 @@ class CustomerListItem extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              customer.phone,
-              style: AppTextStyles.caption,
-            ),
+            Text(customer.phone, style: AppTextStyles.caption),
             if (customer.address?.isNotEmpty == true)
               Text(
                 customer.address!,
-                style: AppTextStyles.caption.copyWith(color: Colors.grey.shade600),
+                style: AppTextStyles.caption.copyWith(
+                  color: Colors.grey.shade600,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             if (customer.notes?.isNotEmpty == true)
               Text(
                 'Ghi chú: ${customer.notes!}',
-                style: AppTextStyles.caption.copyWith(color: Colors.blue.shade600, fontStyle: FontStyle.italic),
+                style: AppTextStyles.caption.copyWith(
+                  color: Colors.blue.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
               children: [
                 Text(
                   'Đã mua: ${NumberFormat('#,###').format(customer.totalSpent)}đ',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.success),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.success,
+                  ),
                 ),
-                const SizedBox(width: 8),
                 Text(
                   'Sửa: ${customer.totalRepairs} lần',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.warning),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.warning,
+                  ),
                 ),
               ],
             ),
@@ -567,7 +614,9 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.customer == null ? 'Thêm khách hàng' : 'Chỉnh sửa khách hàng'),
+      title: Text(
+        widget.customer == null ? 'Thêm khách hàng' : 'Chỉnh sửa khách hàng',
+      ),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -638,10 +687,7 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Hủy'),
         ),
-        ElevatedButton(
-          onPressed: _saveCustomer,
-          child: const Text('Lưu'),
-        ),
+        ElevatedButton(onPressed: _saveCustomer, child: const Text('Lưu')),
       ],
     );
   }
@@ -654,10 +700,17 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
       firestoreId: widget.customer?.firestoreId,
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
-      email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-      address: _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-      notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-      createdAt: widget.customer?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
+      email: _emailController.text.trim().isEmpty
+          ? null
+          : _emailController.text.trim(),
+      address: _addressController.text.trim().isEmpty
+          ? null
+          : _addressController.text.trim(),
+      notes: _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim(),
+      createdAt:
+          widget.customer?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
       totalSpent: widget.customer?.totalSpent ?? 0,
       totalRepairs: widget.customer?.totalRepairs ?? 0,
       totalRepairCost: widget.customer?.totalRepairCost ?? 0,
@@ -702,7 +755,9 @@ class CustomerHistoryDialog extends StatelessWidget {
                 CircleAvatar(
                   backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
-                    customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
+                    customer.name.isNotEmpty
+                        ? customer.name[0].toUpperCase()
+                        : '?',
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
@@ -714,14 +769,8 @@ class CustomerHistoryDialog extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        customer.name,
-                        style: AppTextStyles.headline6,
-                      ),
-                      Text(
-                        customer.phone,
-                        style: AppTextStyles.caption,
-                      ),
+                      Text(customer.name, style: AppTextStyles.headline6),
+                      Text(customer.phone, style: AppTextStyles.caption),
                     ],
                   ),
                 ),
@@ -806,7 +855,12 @@ class CustomerHistoryDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String amount, String count, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String amount,
+    String count,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -831,10 +885,7 @@ class CustomerHistoryDialog extends StatelessWidget {
               fontWeight: FontWeight.bold,
             ),
           ),
-          Text(
-            count,
-            style: AppTextStyles.caption.copyWith(color: color),
-          ),
+          Text(count, style: AppTextStyles.caption.copyWith(color: color)),
         ],
       ),
     );
@@ -848,8 +899,12 @@ class CustomerHistoryDialog extends StatelessWidget {
 
     final bool isSale = type == 'sale';
     final bool isPayment = type == 'payment';
-    final Color color = isPayment ? Colors.blue : (isSale ? AppColors.success : AppColors.warning);
-    final IconData icon = isPayment ? Icons.receipt_long : (isSale ? Icons.shopping_cart : Icons.build);
+    final Color color = isPayment
+        ? Colors.blue
+        : (isSale ? AppColors.success : AppColors.warning);
+    final IconData icon = isPayment
+        ? Icons.receipt_long
+        : (isSale ? Icons.shopping_cart : Icons.build);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
