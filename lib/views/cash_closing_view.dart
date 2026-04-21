@@ -3089,9 +3089,13 @@ class _CashClosingViewState extends State<CashClosingView>
 
   Widget _buildHistoryChart(List<Map<String, dynamic>> closings) {
     if (closings.isEmpty) return const SizedBox.shrink();
-    final maxTotal = closings
-        .map((c) => (c['cashEnd'] as int? ?? 0) + (c['bankEnd'] as int? ?? 0))
-        .reduce((a, b) => a > b ? a : b);
+    final maxAbsTotal = closings
+        .map(
+          (c) =>
+              ((c['cashEnd'] as int? ?? 0) + (c['bankEnd'] as int? ?? 0)).abs(),
+        )
+        .fold<int>(0, (best, value) => value > best ? value : best);
+    const chartMaxHeight = 72.0;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -3113,13 +3117,17 @@ class _CashClosingViewState extends State<CashClosingView>
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 100,
+            height: 124,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: closings.reversed.map((c) {
                 final total =
                     (c['cashEnd'] as int? ?? 0) + (c['bankEnd'] as int? ?? 0);
-                final ratio = maxTotal > 0 ? total / maxTotal : 0.0;
+                final ratio = maxAbsTotal > 0 ? total.abs() / maxAbsTotal : 0.0;
+                final rawHeight = chartMaxHeight * ratio;
+                final barHeight = total == 0
+                    ? 4.0
+                    : rawHeight.clamp(6.0, chartMaxHeight).toDouble();
                 final dateKey = c['dateKey'] as String? ?? '';
                 final day = dateKey.length >= 10
                     ? dateKey.substring(8, 10)
@@ -3131,15 +3139,17 @@ class _CashClosingViewState extends State<CashClosingView>
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         Container(
-                          height: 70 * ratio,
+                          height: barHeight,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.indigo.shade300,
-                                Colors.indigo.shade600,
-                              ],
+                              colors: total >= 0
+                                  ? [
+                                      Colors.indigo.shade300,
+                                      Colors.indigo.shade600,
+                                    ]
+                                  : [Colors.red.shade300, Colors.red.shade600],
                             ),
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(4),

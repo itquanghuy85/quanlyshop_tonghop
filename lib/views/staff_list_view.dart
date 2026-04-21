@@ -1992,7 +1992,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         // Buộc làm mới ID token để Firestore rules nhận được claims mới nhất
         try {
           await FirebaseAuth.instance.currentUser?.getIdToken(true);
-          debugPrint('✅ Force-refreshed ID token after assignUserToCurrentShop');
+          debugPrint(
+            '✅ Force-refreshed ID token after assignUserToCurrentShop',
+          );
         } catch (tokenErr) {
           debugPrint('⚠️ Token refresh failed: $tokenErr');
         }
@@ -2686,117 +2688,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
               ),
             ),
 
-          const SizedBox(height: 10),
-          // Export buttons row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                if (_enableRepair)
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final result = await ExportDateFilterDialog.show(
-                          context,
-                          title: 'Xuất máy đã sửa',
-                        );
-                        if (result == null || !mounted) return;
-                        await ExcelExportHelper.exportStaffRepairs(
-                          context,
-                          widget.name,
-                          _repairsCompleted,
-                          startMs: result['startMs'],
-                          endMs: result['endMs'],
-                        );
-                      },
-                      icon: const Icon(Icons.file_download_outlined, size: 16),
-                      label: const Text(
-                        'Xuất đơn sửa',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ),
-                if (_enableRepair) const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final result = await ExportDateFilterDialog.show(
-                        context,
-                        title: 'Xuất đơn bán',
-                      );
-                      if (result == null || !mounted) return;
-                      await ExcelExportHelper.exportStaffSales(
-                        context,
-                        widget.name,
-                        _sales,
-                        startMs: result['startMs'],
-                        endMs: result['endMs'],
-                      );
-                    },
-                    icon: const Icon(Icons.file_download_outlined, size: 16),
-                    label: const Text(
-                      'Xuất đơn bán',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Remove from shop button — visible for owner/manager/superAdmin, not for self or owner role
-          if (_staffShopId != null &&
-              _staffShopId!.isNotEmpty &&
-              widget.uid != FirebaseAuth.instance.currentUser?.uid &&
-              (widget.isSuperAdmin || widget.role != 'owner'))
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: _removing ? null : _removeFromShop,
-                  icon: _removing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.red,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.person_remove,
-                          size: 18,
-                          color: Colors.red,
-                        ),
-                  label: Text(
-                    'XÓA NHÂN VIÊN KHỎI SHOP',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: AppTextStyles.body1.fontSize,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
+          _buildStaffActionRow(),
+          const SizedBox(height: 4),
           TabBar(
             controller: _tabController,
             labelColor: Colors.blueAccent,
@@ -2873,6 +2767,119 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           contentPadding: const EdgeInsets.all(10),
           fillColor: Colors.white,
           filled: true,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStaffActionRow() {
+    final canRemoveFromShop =
+        _staffShopId != null &&
+        _staffShopId!.isNotEmpty &&
+        widget.uid != FirebaseAuth.instance.currentUser?.uid &&
+        (widget.isSuperAdmin || widget.role != 'owner');
+
+    final actions = <Widget>[
+      if (_enableRepair)
+        _compactStaffActionButton(
+          onPressed: () async {
+            final result = await ExportDateFilterDialog.show(
+              context,
+              title: 'Xuất máy đã sửa',
+            );
+            if (result == null || !mounted) return;
+            await ExcelExportHelper.exportStaffRepairs(
+              context,
+              widget.name,
+              _repairsCompleted,
+              startMs: result['startMs'],
+              endMs: result['endMs'],
+            );
+          },
+          icon: Icons.file_download_outlined,
+          label: 'Xuất sửa',
+          color: Colors.blueAccent,
+        ),
+      _compactStaffActionButton(
+        onPressed: () async {
+          final result = await ExportDateFilterDialog.show(
+            context,
+            title: 'Xuất đơn bán',
+          );
+          if (result == null || !mounted) return;
+          await ExcelExportHelper.exportStaffSales(
+            context,
+            widget.name,
+            _sales,
+            startMs: result['startMs'],
+            endMs: result['endMs'],
+          );
+        },
+        icon: Icons.file_download_outlined,
+        label: 'Xuất bán',
+        color: Colors.blueAccent,
+      ),
+      if (canRemoveFromShop)
+        _compactStaffActionButton(
+          onPressed: _removing ? null : _removeFromShop,
+          icon: Icons.person_remove,
+          label: 'Xóa khỏi shop',
+          color: Colors.red,
+          loading: _removing,
+        ),
+    ];
+
+    if (actions.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (int i = 0; i < actions.length; i++) ...[
+              actions[i],
+              if (i < actions.length - 1) const SizedBox(width: 6),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _compactStaffActionButton({
+    required VoidCallback? onPressed,
+    required IconData icon,
+    required String label,
+    required Color color,
+    bool loading = false,
+  }) {
+    return SizedBox(
+      height: 33,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: loading
+            ? SizedBox(
+                width: 13,
+                height: 13,
+                child: CircularProgressIndicator(strokeWidth: 2, color: color),
+              )
+            : Icon(icon, size: 14, color: color),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: AppTextStyles.caption.fontSize,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: color.withOpacity(0.65)),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+          minimumSize: const Size(0, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     );
