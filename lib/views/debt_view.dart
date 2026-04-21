@@ -947,14 +947,14 @@ class _DebtViewState extends State<DebtView>
       margin: const EdgeInsets.only(bottom: 6),
       color: isAltRow ? const Color(0xFFFFF8EF) : Colors.orange.shade50,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         side: BorderSide(color: Colors.orange.shade200),
       ),
       child: InkWell(
         onTap: () => _navigateToPartnerDetail(partner),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -963,12 +963,12 @@ class _DebtViewState extends State<DebtView>
                 children: [
                   // Index badge
                   Container(
-                    width: 28,
-                    height: 28,
-                    margin: const EdgeInsets.only(right: 10),
+                    width: 24,
+                    height: 24,
+                    margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(7),
                     ),
                     child: Center(
                       child: Text(
@@ -983,18 +983,18 @@ class _DebtViewState extends State<DebtView>
                   ),
                   // Type icon
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(7),
                     ),
                     child: Icon(
                       Icons.handshake,
                       color: Colors.orange.shade800,
-                      size: 18,
+                      size: 16,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   // Name and phone
                   Expanded(
                     child: Column(
@@ -1042,7 +1042,7 @@ class _DebtViewState extends State<DebtView>
                 ],
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // Info chips row
               Wrap(
@@ -1068,7 +1068,7 @@ class _DebtViewState extends State<DebtView>
                 ],
               ),
 
-              const Divider(height: 16),
+              const Divider(height: 12),
 
               // Amount row
               Row(
@@ -1080,7 +1080,7 @@ class _DebtViewState extends State<DebtView>
                       valueColor: Colors.grey.shade700,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: _amountPill(
                       label: 'Đã trả',
@@ -1088,7 +1088,7 @@ class _DebtViewState extends State<DebtView>
                       valueColor: Colors.green,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: _amountPill(
                       label: 'Còn nợ',
@@ -1103,13 +1103,13 @@ class _DebtViewState extends State<DebtView>
 
               // Action button
               if (remainingDebt > 0) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     ElevatedButton.icon(
                       onPressed: () => _navigateToPartnerDetail(partner),
-                      icon: const Icon(Icons.visibility, size: 16),
+                      icon: const Icon(Icons.visibility, size: 15),
                       label: Text(
                         'Xem & Thanh toán',
                         style: TextStyle(
@@ -1120,8 +1120,8 @@ class _DebtViewState extends State<DebtView>
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                          horizontal: 10,
+                          vertical: 4,
                         ),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1286,12 +1286,12 @@ class _DebtViewState extends State<DebtView>
         : normalBg;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(bottom: 5),
       color: isVeryUrgent
           ? Colors.red.shade100
           : (isUrgent ? Colors.orange.shade50 : zebraBg),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         side: BorderSide(
           color: isVeryUrgent
               ? Colors.red.shade400
@@ -1301,9 +1301,9 @@ class _DebtViewState extends State<DebtView>
       ),
       child: InkWell(
         onTap: () => _showDebtHistory(d),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1313,12 +1313,12 @@ class _DebtViewState extends State<DebtView>
                   // Index badge
                   if (index != null)
                     Container(
-                      width: 28,
-                      height: 28,
-                      margin: const EdgeInsets.only(right: 10),
+                      width: 24,
+                      height: 24,
+                      margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
                         color: mainColor.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(7),
                       ),
                       child: Center(
                         child: Text(
@@ -1333,20 +1333,20 @@ class _DebtViewState extends State<DebtView>
                     ),
                   // Type icon
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: mainColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(7),
                     ),
                     child: Icon(
                       isCustomerDebt
                           ? Icons.arrow_downward
                           : Icons.arrow_upward,
                       color: mainColor,
-                      size: 18,
+                      size: 16,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   // Name and phone
                   Expanded(
                     child: Column(
@@ -1396,7 +1396,7 @@ class _DebtViewState extends State<DebtView>
                 ],
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // Info chips row
               Wrap(
@@ -1429,7 +1429,7 @@ class _DebtViewState extends State<DebtView>
                 ],
               ),
 
-              const Divider(height: 16),
+              const Divider(height: 12),
 
               // Amount row
               Row(
@@ -1441,7 +1441,7 @@ class _DebtViewState extends State<DebtView>
                       valueColor: Colors.grey.shade700,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: _amountPill(
                       label: 'Đã trả',
@@ -1449,7 +1449,7 @@ class _DebtViewState extends State<DebtView>
                       valueColor: Colors.green,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: _amountPill(
                       label: 'Còn nợ',
@@ -1463,13 +1463,13 @@ class _DebtViewState extends State<DebtView>
               ),
 
               // Action button
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton.icon(
                     onPressed: () => _showDebtHistory(d),
-                    icon: const Icon(Icons.history, size: 16),
+                    icon: const Icon(Icons.history, size: 15),
                     label: Text(
                       'Lịch sử',
                       style: TextStyle(
@@ -1477,17 +1477,17 @@ class _DebtViewState extends State<DebtView>
                       ),
                     ),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   ElevatedButton.icon(
                     onPressed: () => _payDebt(d),
                     icon: Icon(
                       isCustomerDebt ? Icons.call_received : Icons.call_made,
-                      size: 16,
+                      size: 15,
                     ),
                     label: Text(
                       isCustomerDebt ? 'Thu nợ' : 'Trả nợ',
@@ -1499,8 +1499,8 @@ class _DebtViewState extends State<DebtView>
                       backgroundColor: mainColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 4,
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1517,7 +1517,7 @@ class _DebtViewState extends State<DebtView>
 
   Widget _debtInfoChip(String text, Color bgColor, Color textColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
@@ -1525,7 +1525,7 @@ class _DebtViewState extends State<DebtView>
       child: Text(
         text,
         style: TextStyle(
-          fontSize: AppTextStyles.caption.fontSize,
+          fontSize: AppTextStyles.overlineSize,
           color: textColor,
           fontWeight: FontWeight.w500,
         ),
@@ -1547,10 +1547,10 @@ class _DebtViewState extends State<DebtView>
         : chipBg.withOpacity(0.7);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: chipBg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(7),
         border: Border.all(color: borderColor),
       ),
       child: Column(
@@ -2133,14 +2133,14 @@ class _DebtViewState extends State<DebtView>
           ? Color.alphaBlend(iconColor.withOpacity(0.04), Colors.white)
           : Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: iconColor.withOpacity(0.12)),
       ),
       child: InkWell(
         onTap: () => _showDebtHistory(d),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2236,7 +2236,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                 ),
               ],
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
@@ -2246,7 +2246,7 @@ class _DebtViewState extends State<DebtView>
                       valueColor: Colors.grey.shade700,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: _amountPill(
                       label: 'Đã trả',
@@ -2254,7 +2254,7 @@ class _DebtViewState extends State<DebtView>
                       valueColor: Colors.green,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: _amountPill(
                       label: 'Còn nợ',
@@ -2272,7 +2272,7 @@ class _DebtViewState extends State<DebtView>
                 children: [
                   TextButton.icon(
                     onPressed: () => _showDebtHistory(d),
-                    icon: const Icon(Icons.history, size: 16),
+                    icon: const Icon(Icons.history, size: 15),
                     label: Text(
                       'Lịch sử',
                       style: TextStyle(
@@ -2280,17 +2280,17 @@ class _DebtViewState extends State<DebtView>
                       ),
                     ),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   ElevatedButton.icon(
                     onPressed: () => _payDebt(d),
                     icon: Icon(
                       isReceivable ? Icons.call_received : Icons.call_made,
-                      size: 16,
+                      size: 15,
                     ),
                     label: Text(
                       isReceivable ? 'Thu nợ' : 'Trả nợ',
@@ -2302,8 +2302,8 @@ class _DebtViewState extends State<DebtView>
                       backgroundColor: iconColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 4,
                       ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,

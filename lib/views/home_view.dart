@@ -6920,7 +6920,7 @@ class _HomeViewState extends State<HomeView>
                           builder: (_) => const CashClosingView(),
                         ),
                       ),
-                      subtitle: MoneyUtils.formatVND(
+                      subtitle: MoneyUtils.formatCompact(
                         _previousClosingTotal + _todayTotalIn - _todayTotalOut,
                       ),
                     ),
@@ -6940,7 +6940,7 @@ class _HomeViewState extends State<HomeView>
                           ),
                         ),
                         subtitle:
-                            '+${MoneyUtils.formatVND(_todayTotalIn)} / -${MoneyUtils.formatVND(_todayTotalOut)}',
+                            '+${MoneyUtils.formatCompact(_todayTotalIn)} / -${MoneyUtils.formatCompact(_todayTotalOut)}',
                       ),
                     ),
                 ],
@@ -7378,7 +7378,7 @@ class _HomeViewState extends State<HomeView>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "${MoneyUtils.formatVND(_todayNetProfit)} đ",
+                        MoneyUtils.formatCompact(_todayNetProfit),
                         style: AppTextStyles.headline5.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -7388,7 +7388,7 @@ class _HomeViewState extends State<HomeView>
                       Row(
                         children: [
                           Text(
-                            '🛒 ${MoneyUtils.formatVND(_todaySalesProfit)}',
+                            '🛒 ${MoneyUtils.formatCompact(_todaySalesProfit)}',
                             style: AppTextStyles.overline.copyWith(
                               color: Colors.white.withOpacity(0.85),
                               fontWeight: FontWeight.w500,
@@ -7402,7 +7402,7 @@ class _HomeViewState extends State<HomeView>
                               ),
                             ),
                             Text(
-                              '🔧 ${MoneyUtils.formatVND(_todayRepairProfit)}',
+                              '🔧 ${MoneyUtils.formatCompact(_todayRepairProfit)}',
                               style: AppTextStyles.overline.copyWith(
                                 color: Colors.white.withOpacity(0.85),
                                 fontWeight: FontWeight.w500,
@@ -7429,14 +7429,14 @@ class _HomeViewState extends State<HomeView>
     final parts = <String>[];
     if (_todayExpenseOnly > 0) {
       parts.add(
-        '$_todayExpenseCount ${loc.expenseItems}: ${MoneyUtils.formatVND(_todayExpenseOnly)}đ',
+        '$_todayExpenseCount ${loc.expenseItems}: ${MoneyUtils.formatCompact(_todayExpenseOnly)}',
       );
     } else if (_todayExpenseCount > 0) {
       parts.add('$_todayExpenseCount ${loc.expenseItems}');
     }
     if (_todayDebtPaidToSupplier > 0) {
       parts.add(
-        'Trả nợ NCC: ${MoneyUtils.formatVND(_todayDebtPaidToSupplier)}đ',
+        'Trả nợ NCC: ${MoneyUtils.formatCompact(_todayDebtPaidToSupplier)}',
       );
     }
     if (parts.isEmpty) return '0 ${loc.expenseItems}';
@@ -7487,7 +7487,7 @@ class _HomeViewState extends State<HomeView>
             ),
             const SizedBox(height: 10),
             Text(
-              "${MoneyUtils.formatVND(value)} đ",
+              MoneyUtils.formatCompact(value),
               style: AppTextStyles.headline3.copyWith(
                 color: color,
                 fontWeight: FontWeight.bold,
@@ -8997,7 +8997,7 @@ class _HomeViewState extends State<HomeView>
           const SizedBox(width: 4),
           Expanded(
             child: Text(
-              '${isPositive ? "+" : "-"}${MoneyUtils.formatVND(net.abs())}',
+              '${isPositive ? "+" : "-"}${MoneyUtils.formatCompact(net.abs())}',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,

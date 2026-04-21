@@ -484,44 +484,56 @@ class PaymentRequestService {
     PaymentRequestStatus? statusFilter,
     int limit = 50,
   }) async* {
-    final shopId = await UserService.getCurrentShopId();
-    if (shopId == null) {
-      yield [];
-      return;
-    }
-
-    Query<Map<String, dynamic>> query = _db
-        .collection(_collection)
-        .where('shopId', isEqualTo: shopId);
-
-    if (statusFilter != null) {
-      query = query.where('status', isEqualTo: statusFilter.name);
-    }
-
-    query = query
-        .orderBy('createdAt', descending: true)
-        .limit(limit.clamp(1, 200));
-
     final effectiveLimit = limit.clamp(1, 200);
     List<PaymentRequest> lastData = const <PaymentRequest>[];
 
     Future<List<PaymentRequest>> fetchOnce(String reason) async {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return <PaymentRequest>[];
+
       _requestsFetchCount += 1;
       debugPrint(
-        '[SYNC][FETCH] collection=payment_requests count=$_requestsFetchCount reason=$reason limit=$effectiveLimit',
+        '[SYNC][FETCH] collection=payment_requests count=$_requestsFetchCount reason=$reason shopId=$shopId limit=$effectiveLimit',
       );
-      final snapshot = await query.get();
-      var docs = snapshot.docs;
 
-      // Fallback: newly created docs may temporarily miss `createdAt` in some writes,
-      // making them absent from orderBy queries. Pull a raw shop slice and sort client-side.
-      if (docs.isEmpty) {
-        final fallbackSnapshot = await _db
+      Query<Map<String, dynamic>> orderedQuery = _db
+          .collection(_collection)
+          .where('shopId', isEqualTo: shopId);
+      if (statusFilter != null) {
+        orderedQuery = orderedQuery.where(
+          'status',
+          isEqualTo: statusFilter.name,
+        );
+      }
+      orderedQuery = orderedQuery
+          .orderBy('createdAt', descending: true)
+          .limit(effectiveLimit);
+
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
+      try {
+        docs = (await orderedQuery.get()).docs;
+      } catch (e) {
+        final msg = e.toString().toLowerCase();
+        final canFallback =
+            msg.contains('failed-precondition') ||
+            msg.contains('permission-denied') ||
+            msg.contains('permission denied');
+        if (!canFallback) rethrow;
+
+        debugPrint('⚠️ PaymentRequest ordered query failed ($reason): $e');
+
+        // Fallback query avoids orderBy index dependency; data is sorted client-side below.
+        Query<Map<String, dynamic>> fallbackQuery = _db
             .collection(_collection)
             .where('shopId', isEqualTo: shopId)
-            .limit(effectiveLimit)
-            .get();
-        docs = fallbackSnapshot.docs;
+            .limit(effectiveLimit);
+        if (statusFilter != null) {
+          fallbackQuery = fallbackQuery.where(
+            'status',
+            isEqualTo: statusFilter.name,
+          );
+        }
+        docs = (await fallbackQuery.get()).docs;
       }
 
       final parsed = <PaymentRequest>[];
@@ -567,18 +579,15 @@ class PaymentRequestService {
 
   /// Đếm yêu cầu chờ xử lý
   static Stream<int> pendingCountStream() async* {
-    final shopId = await UserService.getCurrentShopId();
-    if (shopId == null) {
-      yield 0;
-      return;
-    }
-
     int lastCount = 0;
 
     Future<int> fetchCount(String reason) async {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null) return 0;
+
       _pendingFetchCount += 1;
       debugPrint(
-        '[SYNC][FETCH] collection=payment_requests_pending_count count=$_pendingFetchCount reason=$reason limit=200',
+        '[SYNC][FETCH] collection=payment_requests_pending_count count=$_pendingFetchCount reason=$reason shopId=$shopId limit=200',
       );
       final snapshot = await _db
           .collection(_collection)
