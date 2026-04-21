@@ -42,7 +42,6 @@ class NotificationService {
   static const Duration _tokenCheckInterval = Duration(
     hours: 6,
   ); // Kiểm tra token mỗi 6 giờ
-  static String? _cachedToken;
 
   // Notification settings keys
   static const String _newOrderKey = 'notification_new_order';
@@ -395,7 +394,6 @@ class NotificationService {
     // Save token to user profile
     if (token != null) {
       await _saveFCMToken(token);
-      _cachedToken = token;
       _lastTokenCheck = DateTime.now();
     }
 
@@ -411,7 +409,6 @@ class NotificationService {
       String? token = await _firebaseMessaging.getToken();
       if (token != null) {
         await _saveFCMToken(token);
-        _cachedToken = token;
         debugPrint('FCM token refreshed: $token');
       }
     } catch (e) {
@@ -468,7 +465,6 @@ class NotificationService {
       }
 
       _lastTokenCheck = now;
-      _cachedToken = currentToken;
     } catch (e) {
       debugPrint('ensureFCMTokenValid error: $e');
     }
@@ -545,7 +541,6 @@ class NotificationService {
       );
       await _saveFCMToken(newToken);
 
-      _cachedToken = newToken;
       _lastTokenCheck = DateTime.now();
 
       debugPrint('forceRefreshFCMToken: Success!');
@@ -741,7 +736,7 @@ class NotificationService {
     try {
       final decoded = jsonDecode(payload);
       if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded as Map);
+        return Map<String, dynamic>.from(decoded);
       }
     } catch (_) {}
 
