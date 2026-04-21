@@ -3037,21 +3037,80 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final receiver = _staffLabel(rep.createdBy);
     final repairer = _staffLabel(rep.repairedBy);
     final deliverer = _staffLabel(rep.deliveredBy);
-    final parts = <String>[];
-    if (receiver.isNotEmpty) parts.add('Nhận: $receiver');
-    if (repairer.isNotEmpty) parts.add('Sửa: $repairer');
-    if (deliverer.isNotEmpty) parts.add('Giao: $deliverer');
-    if (parts.isEmpty) return const SizedBox.shrink();
+    final spans = <InlineSpan>[];
+
+    void addPart(String label, String value) {
+      if (value == '---') return;
+      final color = _staffStageColor(label);
+      if (spans.isNotEmpty) {
+        spans.add(
+          TextSpan(
+            text: '  •  ',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.onSurface.withOpacity(0.45),
+            ),
+          ),
+        );
+      }
+      spans.add(
+        TextSpan(
+          text: '$label: ',
+          style: AppTextStyles.caption.copyWith(
+            color: color.withOpacity(0.9),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+      spans.add(
+        TextSpan(
+          text: value,
+          style: AppTextStyles.caption.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    addPart('Nhận', receiver);
+    addPart('Sửa', repairer);
+    addPart('Giao', deliverer);
+
+    if (spans.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: Text(
-        parts.join('  '),
-        style: AppTextStyles.caption.copyWith(
-          color: AppColors.onSurface.withOpacity(0.75),
-        ),
+      child: RichText(
+        text: TextSpan(children: spans),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
+    );
+  }
+
+  Color _staffStageColor(String stage) {
+    switch (stage.toLowerCase()) {
+      case 'nhận':
+        return AppColors.repairReceived;
+      case 'sửa':
+        return AppColors.repairRepairing;
+      case 'xong':
+        return AppColors.repairDone;
+      case 'giao':
+        return AppColors.primary;
+      default:
+        return AppColors.onSurface;
+    }
+  }
+
+  Widget _staffInfoRow(String label, String value) {
+    final color = _staffStageColor(label);
+    final isUnknown = value.trim() == '---';
+    return _infoRow(
+      label,
+      value,
+      labelColor: color.withOpacity(0.9),
+      valueColor: isUnknown ? AppColors.onSurface.withOpacity(0.55) : color,
+      valueWeight: FontWeight.w700,
     );
   }
 
@@ -3126,135 +3185,57 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     if (r.status == 4) return const SizedBox();
 
-    // Chờ duyệt giao (status 3 + pendingDeliveryApproval = true) - chỉ quản lý mới thấy nút duyệt
     if (r.status == 3 && r.pendingDeliveryApproval) {
-      debugPrint('Showing pending approval UI');
-      return FutureBuilder<String>(
-        future: UserService.getRoleFast(),
-        builder: (context, snapshot) {
-          final role = snapshot.data ?? 'user';
-          final isManager = role == 'admin' || role == 'owner';
-          debugPrint('Role check: role=$role, isManager=$isManager');
-
-          return Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.deepOrange.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.deepOrange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.hourglass_empty,
-                      color: Colors.deepOrange.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        isManager
-                            ? loc.orderPendingYourApproval
-                            : loc.waitingManagerApproval,
-                        style: TextStyle(
-                          color: Colors.deepOrange.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.deepOrange.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.deepOrange.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.hourglass_empty, color: Colors.deepOrange.shade700),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                loc.waitingManagerApproval,
+                style: TextStyle(
+                  color: Colors.deepOrange.shade700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              if (isManager) ...[
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _approveDelivery(),
-                    icon: const Icon(Icons.check_circle, size: 18),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    label: Text(
-                      loc.approveDelivery,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       );
     }
 
-    // Status 3 và chưa gửi duyệt - hiện nút gửi yêu cầu giao
     if (r.status == 3 && !r.pendingDeliveryApproval) {
-      return FutureBuilder<String>(
-        future: UserService.getRoleFast(),
-        builder: (context, snapshot) {
-          final role = snapshot.data ?? 'user';
-          final isManager = role == 'admin' || role == 'owner';
-
-          return Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        loc.repairDoneReadyForDelivery,
-                        style: TextStyle(
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade700),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                loc.repairDoneReadyForDelivery,
+                style: TextStyle(
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: isManager
-                      ? () =>
-                            _updateStatus(4) // Admin/owner giao trực tiếp
-                      : () =>
-                            _submitForDeliveryApproval(), // Staff gửi yêu cầu duyệt
-                  icon: Icon(
-                    isManager ? Icons.local_shipping : Icons.send,
-                    size: 18,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isManager
-                        ? Colors.green
-                        : Colors.deepOrange,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  label: Text(
-                    isManager ? loc.deliverDevice : loc.sendDeliveryRequest,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       );
     }
 
@@ -3545,9 +3526,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         _infoRow(loc.customerLabel, r.customerName),
         _phoneRow(loc.phoneNumberLabel, r.phone),
         _infoRow(loc.deviceIssueLabel, r.issue),
-        _infoRow('Nhận', _staffLabel(r.createdBy)),
-        _infoRow('Sửa', _staffLabel(r.repairedBy)),
-        _infoRow('Giao', _staffLabel(r.deliveredBy)),
+        _staffInfoRow('Nhận', _staffLabel(r.createdBy)),
+        _staffInfoRow('Sửa', _staffLabel(r.repairedBy)),
+        _staffInfoRow('Giao', _staffLabel(r.deliveredBy)),
         _infoRow(
           loc.accessoriesLabel,
           r.accessories.isEmpty ? loc.noAccessories : r.accessories,
@@ -4605,9 +4586,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           _infoRow(loc.customerLabel, r.customerName),
           _phoneRow(loc.phoneNumberLabel, r.phone),
           _infoRow(loc.deviceIssueLabel, r.issue),
-          _infoRow('Nhận', _staffLabel(r.createdBy)),
-          _infoRow('Sửa', _staffLabel(r.repairedBy)),
-          _infoRow('Giao', _staffLabel(r.deliveredBy)),
+          _staffInfoRow('Nhận', _staffLabel(r.createdBy)),
+          _staffInfoRow('Sửa', _staffLabel(r.repairedBy)),
+          _staffInfoRow('Giao', _staffLabel(r.deliveredBy)),
           _infoRow(
             loc.accessoriesLabel,
             r.accessories.isEmpty ? loc.noAccessories : r.accessories,
@@ -4627,7 +4608,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
   }
 
-  Widget _infoRow(String l, String v) => Padding(
+  Widget _infoRow(
+    String l,
+    String v, {
+    Color? labelColor,
+    Color? valueColor,
+    FontWeight? valueWeight,
+  }) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 8),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -4636,14 +4623,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         Text(
           l,
           style: AppTextStyles.caption.copyWith(
-            color: AppColors.onSurface.withOpacity(0.6),
+            color: labelColor ?? AppColors.onSurface.withOpacity(0.6),
           ),
         ),
         const SizedBox(width: 12),
         Flexible(
           child: Text(
             v,
-            style: AppTextStyles.body2.copyWith(fontWeight: FontWeight.bold),
+            style: AppTextStyles.body2.copyWith(
+              color: valueColor,
+              fontWeight: valueWeight ?? FontWeight.bold,
+            ),
             textAlign: TextAlign.end,
             overflow: TextOverflow.ellipsis,
             maxLines: 2,
@@ -4707,139 +4697,290 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildBottomActions() {
-    final showDoneButton = r.status < 3;
+    const compactLabelStyle = TextStyle(
+      fontWeight: FontWeight.w700,
+      fontSize: 10,
+      height: 1,
+    );
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 8),
-        ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            if (showDoneButton) ...[
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isUpdating ? null : () => _updateStatus(3),
-                  icon: _isUpdating
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.check_circle,
-                          color: Colors.white,
-                          size: 15,
-                        ),
-                  label: const Text(
-                    "ĐÃ XONG",
-                    style: TextStyle(
+    return FutureBuilder<String>(
+      future: UserService.getRoleFast(),
+      builder: (context, snapshot) {
+        final role = snapshot.data ?? 'user';
+        final isManager = role == 'admin' || role == 'owner';
+
+        Widget? statusButton;
+        if (r.status < 3) {
+          statusButton = ElevatedButton.icon(
+            onPressed: _isUpdating ? null : () => _updateStatus(3),
+            icon: _isUpdating
+                ? const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
                     ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _isUpdating ? null : _saveData,
-                icon: _isUpdating
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_rounded, size: 16),
-                label: const Text(
-                  "LƯU",
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                  )
+                : const Icon(Icons.check_circle, color: Colors.white, size: 14),
+            label: const Text(
+              'XONG',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 10,
+                height: 1,
               ),
             ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _isPrinting ? null : _printReceipt,
-                icon: _isPrinting
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.print, color: Colors.white, size: 16),
-                label: const Text(
-                  "IN",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2962FF),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _shareToZalo,
-                icon: const Icon(
-                  Icons.send_rounded,
+          );
+        } else if (r.status == 3 && r.pendingDeliveryApproval) {
+          if (isManager) {
+            statusButton = ElevatedButton.icon(
+              onPressed: _isUpdating ? null : _approveDelivery,
+              icon: _isUpdating
+                  ? const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.verified, color: Colors.white, size: 14),
+              label: const Text(
+                'DUYỆT',
+                style: TextStyle(
                   color: Colors.white,
-                  size: 16,
-                ),
-                label: const Text(
-                  "ZALO",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade600,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  height: 1,
                 ),
               ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          } else {
+            statusButton = ElevatedButton.icon(
+              onPressed: null,
+              icon: const Icon(
+                Icons.hourglass_top,
+                color: Colors.white,
+                size: 14,
+              ),
+              label: const Text(
+                'CHỜ',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  height: 1,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          }
+        } else if (r.status == 3) {
+          if (isManager) {
+            statusButton = ElevatedButton.icon(
+              onPressed: _isUpdating ? null : () => _updateStatus(4),
+              icon: _isUpdating
+                  ? const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.local_shipping,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+              label: const Text(
+                'GIAO',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  height: 1,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          } else {
+            statusButton = ElevatedButton.icon(
+              onPressed: _isUpdating ? null : _submitForDeliveryApproval,
+              icon: _isUpdating
+                  ? const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send, color: Colors.white, size: 14),
+              label: const Text(
+                'DUYỆT',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  height: 1,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepOrange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          }
+        }
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 8),
+            ],
+          ),
+          child: SafeArea(
+            child: Row(
+              children: [
+                if (statusButton != null) ...[
+                  Expanded(child: statusButton),
+                  const SizedBox(width: 4),
+                ],
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isUpdating ? null : _saveData,
+                    icon: _isUpdating
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_rounded, size: 14),
+                    label: const Text('LƯU', style: compactLabelStyle),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 2,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isPrinting ? null : _printReceipt,
+                    icon: _isPrinting
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.print,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                    label: const Text(
+                      'IN',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                        height: 1,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2962FF),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 2,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _shareToZalo,
+                    icon: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    label: const Text(
+                      'ZALO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                        height: 1,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade600,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 2,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
