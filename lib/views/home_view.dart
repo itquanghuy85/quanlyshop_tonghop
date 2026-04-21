@@ -1189,10 +1189,7 @@ class _HomeViewState extends State<HomeView>
       }
       // When access regained (was locked, now unlocked), rebuild the actual widget
       if (previousAccess == false && hasPermission) {
-        return {
-          ...config,
-          'widget': _rebuildTabWidget(tabId),
-        };
+        return {...config, 'widget': _rebuildTabWidget(tabId)};
       }
       return config;
     }).toList();
@@ -1299,7 +1296,9 @@ class _HomeViewState extends State<HomeView>
         _debouncedLoadDebtOverview();
       } else {
         // Quick resume (camera, picker, etc.) — lightweight refresh only
-        debugPrint('HomeView: Quick resume (${pauseDuration.inMilliseconds}ms) - skipping heavy reload');
+        debugPrint(
+          'HomeView: Quick resume (${pauseDuration.inMilliseconds}ms) - skipping heavy reload',
+        );
         _debouncedLoadStats();
       }
     }
@@ -1526,6 +1525,34 @@ class _HomeViewState extends State<HomeView>
           } else {
             debugPrint('_loadUserAndShopInfo: Shop doc does NOT exist');
           }
+
+          // Legacy fallback: some shops save profile under settings/shop_profile.
+          if (shopName.isEmpty) {
+            try {
+              final profileDoc = await FirebaseFirestore.instance
+                  .collection('shops')
+                  .doc(shopId)
+                  .collection('settings')
+                  .doc('shop_profile')
+                  .get();
+              if (profileDoc.exists) {
+                final profileData = profileDoc.data();
+                final fallbackName = normalizeLegacyShopName(
+                  profileData?['name']?.toString(),
+                );
+                if (fallbackName.isNotEmpty) {
+                  shopName = fallbackName;
+                  debugPrint(
+                    '_loadUserAndShopInfo: shopName from shop_profile fallback=$shopName',
+                  );
+                }
+              }
+            } catch (profileError) {
+              debugPrint(
+                '_loadUserAndShopInfo: shop_profile fallback error=$profileError',
+              );
+            }
+          }
         }
       } catch (shopError) {
         debugPrint(
@@ -1618,7 +1645,8 @@ class _HomeViewState extends State<HomeView>
       final newLockedByOwner = perms['lockedByOwner'] as List<dynamic>? ?? [];
 
       // Skip setState if nothing changed — avoids tab rebuild flicker
-      final permsSame = _permissions.length == newPerms.length &&
+      final permsSame =
+          _permissions.length == newPerms.length &&
           newPerms.entries.every((e) => _permissions[e.key] == e.value);
       final lockedSame = _shopLocked == newShopLocked;
       if (permsSame && lockedSame && _permissions.isNotEmpty) {
@@ -2532,7 +2560,11 @@ class _HomeViewState extends State<HomeView>
           builder: (ctx) => AlertDialog(
             title: const Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 28,
+                ),
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -2611,12 +2643,24 @@ class _HomeViewState extends State<HomeView>
     }
 
     // Always sign out — cleanup failures must not block logout
-    try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
-    try { EncryptionService.reset(); } catch (_) {}
-    try { UserService.clearCache(); } catch (_) {}
-    try { CurrentShopService().clear(); } catch (_) {}
-    try { UserService.setAdminSelectedShop(null); } catch (_) {}
-    try { await DBHelper().clearAllData(); } catch (_) {}
+    try {
+      await SyncService.cancelAllSubscriptions();
+    } catch (_) {}
+    try {
+      EncryptionService.reset();
+    } catch (_) {}
+    try {
+      UserService.clearCache();
+    } catch (_) {}
+    try {
+      CurrentShopService().clear();
+    } catch (_) {}
+    try {
+      UserService.setAdminSelectedShop(null);
+    } catch (_) {}
+    try {
+      await DBHelper().clearAllData();
+    } catch (_) {}
     try {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
@@ -3056,7 +3100,7 @@ class _HomeViewState extends State<HomeView>
               ),
               const SizedBox(width: 6),
               Text(
-                'Tùy chỉnh',
+                'Tùy chỉnh giao diện Home',
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey.shade600,
@@ -4918,8 +4962,7 @@ class _HomeViewState extends State<HomeView>
           Row(
             children: [
               // Hàng chờ xác nhận
-              if (hasFullAccess ||
-                  _permissions['allowViewInventory'] == true)
+              if (hasFullAccess || _permissions['allowViewInventory'] == true)
                 Expanded(
                   child: _buildPinnedCard(
                     icon: Icons.pending_actions,
@@ -4934,12 +4977,10 @@ class _HomeViewState extends State<HomeView>
                     ),
                   ),
                 ),
-              if (hasFullAccess ||
-                  _permissions['allowViewInventory'] == true)
+              if (hasFullAccess || _permissions['allowViewInventory'] == true)
                 const SizedBox(width: 10),
               // Thu Chi
-              if (hasFullAccess ||
-                  _permissions['allowViewExpenses'] == true)
+              if (hasFullAccess || _permissions['allowViewExpenses'] == true)
                 Expanded(
                   child: _buildPinnedCard(
                     icon: Icons.account_balance_wallet,
@@ -4958,8 +4999,7 @@ class _HomeViewState extends State<HomeView>
           Row(
             children: [
               // Danh sách đơn bán
-              if (hasFullAccess ||
-                  _permissions['allowViewSales'] == true)
+              if (hasFullAccess || _permissions['allowViewSales'] == true)
                 Expanded(
                   child: _buildPinnedCard(
                     icon: Icons.receipt_long,
@@ -4975,8 +5015,7 @@ class _HomeViewState extends State<HomeView>
               const SizedBox(width: 10),
               // Danh sách đơn sửa - only show for electronics shops
               if (_enableRepair &&
-                  (hasFullAccess ||
-                      _permissions['allowViewRepairs'] == true))
+                  (hasFullAccess || _permissions['allowViewRepairs'] == true))
                 Expanded(
                   child: _buildPinnedCard(
                     icon: Icons.build_circle,
@@ -4991,8 +5030,7 @@ class _HomeViewState extends State<HomeView>
                 ),
               // Alternative shortcut for non-electronics shops
               if (!_enableRepair &&
-                  (hasFullAccess ||
-                      _permissions['allowViewCustomers'] == true))
+                  (hasFullAccess || _permissions['allowViewCustomers'] == true))
                 Expanded(
                   child: _buildPinnedCard(
                     icon: Icons.people,
@@ -5153,56 +5191,55 @@ class _HomeViewState extends State<HomeView>
   /// Quick Actions mới theo style Settings
   Widget _buildQuickActionsNew() {
     final loc = AppLocalizations.of(context)!;
-    bool _can(String perm) =>
-        hasFullAccess || _permissions[perm] == true;
+    bool _can(String perm) => hasFullAccess || _permissions[perm] == true;
     return Column(
       children: [
         // BÁN HÀNG
         if (_can('allowViewSales'))
-        Card(
-          color: Colors.green.shade50,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(color: Colors.green.shade200),
-          ),
-          child: ListTile(
-            dense: true,
-            visualDensity: const VisualDensity(vertical: -2),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-            leading: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.green.shade100,
-                borderRadius: BorderRadius.circular(8),
+          Card(
+            color: Colors.green.shade50,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.green.shade200),
+            ),
+            child: ListTile(
+              dense: true,
+              visualDensity: const VisualDensity(vertical: -2),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              leading: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.add_shopping_cart,
+                  color: Colors.green,
+                  size: 20,
+                ),
               ),
-              child: const Icon(
-                Icons.add_shopping_cart,
+              title: Text(
+                loc.createSaleOrder,
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                loc.sellProductsQuickly,
+                style: AppTextStyles.caption,
+              ),
+              trailing: const Icon(
+                Icons.arrow_forward_ios,
+                size: 14,
                 color: Colors.green,
-                size: 20,
               ),
-            ),
-            title: Text(
-              loc.createSaleOrder,
-              style: const TextStyle(
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
+              onTap: () => _pushRoute(
+                context,
+                MaterialPageRoute(builder: (_) => const CreateSaleView()),
               ),
-            ),
-            subtitle: Text(
-              loc.sellProductsQuickly,
-              style: AppTextStyles.caption,
-            ),
-            trailing: const Icon(
-              Icons.arrow_forward_ios,
-              size: 14,
-              color: Colors.green,
-            ),
-            onTap: () => _pushRoute(
-              context,
-              MaterialPageRoute(builder: (_) => const CreateSaleView()),
             ),
           ),
-        ),
         if (_can('allowViewSales')) const SizedBox(height: 6),
 
         // SỬA CHỮA - Only show for electronics shops
@@ -5253,331 +5290,335 @@ class _HomeViewState extends State<HomeView>
               ),
             ),
           ),
-        if (_enableRepair && _can('allowViewRepairs')) const SizedBox(height: 6),
+        if (_enableRepair && _can('allowViewRepairs'))
+          const SizedBox(height: 6),
 
         // Row: Nhập kho & Kiểm kho
         if (_can('allowViewInventory'))
-        Row(
-          children: [
-            Expanded(
-              child: Card(
-                color: Colors.green.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.green.shade300, width: 2),
-                ),
-                child: InkWell(
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SmartStockInView()),
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  color: Colors.green.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.green.shade300, width: 2),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SmartStockInView(),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.add_box,
+                              color: Colors.green,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.add_box,
-                            color: Colors.green,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            loc.addStock,
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          loc.addStock,
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            loc.newStockIn,
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          loc.newStockIn,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Card(
-                color: Colors.blue.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.blue.shade200),
-                ),
-                child: InkWell(
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FastInventoryCheckView(),
-                    ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Card(
+                  color: Colors.blue.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.blue.shade200),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FastInventoryCheckView(),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.qr_code_scanner,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.qr_code_scanner,
-                            color: Colors.blue,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            loc.checkInventory,
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          loc.checkInventory,
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            loc.scanToCheck,
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          loc.scanToCheck,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-        if (_can('allowViewInventory'))
-        const SizedBox(height: 6),
+            ],
+          ),
+        if (_can('allowViewInventory')) const SizedBox(height: 6),
 
         // Row: Chờ nhập & Lịch sử nhập kho
         if (_can('allowViewInventory'))
-        Row(
-          children: [
-            Expanded(
-              child: Card(
-                color: Colors.orange.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.orange.shade200),
-                ),
-                child: InkWell(
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PendingStockListView()),
+          Row(
+            children: [
+              Expanded(
+                child: Card(
+                  color: Colors.orange.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.orange.shade200),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PendingStockListView(),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.pending_actions,
+                              color: Colors.orange,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.pending_actions,
-                            color: Colors.orange,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            'Chờ nhập',
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Chờ nhập',
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            'Phiếu đang chờ',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Phiếu đang chờ',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Card(
-                color: Colors.teal.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.teal.shade200),
-                ),
-                child: InkWell(
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ImportHistoryView()),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Card(
+                  color: Colors.teal.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.teal.shade200),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ImportHistoryView(),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.history,
+                              color: Colors.teal,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.history,
-                            color: Colors.teal,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            'Lịch sử nhập',
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.teal,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Lịch sử nhập',
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.teal,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            'Xem phiếu nhập kho',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Xem phiếu nhập kho',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-        if (_can('allowViewInventory'))
-        const SizedBox(height: 6),
+            ],
+          ),
+        if (_can('allowViewInventory')) const SizedBox(height: 6),
 
         // Row: Báo cáo & Chấm công
         Row(
           children: [
             if (_can('allowViewRevenue'))
-            Expanded(
-              child: Card(
-                color: Colors.indigo.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.indigo.shade200),
-                ),
-                child: InkWell(
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const RevenueView()),
+              Expanded(
+                child: Card(
+                  color: Colors.indigo.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.indigo.shade200),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.indigo.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RevenueView()),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.bar_chart,
+                              color: Colors.indigo,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.bar_chart,
-                            color: Colors.indigo,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            loc.report,
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.indigo,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          loc.report,
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.indigo,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            loc.revenue,
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          loc.revenue,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            if (_can('allowViewRevenue'))
-            const SizedBox(width: 8),
+            if (_can('allowViewRevenue')) const SizedBox(width: 8),
             if (_can('allowViewAttendance'))
-            Expanded(
-              child: Card(
-                color: Colors.teal.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.teal.shade200),
-                ),
-                child: InkWell(
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AttendanceView()),
+              Expanded(
+                child: Card(
+                  color: Colors.teal.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.teal.shade200),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.teal.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AttendanceView()),
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.teal.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.access_time,
+                              color: Colors.teal,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.access_time,
-                            color: Colors.teal,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            loc.attendance,
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.teal,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          loc.attendance,
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.teal,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            loc.checkInOut,
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          loc.checkInOut,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -5586,101 +5627,100 @@ class _HomeViewState extends State<HomeView>
         Row(
           children: [
             if (_can('allowViewExpenses'))
-            Expanded(
-              child: Card(
-                color: Colors.red.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.red.shade300, width: 2),
-                ),
-                child: InkWell(
-                  onTap: () => _openExpensePageAndAdd(isIncome: false),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade100,
-                            borderRadius: BorderRadius.circular(10),
+              Expanded(
+                child: Card(
+                  color: Colors.red.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.red.shade300, width: 2),
+                  ),
+                  child: InkWell(
+                    onTap: () => _openExpensePageAndAdd(isIncome: false),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.remove_circle_outline,
+                              color: Colors.red,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.remove_circle_outline,
-                            color: Colors.red,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            'Thêm chi',
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Thêm chi',
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            'Ghi nhanh khoản chi',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Ghi nhanh khoản chi',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            if (_can('allowViewExpenses'))
-            const SizedBox(width: 8),
+            if (_can('allowViewExpenses')) const SizedBox(width: 8),
             if (_can('allowViewRevenue'))
-            Expanded(
-              child: Card(
-                color: Colors.green.shade50,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Colors.green.shade300, width: 2),
-                ),
-                child: InkWell(
-                  onTap: () => _openExpensePageAndAdd(isIncome: true),
-                  borderRadius: BorderRadius.circular(10),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(10),
+              Expanded(
+                child: Card(
+                  color: Colors.green.shade50,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.green.shade300, width: 2),
+                  ),
+                  child: InkWell(
+                    onTap: () => _openExpensePageAndAdd(isIncome: true),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.add_circle_outline,
+                              color: Colors.green,
+                              size: 20,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.add_circle_outline,
-                            color: Colors.green,
-                            size: 20,
+                          const SizedBox(height: 6),
+                          Text(
+                            'Thêm thu',
+                            style: AppTextStyles.subtitle1.copyWith(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Thêm thu',
-                          style: AppTextStyles.subtitle1.copyWith(
-                            color: Colors.green,
-                            fontWeight: FontWeight.bold,
+                          Text(
+                            'Ghi nhanh khoản thu',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Ghi nhanh khoản thu',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -5737,8 +5777,7 @@ class _HomeViewState extends State<HomeView>
 
   Widget _buildQuickActions() {
     final loc = AppLocalizations.of(context)!;
-    bool _can(String perm) =>
-        hasFullAccess || _permissions[perm] == true;
+    bool _can(String perm) => hasFullAccess || _permissions[perm] == true;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -5746,133 +5785,133 @@ class _HomeViewState extends State<HomeView>
         Row(
           children: [
             if (_can('allowViewSales'))
-            Expanded(
-              child: _quickActionButton(
-                loc.createSale,
-                Icons.add_shopping_cart,
-                AppColors.secondary,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CreateSaleView()),
-                ),
-              ),
-            ),
-            if (_can('allowViewSales') && _can('allowViewRepairs'))
-            const SizedBox(width: 8),
-            if (_can('allowViewRepairs'))
-            Expanded(
-              child: _quickActionButton(
-                loc.createRepair,
-                Icons.build_circle,
-                AppColors.primary,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CreateRepairOrderView(role: widget.role),
+              Expanded(
+                child: _quickActionButton(
+                  loc.createSale,
+                  Icons.add_shopping_cart,
+                  AppColors.secondary,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CreateSaleView()),
                   ),
                 ),
               ),
-            ),
+            if (_can('allowViewSales') && _can('allowViewRepairs'))
+              const SizedBox(width: 8),
+            if (_can('allowViewRepairs'))
+              Expanded(
+                child: _quickActionButton(
+                  loc.createRepair,
+                  Icons.build_circle,
+                  AppColors.primary,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CreateRepairOrderView(role: widget.role),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 8),
         if (_can('allowViewInventory'))
-        Row(
-          children: [
-            Expanded(
-              child: _quickActionButton(
-                loc.stockIn,
-                Icons.inventory,
-                AppColors.success,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(
-                    // Electronics: FastInventoryInputView (has IMEI)
-                    // Fashion/Food: SmartStockInView (has size/color)
-                    builder: (_) => _isElectronics
-                        ? const FastInventoryInputView()
-                        : const SmartStockInView(),
+          Row(
+            children: [
+              Expanded(
+                child: _quickActionButton(
+                  loc.stockIn,
+                  Icons.inventory,
+                  AppColors.success,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      // Electronics: FastInventoryInputView (has IMEI)
+                      // Fashion/Food: SmartStockInView (has size/color)
+                      builder: (_) => _isElectronics
+                          ? const FastInventoryInputView()
+                          : const SmartStockInView(),
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _quickActionButton(
-                loc.checkInventory,
-                Icons.qr_code_scanner,
-                AppColors.warning,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const FastInventoryCheckView(),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _quickActionButton(
+                  loc.checkInventory,
+                  Icons.qr_code_scanner,
+                  AppColors.warning,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FastInventoryCheckView(),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         const SizedBox(height: 8),
         Row(
           children: [
             if (_can('allowViewRevenue'))
-            Expanded(
-              child: _quickActionButton(
-                loc.revenueReport,
-                Icons.bar_chart,
-                AppColors.primaryDark,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RevenueView()),
+              Expanded(
+                child: _quickActionButton(
+                  loc.revenueReport,
+                  Icons.bar_chart,
+                  AppColors.primaryDark,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RevenueView()),
+                  ),
                 ),
               ),
-            ),
             if (_can('allowViewRevenue') && _can('allowViewAttendance'))
-            const SizedBox(width: 8),
+              const SizedBox(width: 8),
             if (_can('allowViewAttendance'))
-            Expanded(
-              child: _quickActionButton(
-                loc.attendance,
-                Icons.access_time,
-                AppColors.info,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AttendanceView()),
+              Expanded(
+                child: _quickActionButton(
+                  loc.attendance,
+                  Icons.access_time,
+                  AppColors.info,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AttendanceView()),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
             if (_can('allowViewChat'))
-            Expanded(
-              child: _quickActionButton(
-                "Chat",
-                Icons.chat,
-                AppColors.primary,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AdvancedChatView()),
+              Expanded(
+                child: _quickActionButton(
+                  "Chat",
+                  Icons.chat,
+                  AppColors.primary,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AdvancedChatView()),
+                  ),
+                  // Badge đã ẩn theo yêu cầu
                 ),
-                // Badge đã ẩn theo yêu cầu
               ),
-            ),
             if (_can('allowViewChat') && _can('allowViewWarranty'))
-            const SizedBox(width: 8),
+              const SizedBox(width: 8),
             if (_can('allowViewWarranty'))
-            Expanded(
-              child: _quickActionButton(
-                "Bảo hành",
-                Icons.shield,
-                AppColors.warning,
-                () => _pushRoute(
-                  context,
-                  MaterialPageRoute(builder: (_) => const WarrantyView()),
+              Expanded(
+                child: _quickActionButton(
+                  "Bảo hành",
+                  Icons.shield,
+                  AppColors.warning,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(builder: (_) => const WarrantyView()),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         // Removed the row with "Đối tác sửa chữa" as it's now in the Repairs tab
@@ -6897,7 +6936,8 @@ class _HomeViewState extends State<HomeView>
                         () => _pushRoute(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const ExpenseView()),
+                            builder: (_) => const ExpenseView(),
+                          ),
                         ),
                         subtitle:
                             '+${MoneyUtils.formatVND(_todayTotalIn)} / -${MoneyUtils.formatVND(_todayTotalOut)}',
@@ -6929,8 +6969,7 @@ class _HomeViewState extends State<HomeView>
                       MaterialPageRoute(builder: (_) => const RevenueView()),
                     ),
                   ),
-                  if (hasFullAccess ||
-                      _permissions['allowViewDebts'] == true)
+                  if (hasFullAccess || _permissions['allowViewDebts'] == true)
                     _financeQuickCard(
                       'Quản lý công nợ',
                       Icons.account_balance,
@@ -6972,8 +7011,7 @@ class _HomeViewState extends State<HomeView>
                       ),
                     ),
                   ),
-                  if (hasFullAccess ||
-                      _permissions['allowViewRevenue'] == true)
+                  if (hasFullAccess || _permissions['allowViewRevenue'] == true)
                     _financeQuickCard(
                       'Báo cáo hoạt động',
                       Icons.summarize,
@@ -7675,7 +7713,8 @@ class _HomeViewState extends State<HomeView>
     final googleLinked = SocialAuthService.isGoogleLinked();
     final appleLinked = SocialAuthService.isAppleLinked();
     final passwordLinked = SocialAuthService.isPasswordLinked();
-    final showApple = kIsWeb ||
+    final showApple =
+        kIsWeb ||
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS;
 
@@ -7692,12 +7731,20 @@ class _HomeViewState extends State<HomeView>
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                  backgroundImage: photoUrl != null
+                      ? NetworkImage(photoUrl)
+                      : null,
                   backgroundColor: Colors.blue.shade100,
                   child: photoUrl == null
                       ? Text(
-                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                          displayName.isNotEmpty
+                              ? displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue,
+                          ),
                         )
                       : null,
                 ),
@@ -7706,17 +7753,41 @@ class _HomeViewState extends State<HomeView>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(displayName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis),
-                      Text(email, style: TextStyle(fontSize: 12, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Text(
                     _getRoleLabel(widget.role),
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.blue.shade700),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      color: Colors.blue.shade700,
+                    ),
                   ),
                 ),
               ],
@@ -7728,22 +7799,48 @@ class _HomeViewState extends State<HomeView>
               children: [
                 Icon(Icons.link, color: Colors.indigo.shade400, size: 18),
                 const SizedBox(width: 6),
-                Text('Liên kết tài khoản', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.indigo.shade400)),
+                Text(
+                  'Liên kết tài khoản',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Colors.indigo.shade400,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             // Email
-            _buildProviderTile(Icons.email, Colors.blue, 'Email', passwordLinked, null, null,
-              providerEmail: SocialAuthService.passwordEmail),
+            _buildProviderTile(
+              Icons.email,
+              Colors.blue,
+              'Email',
+              passwordLinked,
+              null,
+              null,
+              providerEmail: SocialAuthService.passwordEmail,
+            ),
             // Google
-            _buildProviderTile(Icons.g_mobiledata, Colors.red, 'Google', googleLinked,
-              () => _linkSocialProvider('google'), googleLinked ? () => _unlinkSocialProvider('google') : null,
-              providerEmail: SocialAuthService.googleEmail),
+            _buildProviderTile(
+              Icons.g_mobiledata,
+              Colors.red,
+              'Google',
+              googleLinked,
+              () => _linkSocialProvider('google'),
+              googleLinked ? () => _unlinkSocialProvider('google') : null,
+              providerEmail: SocialAuthService.googleEmail,
+            ),
             // Apple
             if (showApple)
-              _buildProviderTile(Icons.apple, Colors.black, 'Apple', appleLinked,
-                () => _linkSocialProvider('apple'), appleLinked ? () => _unlinkSocialProvider('apple') : null,
-                providerEmail: SocialAuthService.appleEmail),
+              _buildProviderTile(
+                Icons.apple,
+                Colors.black,
+                'Apple',
+                appleLinked,
+                () => _linkSocialProvider('apple'),
+                appleLinked ? () => _unlinkSocialProvider('apple') : null,
+                providerEmail: SocialAuthService.appleEmail,
+              ),
 
             const Divider(height: 20),
             // Logout
@@ -7756,7 +7853,14 @@ class _HomeViewState extends State<HomeView>
                   children: [
                     const Icon(Icons.logout, color: Colors.red, size: 20),
                     const SizedBox(width: 10),
-                    Text(loc.logout, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 14)),
+                    Text(
+                      loc.logout,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -7767,8 +7871,15 @@ class _HomeViewState extends State<HomeView>
     );
   }
 
-  Widget _buildProviderTile(IconData icon, Color color, String label, bool linked,
-      VoidCallback? onLink, VoidCallback? onUnlink, {String? providerEmail}) {
+  Widget _buildProviderTile(
+    IconData icon,
+    Color color,
+    String label,
+    bool linked,
+    VoidCallback? onLink,
+    VoidCallback? onUnlink, {
+    String? providerEmail,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -7781,7 +7892,11 @@ class _HomeViewState extends State<HomeView>
               children: [
                 Text(label, style: const TextStyle(fontSize: 13)),
                 if (linked && providerEmail != null && providerEmail.isNotEmpty)
-                  Text(providerEmail, style: TextStyle(fontSize: 11, color: Colors.grey.shade500), overflow: TextOverflow.ellipsis),
+                  Text(
+                    providerEmail,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -7791,12 +7906,23 @@ class _HomeViewState extends State<HomeView>
               children: [
                 const Icon(Icons.check_circle, color: Colors.green, size: 16),
                 const SizedBox(width: 4),
-                Text('Đã liên kết', style: TextStyle(fontSize: 11, color: Colors.green.shade700)),
-                if (onUnlink != null && SocialAuthService.getLinkedProviders().length > 1) ...[
+                Text(
+                  'Đã liên kết',
+                  style: TextStyle(fontSize: 11, color: Colors.green.shade700),
+                ),
+                if (onUnlink != null &&
+                    SocialAuthService.getLinkedProviders().length > 1) ...[
                   const SizedBox(width: 6),
                   GestureDetector(
                     onTap: onUnlink,
-                    child: Text('Hủy', style: TextStyle(fontSize: 11, color: Colors.red.shade400, decoration: TextDecoration.underline)),
+                    child: Text(
+                      'Hủy',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.red.shade400,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -7805,11 +7931,17 @@ class _HomeViewState extends State<HomeView>
             TextButton(
               onPressed: onLink,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: Text('Liên kết', style: TextStyle(fontSize: 12, color: color)),
+              child: Text(
+                'Liên kết',
+                style: TextStyle(fontSize: 12, color: color),
+              ),
             ),
         ],
       ),
@@ -7818,12 +7950,18 @@ class _HomeViewState extends State<HomeView>
 
   String _getRoleLabel(String role) {
     switch (role) {
-      case 'owner': return 'Chủ shop';
-      case 'manager': return 'Quản lý';
-      case 'employee': return 'Nhân viên';
-      case 'technician': return 'Kỹ thuật';
-      case 'admin': return 'Admin';
-      default: return 'User';
+      case 'owner':
+        return 'Chủ shop';
+      case 'manager':
+        return 'Quản lý';
+      case 'employee':
+        return 'Nhân viên';
+      case 'technician':
+        return 'Kỹ thuật';
+      case 'admin':
+        return 'Admin';
+      default:
+        return 'User';
     }
   }
 
@@ -7842,7 +7980,10 @@ class _HomeViewState extends State<HomeView>
         setState(() {});
         if (result != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Đã liên kết $provider thành công!'), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text('✅ Đã liên kết $provider thành công!'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       }
@@ -7876,11 +8017,17 @@ class _HomeViewState extends State<HomeView>
         title: const Text('Hủy liên kết'),
         content: Text('Bạn có chắc muốn hủy liên kết $provider?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HỦY')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('HỦY'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('XÁC NHẬN', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'XÁC NHẬN',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -7897,12 +8044,17 @@ class _HomeViewState extends State<HomeView>
       if (mounted) {
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Đã hủy liên kết $provider'), backgroundColor: Colors.orange),
+          SnackBar(
+            content: Text('Đã hủy liên kết $provider'),
+            backgroundColor: Colors.orange,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     }
   }
@@ -7914,23 +8066,45 @@ class _HomeViewState extends State<HomeView>
         title: Text(loc.logoutConfirmTitle),
         content: Text(loc.logoutConfirmMessage),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(loc.cancel)),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.cancel),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: Text(loc.logout, style: const TextStyle(color: Colors.white)),
+            child: Text(
+              loc.logout,
+              style: const TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
     if (confirm == true) {
-      try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
-      try { EncryptionService.reset(); } catch (_) {}
-      try { UserService.clearCache(); } catch (_) {}
-      try { CurrentShopService().clear(); } catch (_) {}
-      try { UserService.setAdminSelectedShop(null); } catch (_) {}
-      try { await DBHelper().clearAllData(); } catch (_) {}
-      try { await FirebaseAuth.instance.signOut(); } catch (e) { debugPrint('Logout error: $e'); }
+      try {
+        await SyncService.cancelAllSubscriptions();
+      } catch (_) {}
+      try {
+        EncryptionService.reset();
+      } catch (_) {}
+      try {
+        UserService.clearCache();
+      } catch (_) {}
+      try {
+        CurrentShopService().clear();
+      } catch (_) {}
+      try {
+        UserService.setAdminSelectedShop(null);
+      } catch (_) {}
+      try {
+        await DBHelper().clearAllData();
+      } catch (_) {}
+      try {
+        await FirebaseAuth.instance.signOut();
+      } catch (e) {
+        debugPrint('Logout error: $e');
+      }
     }
   }
 
@@ -7975,12 +8149,24 @@ class _HomeViewState extends State<HomeView>
           );
           if (confirm == true) {
             // Always sign out — cleanup failures must not block logout
-            try { await SyncService.cancelAllSubscriptions(); } catch (_) {}
-            try { EncryptionService.reset(); } catch (_) {}
-            try { UserService.clearCache(); } catch (_) {}
-            try { CurrentShopService().clear(); } catch (_) {}
-            try { UserService.setAdminSelectedShop(null); } catch (_) {}
-            try { await DBHelper().clearAllData(); } catch (_) {}
+            try {
+              await SyncService.cancelAllSubscriptions();
+            } catch (_) {}
+            try {
+              EncryptionService.reset();
+            } catch (_) {}
+            try {
+              UserService.clearCache();
+            } catch (_) {}
+            try {
+              CurrentShopService().clear();
+            } catch (_) {}
+            try {
+              UserService.setAdminSelectedShop(null);
+            } catch (_) {}
+            try {
+              await DBHelper().clearAllData();
+            } catch (_) {}
             try {
               await FirebaseAuth.instance.signOut();
             } catch (e) {
@@ -8548,7 +8734,8 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildDailyReportCard() {
-    final totalRevenue = _todaySaleIncome + _todaySettlementIncome + _todayRepairIncome;
+    final totalRevenue =
+        _todaySaleIncome + _todaySettlementIncome + _todayRepairIncome;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -8578,7 +8765,11 @@ class _HomeViewState extends State<HomeView>
               children: [
                 Row(
                   children: [
-                    Icon(Icons.summarize, color: const Color(0xFF1565C0), size: 18),
+                    Icon(
+                      Icons.summarize,
+                      color: const Color(0xFF1565C0),
+                      size: 18,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -8586,12 +8777,16 @@ class _HomeViewState extends State<HomeView>
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF1565C0),
-                          fontSize: 14,
+                          fontSize: 13,
                           letterSpacing: 0.5,
                         ),
                       ),
                     ),
-                    Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
+                    Icon(
+                      Icons.chevron_right,
+                      color: Colors.grey.shade400,
+                      size: 20,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -8640,7 +8835,12 @@ class _HomeViewState extends State<HomeView>
     );
   }
 
-  Widget _dailyReportStat(String label, String value, Color color, IconData icon) {
+  Widget _dailyReportStat(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 20),
@@ -8656,10 +8856,7 @@ class _HomeViewState extends State<HomeView>
         const SizedBox(height: 2),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
           textAlign: TextAlign.center,
         ),
       ],
@@ -9127,8 +9324,7 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               ),
-              if (hasFullAccess ||
-                  _permissions['allowViewDebts'] == true) ...[
+              if (hasFullAccess || _permissions['allowViewDebts'] == true) ...[
                 const SizedBox(width: 8),
                 Expanded(
                   child: _financeShortcutButton(
@@ -9169,7 +9365,9 @@ class _HomeViewState extends State<HomeView>
                   color: Colors.deepPurple,
                   onTap: () => _pushRoute(
                     context,
-                    MaterialPageRoute(builder: (_) => const RecentActivityView()),
+                    MaterialPageRoute(
+                      builder: (_) => const RecentActivityView(),
+                    ),
                   ),
                 ),
               ),
@@ -9195,7 +9393,7 @@ class _HomeViewState extends State<HomeView>
               Expanded(
                 child: _financeShortcutButton(
                   icon: Icons.query_stats,
-                  label: 'Thống kê Firebase',
+                  label: 'Thống kê Số liệu',
                   color: Colors.blueGrey,
                   onTap: () => _pushRoute(
                     context,

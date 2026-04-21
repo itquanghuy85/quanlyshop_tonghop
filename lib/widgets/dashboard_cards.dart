@@ -183,7 +183,7 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.orange.shade800,
-                  fontSize: 14,
+                  fontSize: 13,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -211,7 +211,7 @@ class _ActionRequiredCardState extends State<ActionRequiredCard> {
                       child: Text(
                         item.label,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: Colors.grey.shade800,
                         ),
@@ -416,7 +416,13 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent sales (last 5)
         db.query(
           'sales',
-          columns: ['firestoreId', 'customerName', 'totalPrice', 'soldAt', 'paymentMethod'],
+          columns: [
+            'firestoreId',
+            'customerName',
+            'totalPrice',
+            'soldAt',
+            'paymentMethod',
+          ],
           where: 'soldAt >= ?',
           whereArgs: [startMs],
           orderBy: 'soldAt DESC',
@@ -446,7 +452,14 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent expenses (last 5)
         db.query(
           'expenses',
-          columns: ['firestoreId', 'title', 'amount', 'date', 'type', 'category'],
+          columns: [
+            'firestoreId',
+            'title',
+            'amount',
+            'date',
+            'type',
+            'category',
+          ],
           where: 'date >= ?',
           whereArgs: [startMs],
           orderBy: 'date DESC',
@@ -455,7 +468,14 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent debt payments (last 5)
         db.query(
           'debt_payments',
-          columns: ['firestoreId', 'amount', 'paidAt', 'paymentMethod', 'debtType', 'note'],
+          columns: [
+            'firestoreId',
+            'amount',
+            'paidAt',
+            'paymentMethod',
+            'debtType',
+            'note',
+          ],
           where: 'paidAt >= ?',
           whereArgs: [startMs],
           orderBy: 'paidAt DESC',
@@ -464,7 +484,14 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
         // Recent supplier payments (last 5)
         db.query(
           'supplier_payments',
-          columns: ['firestoreId', 'amount', 'paidAt', 'paymentMethod', 'supplierId', 'note'],
+          columns: [
+            'firestoreId',
+            'amount',
+            'paidAt',
+            'paymentMethod',
+            'supplierId',
+            'note',
+          ],
           where: 'paidAt >= ?',
           whereArgs: [startMs],
           orderBy: 'paidAt DESC',
@@ -665,7 +692,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             const SizedBox(width: 10),
             Text(
               'Chưa có hoạt động hôm nay',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
           ],
         ),
@@ -699,14 +726,14 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.purple.shade600,
-                    fontSize: 14,
+                    fontSize: 13,
                     letterSpacing: 0.5,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '${_activities.length} mục',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
               ],
             ),
@@ -726,7 +753,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
                   child: Text(
                     'Xem tất cả ›',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: Colors.purple.shade400,
                       fontWeight: FontWeight.w600,
                     ),
@@ -749,9 +776,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           if (sale != null && mounted) {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => SaleDetailView(sale: sale),
-              ),
+              MaterialPageRoute(builder: (_) => SaleDetailView(sale: sale)),
             );
           }
           break;
@@ -781,7 +806,8 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
           ).format(DateTime.fromMillisecondsSinceEpoch(item.timestamp))
         : '';
 
-    final canNavigate = item.referenceId != null &&
+    final canNavigate =
+        item.referenceId != null &&
         item.referenceId!.isNotEmpty &&
         (item.referenceType == 'sale' || item.referenceType == 'repair');
 
@@ -797,7 +823,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
               child: Text(
                 time,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   color: Colors.grey.shade500,
                   fontWeight: FontWeight.w500,
                 ),
@@ -817,7 +843,10 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             Expanded(
               child: Text(
                 item.title,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -827,7 +856,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
               Text(
                 item.amount,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: item.amountColor,
                 ),

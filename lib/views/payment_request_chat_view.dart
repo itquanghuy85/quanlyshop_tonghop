@@ -61,7 +61,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   // Filter
   PaymentRequestStatus? _statusFilter;
-  String _dateRange = 'today'; // today, week, month, all
+  String _dateRange = 'all'; // today, week, month, all
 
   // Search
   bool _isSearching = false;
@@ -93,22 +93,24 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   void _subscribeToRequests() {
     _subscription?.cancel();
-    _subscription = PaymentRequestService.requestsStream(
-      statusFilter: _statusFilter,
-    ).listen(
-      (data) {
-        if (mounted) {
-          setState(() {
-            _requests = data;
-            _isLoading = false;
-          });
-        }
-      },
-      onError: (e) {
-        debugPrint('❌ PaymentRequest stream error: $e');
-        if (mounted) setState(() => _isLoading = false);
-      },
-    );
+    _subscription =
+        PaymentRequestService.requestsStream(
+          statusFilter: _statusFilter,
+        ).listen(
+          (data) {
+            if (mounted) {
+              setState(() {
+                // Always clone to keep local list mutable for in-view sorting/filtering.
+                _requests = List<PaymentRequest>.from(data);
+                _isLoading = false;
+              });
+            }
+          },
+          onError: (e) {
+            debugPrint('❌ PaymentRequest stream error: $e');
+            if (mounted) setState(() => _isLoading = false);
+          },
+        );
   }
 
   @override
@@ -120,11 +122,15 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   }
 
   bool get _isOwnerOrAdmin =>
-      _userRole == 'owner' || _userRole == 'manager' || _userRole == 'admin' || _userRole == 'superadmin';
+      _userRole == 'owner' ||
+      _userRole == 'manager' ||
+      _userRole == 'admin' ||
+      _userRole == 'superadmin';
 
   /// Filter requests by search query and date range, with overdue priority sorting
   List<PaymentRequest> get _filteredRequests {
-    var list = _requests;
+    // Work on a mutable copy to avoid mutating source streams/immutable lists.
+    var list = List<PaymentRequest>.from(_requests);
 
     // Date range filter
     if (_dateRange != 'all') {
@@ -133,7 +139,9 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       late DateTime rangeStart;
       switch (_dateRange) {
         case 'week':
-          rangeStart = todayStart.subtract(Duration(days: todayStart.weekday - 1));
+          rangeStart = todayStart.subtract(
+            Duration(days: todayStart.weekday - 1),
+          );
           break;
         case 'month':
           rangeStart = DateTime(now.year, now.month, 1);
@@ -142,9 +150,12 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           rangeStart = todayStart;
       }
       list = list.where((r) {
-        if (r.createdAt.isAfter(rangeStart) || r.createdAt.isAtSameMomentAs(rangeStart)) return true;
+        if (r.createdAt.isAfter(rangeStart) ||
+            r.createdAt.isAtSameMomentAs(rangeStart))
+          return true;
         // Always include overdue unprocessed items from before the range
-        if (r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing) {
+        if (r.status == PaymentRequestStatus.pending ||
+            r.status == PaymentRequestStatus.processing) {
           return r.createdAt.isBefore(rangeStart);
         }
         return false;
@@ -172,9 +183,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     list.sort((a, b) {
-      final aOverdue = (a.status == PaymentRequestStatus.pending || a.status == PaymentRequestStatus.processing) &&
+      final aOverdue =
+          (a.status == PaymentRequestStatus.pending ||
+              a.status == PaymentRequestStatus.processing) &&
           a.createdAt.isBefore(todayStart);
-      final bOverdue = (b.status == PaymentRequestStatus.pending || b.status == PaymentRequestStatus.processing) &&
+      final bOverdue =
+          (b.status == PaymentRequestStatus.pending ||
+              b.status == PaymentRequestStatus.processing) &&
           b.createdAt.isBefore(todayStart);
       if (aOverdue && !bOverdue) return -1;
       if (!aOverdue && bOverdue) return 1;
@@ -257,9 +272,18 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: null, child: Text('Tất cả')),
-                    const PopupMenuItem(value: PaymentRequestStatus.pending, child: Text('⏳ Chờ duyệt')),
-                    const PopupMenuItem(value: PaymentRequestStatus.completed, child: Text('✅ Đã thanh toán')),
-                    const PopupMenuItem(value: PaymentRequestStatus.rejected, child: Text('❌ Từ chối')),
+                    const PopupMenuItem(
+                      value: PaymentRequestStatus.pending,
+                      child: Text('⏳ Chờ duyệt'),
+                    ),
+                    const PopupMenuItem(
+                      value: PaymentRequestStatus.completed,
+                      child: Text('✅ Đã thanh toán'),
+                    ),
+                    const PopupMenuItem(
+                      value: PaymentRequestStatus.rejected,
+                      child: Text('❌ Từ chối'),
+                    ),
                   ],
                 ),
               ],
@@ -286,40 +310,51 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : displayed.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              _searchQuery.isNotEmpty ? Icons.search_off : Icons.payment,
-                              size: 64,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _searchQuery.isNotEmpty
-                                  ? 'Không tìm thấy "$_searchQuery"'
-                                  : _statusFilter != null
-                                      ? 'Không có yêu cầu ${_statusFilter!.name}'
-                                      : 'Chưa có yêu cầu đóng tiền',
-                              style: TextStyle(fontSize: 15, color: Colors.grey.shade500),
-                            ),
-                            if (_searchQuery.isEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                'Nhấn ⊕ trên thanh tiêu đề để tạo mới',
-                                style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                              ),
-                            ],
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _searchQuery.isNotEmpty
+                              ? Icons.search_off
+                              : Icons.payment,
+                          size: 64,
+                          color: Colors.grey.shade300,
                         ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        itemCount: displayed.length,
-                        itemBuilder: (ctx, i) => _buildRequestBubble(displayed[i]),
-                      ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _searchQuery.isNotEmpty
+                              ? 'Không tìm thấy "$_searchQuery"'
+                              : _statusFilter != null
+                              ? 'Không có yêu cầu ${_statusFilter!.name}'
+                              : 'Chưa có yêu cầu đóng tiền',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        if (_searchQuery.isEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Nhấn ⊕ trên thanh tiêu đề để tạo mới',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    itemCount: displayed.length,
+                    itemBuilder: (ctx, i) => _buildRequestBubble(displayed[i]),
+                  ),
           ),
           // Chat-like image input bar for sending proof images
           _buildImageChatBar(),
@@ -329,10 +364,22 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   }
 
   Widget _buildSummaryBar() {
-    final pending = _requests.where((r) => r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing).length;
-    final completed = _requests.where((r) => r.status == PaymentRequestStatus.completed).length;
+    final pending = _requests
+        .where(
+          (r) =>
+              r.status == PaymentRequestStatus.pending ||
+              r.status == PaymentRequestStatus.processing,
+        )
+        .length;
+    final completed = _requests
+        .where((r) => r.status == PaymentRequestStatus.completed)
+        .length;
     final totalAmount = _requests
-        .where((r) => r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing)
+        .where(
+          (r) =>
+              r.status == PaymentRequestStatus.pending ||
+              r.status == PaymentRequestStatus.processing,
+        )
         .fold<double>(0, (sum, r) => sum + r.amount);
 
     return Container(
@@ -348,7 +395,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             Flexible(
               child: Text(
                 '${_currencyFmt.format(totalAmount)}đ',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -366,7 +417,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       ),
       child: Text(
         '$emoji $count',
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }
@@ -381,10 +436,14 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     // Count overdue items
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    final overdueCount = _requests.where((r) =>
-      (r.status == PaymentRequestStatus.pending || r.status == PaymentRequestStatus.processing) &&
-      r.createdAt.isBefore(todayStart)
-    ).length;
+    final overdueCount = _requests
+        .where(
+          (r) =>
+              (r.status == PaymentRequestStatus.pending ||
+                  r.status == PaymentRequestStatus.processing) &&
+              r.createdAt.isBefore(todayStart),
+        )
+        .length;
 
     return Container(
       color: Colors.white,
@@ -401,16 +460,23 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                   onTap: () => setState(() => _dateRange = c.$1),
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFF075E54) : Colors.grey.shade100,
+                      color: isSelected
+                          ? const Color(0xFF075E54)
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
                       c.$2,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                         color: isSelected ? Colors.white : Colors.grey.shade700,
                       ),
                     ),
@@ -428,7 +494,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 ),
                 child: Text(
                   '⚠ $overdueCount quá hạn',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.red.shade700),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.red.shade700,
+                  ),
                 ),
               ),
             ],
@@ -443,10 +513,14 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
   Widget _buildRequestBubble(PaymentRequest req) {
     final isMe = req.senderId == _currentUid;
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-    final color = isMe ? const Color(0xFFDCF8C6) : Colors.white; // WhatsApp bubble colors
+    final color = isMe
+        ? const Color(0xFFDCF8C6)
+        : Colors.white; // WhatsApp bubble colors
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
-    final isOverdue = (req.status == PaymentRequestStatus.pending || req.status == PaymentRequestStatus.processing) &&
+    final isOverdue =
+        (req.status == PaymentRequestStatus.pending ||
+            req.status == PaymentRequestStatus.processing) &&
         req.createdAt.isBefore(todayStart);
 
     return Padding(
@@ -456,25 +530,44 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         children: [
           // Sender name + time + overdue
           Padding(
-            padding: EdgeInsets.only(left: isMe ? 60 : 4, right: isMe ? 4 : 60, bottom: 2),
+            padding: EdgeInsets.only(
+              left: isMe ? 60 : 4,
+              right: isMe ? 4 : 60,
+              bottom: 2,
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (isOverdue) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1,
+                    ),
                     margin: const EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(
                       color: Colors.red.shade600,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text('QUÁ HẠN', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'QUÁ HẠN',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
                 Flexible(
                   child: Text(
                     '${req.senderName} · ${DateFormat('dd/MM HH:mm').format(req.createdAt)}',
-                    style: TextStyle(fontSize: 11, color: isOverdue ? Colors.red.shade600 : Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isOverdue
+                          ? Colors.red.shade600
+                          : Colors.grey.shade600,
+                    ),
                   ),
                 ),
               ],
@@ -486,8 +579,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             child: GestureDetector(
               onLongPress: () => _showActionSheet(req),
               child: Container(
-                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-                margin: EdgeInsets.only(left: isMe ? 48 : 0, right: isMe ? 0 : 48),
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.82,
+                ),
+                margin: EdgeInsets.only(
+                  left: isMe ? 48 : 0,
+                  right: isMe ? 0 : 48,
+                ),
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.only(
@@ -496,7 +594,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                     bottomLeft: Radius.circular(isMe ? 12 : 0),
                     bottomRight: Radius.circular(isMe ? 0 : 12),
                   ),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 3, offset: const Offset(0, 1))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,17 +616,27 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                           // Payment type + amount
                           Row(
                             children: [
-                              Text(req.paymentTypeIcon, style: const TextStyle(fontSize: 18)),
+                              Text(
+                                req.paymentTypeIcon,
+                                style: const TextStyle(fontSize: 18),
+                              ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
                                   req.paymentTypeDisplay,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                               Text(
                                 '${_currencyFmt.format(req.amount)}đ',
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.red),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
                               ),
                             ],
                           ),
@@ -530,27 +644,41 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                           // Customer info
                           _infoRow(Icons.person, req.customerName),
                           _infoRow(Icons.phone, req.customerPhone),
-                          if (req.customerAddress != null && req.customerAddress!.isNotEmpty)
+                          if (req.customerAddress != null &&
+                              req.customerAddress!.isNotEmpty)
                             _infoRow(Icons.location_on, req.customerAddress!),
-                          if (req.accountNumber != null && req.accountNumber!.isNotEmpty)
-                            _infoRow(Icons.account_balance, '${req.bankName ?? ''} · ${req.accountNumber}'),
-                          if (req.description != null && req.description!.isNotEmpty)
+                          if (req.accountNumber != null &&
+                              req.accountNumber!.isNotEmpty)
+                            _infoRow(
+                              Icons.account_balance,
+                              '${req.bankName ?? ''} · ${req.accountNumber}',
+                            ),
+                          if (req.description != null &&
+                              req.description!.isNotEmpty)
                             _infoRow(Icons.note, req.description!),
-                          if (req.customerNote != null && req.customerNote!.isNotEmpty)
+                          if (req.customerNote != null &&
+                              req.customerNote!.isNotEmpty)
                             _infoRow(Icons.comment, req.customerNote!),
                           // Badge: cách khách trả tiền cho NV
                           if (req.customerPaymentMethod != null)
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                                  color:
+                                      req.customerPaymentMethod ==
+                                          'CHUYỂN KHOẢN'
                                       ? Colors.blue.shade50
                                       : Colors.green.shade50,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                                    color:
+                                        req.customerPaymentMethod ==
+                                            'CHUYỂN KHOẢN'
                                         ? Colors.blue.shade200
                                         : Colors.green.shade200,
                                   ),
@@ -559,23 +687,29 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                                      req.customerPaymentMethod ==
+                                              'CHUYỂN KHOẢN'
                                           ? Icons.account_balance
                                           : Icons.payments,
                                       size: 14,
-                                      color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                                      color:
+                                          req.customerPaymentMethod ==
+                                              'CHUYỂN KHOẢN'
                                           ? Colors.blue.shade700
                                           : Colors.green.shade700,
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                                      req.customerPaymentMethod ==
+                                              'CHUYỂN KHOẢN'
                                           ? 'KH chuyển khoản'
                                           : 'KH trả tiền mặt',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.bold,
-                                        color: req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                                        color:
+                                            req.customerPaymentMethod ==
+                                                'CHUYỂN KHOẢN'
                                             ? Colors.blue.shade700
                                             : Colors.green.shade700,
                                       ),
@@ -589,16 +723,25 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                             Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.teal.shade50,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.teal.shade200),
+                                  border: Border.all(
+                                    color: Colors.teal.shade200,
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.check_circle, size: 14, color: Colors.teal.shade700),
+                                    Icon(
+                                      Icons.check_circle,
+                                      size: 14,
+                                      color: Colors.teal.shade700,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       'Chủ shop đã CK cho NH',
@@ -616,9 +759,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                       ),
                     ),
                     // Images
-                    if (req.imageUrls.isNotEmpty) _buildImageGrid(req.imageUrls),
+                    if (req.imageUrls.isNotEmpty)
+                      _buildImageGrid(req.imageUrls),
                     // Reject reason
-                    if (req.status == PaymentRequestStatus.rejected && req.rejectReason != null)
+                    if (req.status == PaymentRequestStatus.rejected &&
+                        req.rejectReason != null)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(8),
@@ -629,7 +774,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                         ),
                         child: Text(
                           '❌ ${req.rejectReason}',
-                          style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red.shade700,
+                          ),
                         ),
                       ),
                     // Processed info
@@ -638,11 +786,17 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                         child: Text(
                           '${req.statusDisplay} bởi ${req.processedByName} · ${DateFormat('dd/MM HH:mm').format(req.processedAt!)}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
                     // Action buttons for owner/admin on pending/processing requests
-                    if (_isOwnerOrAdmin && (req.status == PaymentRequestStatus.pending || req.status == PaymentRequestStatus.processing))
+                    if (_isOwnerOrAdmin &&
+                        (req.status == PaymentRequestStatus.pending ||
+                            req.status == PaymentRequestStatus.processing))
                       _buildActionButtons(req),
                   ],
                 ),
@@ -688,7 +842,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       ),
       child: Text(
         req.statusDisplay,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textColor),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: textColor,
+        ),
       ),
     );
   }
@@ -701,7 +859,12 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           Icon(icon, size: 14, color: Colors.grey.shade600),
           const SizedBox(width: 6),
           Flexible(
-            child: Text(text, style: const TextStyle(fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -869,7 +1032,14 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           children: [
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 3),
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
           ],
         ),
       ),
@@ -878,7 +1048,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   // ============== ACTIONS ==============
 
-  Future<void> _confirmStatus(PaymentRequest req, PaymentRequestStatus newStatus) async {
+  Future<void> _confirmStatus(
+    PaymentRequest req,
+    PaymentRequestStatus newStatus,
+  ) async {
     if (newStatus == PaymentRequestStatus.completed) {
       await _showCompleteDialog(req);
     }
@@ -900,7 +1073,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             ),
             if (req.bankName != null) ...[
               const SizedBox(height: 4),
-              Text('NH/Tổ chức: ${req.bankName}', style: const TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                'NH/Tổ chức: ${req.bankName}',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ],
             const SizedBox(height: 16),
             Container(
@@ -912,13 +1088,20 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.account_balance, size: 16, color: Colors.blue.shade700),
+                  Icon(
+                    Icons.account_balance,
+                    size: 16,
+                    color: Colors.blue.shade700,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Khoản CK cho ngân hàng sẽ được ghi vào sổ quỹ.\n'
                       'Sau khi xác nhận, hãy gửi ảnh chụp màn hình CK để lưu bằng chứng.',
-                      style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade800,
+                      ),
                     ),
                   ),
                 ],
@@ -927,11 +1110,17 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Đã CK cho NH ✓', style: TextStyle(color: Colors.white)),
+            child: const Text(
+              'Đã CK cho NH ✓',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -945,7 +1134,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       _subscribeToRequests();
       // Auto-select this request for image proof upload
       if (mounted) {
-        setState(() => _selectedReqForImage = req.copyWith(status: PaymentRequestStatus.completed));
+        setState(
+          () => _selectedReqForImage = req.copyWith(
+            status: PaymentRequestStatus.completed,
+          ),
+        );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('💡 Chọn ảnh CK ngân hàng để gửi bằng chứng'),
@@ -966,7 +1159,9 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ'),
+            Text(
+              '${req.paymentTypeDisplay} · ${_currencyFmt.format(req.amount)}đ',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: reasonCtrl,
@@ -979,7 +1174,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -992,7 +1190,9 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       await PaymentRequestService.updateStatus(
         req.id!,
         PaymentRequestStatus.rejected,
-        rejectReason: reasonCtrl.text.trim().isNotEmpty ? reasonCtrl.text.trim() : null,
+        rejectReason: reasonCtrl.text.trim().isNotEmpty
+            ? reasonCtrl.text.trim()
+            : null,
       );
       _subscribeToRequests();
     }
@@ -1015,7 +1215,9 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 _showDetailSheet(req);
               },
             ),
-            if (_isOwnerOrAdmin && (req.status == PaymentRequestStatus.pending || req.status == PaymentRequestStatus.processing))
+            if (_isOwnerOrAdmin &&
+                (req.status == PaymentRequestStatus.pending ||
+                    req.status == PaymentRequestStatus.processing))
               ListTile(
                 leading: const Icon(Icons.check_circle, color: Colors.green),
                 title: const Text('Thanh toán (CK cho NH)'),
@@ -1024,7 +1226,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                   _confirmStatus(req, PaymentRequestStatus.completed);
                 },
               ),
-            if (req.senderId == _currentUid && req.status == PaymentRequestStatus.pending)
+            if (req.senderId == _currentUid &&
+                req.status == PaymentRequestStatus.pending)
               ListTile(
                 leading: const Icon(Icons.delete, color: Colors.red),
                 title: const Text('Xóa yêu cầu'),
@@ -1063,40 +1266,75 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                   width: 40,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               Text(
                 '${req.paymentTypeIcon} ${req.paymentTypeDisplay}',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 '${_currencyFmt.format(req.amount)}đ',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
               ),
               const Divider(height: 24),
               _detailTile('Trạng thái', req.statusDisplay),
               _detailTile('Khách hàng', req.customerName),
               _detailTile('Số điện thoại', req.customerPhone),
-              if (req.customerAddress != null && req.customerAddress!.isNotEmpty)
+              if (req.customerAddress != null &&
+                  req.customerAddress!.isNotEmpty)
                 _detailTile('Địa chỉ', req.customerAddress!),
-              if (req.accountNumber != null) _detailTile('Số TK / Hợp đồng', req.accountNumber!),
-              if (req.bankName != null) _detailTile('NH / Tổ chức vay', req.bankName!),
-              if (req.description != null) _detailTile('Mô tả', req.description!),
-              if (req.customerNote != null) _detailTile('Ghi chú', req.customerNote!),
+              if (req.accountNumber != null)
+                _detailTile('Số TK / Hợp đồng', req.accountNumber!),
+              if (req.bankName != null)
+                _detailTile('NH / Tổ chức vay', req.bankName!),
+              if (req.description != null)
+                _detailTile('Mô tả', req.description!),
+              if (req.customerNote != null)
+                _detailTile('Ghi chú', req.customerNote!),
               if (req.customerPaymentMethod != null)
-                _detailTile('KH trả cho NV', req.customerPaymentMethod == 'CHUYỂN KHOẢN' ? '🏦 Chuyển khoản' : '💵 Tiền mặt'),
+                _detailTile(
+                  'KH trả cho NV',
+                  req.customerPaymentMethod == 'CHUYỂN KHOẢN'
+                      ? '🏦 Chuyển khoản'
+                      : '💵 Tiền mặt',
+                ),
               if (req.status == PaymentRequestStatus.completed)
-                _detailTile('Chủ shop CK NH', '🏦 Đã chuyển khoản cho ngân hàng'),
+                _detailTile(
+                  'Chủ shop CK NH',
+                  '🏦 Đã chuyển khoản cho ngân hàng',
+                ),
               _detailTile('Nhân viên gửi', req.senderName),
-              _detailTile('Ngày tạo', DateFormat('dd/MM/yyyy HH:mm').format(req.createdAt)),
-              if (req.processedByName != null) _detailTile('Người xử lý', req.processedByName!),
-              if (req.processedAt != null) _detailTile('Ngày xử lý', DateFormat('dd/MM/yyyy HH:mm').format(req.processedAt!)),
-              if (req.rejectReason != null) _detailTile('Lý do từ chối', req.rejectReason!),
+              _detailTile(
+                'Ngày tạo',
+                DateFormat('dd/MM/yyyy HH:mm').format(req.createdAt),
+              ),
+              if (req.processedByName != null)
+                _detailTile('Người xử lý', req.processedByName!),
+              if (req.processedAt != null)
+                _detailTile(
+                  'Ngày xử lý',
+                  DateFormat('dd/MM/yyyy HH:mm').format(req.processedAt!),
+                ),
+              if (req.rejectReason != null)
+                _detailTile('Lý do từ chối', req.rejectReason!),
               if (req.imageUrls.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                const Text('Hình ảnh đính kèm (hóa đơn, CK NH):', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Hình ảnh đính kèm (hóa đơn, CK NH):',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -1132,10 +1370,16 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         children: [
           SizedBox(
             width: 120,
-            child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -1148,13 +1392,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       MaterialPageRoute(
         builder: (_) => Scaffold(
           backgroundColor: Colors.black,
-          appBar: AppBar(backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white)),
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
           body: Center(
             child: InteractiveViewer(
-              child: _buildAttachmentImage(
-                url,
-                fit: BoxFit.contain,
-              ),
+              child: _buildAttachmentImage(url, fit: BoxFit.contain),
             ),
           ),
         ),
@@ -1166,11 +1410,14 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   Widget _buildImageChatBar() {
     // Only show if there are pending/processing requests to attach images to
-    final activeRequests = _requests.where(
-      (r) => r.status == PaymentRequestStatus.pending ||
-             r.status == PaymentRequestStatus.processing ||
-             r.status == PaymentRequestStatus.completed,
-    ).toList();
+    final activeRequests = _requests
+        .where(
+          (r) =>
+              r.status == PaymentRequestStatus.pending ||
+              r.status == PaymentRequestStatus.processing ||
+              r.status == PaymentRequestStatus.completed,
+        )
+        .toList();
 
     if (activeRequests.isEmpty || _isLoading) return const SizedBox.shrink();
 
@@ -1178,7 +1425,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, -1))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 4,
+            offset: const Offset(0, -1),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -1189,14 +1442,21 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               child: GestureDetector(
                 onTap: () => _showSelectRequestForImage(activeRequests),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.attach_file, size: 18, color: Colors.grey.shade600),
+                      Icon(
+                        Icons.attach_file,
+                        size: 18,
+                        color: Colors.grey.shade600,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1205,7 +1465,9 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                               : 'Chọn yêu cầu để gửi ảnh CK ngân hàng...',
                           style: TextStyle(
                             fontSize: 13,
-                            color: _selectedReqForImage != null ? Colors.black87 : Colors.grey.shade500,
+                            color: _selectedReqForImage != null
+                                ? Colors.black87
+                                : Colors.grey.shade500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1219,7 +1481,9 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             const SizedBox(width: 6),
             // Camera button
             Material(
-              color: _selectedReqForImage != null ? const Color(0xFF075E54) : Colors.grey.shade300,
+              color: _selectedReqForImage != null
+                  ? const Color(0xFF075E54)
+                  : Colors.grey.shade300,
               borderRadius: BorderRadius.circular(24),
               child: InkWell(
                 onTap: _selectedReqForImage != null && !_isSendingImage
@@ -1230,18 +1494,29 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                   padding: const EdgeInsets.all(10),
                   child: _isSendingImage
                       ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
-                      : Icon(Icons.camera_alt, size: 20,
-                          color: _selectedReqForImage != null ? Colors.white : Colors.grey.shade500),
+                      : Icon(
+                          Icons.camera_alt,
+                          size: 20,
+                          color: _selectedReqForImage != null
+                              ? Colors.white
+                              : Colors.grey.shade500,
+                        ),
                 ),
               ),
             ),
             const SizedBox(width: 4),
             // Gallery button
             Material(
-              color: _selectedReqForImage != null ? Colors.blue : Colors.grey.shade300,
+              color: _selectedReqForImage != null
+                  ? Colors.blue
+                  : Colors.grey.shade300,
               borderRadius: BorderRadius.circular(24),
               child: InkWell(
                 onTap: _selectedReqForImage != null && !_isSendingImage
@@ -1250,8 +1525,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 borderRadius: BorderRadius.circular(24),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
-                  child: Icon(Icons.photo_library, size: 20,
-                      color: _selectedReqForImage != null ? Colors.white : Colors.grey.shade500),
+                  child: Icon(
+                    Icons.photo_library,
+                    size: 20,
+                    color: _selectedReqForImage != null
+                        ? Colors.white
+                        : Colors.grey.shade500,
+                  ),
                 ),
               ),
             ),
@@ -1276,29 +1556,42 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               ),
             ),
             const Divider(height: 1),
-            ...requests.take(10).map((r) => ListTile(
-              leading: Text(r.paymentTypeIcon, style: const TextStyle(fontSize: 22)),
-              title: Text(
-                '${r.customerName} \u00b7 ${_currencyFmt.format(r.amount)}\u0111',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                '${r.paymentTypeDisplay} \u00b7 ${r.statusDisplay}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-              trailing: r.imageUrls.isNotEmpty
-                  ? Badge(
-                      label: Text('${r.imageUrls.length}'),
-                      child: const Icon(Icons.photo, color: Colors.blue),
-                    )
-                  : null,
-              selected: _selectedReqForImage?.id == r.id,
-              selectedTileColor: Colors.green.shade50,
-              onTap: () {
-                setState(() => _selectedReqForImage = r);
-                Navigator.pop(ctx);
-              },
-            )),
+            ...requests
+                .take(10)
+                .map(
+                  (r) => ListTile(
+                    leading: Text(
+                      r.paymentTypeIcon,
+                      style: const TextStyle(fontSize: 22),
+                    ),
+                    title: Text(
+                      '${r.customerName} \u00b7 ${_currencyFmt.format(r.amount)}\u0111',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${r.paymentTypeDisplay} \u00b7 ${r.statusDisplay}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    trailing: r.imageUrls.isNotEmpty
+                        ? Badge(
+                            label: Text('${r.imageUrls.length}'),
+                            child: const Icon(Icons.photo, color: Colors.blue),
+                          )
+                        : null,
+                    selected: _selectedReqForImage?.id == r.id,
+                    selectedTileColor: Colors.green.shade50,
+                    onTap: () {
+                      setState(() => _selectedReqForImage = r);
+                      Navigator.pop(ctx);
+                    },
+                  ),
+                ),
           ],
         ),
       ),
@@ -1312,7 +1605,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     List<File> files = [];
 
     if (source == ImageSource.camera) {
-      final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
+      final photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 75,
+      );
       if (photo != null) files.add(File(photo.path));
     } else {
       final photos = await picker.pickMultiImage(imageQuality: 75);
@@ -1340,7 +1636,10 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('\u274c L\u1ed7i g\u1eedi \u1ea3nh'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('\u274c L\u1ed7i g\u1eedi \u1ea3nh'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } catch (e) {
@@ -1365,7 +1664,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           _subscribeToRequests();
           // Scroll to top to see new request
           if (_scrollCtrl.hasClients) {
-            _scrollCtrl.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+            _scrollCtrl.animateTo(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
           }
         },
       ),
@@ -1381,10 +1684,12 @@ class _CreatePaymentRequestSheet extends StatefulWidget {
   const _CreatePaymentRequestSheet({this.onCreated});
 
   @override
-  State<_CreatePaymentRequestSheet> createState() => _CreatePaymentRequestSheetState();
+  State<_CreatePaymentRequestSheet> createState() =>
+      _CreatePaymentRequestSheetState();
 }
 
-class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> {
+class _CreatePaymentRequestSheetState
+    extends State<_CreatePaymentRequestSheet> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -1435,7 +1740,9 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
-      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
       padding: EdgeInsets.only(bottom: bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -1450,7 +1757,10 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
               width: 40,
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
           // Title
@@ -1460,7 +1770,10 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
               children: [
                 const Icon(Icons.send, color: Color(0xFF075E54)),
                 const SizedBox(width: 8),
-                const Text('Gửi yêu cầu đóng tiền', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Gửi yêu cầu đóng tiền',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -1480,7 +1793,13 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Payment type selector
-                    const Text('Loại thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Loại thanh toán',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -1490,9 +1809,15 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                         return ChoiceChip(
                           label: Text(_getTypeLabel(type)),
                           selected: isSelected,
-                          selectedColor: const Color(0xFF075E54).withOpacity(0.15),
-                          onSelected: (_) => setState(() => _selectedType = type),
-                          avatar: Text(_getTypeEmoji(type), style: const TextStyle(fontSize: 14)),
+                          selectedColor: const Color(
+                            0xFF075E54,
+                          ).withOpacity(0.15),
+                          onSelected: (_) =>
+                              setState(() => _selectedType = type),
+                          avatar: Text(
+                            _getTypeEmoji(type),
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         );
                       }).toList(),
                     ),
@@ -1512,7 +1837,13 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     // Customer info
                     Row(
                       children: [
-                        const Text('Thông tin khách hàng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const Text(
+                          'Thông tin khách hàng',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                         const Spacer(),
                         TextButton.icon(
                           onPressed: _showCustomerSearch,
@@ -1534,7 +1865,9 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                         border: OutlineInputBorder(),
                         isDense: true,
                       ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Nhập tên khách hàng' : null,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Nhập tên khách hàng'
+                          : null,
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -1560,7 +1893,13 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     const SizedBox(height: 16),
 
                     // Khách trả tiền cho NV bằng gì
-                    const Text('Khách thanh toán cho NV', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Khách thanh toán cho NV',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -1570,7 +1909,9 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                             avatar: const Icon(Icons.payments, size: 18),
                             selected: _customerPaymentMethod == 'TIỀN MẶT',
                             selectedColor: Colors.green.shade100,
-                            onSelected: (_) => setState(() => _customerPaymentMethod = 'TIỀN MẶT'),
+                            onSelected: (_) => setState(
+                              () => _customerPaymentMethod = 'TIỀN MẶT',
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1580,7 +1921,9 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                             avatar: const Icon(Icons.account_balance, size: 18),
                             selected: _customerPaymentMethod == 'CHUYỂN KHOẢN',
                             selectedColor: Colors.blue.shade100,
-                            onSelected: (_) => setState(() => _customerPaymentMethod = 'CHUYỂN KHOẢN'),
+                            onSelected: (_) => setState(
+                              () => _customerPaymentMethod = 'CHUYỂN KHOẢN',
+                            ),
                           ),
                         ),
                       ],
@@ -1588,7 +1931,13 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     const SizedBox(height: 16),
 
                     // Amount & account
-                    const Text('Chi tiết thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Chi tiết thanh toán',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     CurrencyTextField(
                       controller: _amountCtrl,
@@ -1616,10 +1965,17 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                         isDense: true,
                       ),
                       isExpanded: true,
-                      items: kLoanBanks.map((bank) => DropdownMenuItem(
-                        value: bank,
-                        child: Text(bank, style: const TextStyle(fontSize: 14)),
-                      )).toList(),
+                      items: kLoanBanks
+                          .map(
+                            (bank) => DropdownMenuItem(
+                              value: bank,
+                              child: Text(
+                                bank,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          )
+                          .toList(),
                       onChanged: (v) => setState(() => _selectedBank = v),
                     ),
                     const SizedBox(height: 10),
@@ -1647,7 +2003,13 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                     const SizedBox(height: 16),
 
                     // Image picker
-                const Text('Hình ảnh (hóa đơn, CK ngân hàng...)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Hình ảnh (hóa đơn, CK ngân hàng...)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -1659,18 +2021,37 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: kIsWeb
-                                    ? Image.network(e.value.path, width: 80, height: 80, fit: BoxFit.cover)
-                                    : Image.file(e.value, width: 80, height: 80, fit: BoxFit.cover),
+                                    ? Image.network(
+                                        e.value.path,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : Image.file(
+                                        e.value,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      ),
                               ),
                               Positioned(
                                 top: -4,
                                 right: -4,
                                 child: GestureDetector(
-                                  onTap: () => setState(() => _selectedImages.removeAt(e.key)),
+                                  onTap: () => setState(
+                                    () => _selectedImages.removeAt(e.key),
+                                  ),
                                   child: Container(
-                                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
                                     padding: const EdgeInsets.all(2),
-                                    child: const Icon(Icons.close, size: 14, color: Colors.white),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -1690,8 +2071,17 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.camera_alt, color: Colors.grey.shade500),
-                                Text('Thêm ảnh', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                                Icon(
+                                  Icons.camera_alt,
+                                  color: Colors.grey.shade500,
+                                ),
+                                Text(
+                                  'Thêm ảnh',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -1710,18 +2100,39 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, -2))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
             child: ElevatedButton.icon(
               onPressed: _isSending ? null : _submitRequest,
               icon: _isSending
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.send, color: Colors.white),
-              label: Text(_isSending ? 'Đang gửi...' : 'GỬI YÊU CẦU', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(
+                _isSending ? 'Đang gửi...' : 'GỬI YÊU CẦU',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF075E54),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ),
@@ -1756,7 +2167,10 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
     if (source == null) return;
 
     if (source == ImageSource.camera) {
-      final photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 75);
+      final photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 75,
+      );
       if (photo != null) {
         setState(() => _selectedImages.add(File(photo.path)));
       }
@@ -1782,15 +2196,27 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
 
     final result = await PaymentRequestService.createRequest(
       customerName: _nameCtrl.text.trim(),
-      customerPhone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
-      customerAddress: _addressCtrl.text.trim().isNotEmpty ? _addressCtrl.text.trim() : null,
-      customerNote: _noteCtrl.text.trim().isNotEmpty ? _noteCtrl.text.trim() : null,
+      customerPhone: _phoneCtrl.text.trim().isNotEmpty
+          ? _phoneCtrl.text.trim()
+          : null,
+      customerAddress: _addressCtrl.text.trim().isNotEmpty
+          ? _addressCtrl.text.trim()
+          : null,
+      customerNote: _noteCtrl.text.trim().isNotEmpty
+          ? _noteCtrl.text.trim()
+          : null,
       paymentType: _selectedType,
-      paymentTypeLabel: _selectedType == PaymentType.other ? _otherTypeCtrl.text.trim() : null,
+      paymentTypeLabel: _selectedType == PaymentType.other
+          ? _otherTypeCtrl.text.trim()
+          : null,
       amount: amount,
-      accountNumber: _accountCtrl.text.trim().isNotEmpty ? _accountCtrl.text.trim() : null,
+      accountNumber: _accountCtrl.text.trim().isNotEmpty
+          ? _accountCtrl.text.trim()
+          : null,
       bankName: _selectedBank,
-      description: _descCtrl.text.trim().isNotEmpty ? _descCtrl.text.trim() : null,
+      description: _descCtrl.text.trim().isNotEmpty
+          ? _descCtrl.text.trim()
+          : null,
       images: _selectedImages.isNotEmpty ? _selectedImages : null,
       customerPaymentMethod: _customerPaymentMethod,
     );
@@ -1803,36 +2229,56 @@ class _CreatePaymentRequestSheetState extends State<_CreatePaymentRequestSheet> 
       Navigator.pop(context);
       widget.onCreated?.call();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Đã gửi yêu cầu đóng tiền'), backgroundColor: Colors.green),
+        const SnackBar(
+          content: Text('✅ Đã gửi yêu cầu đóng tiền'),
+          backgroundColor: Colors.green,
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('❌ Lỗi gửi yêu cầu'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('❌ Lỗi gửi yêu cầu'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
   String _getTypeLabel(PaymentType type) {
     switch (type) {
-      case PaymentType.electricity: return 'Tiền điện';
-      case PaymentType.water: return 'Tiền nước';
-      case PaymentType.internet: return 'Tiền mạng';
-      case PaymentType.bankLoan: return 'Vay NH';
-      case PaymentType.bankInstallment: return 'Trả góp';
-      case PaymentType.insurance: return 'Bảo hiểm';
-      case PaymentType.other: return 'Khác';
+      case PaymentType.electricity:
+        return 'Tiền điện';
+      case PaymentType.water:
+        return 'Tiền nước';
+      case PaymentType.internet:
+        return 'Tiền mạng';
+      case PaymentType.bankLoan:
+        return 'Vay NH';
+      case PaymentType.bankInstallment:
+        return 'Trả góp';
+      case PaymentType.insurance:
+        return 'Bảo hiểm';
+      case PaymentType.other:
+        return 'Khác';
     }
   }
 
   String _getTypeEmoji(PaymentType type) {
     switch (type) {
-      case PaymentType.electricity: return '⚡';
-      case PaymentType.water: return '💧';
-      case PaymentType.internet: return '🌐';
-      case PaymentType.bankLoan: return '🏦';
-      case PaymentType.bankInstallment: return '💳';
-      case PaymentType.insurance: return '🛡️';
-      case PaymentType.other: return '📋';
+      case PaymentType.electricity:
+        return '⚡';
+      case PaymentType.water:
+        return '💧';
+      case PaymentType.internet:
+        return '🌐';
+      case PaymentType.bankLoan:
+        return '🏦';
+      case PaymentType.bankInstallment:
+        return '💳';
+      case PaymentType.insurance:
+        return '🛡️';
+      case PaymentType.other:
+        return '📋';
     }
   }
 }
@@ -1901,7 +2347,10 @@ class _CustomerSearchDialogState extends State<_CustomerSearchDialog> {
                 const Icon(Icons.people, color: Color(0xFF075E54)),
                 const SizedBox(width: 8),
                 const Expanded(
-                  child: Text('Chọn khách hàng', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    'Chọn khách hàng',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -1915,9 +2364,14 @@ class _CustomerSearchDialogState extends State<_CustomerSearchDialog> {
               decoration: InputDecoration(
                 hintText: 'Tìm theo tên, SĐT, địa chỉ...',
                 prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 12,
+                ),
               ),
               onChanged: _filter,
             ),
@@ -1926,33 +2380,50 @@ class _CustomerSearchDialogState extends State<_CustomerSearchDialog> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _filtered.isEmpty
-                      ? Center(child: Text('Không tìm thấy khách hàng', style: TextStyle(color: Colors.grey.shade600)))
-                      : ListView.separated(
-                          itemCount: _filtered.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (_, i) {
-                            final c = _filtered[i];
-                            return ListTile(
-                              dense: true,
-                              leading: CircleAvatar(
-                                radius: 18,
-                                backgroundColor: const Color(0xFF075E54).withOpacity(0.1),
-                                child: Text(
-                                  c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-                                  style: const TextStyle(color: Color(0xFF075E54), fontWeight: FontWeight.bold),
-                                ),
+                  ? Center(
+                      child: Text(
+                        'Không tìm thấy khách hàng',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: _filtered.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, i) {
+                        final c = _filtered[i];
+                        return ListTile(
+                          dense: true,
+                          leading: CircleAvatar(
+                            radius: 18,
+                            backgroundColor: const Color(
+                              0xFF075E54,
+                            ).withOpacity(0.1),
+                            child: Text(
+                              c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+                              style: const TextStyle(
+                                color: Color(0xFF075E54),
+                                fontWeight: FontWeight.bold,
                               ),
-                              title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Text(
-                                [c.phone, if (c.address != null && c.address!.isNotEmpty) c.address!].join(' · '),
-                                style: const TextStyle(fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              onTap: () => Navigator.pop(context, c),
-                            );
-                          },
-                        ),
+                            ),
+                          ),
+                          title: Text(
+                            c.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            [
+                              c.phone,
+                              if (c.address != null && c.address!.isNotEmpty)
+                                c.address!,
+                            ].join(' · '),
+                            style: const TextStyle(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => Navigator.pop(context, c),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
