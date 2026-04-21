@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+ụcimport 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/current_shop_service.dart';
@@ -143,12 +143,11 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
 
       // Show confirmation
       if (mounted) {
-        final shopName =
-            _shops.firstWhere(
-              (s) => s['id'] == shopId,
-              orElse: () => {'name': shopId},
-            )['name'] ??
-            shopId;
+        final selectedShop = _shops.firstWhere(
+          (s) => s['id'] == shopId,
+          orElse: () => <String, dynamic>{},
+        );
+        final shopName = _shopDisplayLabel(selectedShop);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -170,6 +169,12 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
         );
       }
     }
+  }
+
+  String _shopDisplayLabel(Map<String, dynamic> shop) {
+    final name = (shop['name'] ?? '').toString().trim();
+    if (name.isEmpty) return 'Cửa hàng chưa đặt tên';
+    return name;
   }
 
   @override
@@ -235,7 +240,7 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  shop['name'] ?? shop['id'] ?? 'Unknown',
+                  _shopDisplayLabel(shop),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -275,11 +280,25 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
             // Only show dropdown if there are shops
             if (_shops.isNotEmpty) ...[
               DropdownButtonFormField<String>(
+                isExpanded: true,
+                menuMaxHeight: 320,
                 // Safety: ensure value exists in items to prevent assertion error
                 value: _currentShopId != null &&
                         _shops.any((s) => s['id'] == _currentShopId)
                     ? _currentShopId
                     : null,
+                selectedItemBuilder: (context) {
+                  return _shops.map((shop) {
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _shopDisplayLabel(shop),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList();
+                },
                 decoration: InputDecoration(
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -294,7 +313,8 @@ class _ShopSwitcherWidgetState extends State<ShopSwitcherWidget> {
                   return DropdownMenuItem<String>(
                     value: shop['id'],
                     child: Text(
-                      shop['name'] ?? shop['id'] ?? 'Unknown',
+                      _shopDisplayLabel(shop),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   );

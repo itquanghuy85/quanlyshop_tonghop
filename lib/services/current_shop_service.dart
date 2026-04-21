@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+mimport 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,6 +38,51 @@ class CurrentShopService {
   bool _initialized = false;
 
   final _db = FirebaseFirestore.instance;
+
+  String _normalizeLegacyShopName(String? rawName) {
+    final name = (rawName ?? '').trim();
+    if (name.isEmpty) return '';
+    final lower = name.toLowerCase();
+    if (lower == 'shop new' || lower == 'shop_new' || lower == 'shopnew') {
+      return 'QUAN LY SHOP';
+    }
+    return name;
+  }
+
+  Future<Map<String, dynamic>> _enrichShopDisplayName(
+    Map<String, dynamic> shop,
+  ) async {
+    final data = Map<String, dynamic>.from(shop);
+    final shopId = (data['id'] ?? '').toString().trim();
+    if (shopId.isEmpty) return data;
+
+    final currentName = _normalizeLegacyShopName(data['name']?.toString());
+    if (currentName.isNotEmpty) {
+      data['name'] = currentName;
+      return data;
+    }
+
+    try {
+      final profileDoc = await _db
+          .collection('shops')
+          .doc(shopId)
+          .collection('settings')
+          .doc('shop_profile')
+          .get();
+      final profileName = _normalizeLegacyShopName(
+        profileDoc.data()?['name']?.toString(),
+      );
+      if (profileName.isNotEmpty) {
+        data['name'] = profileName;
+        return data;
+      }
+    } catch (e) {
+      debugPrint('CurrentShopService: profile name fallback error for $shopId: $e');
+    }
+
+    data['name'] = 'Cửa hàng chưa đặt tên';
+    return data;
+  }
 
   /// Initialize service - call after successful login
   Future<void> init() async {
@@ -176,11 +221,15 @@ class CurrentShopService {
           .where('ownerUid', isEqualTo: currentUser.uid)
           .get();
 
-      _cachedShops = snapshot.docs.map((doc) {
+      final rawShops = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).where((shop) => shop['deleted'] != true).toList();
+
+      _cachedShops = await Future.wait(
+        rawShops.map(_enrichShopDisplayName),
+      );
 
       debugPrint(
         'CurrentShopService: Found ${_cachedShops!.length} shops by ownerUid',
@@ -194,7 +243,8 @@ class CurrentShopService {
           if (shopDoc.exists) {
             final data = shopDoc.data() ?? {};
             data['id'] = shopDoc.id;
-            _cachedShops = [data];
+            final enriched = await _enrichShopDisplayName(data);
+            _cachedShops = [enriched];
             debugPrint(
               'CurrentShopService: Fallback - got shop from user profile: $userShopId',
             );
