@@ -754,8 +754,8 @@ class _DebtViewState extends State<DebtView>
           // Summary for receivable debts
           if (receivableDebts.isNotEmpty)
             Container(
-              margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.red.withAlpha(25),
                 borderRadius: BorderRadius.circular(10),
@@ -788,7 +788,10 @@ class _DebtViewState extends State<DebtView>
           if (receivableDebts.isNotEmpty)
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 itemCount: receivableDebts.length,
                 itemBuilder: (ctx, i) => _debtCardWithIcon(
                   receivableDebts[i],
@@ -802,8 +805,8 @@ class _DebtViewState extends State<DebtView>
           // Summary for payable debts
           if (payableDebts.isNotEmpty)
             Container(
-              margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.blue.withAlpha(25),
                 borderRadius: BorderRadius.circular(10),
@@ -836,7 +839,10 @@ class _DebtViewState extends State<DebtView>
           if (payableDebts.isNotEmpty)
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 itemCount: payableDebts.length,
                 itemBuilder: (ctx, i) => _debtCardWithIcon(
                   payableDebts[i],
@@ -876,7 +882,7 @@ class _DebtViewState extends State<DebtView>
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             itemCount: list.length,
             itemBuilder: (ctx, i) => _debtCard(list[i], i + 1),
           ),
@@ -922,7 +928,7 @@ class _DebtViewState extends State<DebtView>
         _summaryHeader("TỔNG NỢ ĐỐI TÁC SỬA CHỮA", totalRemain, Colors.orange),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             itemCount: _partnerDebts.length,
             itemBuilder: (ctx, i) => _partnerDebtCard(_partnerDebts[i], i + 1),
           ),
@@ -946,7 +952,7 @@ class _DebtViewState extends State<DebtView>
         note.trim().isNotEmpty && note.trim().toLowerCase() != 'nợ';
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(bottom: 3),
       color: isAltRow
           ? Color.alphaBlend(Colors.orange.withOpacity(0.03), Colors.white)
           : Colors.white,
@@ -958,7 +964,7 @@ class _DebtViewState extends State<DebtView>
         onTap: () => _navigateToPartnerDetail(partner),
         borderRadius: BorderRadius.circular(9),
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1211,8 +1217,8 @@ class _DebtViewState extends State<DebtView>
   Widget _summaryHeader(String label, int amount, Color color) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withAlpha(25),
         borderRadius: BorderRadius.circular(10),
@@ -1290,7 +1296,7 @@ class _DebtViewState extends State<DebtView>
         : Colors.white;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 5),
+      margin: const EdgeInsets.only(bottom: 3),
       color: zebraBg,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(9),
@@ -1305,7 +1311,7 @@ class _DebtViewState extends State<DebtView>
         onTap: () => _showDebtHistory(d),
         borderRadius: BorderRadius.circular(9),
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1398,7 +1404,7 @@ class _DebtViewState extends State<DebtView>
                 ],
               ),
 
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   _debtInfoChip(
@@ -1423,7 +1429,7 @@ class _DebtViewState extends State<DebtView>
               ),
 
               if (hasMeaningfulNote) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   note,
                   maxLines: 1,
@@ -1435,7 +1441,7 @@ class _DebtViewState extends State<DebtView>
                 ),
               ],
 
-              const Divider(height: 12),
+              const Divider(height: 10),
 
               // Amount row
               Row(
@@ -1469,7 +1475,7 @@ class _DebtViewState extends State<DebtView>
               ),
 
               // Action button
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -2132,7 +2138,7 @@ class _DebtViewState extends State<DebtView>
     final isAltRow = (index ?? 0).isEven;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: const EdgeInsets.only(bottom: 3),
       color: isAltRow
           ? Color.alphaBlend(iconColor.withOpacity(0.04), Colors.white)
           : Colors.white,
@@ -2144,7 +2150,7 @@ class _DebtViewState extends State<DebtView>
         onTap: () => _showDebtHistory(d),
         borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2238,7 +2244,7 @@ class _DebtViewState extends State<DebtView>
                 ],
               ),
               if (hasMeaningfulNote) ...[
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   note,
                   maxLines: 1,
@@ -2249,7 +2255,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                 ),
               ],
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Expanded(
@@ -2279,7 +2285,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

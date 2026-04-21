@@ -15,6 +15,7 @@ import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
 import '../utils/perf_monitor.dart';
+import '../utils/money_utils.dart';
 import '../services/category_service.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/custom_app_bar.dart';
@@ -40,7 +41,8 @@ class _RevenueViewState extends State<RevenueView>
   List<Map<String, dynamic>> _debtPayments = [];
   List<Map<String, dynamic>> _supplierImports = []; // Nhập hàng từ NCC
   List<Map<String, dynamic>> _supplierPayments = []; // Thanh toán NCC
-  List<Map<String, dynamic>> _repairPartnerPayments = []; // Thanh toán đối tác sửa chữa
+  List<Map<String, dynamic>> _repairPartnerPayments =
+      []; // Thanh toán đối tác sửa chữa
   Map<String, dynamic>? _todayClosing; // Thông tin chốt quỹ hôm nay
   bool _hasRevenueAccess = false;
   bool _canViewCostPrice = false;
@@ -50,7 +52,7 @@ class _RevenueViewState extends State<RevenueView>
 
   // EventBus subscription để nghe thay đổi data
   StreamSubscription? _eventBusSubscription;
-  
+
   // Debounce timer để tránh reload quá nhiều
   Timer? _reloadDebounceTimer;
   bool _dataLoaded = false; // Flag để tránh reload khi mới vào trang
@@ -83,8 +85,8 @@ class _RevenueViewState extends State<RevenueView>
     _eventBusSubscription = EventBus().stream.listen((event) {
       if (!mounted || !_dataLoaded) return;
       // Chỉ reload khi có events liên quan đến finance
-      if (event == 'sales_changed' || 
-          event == 'repairs_changed' || 
+      if (event == 'sales_changed' ||
+          event == 'repairs_changed' ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
           event == 'cash_closings_changed' ||
@@ -94,7 +96,7 @@ class _RevenueViewState extends State<RevenueView>
       }
     });
   }
-  
+
   /// Reload data với debounce để tránh gọi quá nhiều lần
   void _debouncedReload() {
     _reloadDebounceTimer?.cancel();
@@ -147,12 +149,24 @@ class _RevenueViewState extends State<RevenueView>
     final repairs = await db.getRepairsByCreatedAtRange(startMs, endMs);
     final sales = await db.getSalesByDateRange(startMs, endMs);
     final expenses = await db.getExpensesByDateRange(startMs, endMs);
-    final debtPayments = await db.getDebtPaymentsWithDebtInfoByDateRange(startMs, endMs);
+    final debtPayments = await db.getDebtPaymentsWithDebtInfoByDateRange(
+      startMs,
+      endMs,
+    );
     // Đọc supplier_import_history từ local DB (SyncService đã đồng bộ Firestore → local)
-    final supplierImports = await db.getAllSupplierImportHistoryByDateRange(startMs, endMs);
+    final supplierImports = await db.getAllSupplierImportHistoryByDateRange(
+      startMs,
+      endMs,
+    );
     final shopId = await UserService.getCurrentShopId();
-    final supplierPayments = await db.getSupplierPaymentsByDateRange(startMs, endMs);
-    final repairPartnerPayments = await db.getRepairPartnerPaymentsByDateRange(startMs, endMs);
+    final supplierPayments = await db.getSupplierPaymentsByDateRange(
+      startMs,
+      endMs,
+    );
+    final repairPartnerPayments = await db.getRepairPartnerPaymentsByDateRange(
+      startMs,
+      endMs,
+    );
 
     final dbRaw = await db.database;
     final effectiveShopId = shopId ?? UserService.getShopIdSync();
@@ -329,6 +343,17 @@ class _RevenueViewState extends State<RevenueView>
       default:
         return '';
     }
+  }
+
+  int _toMoneyInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value == null) return 0;
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  String _fmtMoney(dynamic value) {
+    return MoneyUtils.formatCompactCurrency(_toMoneyInt(value));
   }
 
   void _showFilterSheet() {
@@ -565,41 +590,44 @@ class _RevenueViewState extends State<RevenueView>
       ),
       body: ResponsiveCenter(
         child: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : Column(
-              children: [
-                TabBar(
-                  controller: _tabController,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: AppColors.primary,
-                  tabs: const [
-                    Tab(text: 'TỔNG QUAN'),
-                    Tab(text: 'SO SÁNH'),
-                  ],
-                ),
-                Expanded(
-                  child: TabBarView(
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
+            : Column(
+                children: [
+                  TabBar(
                     controller: _tabController,
-                    children: [
-                      _buildOverview(),
-                      _buildComparisonTab(),
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: AppColors.primary,
+                    tabs: const [
+                      Tab(text: 'TỔNG QUAN'),
+                      Tab(text: 'SO SÁNH'),
                     ],
                   ),
-                ),
-              ],
-            ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [_buildOverview(), _buildComparisonTab()],
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
 
   /// Calculate stats for a given date range filter function
-  _PeriodStats _calculatePeriodStats(String label, bool Function(int ms) filter) {
+  _PeriodStats _calculatePeriodStats(
+    String label,
+    bool Function(int ms) filter,
+  ) {
     final fSales = _sales.where((s) => filter(s.soldAt)).toList();
     final fRepairs = _repairs
-        .where((r) => r.status == 4 && r.deliveredAt != null && filter(r.deliveredAt!))
+        .where(
+          (r) =>
+              r.status == 4 && r.deliveredAt != null && filter(r.deliveredAt!),
+        )
         .toList();
     final fExpenses = _expenses
         .where((e) => filter((e['date'] ?? e['createdAt']) as int))
@@ -640,7 +668,7 @@ class _RevenueViewState extends State<RevenueView>
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int? ?? 0));
 
     int expenseOut = fExpenses
-      .where(_isBusinessOperatingExpense)
+        .where(_isBusinessOperatingExpense)
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
 
     return _PeriodStats(
@@ -689,10 +717,13 @@ class _RevenueViewState extends State<RevenueView>
             final dt = DateTime.fromMillisecondsSinceEpoch(ms);
             return !dt.isBefore(monthStart);
           }),
-          _calculatePeriodStats('Tháng ${now.month - 1 == 0 ? 12 : now.month - 1}', (ms) {
-            final dt = DateTime.fromMillisecondsSinceEpoch(ms);
-            return !dt.isBefore(prevMonthStart) && dt.isBefore(monthStart);
-          }),
+          _calculatePeriodStats(
+            'Tháng ${now.month - 1 == 0 ? 12 : now.month - 1}',
+            (ms) {
+              final dt = DateTime.fromMillisecondsSinceEpoch(ms);
+              return !dt.isBefore(prevMonthStart) && dt.isBefore(monthStart);
+            },
+          ),
         ];
       case 'quarter':
         final currentQ = ((now.month - 1) ~/ 3) + 1;
@@ -747,7 +778,7 @@ class _RevenueViewState extends State<RevenueView>
     final cur = periods[0];
     final prev = periods[1];
 
-    String fmt(int v) => '${NumberFormat('#,###').format(v)}đ';
+    String fmt(int v) => _fmtMoney(v);
     String pct(int a, int b) {
       if (b == 0) return a > 0 ? '+∞' : '0%';
       final p = ((a - b) / b.abs() * 100).round();
@@ -762,9 +793,21 @@ class _RevenueViewState extends State<RevenueView>
           // ── Period comparison header (compact) ──
           Row(
             children: [
-              _periodBadge(cur.label, cur.totalRevenue, fmt, AppColors.primary, true),
+              _periodBadge(
+                cur.label,
+                cur.totalRevenue,
+                fmt,
+                AppColors.primary,
+                true,
+              ),
               const SizedBox(width: 8),
-              _periodBadge(prev.label, prev.totalRevenue, fmt, Colors.grey.shade600, false),
+              _periodBadge(
+                prev.label,
+                prev.totalRevenue,
+                fmt,
+                Colors.grey.shade600,
+                false,
+              ),
             ],
           ),
 
@@ -776,13 +819,53 @@ class _RevenueViewState extends State<RevenueView>
           const SizedBox(height: 14),
 
           // ── Delta cards (compact) ──
-          _deltaRow('Doanh thu', cur.totalRevenue, prev.totalRevenue, fmt, pct, const Color(0xFF1E88E5), Icons.trending_up),
-          _deltaRow('Lợi nhuận', cur.profit, prev.profit, fmt, pct, const Color(0xFF43A047), Icons.account_balance_wallet),
+          _deltaRow(
+            'Doanh thu',
+            cur.totalRevenue,
+            prev.totalRevenue,
+            fmt,
+            pct,
+            const Color(0xFF1E88E5),
+            Icons.trending_up,
+          ),
+          _deltaRow(
+            'Lợi nhuận',
+            cur.profit,
+            prev.profit,
+            fmt,
+            pct,
+            const Color(0xFF43A047),
+            Icons.account_balance_wallet,
+          ),
           if (_canViewCostPrice)
-          _deltaRow('Giá vốn', cur.totalCost, prev.totalCost, fmt, pct, const Color(0xFFFB8C00), Icons.inventory_2_outlined),
-          _deltaRow('Chi phí', cur.expenseOut, prev.expenseOut, fmt, pct, const Color(0xFFE53935), Icons.money_off),
+            _deltaRow(
+              'Giá vốn',
+              cur.totalCost,
+              prev.totalCost,
+              fmt,
+              pct,
+              const Color(0xFFFB8C00),
+              Icons.inventory_2_outlined,
+            ),
+          _deltaRow(
+            'Chi phí',
+            cur.expenseOut,
+            prev.expenseOut,
+            fmt,
+            pct,
+            const Color(0xFFE53935),
+            Icons.money_off,
+          ),
           if (_enableRepair)
-            _deltaRow('Sửa chữa', cur.repairsIncome, prev.repairsIncome, fmt, pct, const Color(0xFF7E57C2), Icons.build),
+            _deltaRow(
+              'Sửa chữa',
+              cur.repairsIncome,
+              prev.repairsIncome,
+              fmt,
+              pct,
+              const Color(0xFF7E57C2),
+              Icons.build,
+            ),
 
           const SizedBox(height: 14),
 
@@ -797,29 +880,114 @@ class _RevenueViewState extends State<RevenueView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CHI TIẾT', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+                Text(
+                  'CHI TIẾT',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 // Column headers
                 Row(
                   children: [
                     const SizedBox(width: 90),
-                    Expanded(child: Text(cur.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary), textAlign: TextAlign.right)),
+                    Expanded(
+                      child: Text(
+                        cur.label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    Expanded(child: Text(prev.label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+                    Expanded(
+                      child: Text(
+                        prev.label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade500,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
                     const SizedBox(width: 6),
-                    SizedBox(width: 48, child: Text('%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+                    SizedBox(
+                      width: 48,
+                      child: Text(
+                        '%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade500,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
                   ],
                 ),
                 Divider(height: 12, color: Colors.grey.shade200),
-                _compRow('Bán hàng', cur.salesIncome, prev.salesIncome, fmt, pct),
-                if (_canViewCostPrice) _compRow('Giá vốn BH', cur.salesCost, prev.salesCost, fmt, pct),
-                if (_enableRepair) _compRow('Sửa chữa', cur.repairsIncome, prev.repairsIncome, fmt, pct),
-                if (_enableRepair && _canViewCostPrice) _compRow('Vốn SC', cur.repairsCost, prev.repairsCost, fmt, pct),
+                _compRow(
+                  'Bán hàng',
+                  cur.salesIncome,
+                  prev.salesIncome,
+                  fmt,
+                  pct,
+                ),
+                if (_canViewCostPrice)
+                  _compRow(
+                    'Giá vốn BH',
+                    cur.salesCost,
+                    prev.salesCost,
+                    fmt,
+                    pct,
+                  ),
+                if (_enableRepair)
+                  _compRow(
+                    'Sửa chữa',
+                    cur.repairsIncome,
+                    prev.repairsIncome,
+                    fmt,
+                    pct,
+                  ),
+                if (_enableRepair && _canViewCostPrice)
+                  _compRow(
+                    'Vốn SC',
+                    cur.repairsCost,
+                    prev.repairsCost,
+                    fmt,
+                    pct,
+                  ),
                 _compRow('Thu khác', cur.miscIncome, prev.miscIncome, fmt, pct),
-                _compRow('Chi phí HĐ', cur.expenseOut, prev.expenseOut, fmt, pct),
+                _compRow(
+                  'Chi phí HĐ',
+                  cur.expenseOut,
+                  prev.expenseOut,
+                  fmt,
+                  pct,
+                ),
                 Divider(height: 12, color: Colors.grey.shade200),
-                _compRow('Đơn bán', cur.salesCount, prev.salesCount, (v) => '$v', pct),
-                if (_enableRepair) _compRow('Đơn SC', cur.repairsCount, prev.repairsCount, (v) => '$v', pct),
+                _compRow(
+                  'Đơn bán',
+                  cur.salesCount,
+                  prev.salesCount,
+                  (v) => '$v',
+                  pct,
+                ),
+                if (_enableRepair)
+                  _compRow(
+                    'Đơn SC',
+                    cur.repairsCount,
+                    prev.repairsCount,
+                    (v) => '$v',
+                    pct,
+                  ),
               ],
             ),
           ),
@@ -828,21 +996,43 @@ class _RevenueViewState extends State<RevenueView>
     );
   }
 
-  Widget _periodBadge(String label, int revenue, String Function(int) fmt, Color color, bool active) {
+  Widget _periodBadge(
+    String label,
+    int revenue,
+    String Function(int) fmt,
+    Color color,
+    bool active,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: active ? color.withOpacity(0.08) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: active ? color.withOpacity(0.2) : Colors.grey.shade200),
+          border: Border.all(
+            color: active ? color.withOpacity(0.2) : Colors.grey.shade200,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: active ? color : Colors.grey.shade600)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: active ? color : Colors.grey.shade600,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(fmt(revenue), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: active ? color : Colors.grey.shade700)),
+            Text(
+              fmt(revenue),
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: active ? color : Colors.grey.shade700,
+              ),
+            ),
           ],
         ),
       ),
@@ -851,12 +1041,30 @@ class _RevenueViewState extends State<RevenueView>
 
   Widget _comparisonBarChart(_PeriodStats cur, _PeriodStats prev) {
     final metrics = <_CompMetric>[
-      _CompMetric('DT', cur.totalRevenue, prev.totalRevenue, const Color(0xFF1E88E5)),
+      _CompMetric(
+        'DT',
+        cur.totalRevenue,
+        prev.totalRevenue,
+        const Color(0xFF1E88E5),
+      ),
       _CompMetric('LN', cur.profit, prev.profit, const Color(0xFF43A047)),
-      _CompMetric('Vốn', cur.totalCost, prev.totalCost, const Color(0xFFFB8C00)),
-      _CompMetric('Chi', cur.expenseOut, prev.expenseOut, const Color(0xFFE53935)),
+      _CompMetric(
+        'Vốn',
+        cur.totalCost,
+        prev.totalCost,
+        const Color(0xFFFB8C00),
+      ),
+      _CompMetric(
+        'Chi',
+        cur.expenseOut,
+        prev.expenseOut,
+        const Color(0xFFE53935),
+      ),
     ];
-    final maxVal = metrics.fold<double>(0, (m, e) => math.max(m, math.max(e.cur.toDouble(), e.prev.toDouble())));
+    final maxVal = metrics.fold<double>(
+      0,
+      (m, e) => math.max(m, math.max(e.cur.toDouble(), e.prev.toDouble())),
+    );
     if (maxVal == 0) return const SizedBox();
 
     return Container(
@@ -871,15 +1079,43 @@ class _RevenueViewState extends State<RevenueView>
         children: [
           Row(
             children: [
-              Text('SO SÁNH', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade600, letterSpacing: 0.5)),
+              Text(
+                'SO SÁNH',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade600,
+                  letterSpacing: 0.5,
+                ),
+              ),
               const Spacer(),
-              Container(width: 10, height: 10, decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(width: 4),
-              Text('Hiện tại', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Text(
+                'Hiện tại',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
               const SizedBox(width: 10),
-              Container(width: 10, height: 10, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
               const SizedBox(width: 4),
-              Text('Trước', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+              Text(
+                'Trước',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -893,16 +1129,30 @@ class _RevenueViewState extends State<RevenueView>
                 gridData: const FlGridData(show: false),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (v, _) {
                         final idx = v.toInt();
-                        if (idx < 0 || idx >= metrics.length) return const SizedBox();
-                        return Text(metrics[idx].label, style: TextStyle(fontSize: 12, color: metrics[idx].color, fontWeight: FontWeight.w600));
+                        if (idx < 0 || idx >= metrics.length)
+                          return const SizedBox();
+                        return Text(
+                          metrics[idx].label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: metrics[idx].color,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -918,13 +1168,17 @@ class _RevenueViewState extends State<RevenueView>
                         toY: m.cur.toDouble().clamp(0, double.infinity),
                         color: m.color,
                         width: 14,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
                       ),
                       BarChartRodData(
                         toY: m.prev.toDouble().clamp(0, double.infinity),
                         color: m.color.withOpacity(0.3),
                         width: 14,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(4),
+                        ),
                       ),
                     ],
                   );
@@ -937,15 +1191,24 @@ class _RevenueViewState extends State<RevenueView>
     );
   }
 
-  Widget _deltaRow(String title, int current, int previous,
-      String Function(int) fmt, String Function(int, int) pct,
-      Color color, IconData icon) {
+  Widget _deltaRow(
+    String title,
+    int current,
+    int previous,
+    String Function(int) fmt,
+    String Function(int, int) pct,
+    Color color,
+    IconData icon,
+  ) {
     final d = current - previous;
     final isUp = d >= 0;
-    final isPositiveMetric = title == 'Doanh thu' || title == 'Lợi nhuận' || title == 'Sửa chữa';
+    final isPositiveMetric =
+        title == 'Doanh thu' || title == 'Lợi nhuận' || title == 'Sửa chữa';
     final changeColor = isUp
         ? (isPositiveMetric ? const Color(0xFF2E7D32) : const Color(0xFFC62828))
-        : (isPositiveMetric ? const Color(0xFFC62828) : const Color(0xFF2E7D32));
+        : (isPositiveMetric
+              ? const Color(0xFFC62828)
+              : const Color(0xFF2E7D32));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -963,8 +1226,17 @@ class _RevenueViewState extends State<RevenueView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                Text(fmt(current), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                Text(
+                  fmt(current),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -977,9 +1249,20 @@ class _RevenueViewState extends State<RevenueView>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(isUp ? Icons.arrow_upward : Icons.arrow_downward, size: 11, color: changeColor),
+                Icon(
+                  isUp ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 11,
+                  color: changeColor,
+                ),
                 const SizedBox(width: 2),
-                Text(pct(current, previous), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: changeColor)),
+                Text(
+                  pct(current, previous),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: changeColor,
+                  ),
+                ),
               ],
             ),
           ),
@@ -988,23 +1271,52 @@ class _RevenueViewState extends State<RevenueView>
     );
   }
 
-  Widget _compRow(String label, int current, int previous,
-      String Function(int) fmt, String Function(int, int) pct) {
+  Widget _compRow(
+    String label,
+    int current,
+    int previous,
+    String Function(int) fmt,
+    String Function(int, int) pct,
+  ) {
     final d = current - previous;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          SizedBox(width: 90, child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700))),
-          Expanded(child: Text(fmt(current), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
+          SizedBox(
+            width: 90,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              fmt(current),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.right,
+            ),
+          ),
           const SizedBox(width: 6),
-          Expanded(child: Text(fmt(previous), style: TextStyle(fontSize: 13, color: Colors.grey.shade500), textAlign: TextAlign.right)),
+          Expanded(
+            child: Text(
+              fmt(previous),
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              textAlign: TextAlign.right,
+            ),
+          ),
           const SizedBox(width: 6),
           SizedBox(
             width: 48,
             child: Text(
               pct(current, previous),
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: d >= 0 ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: d >= 0
+                    ? const Color(0xFF2E7D32)
+                    : const Color(0xFFC62828),
+              ),
               textAlign: TextAlign.right,
             ),
           ),
@@ -1323,7 +1635,10 @@ class _RevenueViewState extends State<RevenueView>
                   ),
                   child: Text(
                     'Ngày đầu tiên',
-                    style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.caption.fontSize,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ),
             ],
@@ -1358,10 +1673,13 @@ class _RevenueViewState extends State<RevenueView>
               const SizedBox(width: 6),
               Text(
                 'TỔNG: ',
-                style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline5.fontSize,
+                  color: Colors.grey.shade600,
+                ),
               ),
               Text(
-                '${NumberFormat('#,###').format(cashStart + bankStart)} đ',
+                '${_fmtMoney(cashStart + bankStart)}',
                 style: AppTextStyles.headline6.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.teal.shade700,
@@ -1417,7 +1735,10 @@ class _RevenueViewState extends State<RevenueView>
               const Spacer(),
               Text(
                 '${analysis.transactions.length} giao dịch',
-                style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: Colors.grey.shade600,
+                ),
               ),
             ],
           ),
@@ -1524,11 +1845,14 @@ class _RevenueViewState extends State<RevenueView>
         Expanded(
           child: Text(
             label,
-            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade700),
+            style: TextStyle(
+              fontSize: AppTextStyles.headline5.fontSize,
+              color: Colors.grey.shade700,
+            ),
           ),
         ),
         Text(
-          '${isIncome && !isDebt ? '+' : (isDebt ? '' : '-')}${NumberFormat('#,###').format(amount)} đ',
+          '${isIncome && !isDebt ? '+' : (isDebt ? '' : '-')}${_fmtMoney(amount)}',
           style: TextStyle(
             fontSize: AppTextStyles.headline5.fontSize,
             fontWeight: FontWeight.bold,
@@ -1560,12 +1884,18 @@ class _RevenueViewState extends State<RevenueView>
                 color: delta >= 0 ? Colors.green : Colors.red,
               ),
               const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: color)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppTextStyles.body1.fontSize,
+                  color: color,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            '${delta >= 0 ? '+' : ''}${NumberFormat('#,###').format(delta)} đ',
+            '${delta >= 0 ? '+' : ''}${_fmtMoney(delta)}',
             style: TextStyle(
               fontSize: AppTextStyles.headline4.fontSize,
               fontWeight: FontWeight.bold,
@@ -1657,10 +1987,13 @@ class _RevenueViewState extends State<RevenueView>
               const SizedBox(width: 8),
               Text(
                 'TỔNG DỰ KIẾN: ',
-                style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.indigo.shade600),
+                style: TextStyle(
+                  fontSize: AppTextStyles.headline5.fontSize,
+                  color: Colors.indigo.shade600,
+                ),
               ),
               Text(
-                '${NumberFormat('#,###').format(expectedCash + expectedBank)} đ',
+                '${_fmtMoney(expectedCash + expectedBank)}',
                 style: AppTextStyles.headline5.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.indigo.shade800,
@@ -1689,13 +2022,16 @@ class _RevenueViewState extends State<RevenueView>
             const SizedBox(width: 4),
             Text(
               label,
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.grey.shade600,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
-          '${showPrefix && amount >= 0 ? '+' : ''}${NumberFormat('#,###').format(amount)} đ',
+          '${showPrefix && amount >= 0 ? '+' : ''}${_fmtMoney(amount)}',
           style: TextStyle(
             fontSize: AppTextStyles.headline3.fontSize,
             fontWeight: FontWeight.bold,
@@ -1843,7 +2179,10 @@ class _RevenueViewState extends State<RevenueView>
             // Thông tin người chốt
             Text(
               'Chốt bởi: $lockedBy ${lockedAt != null ? '• ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(lockedAt))}' : ''}',
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.grey.shade600,
+              ),
             ),
 
             const SizedBox(height: 16),
@@ -1915,7 +2254,10 @@ class _RevenueViewState extends State<RevenueView>
           const SizedBox(height: 8),
           Text(
             'Kiểm tra và nhập số tiền thực tế cuối ngày',
-            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: AppTextStyles.subtitle1.fontSize,
+              color: Colors.grey.shade600,
+            ),
           ),
           const SizedBox(height: 20),
           CurrencyTextField(
@@ -1986,17 +2328,22 @@ class _RevenueViewState extends State<RevenueView>
         ),
         Expanded(
           child: Text(
-            NumberFormat('#,###').format(expected),
+            _fmtMoney(expected),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: AppTextStyles.caption.fontSize, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: AppTextStyles.caption.fontSize,
+              color: Colors.grey.shade600,
+            ),
           ),
         ),
         Expanded(
           child: Text(
-            NumberFormat('#,###').format(actual),
+            _fmtMoney(actual),
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: isBold ? AppTextStyles.body1.fontSize : AppTextStyles.caption.fontSize,
+              fontSize: isBold
+                  ? AppTextStyles.body1.fontSize
+                  : AppTextStyles.caption.fontSize,
               fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
               color: color,
             ),
@@ -2012,9 +2359,7 @@ class _RevenueViewState extends State<RevenueView>
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              diff == 0
-                  ? '0'
-                  : '${diff > 0 ? '+' : ''}${NumberFormat('#,###').format(diff)}',
+              diff == 0 ? '0' : '${diff > 0 ? '+' : ''}${_fmtMoney(diff)}',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: AppTextStyles.overlineSize,
@@ -2146,7 +2491,10 @@ class _RevenueViewState extends State<RevenueView>
         ),
         title: Text(
           t.title,
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: AppTextStyles.headline5.fontSize),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: AppTextStyles.headline5.fontSize,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -2158,7 +2506,10 @@ class _RevenueViewState extends State<RevenueView>
               DateFormat(
                 'HH:mm',
               ).format(DateTime.fromMillisecondsSinceEpoch(t.time)),
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: Colors.grey.shade600,
+              ),
             ),
             const SizedBox(width: 8),
             Container(
@@ -2179,7 +2530,7 @@ class _RevenueViewState extends State<RevenueView>
           ],
         ),
         trailing: Text(
-          "${t.type == "IN" ? "+" : "-"}${NumberFormat('#,###').format(t.amount)}",
+          "${t.type == "IN" ? "+" : "-"}${_fmtMoney(t.amount)}",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: AppTextStyles.headline4.fontSize,
@@ -2513,7 +2864,10 @@ class _RevenueViewState extends State<RevenueView>
               "• Các giao dịch sẽ được phép thêm/sửa/xóa\n"
               "• Bạn cần chốt quỹ lại sau khi hoàn tất\n"
               "• Hành động này sẽ được ghi nhật ký",
-              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey),
+              style: TextStyle(
+                fontSize: AppTextStyles.headline5.fontSize,
+                color: Colors.grey,
+              ),
             ),
           ],
         ),
@@ -2611,13 +2965,16 @@ class _RevenueViewState extends State<RevenueView>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tiền mặt: ${NumberFormat('#,###').format(cash)} đ'),
+            Text('Tiền mặt: ${_fmtMoney(cash)}'),
             const SizedBox(height: 4),
-            Text('Ngân hàng: ${NumberFormat('#,###').format(bank)} đ'),
+            Text('Ngân hàng: ${_fmtMoney(bank)}'),
             const SizedBox(height: 12),
             Text(
               'Sau khi chốt, bạn sẽ không thể sửa/xóa các phiếu trong ngày.',
-              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.orange),
+              style: TextStyle(
+                fontSize: AppTextStyles.subtitle1.fontSize,
+                color: Colors.orange,
+              ),
             ),
           ],
         ),
@@ -2679,7 +3036,7 @@ class _RevenueViewState extends State<RevenueView>
       action: "CHỐT QUỸ",
       type: "FINANCE",
       desc:
-          "Tiền mặt: ${NumberFormat('#,###').format(cash)}đ, Ngân hàng: ${NumberFormat('#,###').format(bank)}đ - Ngày $dateKey đã bị khóa",
+          "Tiền mặt: ${_fmtMoney(cash)}, Ngân hàng: ${_fmtMoney(bank)} - Ngày $dateKey đã bị khóa",
     );
     NotificationService.showSnackBar(
       "Đã chốt quỹ thành công! Ngày $dateKey đã bị khóa.",
@@ -2711,7 +3068,7 @@ class _RevenueViewState extends State<RevenueView>
             ),
           ),
           Text(
-            NumberFormat('#,###').format(v),
+            _fmtMoney(v),
             style: TextStyle(
               fontSize: AppTextStyles.headline3.fontSize,
               fontWeight: FontWeight.bold,
@@ -2776,13 +3133,13 @@ class _RevenueViewState extends State<RevenueView>
     totalIn += miscIncome;
 
     int totalOut = fExpenses
-      .where(_isBusinessOperatingExpense)
+        .where(_isBusinessOperatingExpense)
         .fold<int>(0, (sum, e) => sum + (e['amount'] as int));
 
     int totalCost = salesCost + repairsCost;
     int profit = totalIn - totalOut - totalCost;
 
-    String fmt(int v) => NumberFormat('#,###').format(v);
+    String fmt(int v) => _fmtMoney(v);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
@@ -2797,31 +3154,63 @@ class _RevenueViewState extends State<RevenueView>
           // ═══ 4 METRIC TILES ═══
           Row(
             children: [
-              _metricTile('Doanh thu', totalIn, const Color(0xFF2E7D32), Icons.trending_up),
+              _metricTile(
+                'Doanh thu',
+                totalIn,
+                const Color(0xFF2E7D32),
+                Icons.trending_up,
+              ),
               const SizedBox(width: 8),
-              _metricTile('Chi phí', totalOut, const Color(0xFFC62828), Icons.trending_down),
+              _metricTile(
+                'Chi phí',
+                totalOut,
+                const Color(0xFFC62828),
+                Icons.trending_down,
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              _metricTile('Giá vốn', totalCost, const Color(0xFFE65100), Icons.inventory_2_outlined),
+              _metricTile(
+                'Giá vốn',
+                totalCost,
+                const Color(0xFFE65100),
+                Icons.inventory_2_outlined,
+              ),
               const SizedBox(width: 8),
-              _metricTile('Biên LN', totalIn > 0 ? (profit * 100 ~/ totalIn) : 0,
+              _metricTile(
+                'Biên LN',
+                totalIn > 0 ? (profit * 100 ~/ totalIn) : 0,
                 profit >= 0 ? const Color(0xFF00695C) : const Color(0xFFC62828),
-                Icons.percent, suffix: '%', raw: true),
+                Icons.percent,
+                suffix: '%',
+                raw: true,
+              ),
             ],
           ),
 
           const SizedBox(height: 16),
 
           // ═══ DONUT CHART + BREAKDOWN ═══
-          _donutBreakdownCard(salesIncome, repairsIncome, miscIncome, totalOut, totalCost),
+          _donutBreakdownCard(
+            salesIncome,
+            repairsIncome,
+            miscIncome,
+            totalOut,
+            totalCost,
+          ),
 
           const SizedBox(height: 16),
 
           // ═══ BAR CHART: THU vs CHI ═══
-          _barChartCard(salesIncome, repairsIncome, miscIncome, totalOut, totalCost),
+          _barChartCard(
+            salesIncome,
+            repairsIncome,
+            miscIncome,
+            totalOut,
+            totalCost,
+          ),
 
           const SizedBox(height: 16),
 
@@ -2927,7 +3316,7 @@ class _RevenueViewState extends State<RevenueView>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  "${NumberFormat('#,###').format(totalReceivables)} đ",
+                  "${_fmtMoney(totalReceivables)}",
                   style: TextStyle(
                     fontSize: AppTextStyles.headline4.fontSize,
                     fontWeight: FontWeight.bold,
@@ -2937,7 +3326,9 @@ class _RevenueViewState extends State<RevenueView>
               ),
             ],
           ),
-          if (saleDebt > 0 || (_enableRepair && repairDebt > 0) || pendingFromBank > 0) ...[
+          if (saleDebt > 0 ||
+              (_enableRepair && repairDebt > 0) ||
+              pendingFromBank > 0) ...[
             const Divider(height: 20),
             if (saleDebt > 0)
               _receivableItem(
@@ -2985,11 +3376,14 @@ class _RevenueViewState extends State<RevenueView>
           Expanded(
             child: Text(
               "$label ($count đơn)",
-              style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade700),
+              style: TextStyle(
+                fontSize: AppTextStyles.headline5.fontSize,
+                color: Colors.grey.shade700,
+              ),
             ),
           ),
           Text(
-            "${NumberFormat('#,###').format(amount)} đ",
+            "${_fmtMoney(amount)}",
             style: TextStyle(
               fontSize: AppTextStyles.headline5.fontSize,
               fontWeight: FontWeight.w600,
@@ -3005,7 +3399,10 @@ class _RevenueViewState extends State<RevenueView>
   Widget _buildTopProductsSection(List<SaleOrder> fSales) {
     final productStats = <String, _ProductStat>{};
     for (var s in fSales) {
-      final names = s.productNames.split(RegExp(r'[,\n]')).map((n) => n.trim()).where((n) => n.isNotEmpty);
+      final names = s.productNames
+          .split(RegExp(r'[,\n]'))
+          .map((n) => n.trim())
+          .where((n) => n.isNotEmpty);
       final count = names.length;
       if (count == 0) continue;
       final revenuePerItem = s.finalPrice ~/ count;
@@ -3018,7 +3415,8 @@ class _RevenueViewState extends State<RevenueView>
     }
     if (productStats.isEmpty) return const SizedBox();
 
-    final sorted = productStats.values.toList()..sort((a, b) => b.qty.compareTo(a.qty));
+    final sorted = productStats.values.toList()
+      ..sort((a, b) => b.qty.compareTo(a.qty));
     final top = sorted.take(5).toList();
 
     return Container(
@@ -3035,7 +3433,15 @@ class _RevenueViewState extends State<RevenueView>
             children: [
               Icon(Icons.star_rounded, color: Colors.deepPurple, size: 16),
               const SizedBox(width: 6),
-              Text('TOP SẢN PHẨM', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.deepPurple, letterSpacing: 0.5)),
+              Text(
+                'TOP SẢN PHẨM',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.deepPurple,
+                  letterSpacing: 0.5,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -3048,16 +3454,52 @@ class _RevenueViewState extends State<RevenueView>
                 children: [
                   SizedBox(
                     width: 18,
-                    child: Text('$idx', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.deepPurple : Colors.grey.shade500)),
+                    child: Text(
+                      '$idx',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: idx <= 3
+                            ? Colors.deepPurple
+                            : Colors.grey.shade500,
+                      ),
+                    ),
                   ),
-                  Expanded(child: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14))),
+                  Expanded(
+                    child: Text(
+                      p.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(color: Colors.deepPurple.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-                    child: Text('${p.qty}sp', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.deepPurple)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${p.qty}sp',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.deepPurple,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 6),
-                  Text('${NumberFormat('#,###').format(p.revenue)}đ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                  Text(
+                    '${_fmtMoney(p.revenue)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -3079,7 +3521,8 @@ class _RevenueViewState extends State<RevenueView>
     }
     if (customerStats.isEmpty) return const SizedBox();
 
-    final sorted = customerStats.values.toList()..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
+    final sorted = customerStats.values.toList()
+      ..sort((a, b) => b.totalSpent.compareTo(a.totalSpent));
     final top = sorted.take(5).toList();
 
     return Container(
@@ -3097,7 +3540,15 @@ class _RevenueViewState extends State<RevenueView>
             children: [
               Icon(Icons.people_alt_rounded, color: Colors.teal, size: 16),
               const SizedBox(width: 6),
-              Text('TOP KHÁCH HÀNG', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.teal, letterSpacing: 0.5)),
+              Text(
+                'TOP KHÁCH HÀNG',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.teal,
+                  letterSpacing: 0.5,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -3110,16 +3561,50 @@ class _RevenueViewState extends State<RevenueView>
                 children: [
                   SizedBox(
                     width: 18,
-                    child: Text('$idx', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: idx <= 3 ? Colors.teal : Colors.grey.shade500)),
+                    child: Text(
+                      '$idx',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: idx <= 3 ? Colors.teal : Colors.grey.shade500,
+                      ),
+                    ),
                   ),
-                  Expanded(child: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14))),
+                  Expanded(
+                    child: Text(
+                      c.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(color: Colors.teal.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-                    child: Text('${c.orders}đơn', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.teal)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${c.orders}đơn',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.teal,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 6),
-                  Text('${NumberFormat('#,###').format(c.totalSpent)}đ', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                  Text(
+                    '${_fmtMoney(c.totalSpent)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
                 ],
               ),
             );
@@ -3136,7 +3621,9 @@ class _RevenueViewState extends State<RevenueView>
   /// Compact profit header — period label + profit in one row
   Widget _compactProfitHeader(int profit, int totalIn, int totalOutCost) {
     final isPositive = profit >= 0;
-    final profitColor = isPositive ? const Color(0xFF1B5E20) : const Color(0xFFB71C1C);
+    final profitColor = isPositive
+        ? const Color(0xFF1B5E20)
+        : const Color(0xFFB71C1C);
     final bgGradient = isPositive
         ? const [Color(0xFFE8F5E9), Color(0xFFC8E6C9)]
         : const [Color(0xFFFFEBEE), Color(0xFFFFCDD2)];
@@ -3144,7 +3631,11 @@ class _RevenueViewState extends State<RevenueView>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: bgGradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: LinearGradient(
+          colors: bgGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: profitColor.withOpacity(0.15)),
       ),
@@ -3159,8 +3650,12 @@ class _RevenueViewState extends State<RevenueView>
             ),
             child: Text(
               _getFilterLabel(),
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-                color: profitColor, letterSpacing: 0.3),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: profitColor,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
           const Spacer(),
@@ -3168,10 +3663,20 @@ class _RevenueViewState extends State<RevenueView>
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('Lợi nhuận ròng', style: TextStyle(fontSize: 12, color: profitColor.withOpacity(0.7))),
               Text(
-                '${profit >= 0 ? '+' : ''}${NumberFormat('#,###').format(profit)}đ',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: profitColor),
+                'Lợi nhuận ròng',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: profitColor.withOpacity(0.7),
+                ),
+              ),
+              Text(
+                '${profit >= 0 ? '+' : ''}${_fmtMoney(profit)}',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: profitColor,
+                ),
               ),
             ],
           ),
@@ -3181,8 +3686,14 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   /// Single metric tile — used in 2x2 grid
-  Widget _metricTile(String label, int value, Color color, IconData icon,
-      {String suffix = 'đ', bool raw = false}) {
+  Widget _metricTile(
+    String label,
+    int value,
+    Color color,
+    IconData icon, {
+    String suffix = '',
+    bool raw = false,
+  }) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -3206,12 +3717,24 @@ class _RevenueViewState extends State<RevenueView>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   const SizedBox(height: 1),
                   Text(
-                    raw ? '$value$suffix' : '${NumberFormat('#,###').format(value)}$suffix',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: color),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    raw ? '$value$suffix' : '${_fmtMoney(value)}$suffix',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -3223,13 +3746,24 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   /// Donut chart with breakdown legend
-  Widget _donutBreakdownCard(int salesIncome, int repairsIncome, int misc, int expenses, int cost) {
+  Widget _donutBreakdownCard(
+    int salesIncome,
+    int repairsIncome,
+    int misc,
+    int expenses,
+    int cost,
+  ) {
     final total = salesIncome + repairsIncome + misc + expenses + cost;
     if (total == 0) {
       return Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-        child: const Center(child: Text('Chưa có dữ liệu', style: TextStyle(color: Colors.grey))),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Center(
+          child: Text('Chưa có dữ liệu', style: TextStyle(color: Colors.grey)),
+        ),
       );
     }
 
@@ -3253,7 +3787,8 @@ class _RevenueViewState extends State<RevenueView>
         children: [
           // Donut
           SizedBox(
-            width: 110, height: 110,
+            width: 110,
+            height: 110,
             child: PieChart(
               PieChartData(
                 sectionsSpace: 2,
@@ -3265,7 +3800,11 @@ class _RevenueViewState extends State<RevenueView>
                     value: s.value.toDouble(),
                     radius: 22,
                     title: '${pct.round()}%',
-                    titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                    titleStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                     titlePositionPercentageOffset: 0.55,
                   );
                 }).toList(),
@@ -3283,11 +3822,32 @@ class _RevenueViewState extends State<RevenueView>
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
                     children: [
-                      Container(width: 10, height: 10,
-                        decoration: BoxDecoration(color: s.color, borderRadius: BorderRadius.circular(3))),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: s.color,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Expanded(child: Text(s.label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700))),
-                      Text('$pct%', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: s.color)),
+                      Expanded(
+                        child: Text(
+                          s.label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '$pct%',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: s.color,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -3300,7 +3860,13 @@ class _RevenueViewState extends State<RevenueView>
   }
 
   /// Horizontal bar chart: THU vs CHI comparison
-  Widget _barChartCard(int salesIncome, int repairsIncome, int misc, int expenses, int cost) {
+  Widget _barChartCard(
+    int salesIncome,
+    int repairsIncome,
+    int misc,
+    int expenses,
+    int cost,
+  ) {
     final totalIn = salesIncome + repairsIncome + misc;
     final totalOut = expenses + cost;
     final maxVal = math.max(totalIn, totalOut).toDouble();
@@ -3316,8 +3882,15 @@ class _RevenueViewState extends State<RevenueView>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('THU vs CHI', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700,
-            color: Colors.grey.shade700, letterSpacing: 0.5)),
+          Text(
+            'THU vs CHI',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey.shade700,
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 14),
           SizedBox(
             height: 120,
@@ -3329,20 +3902,54 @@ class _RevenueViewState extends State<RevenueView>
                 gridData: const FlGridData(show: false),
                 borderData: FlBorderData(show: false),
                 titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (v, _) {
                         switch (v.toInt()) {
-                          case 0: return Text('Bán hàng', style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
-                          case 1: return Text(_enableRepair ? 'Sửa chữa' : 'Thu khác',
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
-                          case 2: return Text('Chi phí', style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
-                          case 3: return Text('Giá vốn', style: TextStyle(fontSize: 11, color: Colors.grey.shade600));
-                          default: return const SizedBox();
+                          case 0:
+                            return Text(
+                              'Bán hàng',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            );
+                          case 1:
+                            return Text(
+                              _enableRepair ? 'Sửa chữa' : 'Thu khác',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            );
+                          case 2:
+                            return Text(
+                              'Chi phí',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            );
+                          case 3:
+                            return Text(
+                              'Giá vốn',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            );
+                          default:
+                            return const SizedBox();
                         }
                       },
                     ),
@@ -3350,8 +3957,13 @@ class _RevenueViewState extends State<RevenueView>
                 ),
                 barGroups: [
                   _barGroup(0, salesIncome.toDouble(), const Color(0xFF43A047)),
-                  _barGroup(1, (_enableRepair ? repairsIncome : misc).toDouble(),
-                    _enableRepair ? const Color(0xFF1E88E5) : const Color(0xFF7E57C2)),
+                  _barGroup(
+                    1,
+                    (_enableRepair ? repairsIncome : misc).toDouble(),
+                    _enableRepair
+                        ? const Color(0xFF1E88E5)
+                        : const Color(0xFF7E57C2),
+                  ),
                   _barGroup(2, expenses.toDouble(), const Color(0xFFE53935)),
                   _barGroup(3, cost.toDouble(), const Color(0xFFFB8C00)),
                 ],
@@ -3373,7 +3985,9 @@ class _RevenueViewState extends State<RevenueView>
           width: 22,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
           backDrawRodData: BackgroundBarChartRodData(
-            show: true, toY: 0, color: color.withOpacity(0.06),
+            show: true,
+            toY: 0,
+            color: color.withOpacity(0.06),
           ),
         ),
       ],
@@ -3384,13 +3998,25 @@ class _RevenueViewState extends State<RevenueView>
   Widget _quickStatsRow(int salesCount, int repairsCount, int expensesCount) {
     return Row(
       children: [
-        _statChip('$salesCount đơn bán', const Color(0xFF1E88E5), Icons.shopping_cart_outlined),
+        _statChip(
+          '$salesCount đơn bán',
+          const Color(0xFF1E88E5),
+          Icons.shopping_cart_outlined,
+        ),
         const SizedBox(width: 6),
         if (_enableRepair) ...[
-          _statChip('$repairsCount sửa', const Color(0xFFFB8C00), Icons.build_outlined),
+          _statChip(
+            '$repairsCount sửa',
+            const Color(0xFFFB8C00),
+            Icons.build_outlined,
+          ),
           const SizedBox(width: 6),
         ],
-        _statChip('$expensesCount chi', const Color(0xFFE53935), Icons.receipt_outlined),
+        _statChip(
+          '$expensesCount chi',
+          const Color(0xFFE53935),
+          Icons.receipt_outlined,
+        ),
       ],
     );
   }
@@ -3409,8 +4035,16 @@ class _RevenueViewState extends State<RevenueView>
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 4),
             Flexible(
-              child: Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -3426,7 +4060,9 @@ class _RevenueViewState extends State<RevenueView>
     final totalRevenue = list.fold<int>(0, (sum, s) {
       if (s.isInstallment) {
         // Trả góp: chỉ tính tiền đã thu (downPayment + settlement nếu có)
-        final settlementPaid = s.settlementReceivedAt != null ? s.settlementAmount : 0;
+        final settlementPaid = s.settlementReceivedAt != null
+            ? s.settlementAmount
+            : 0;
         return sum + s.downPayment + settlementPaid;
       }
       return sum + s.totalPrice;
@@ -3448,7 +4084,7 @@ class _RevenueViewState extends State<RevenueView>
                 ),
               ),
               Text(
-                '${NumberFormat('#,###').format(totalRevenue)}đ',
+                '${_fmtMoney(totalRevenue)}',
                 style: AppTextStyles.body2.copyWith(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
@@ -3500,7 +4136,7 @@ class _RevenueViewState extends State<RevenueView>
                         ),
                         subtitle: Text("Khách: ${sale.customerName} • $date"),
                         trailing: Text(
-                          "+${NumberFormat('#,###').format(sale.totalPrice)}đ",
+                          "+${_fmtMoney(sale.totalPrice)}",
                           style: const TextStyle(
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
@@ -3545,7 +4181,7 @@ class _RevenueViewState extends State<RevenueView>
                 ),
               ),
               Text(
-                '${NumberFormat('#,###').format(totalRevenue)}đ',
+                '${_fmtMoney(totalRevenue)}',
                 style: AppTextStyles.body2.copyWith(
                   color: Colors.blue,
                   fontWeight: FontWeight.bold,
@@ -3597,7 +4233,7 @@ class _RevenueViewState extends State<RevenueView>
                         ),
                         subtitle: Text("Khách: ${repair.customerName} • $date"),
                         trailing: Text(
-                          "+${NumberFormat('#,###').format(repair.price)}đ",
+                          "+${_fmtMoney(repair.price)}",
                           style: const TextStyle(
                             color: Colors.blueAccent,
                             fontWeight: FontWeight.bold,
@@ -3643,7 +4279,7 @@ class _RevenueViewState extends State<RevenueView>
                 ),
               ),
               Text(
-                '-${NumberFormat('#,###').format(totalExpense)}đ',
+                '-${_fmtMoney(totalExpense)}',
                 style: AppTextStyles.body2.copyWith(
                   color: Colors.red,
                   fontWeight: FontWeight.bold,
@@ -3701,7 +4337,7 @@ class _RevenueViewState extends State<RevenueView>
                           "${expense['category'] ?? 'Khác'} • $date",
                         ),
                         trailing: Text(
-                          "-${NumberFormat('#,###').format(expense['amount'])}đ",
+                          "-${_fmtMoney(expense['amount'])}",
                           style: const TextStyle(
                             color: Colors.redAccent,
                             fontWeight: FontWeight.bold,
@@ -3893,12 +4529,15 @@ class _RevenueViewState extends State<RevenueView>
                 if (item.isDebt)
                   Text(
                     "Công nợ",
-                    style: TextStyle(color: Colors.orange, fontSize: AppTextStyles.subtitle1.fontSize),
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                    ),
                   ),
               ],
             ),
             trailing: Text(
-              "${isIncome ? '+' : '-'}${NumberFormat('#,###').format(item.amount)}đ",
+              "${isIncome ? '+' : '-'}${_fmtMoney(item.amount)}",
               style: TextStyle(
                 color: isIncome ? Colors.green : Colors.red,
                 fontWeight: FontWeight.bold,
@@ -3933,7 +4572,10 @@ class _RevenueViewState extends State<RevenueView>
             ),
             Text(
               title,
-              style: TextStyle(fontSize: AppTextStyles.overlineSize, color: color.withOpacity(0.7)),
+              style: TextStyle(
+                fontSize: AppTextStyles.overlineSize,
+                color: color.withOpacity(0.7),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -3989,7 +4631,7 @@ class _PeriodStats {
   final int repairsIncome;
   final int repairsCost;
   final int miscIncome;
-  final int expenseOut;  // Chi phí hoạt động (không gồm nhập hàng)
+  final int expenseOut; // Chi phí hoạt động (không gồm nhập hàng)
   final int salesCount;
   final int repairsCount;
 

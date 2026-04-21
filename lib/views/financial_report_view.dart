@@ -138,7 +138,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
           event == 'sales_returns_changed' ||
           event == 'payment_requests_changed' ||
           event == EventBus.shopChanged) {
-        debugPrint('📊 [FinancialReportView] Nhận event "$event" → debounce tải lại báo cáo');
+        debugPrint(
+          '📊 [FinancialReportView] Nhận event "$event" → debounce tải lại báo cáo',
+        );
         _debouncedLoadData();
       }
     });
@@ -265,7 +267,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
       final expenses = await _db.getExpensesByDateRange(startMs, endMs);
       for (final e in expenses) {
         if ((e['deleted'] ?? 0) != 1) {
-          final expenseDate = (e['date'] as int?) ?? (e['createdAt'] as int?) ?? 0;
+          final expenseDate =
+              (e['date'] as int?) ?? (e['createdAt'] as int?) ?? 0;
           final eType = (e['type'] ?? 'CHI').toString().toUpperCase();
           final isThu = eType == 'THU';
           allTransactions.add(
@@ -291,7 +294,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
       // 4. Thanh toán nợ — JOIN trực tiếp trong SQL (thay vì N+1: getAllDebts → getDebtPayments)
       // NOTE: Chỉ lấy các lần THANH TOÁN NỢ thực tế, không lấy debt records
       // DEBT_OUT/CUSTOMER_OWES bản thân không là giao dịch tiền thực
-      final debtPayments = await _db.getDebtPaymentsWithDebtInfoByDateRange(startMs, endMs);
+      final debtPayments = await _db.getDebtPaymentsWithDebtInfoByDateRange(
+        startMs,
+        endMs,
+      );
       for (final p in debtPayments) {
         final debtType = p['debtType'] as String? ?? '';
         final personName = p['debtPersonName'] as String?;
@@ -312,7 +318,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
               note: p['note'] as String?,
             ),
           );
-        } else if (debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED') {
+        } else if (debtType == 'SHOP_OWES' ||
+            debtType == 'OTHER_SHOP_OWES' ||
+            debtType == 'OWED') {
           // Trả nợ NCC/Đối tác - ĐÂY LÀ CHI TIỀN THỰC
           allTransactions.add(
             TransactionItem(
@@ -335,10 +343,14 @@ class _FinancialReportViewState extends State<FinancialReportView>
       // Dedup: loại bỏ import đã có expense tương ứng (tránh double-count)
       for (final imp in imports) {
         final amount = (imp['totalAmount'] as num?)?.toInt() ?? 0;
-        final importDate = (imp['importDate'] as int?) ?? (imp['createdAt'] as int?) ?? 0;
+        final importDate =
+            (imp['importDate'] as int?) ?? (imp['createdAt'] as int?) ?? 0;
         final hasMatchingExpense = expenses.any((e) {
           final cat = (e['category'] ?? '').toString().toUpperCase();
-          if (!cat.contains('NHẬP') && !cat.contains('LINH KIỆN') && !cat.contains('PURCHASE')) return false;
+          if (!cat.contains('NHẬP') &&
+              !cat.contains('LINH KIỆN') &&
+              !cat.contains('PURCHASE'))
+            return false;
           final expAmount = (e['amount'] as num?)?.toInt() ?? 0;
           return (expAmount - amount).abs() < 1000;
         });
@@ -349,7 +361,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
               timestamp: importDate,
               type: 'PURCHASE',
               category: 'Nhập hàng',
-              description: '${imp['productName'] ?? 'Sản phẩm'} - ${imp['supplierName'] ?? 'NCC'}',
+              description:
+                  '${imp['productName'] ?? 'Sản phẩm'} - ${imp['supplierName'] ?? 'NCC'}',
               amount: amount,
               isIncome: false,
               personName: imp['supplierName'] as String?,
@@ -360,7 +373,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
       }
 
       // 6. Thanh toán trực tiếp NCC (supplier_payments) — không qua debt
-      final supplierPays = await _db.getSupplierPaymentsByDateRange(startMs, endMs);
+      final supplierPays = await _db.getSupplierPaymentsByDateRange(
+        startMs,
+        endMs,
+      );
       for (final sp in supplierPays) {
         final amount = (sp['amount'] as num?)?.toInt() ?? 0;
         if (amount > 0) {
@@ -381,7 +397,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
       }
 
       // 7. Thanh toán đối tác sửa chữa (repair_partner_payments)
-      final partnerPays = await _db.getRepairPartnerPaymentsByDateRange(startMs, endMs);
+      final partnerPays = await _db.getRepairPartnerPaymentsByDateRange(
+        startMs,
+        endMs,
+      );
       for (final pp in partnerPays) {
         final amount = (pp['amount'] as num?)?.toInt() ?? 0;
         if (amount > 0) {
@@ -391,7 +410,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
               timestamp: (pp['paidAt'] as int?) ?? 0,
               type: 'DEBT_PAY',
               category: 'TT đối tác SC',
-              description: 'Thanh toán đối tác: ${pp['partnerName'] ?? 'Đối tác'}',
+              description:
+                  'Thanh toán đối tác: ${pp['partnerName'] ?? 'Đối tác'}',
               amount: amount,
               isIncome: false,
               personName: pp['partnerName'] as String?,
@@ -457,11 +477,15 @@ class _FinancialReportViewState extends State<FinancialReportView>
 
   /// Compact filter chip for embedded mode
   Widget _directionChip(String label, int index) {
-    final isSelected = (index == 0 && !_showIncomeOnly && !_showExpenseOnly) ||
+    final isSelected =
+        (index == 0 && !_showIncomeOnly && !_showExpenseOnly) ||
         (index == 1 && _showIncomeOnly) ||
         (index == 2 && _showExpenseOnly);
     return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: AppTextStyles.caption.fontSize)),
+      label: Text(
+        label,
+        style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
+      ),
       selected: isSelected,
       onSelected: (_) {
         setState(() {
@@ -509,8 +533,11 @@ class _FinancialReportViewState extends State<FinancialReportView>
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
           elevation: 0,
-          title: Text(AppLocalizations.of(context)?.financialReportLabel ?? 'Financial Report',
-            style: const TextStyle(color: Colors.white, fontSize: 17)),
+          title: Text(
+            AppLocalizations.of(context)?.financialReportLabel ??
+                'Financial Report',
+            style: const TextStyle(color: Colors.white, fontSize: 17),
+          ),
         ),
         body: Center(
           child: Text(
@@ -545,11 +572,20 @@ class _FinancialReportViewState extends State<FinancialReportView>
             color: Colors.white,
             child: Row(
               children: [
-                _directionChip(AppLocalizations.of(context)?.all ?? 'Tất cả', 0),
+                _directionChip(
+                  AppLocalizations.of(context)?.all ?? 'Tất cả',
+                  0,
+                ),
                 const SizedBox(width: 4),
-                _directionChip(AppLocalizations.of(context)?.income ?? 'Thu', 1),
+                _directionChip(
+                  AppLocalizations.of(context)?.income ?? 'Thu',
+                  1,
+                ),
                 const SizedBox(width: 4),
-                _directionChip(AppLocalizations.of(context)?.expense ?? 'Chi', 2),
+                _directionChip(
+                  AppLocalizations.of(context)?.expense ?? 'Chi',
+                  2,
+                ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.filter_list, size: 20),
@@ -557,7 +593,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
                   tooltip: 'Bộ lọc',
                   splashRadius: 18,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 20),
@@ -565,7 +604,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
                   tooltip: 'Làm mới',
                   splashRadius: 18,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
                 ),
               ],
             ),
@@ -588,7 +630,8 @@ class _FinancialReportViewState extends State<FinancialReportView>
           ),
         ),
         title: Text(
-          AppLocalizations.of(context)?.financialReportLabel ?? 'Financial Report',
+          AppLocalizations.of(context)?.financialReportLabel ??
+              'Financial Report',
           style: const TextStyle(color: Colors.white, fontSize: 17),
         ),
         backgroundColor: Colors.transparent,
@@ -599,7 +642,9 @@ class _FinancialReportViewState extends State<FinancialReportView>
             icon: const Icon(Icons.summarize),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const DailyActivityReportView()),
+              MaterialPageRoute(
+                builder: (_) => const DailyActivityReportView(),
+              ),
             ),
             tooltip: 'Báo cáo cuối ngày',
           ),
@@ -635,15 +680,15 @@ class _FinancialReportViewState extends State<FinancialReportView>
       ),
       body: ResponsiveCenter(
         child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                _buildSummaryCard(),
-                _buildDateRangeBar(),
-                _buildQuickFilters(),
-                Expanded(child: _buildTransactionList()),
-              ],
-            ),
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  _buildSummaryCard(),
+                  _buildDateRangeBar(),
+                  _buildQuickFilters(),
+                  Expanded(child: _buildTransactionList()),
+                ],
+              ),
       ),
     );
   }
@@ -674,9 +719,13 @@ class _FinancialReportViewState extends State<FinancialReportView>
       ),
       child: Row(
         children: [
-          Expanded(child: _summaryItem('Thu', _totalIncome, Icons.arrow_downward)),
+          Expanded(
+            child: _summaryItem('Thu', _totalIncome, Icons.arrow_downward),
+          ),
           Container(width: 1, height: 36, color: Colors.white30),
-          Expanded(child: _summaryItem('Chi', _totalExpense, Icons.arrow_upward)),
+          Expanded(
+            child: _summaryItem('Chi', _totalExpense, Icons.arrow_upward),
+          ),
           Container(width: 1, height: 36, color: Colors.white30),
           Expanded(
             child: Column(
@@ -702,7 +751,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  MoneyUtils.formatCurrency(net),
+                  MoneyUtils.formatCompactCurrency(net),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: AppTextStyles.body1.fontSize,
@@ -737,7 +786,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
         ),
         const SizedBox(height: 2),
         Text(
-          MoneyUtils.formatCurrency(amount),
+          MoneyUtils.formatCompactCurrency(amount),
           style: TextStyle(
             color: Colors.white,
             fontSize: AppTextStyles.body1.fontSize,
@@ -1119,7 +1168,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCurrency(t.amount)}đ',
+                          '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCompactCurrency(t.amount)}',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -1276,7 +1325,7 @@ class _FinancialReportViewState extends State<FinancialReportView>
             _detailRow('Mô tả', t.description),
             _detailRow(
               'Số tiền',
-              '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCurrency(t.amount)}',
+              '${t.isIncome ? "+" : "-"}${MoneyUtils.formatCompactCurrency(t.amount)}',
               valueColor: t.isIncome ? Colors.green : Colors.red,
             ),
             if (t.personName != null && t.personName!.isNotEmpty)

@@ -75,14 +75,14 @@ class _AuditLogViewState extends State<AuditLogView> {
       ),
       body: ResponsiveCenter(
         child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _logs.isEmpty
-          ? _buildEmpty()
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _logs.length,
-              itemBuilder: (ctx, i) => _buildLogCard(_logs[i], i + 1),
-            ),
+            ? const Center(child: CircularProgressIndicator())
+            : _logs.isEmpty
+            ? _buildEmpty()
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _logs.length,
+                itemBuilder: (ctx, i) => _buildLogCard(_logs[i], i + 1),
+              ),
       ),
     );
   }
@@ -110,6 +110,7 @@ class _AuditLogViewState extends State<AuditLogView> {
   Widget _buildLogCard(Map<String, dynamic> log, int index) {
     final DateTime date = DateTime.fromMillisecondsSinceEpoch(log['createdAt']);
     final Color actionColor = _getActionColor(log['action'] ?? '');
+    final String actionLabel = _displayAction(log['action']);
     final String entityType = log['targetType'] ?? log['entityType'] ?? '';
     final String entityId = log['targetId'] ?? log['entityId'] ?? '';
     final String description = log['description'] ?? log['summary'] ?? '';
@@ -173,7 +174,7 @@ class _AuditLogViewState extends State<AuditLogView> {
                 // Action name
                 Expanded(
                   child: Text(
-                    log['action'] ?? '',
+                    actionLabel,
                     style: TextStyle(
                       color: actionColor,
                       fontWeight: FontWeight.bold,
@@ -305,6 +306,7 @@ class _AuditLogViewState extends State<AuditLogView> {
   void _showLogDetail(Map<String, dynamic> log) {
     final DateTime date = DateTime.fromMillisecondsSinceEpoch(log['createdAt']);
     final Color actionColor = _getActionColor(log['action'] ?? '');
+    final String actionLabel = _displayAction(log['action']);
     final String entityType = log['targetType'] ?? log['entityType'] ?? '';
     final String entityId = log['targetId'] ?? log['entityId'] ?? '';
     final String description = log['description'] ?? log['summary'] ?? '';
@@ -359,7 +361,7 @@ class _AuditLogViewState extends State<AuditLogView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          log['action'] ?? '',
+                          actionLabel,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: AppTextStyles.headline2.fontSize,
@@ -434,20 +436,110 @@ class _AuditLogViewState extends State<AuditLogView> {
   }
 
   Color _getActionColor(String action) {
-    if (action.contains("XÓA")) return Colors.red;
-    if (action.contains("NHẬP") || action.contains("THÊM")) return Colors.green;
-    if (action.contains("SỬA") || action.contains("CẬP NHẬT"))
+    final upper = action.toUpperCase();
+    if (upper.contains('XÓA') ||
+        upper.contains('DELETE') ||
+        upper.contains('REMOVE'))
+      return Colors.red;
+    if (upper.contains('NHẬP') ||
+        upper.contains('THÊM') ||
+        upper.contains('CREATE') ||
+        upper.contains('ADD'))
+      return Colors.green;
+    if (upper.contains('SỬA') ||
+        upper.contains('CẬP NHẬT') ||
+        upper.contains('UPDATE') ||
+        upper.contains('EDIT'))
       return Colors.orange;
-    if (action.contains("BÁN")) return Colors.pink;
+    if (upper.contains('BÁN') || upper.contains('SALE')) return Colors.pink;
+    if (upper.contains('THU NỢ') || upper.contains('DEBT_COLLECT'))
+      return Colors.teal;
+    if (upper.contains('TRẢ NỢ') ||
+        upper.contains('DEBT_PAY') ||
+        upper.contains('SUPPLIER_PAID'))
+      return Colors.deepOrange;
     return Colors.blue;
   }
 
   IconData _getActionIcon(String action) {
-    if (action.contains("XÓA")) return Icons.delete_forever;
-    if (action.contains("NHẬP")) return Icons.add_business;
-    if (action.contains("BÁN")) return Icons.shopping_cart;
-    if (action.contains("SỬA")) return Icons.edit_note;
+    final upper = action.toUpperCase();
+    if (upper.contains('XÓA') ||
+        upper.contains('DELETE') ||
+        upper.contains('REMOVE'))
+      return Icons.delete_forever;
+    if (upper.contains('NHẬP') ||
+        upper.contains('IMPORT') ||
+        upper.contains('ADD'))
+      return Icons.add_business;
+    if (upper.contains('BÁN') || upper.contains('SALE'))
+      return Icons.shopping_cart;
+    if (upper.contains('SỬA') ||
+        upper.contains('UPDATE') ||
+        upper.contains('EDIT'))
+      return Icons.edit_note;
+    if (upper.contains('DEBT_COLLECT') || upper.contains('THU NỢ'))
+      return Icons.call_received;
+    if (upper.contains('DEBT_PAY') ||
+        upper.contains('SUPPLIER_PAID') ||
+        upper.contains('TRẢ NỢ'))
+      return Icons.call_made;
     return Icons.info_outline;
+  }
+
+  String _displayAction(dynamic actionValue) {
+    final raw = (actionValue ?? '').toString().trim();
+    if (raw.isEmpty) return 'Nhật ký hệ thống';
+
+    const directMap = {
+      'DEBT_COLLECTED': 'Thu nợ khách hàng',
+      'DEBT_COLLECT': 'Thu nợ khách hàng',
+      'SUPPLIER_PAID': 'Trả nợ nhà cung cấp',
+      'PART_IMPORT': 'Nhập kho linh kiện',
+      'PART_INFO_UPDATE': 'Cập nhật thông tin linh kiện',
+      'PART_ADD_STOCK': 'Bổ sung tồn kho linh kiện',
+      'DELETE_PART': 'Xóa linh kiện',
+      'PAYMENT_REQUEST_CREATED': 'Tạo yêu cầu đóng tiền',
+      'PAYMENT_REQUEST_APPROVED': 'Duyệt yêu cầu đóng tiền',
+      'PAYMENT_REQUEST_REJECTED': 'Từ chối yêu cầu đóng tiền',
+    };
+
+    final upper = raw.toUpperCase();
+    if (directMap.containsKey(upper)) return directMap[upper]!;
+
+    if (!upper.contains('_')) return raw;
+
+    const tokenMap = {
+      'DEBT': 'công nợ',
+      'COLLECT': 'thu',
+      'COLLECTED': 'đã thu',
+      'PAY': 'trả',
+      'PAID': 'đã trả',
+      'SUPPLIER': 'nhà cung cấp',
+      'CUSTOMER': 'khách hàng',
+      'PART': 'linh kiện',
+      'IMPORT': 'nhập kho',
+      'ADD': 'thêm',
+      'STOCK': 'tồn kho',
+      'INFO': 'thông tin',
+      'UPDATE': 'cập nhật',
+      'DELETE': 'xóa',
+      'CREATE': 'tạo',
+      'PAYMENT': 'thanh toán',
+      'REQUEST': 'yêu cầu',
+      'APPROVED': 'đã duyệt',
+      'REJECTED': 'đã từ chối',
+      'SALE': 'bán hàng',
+      'REPAIR': 'sửa chữa',
+    };
+
+    final words = upper
+        .split('_')
+        .where((t) => t.isNotEmpty)
+        .map((t) => tokenMap[t] ?? t.toLowerCase())
+        .join(' ')
+        .trim();
+    if (words.isEmpty) return raw;
+    return '${words[0].toUpperCase()}${words.substring(1)}';
   }
 
   Color _getEntityTypeColor(String entityType) {

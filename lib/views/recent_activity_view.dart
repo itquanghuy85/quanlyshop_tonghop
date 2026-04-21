@@ -34,7 +34,9 @@ class _RecentActivityViewState extends State<RecentActivityView> {
           event == 'sales_changed' ||
           event == 'expenses_changed' ||
           event == EventBus.shopChanged) {
-        debugPrint('📋 [RecentActivityView] Nhận event "$event" → debounce reload');
+        debugPrint(
+          '📋 [RecentActivityView] Nhận event "$event" → debounce reload',
+        );
         _reloadDebounce?.cancel();
         _reloadDebounce = Timer(const Duration(milliseconds: 400), () {
           if (mounted) _load();
@@ -126,7 +128,7 @@ class _RecentActivityViewState extends State<RecentActivityView> {
                     ),
                     DropdownMenuItem(
                       value: RecentActivitySource.sync,
-                      child: Text('Sync'),
+                      child: Text('Đồng bộ dữ liệu'),
                     ),
                     DropdownMenuItem(
                       value: RecentActivitySource.audit,
@@ -183,7 +185,10 @@ class _RecentActivityViewState extends State<RecentActivityView> {
             children: [
               const Icon(Icons.error_outline, size: 42, color: Colors.red),
               const SizedBox(height: 8),
-              Text('Không tải được hoạt động gần đây\n$_error', textAlign: TextAlign.center),
+              Text(
+                'Không tải được hoạt động gần đây\n$_error',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 10),
               FilledButton(onPressed: _load, child: const Text('Thử lại')),
             ],
@@ -218,7 +223,9 @@ class _RecentActivityViewState extends State<RecentActivityView> {
   }
 
   Widget _buildSummary(RecentActivitySnapshot snapshot) {
-    final generatedAt = DateFormat('dd/MM/yyyy HH:mm').format(snapshot.generatedAt);
+    final generatedAt = DateFormat(
+      'dd/MM/yyyy HH:mm',
+    ).format(snapshot.generatedAt);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -232,9 +239,12 @@ class _RecentActivityViewState extends State<RecentActivityView> {
         children: [
           _summaryTag('Tổng', snapshot.totalCount, Colors.blue),
           _summaryTag('Tài chính', snapshot.financialCount, Colors.green),
-          _summaryTag('Sync', snapshot.syncCount, Colors.orange),
-          _summaryTag('Audit', snapshot.auditCount, Colors.indigo),
-          Text('Cập nhật: $generatedAt', style: TextStyle(color: Colors.grey.shade700)),
+          _summaryTag('Đồng bộ', snapshot.syncCount, Colors.orange),
+          _summaryTag('Hệ thống', snapshot.auditCount, Colors.indigo),
+          Text(
+            'Cập nhật: $generatedAt',
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
         ],
       ),
     );
@@ -274,16 +284,12 @@ class _RecentActivityViewState extends State<RecentActivityView> {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.subtitle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+            Text(item.subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
             Text(
-              DateFormat('dd/MM HH:mm').format(
-                DateTime.fromMillisecondsSinceEpoch(item.timestamp),
-              ),
+              DateFormat(
+                'dd/MM HH:mm',
+              ).format(DateTime.fromMillisecondsSinceEpoch(item.timestamp)),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
@@ -332,7 +338,7 @@ class _RecentActivityViewState extends State<RecentActivityView> {
     final value = item.amount ?? 0;
     final direction = (item.direction ?? '').toUpperCase();
     final sign = direction == 'IN' ? '+' : '-';
-    return '$sign${MoneyUtils.formatVND(value)}';
+    return '$sign${MoneyUtils.formatCompact(value)}';
   }
 
   Color _amountColor(RecentActivityItem item) {

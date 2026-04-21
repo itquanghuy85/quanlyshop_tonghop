@@ -13,7 +13,8 @@ class MonthlyProfitReportView extends StatefulWidget {
   const MonthlyProfitReportView({super.key});
 
   @override
-  State<MonthlyProfitReportView> createState() => _MonthlyProfitReportViewState();
+  State<MonthlyProfitReportView> createState() =>
+      _MonthlyProfitReportViewState();
 }
 
 class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
@@ -72,54 +73,114 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
       // Batch query all collections for this month
       final batch = await Future.wait([
         // [0] sales
-        dbConn.query('sales',
-          columns: ['totalPrice', 'totalCost', 'discount', 'paymentMethod', 'isInstallment', 'downPayment', 'downPaymentMethod', 'settlementReceivedAt', 'settlementAmount', 'loanAmount', 'loanAmount2', 'soldAt'],
-          where: 'soldAt >= ? AND soldAt < ?', whereArgs: [startMs, endMs]),
+        dbConn.query(
+          'sales',
+          columns: [
+            'totalPrice',
+            'totalCost',
+            'discount',
+            'paymentMethod',
+            'isInstallment',
+            'downPayment',
+            'downPaymentMethod',
+            'settlementReceivedAt',
+            'settlementAmount',
+            'loanAmount',
+            'loanAmount2',
+            'soldAt',
+          ],
+          where: 'soldAt >= ? AND soldAt < ?',
+          whereArgs: [startMs, endMs],
+        ),
         // [1] settlements
-        dbConn.query('sales',
-          columns: ['totalPrice', 'totalCost', 'discount', 'downPayment', 'settlementAmount', 'loanAmount', 'loanAmount2', 'soldAt'],
-          where: 'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
-          whereArgs: [startMs, endMs]),
+        dbConn.query(
+          'sales',
+          columns: [
+            'totalPrice',
+            'totalCost',
+            'discount',
+            'downPayment',
+            'settlementAmount',
+            'loanAmount',
+            'loanAmount2',
+            'soldAt',
+          ],
+          where:
+              'isInstallment = 1 AND settlementReceivedAt IS NOT NULL AND settlementReceivedAt >= ? AND settlementReceivedAt < ?',
+          whereArgs: [startMs, endMs],
+        ),
         // [2] repairs
-        dbConn.query('repairs',
+        dbConn.query(
+          'repairs',
           columns: ['price', 'cost', 'paymentMethod', 'deliveredAt'],
-          where: 'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
-          whereArgs: [startMs, endMs]),
+          where:
+              'status = 4 AND deliveredAt IS NOT NULL AND deliveredAt >= ? AND deliveredAt < ?',
+          whereArgs: [startMs, endMs],
+        ),
         // [3] expenses
-        dbConn.query('expenses',
+        dbConn.query(
+          'expenses',
           columns: ['amount', 'category', 'type', 'paymentMethod'],
           where: shopId != null && shopId.isNotEmpty
               ? '(date >= ? AND date < ?) AND (shopId = ? OR shopId IS NULL)'
               : 'date >= ? AND date < ?',
           whereArgs: shopId != null && shopId.isNotEmpty
-              ? [startMs, endMs, shopId] : [startMs, endMs]),
+              ? [startMs, endMs, shopId]
+              : [startMs, endMs],
+        ),
         // [4] debtPayments
         _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs),
         // [5] supplierPayments
-        dbConn.query('supplier_payments',
+        dbConn.query(
+          'supplier_payments',
           columns: ['amount', 'paidAt', 'paymentMethod'],
-          where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
-          whereArgs: [startMs, endMs]),
+          where:
+              'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+          whereArgs: [startMs, endMs],
+        ),
         // [6] repairPartnerPayments
-        dbConn.query('repair_partner_payments',
+        dbConn.query(
+          'repair_partner_payments',
           columns: ['amount', 'paidAt', 'paymentMethod'],
-          where: 'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
-          whereArgs: [startMs, endMs]),
+          where:
+              'paidAt IS NOT NULL AND paidAt >= ? AND paidAt < ? AND (deleted IS NULL OR deleted != 1)',
+          whereArgs: [startMs, endMs],
+        ),
         // [7] supplierImports
-        dbConn.query('supplier_import_history',
-          columns: ['totalAmount', 'costPrice', 'paymentMethod', 'importDate', 'createdAt'],
-          where: '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
-          whereArgs: [startMs, endMs, startMs, endMs]),
+        dbConn.query(
+          'supplier_import_history',
+          columns: [
+            'totalAmount',
+            'costPrice',
+            'paymentMethod',
+            'importDate',
+            'createdAt',
+          ],
+          where:
+              '((importDate IS NOT NULL AND importDate >= ? AND importDate < ?) OR (importDate IS NULL AND createdAt >= ? AND createdAt < ?))',
+          whereArgs: [startMs, endMs, startMs, endMs],
+        ),
         // [8] repairPartsCostFund
-        dbConn.query('repairs',
+        dbConn.query(
+          'repairs',
           columns: ['cost', 'costRecordedAmount', 'costPaymentMethod'],
-          where: 'costRecordedInFund = 1 AND costRecordedAt IS NOT NULL AND costRecordedAt >= ? AND costRecordedAt < ?',
-          whereArgs: [startMs, endMs]),
+          where:
+              'costRecordedInFund = 1 AND costRecordedAt IS NOT NULL AND costRecordedAt >= ? AND costRecordedAt < ?',
+          whereArgs: [startMs, endMs],
+        ),
         // [9] salesReturns
-        dbConn.query('sales_returns',
-          columns: ['totalReturnAmount', 'totalReturnCost', 'refundMethod', 'returnDate'],
-          where: 'returnDate >= ? AND returnDate < ? AND status = ?',
-          whereArgs: [startMs, endMs, 'APPROVED'])
+        dbConn
+            .query(
+              'sales_returns',
+              columns: [
+                'totalReturnAmount',
+                'totalReturnCost',
+                'refundMethod',
+                'returnDate',
+              ],
+              where: 'returnDate >= ? AND returnDate < ? AND status = ?',
+              whereArgs: [startMs, endMs, 'APPROVED'],
+            )
             .catchError((_) => <Map<String, dynamic>>[]),
       ]);
 
@@ -137,24 +198,29 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
         enableRepair: enableRepair,
       );
 
-      final revenue = analysis.saleIncome + analysis.settlementIncome + analysis.repairIncome;
+      final revenue =
+          analysis.saleIncome +
+          analysis.settlementIncome +
+          analysis.repairIncome;
 
-      months.add(_MonthData(
-        month: m,
-        revenue: revenue,
-        saleCost: analysis.saleCost,
-        repairCost: analysis.repairCost,
-        expenseOut: analysis.expenseOut,
-        netProfit: analysis.netProfit,
-        totalIn: analysis.totalIn,
-        totalOut: analysis.totalOut,
-        saleIncome: analysis.saleIncome,
-        settlementIncome: analysis.settlementIncome,
-        repairIncome: analysis.repairIncome,
-        debtCollected: analysis.debtCollected,
-        importOut: analysis.importOut,
-        supplierPaid: analysis.supplierPaid,
-      ));
+      months.add(
+        _MonthData(
+          month: m,
+          revenue: revenue,
+          saleCost: analysis.saleCost,
+          repairCost: analysis.repairCost,
+          expenseOut: analysis.expenseOut,
+          netProfit: analysis.netProfit,
+          totalIn: analysis.totalIn,
+          totalOut: analysis.totalOut,
+          saleIncome: analysis.saleIncome,
+          settlementIncome: analysis.settlementIncome,
+          repairIncome: analysis.repairIncome,
+          debtCollected: analysis.debtCollected,
+          importOut: analysis.importOut,
+          supplierPaid: analysis.supplierPaid,
+        ),
+      );
 
       yearRevenue += revenue;
       yearProfit += analysis.netProfit;
@@ -178,7 +244,10 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
   Widget build(BuildContext context) {
     if (!_hasPermission) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Báo cáo lợi nhuận'), centerTitle: true),
+        appBar: AppBar(
+          title: const Text('Báo cáo lợi nhuận'),
+          centerTitle: true,
+        ),
         body: const Center(
           child: Text(
             'Bạn không có quyền truy cập tính năng này',
@@ -246,11 +315,15 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                   title: Text(
                     '$year',
                     style: TextStyle(
-                      fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: selected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       color: selected ? AppColors.primary : null,
                     ),
                   ),
-                  trailing: selected ? Icon(Icons.check, color: AppColors.primary) : null,
+                  trailing: selected
+                      ? Icon(Icons.check, color: AppColors.primary)
+                      : null,
                   onTap: () => Navigator.pop(ctx, year),
                 );
               },
@@ -292,15 +365,27 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _summaryItem('Doanh thu', _yearRevenue, Colors.white)),
-              Expanded(child: _summaryItem('Lợi nhuận', _yearProfit, _yearProfit >= 0 ? Colors.greenAccent : Colors.redAccent)),
+              Expanded(
+                child: _summaryItem('Doanh thu', _yearRevenue, Colors.white),
+              ),
+              Expanded(
+                child: _summaryItem(
+                  'Lợi nhuận',
+                  _yearProfit,
+                  _yearProfit >= 0 ? Colors.greenAccent : Colors.redAccent,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _summaryItem('Tổng thu', _yearTotalIn, Colors.white70)),
-              Expanded(child: _summaryItem('Tổng chi', _yearTotalOut, Colors.white70)),
+              Expanded(
+                child: _summaryItem('Tổng thu', _yearTotalIn, Colors.white70),
+              ),
+              Expanded(
+                child: _summaryItem('Tổng chi', _yearTotalOut, Colors.white70),
+              ),
             ],
           ),
         ],
@@ -311,11 +396,18 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
   Widget _summaryItem(String label, int amount, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white60, fontSize: 13),
+        ),
         const SizedBox(height: 2),
         Text(
-          MoneyUtils.formatVND(amount),
-          style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 17),
+          MoneyUtils.formatCompact(amount),
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 17,
+          ),
         ),
       ],
     );
@@ -330,7 +422,20 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
     });
     if (maxVal == 0) return const SizedBox();
 
-    final monthNames = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
+    final monthNames = [
+      'T1',
+      'T2',
+      'T3',
+      'T4',
+      'T5',
+      'T6',
+      'T7',
+      'T8',
+      'T9',
+      'T10',
+      'T11',
+      'T12',
+    ];
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -378,8 +483,14 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: _months.map((m) {
-                final revenueH = maxVal > 0 ? (m.revenue / maxVal * 130).clamp(0, 130).toDouble() : 0.0;
-                final profitH = maxVal > 0 ? (m.netProfit.abs() / maxVal * 130).clamp(0, 130).toDouble() : 0.0;
+                final revenueH = maxVal > 0
+                    ? (m.revenue / maxVal * 130).clamp(0, 130).toDouble()
+                    : 0.0;
+                final profitH = maxVal > 0
+                    ? (m.netProfit.abs() / maxVal * 130)
+                          .clamp(0, 130)
+                          .toDouble()
+                    : 0.0;
                 return Expanded(
                   child: GestureDetector(
                     onTap: () => _showMonthDetail(m),
@@ -397,7 +508,9 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                                 height: revenueH.clamp(0, 120),
                                 decoration: BoxDecoration(
                                   color: Colors.blue.shade400,
-                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(2),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 1),
@@ -405,8 +518,12 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                                 width: 8,
                                 height: profitH.clamp(0, 120),
                                 decoration: BoxDecoration(
-                                  color: m.netProfit >= 0 ? Colors.green.shade400 : Colors.red.shade400,
-                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                                  color: m.netProfit >= 0
+                                      ? Colors.green.shade400
+                                      : Colors.red.shade400,
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(2),
+                                  ),
                                 ),
                               ),
                             ],
@@ -440,18 +557,34 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
       ],
     );
   }
 
   Widget _buildMonthlyTable() {
     final monthNames = [
-      'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
-      'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
-      'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
+      'Tháng 1',
+      'Tháng 2',
+      'Tháng 3',
+      'Tháng 4',
+      'Tháng 5',
+      'Tháng 6',
+      'Tháng 7',
+      'Tháng 8',
+      'Tháng 9',
+      'Tháng 10',
+      'Tháng 11',
+      'Tháng 12',
     ];
 
     return Container(
@@ -473,14 +606,40 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.grey.shade100,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
             ),
             child: Row(
               children: const [
-                SizedBox(width: 70, child: Text('Tháng', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))),
-                Expanded(child: Text('Doanh thu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right)),
-                Expanded(child: Text('Chi phí', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right)),
-                Expanded(child: Text('Lợi nhuận', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right)),
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    'Tháng',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Doanh thu',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Chi phí',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'Lợi nhuận',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
               ],
             ),
           ),
@@ -490,9 +649,14 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
             return InkWell(
               onTap: () => _showMonthDetail(m),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -500,30 +664,45 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                       width: 70,
                       child: Text(
                         monthNames[m.month - 1],
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                     Expanded(
                       child: Text(
-                        MoneyUtils.formatVND(m.revenue),
-                        style: TextStyle(fontSize: 13, color: Colors.blue.shade700),
+                        MoneyUtils.formatCompact(m.revenue),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade700,
+                        ),
                         textAlign: TextAlign.right,
                       ),
                     ),
                     Expanded(
                       child: Text(
-                        MoneyUtils.formatVND(_canViewCostPrice ? (m.expenseOut + m.saleCost + m.repairCost) : m.expenseOut),
-                        style: TextStyle(fontSize: 13, color: Colors.red.shade600),
+                        MoneyUtils.formatCompact(
+                          _canViewCostPrice
+                              ? (m.expenseOut + m.saleCost + m.repairCost)
+                              : m.expenseOut,
+                        ),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.red.shade600,
+                        ),
                         textAlign: TextAlign.right,
                       ),
                     ),
                     Expanded(
                       child: Text(
-                        '${isProfit ? '+' : ''}${MoneyUtils.formatVND(m.netProfit)}',
+                        '${isProfit ? '+' : ''}${MoneyUtils.formatCompact(m.netProfit)}',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: isProfit ? Colors.green.shade700 : Colors.red.shade700,
+                          color: isProfit
+                              ? Colors.green.shade700
+                              : Colors.red.shade700,
                         ),
                         textAlign: TextAlign.right,
                       ),
@@ -538,32 +717,55 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(14),
+              ),
             ),
             child: Row(
               children: [
-                const SizedBox(width: 70, child: Text('TỔNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-                Expanded(
+                const SizedBox(
+                  width: 70,
                   child: Text(
-                    MoneyUtils.formatVND(_yearRevenue),
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
-                    textAlign: TextAlign.right,
+                    'TỔNG',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
                 Expanded(
                   child: Text(
-                    MoneyUtils.formatVND(_months.fold<int>(0, (s, m) => s + m.expenseOut + m.saleCost + m.repairCost)),
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red.shade600),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    '${_yearProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(_yearProfit)}',
+                    MoneyUtils.formatCompact(_yearRevenue),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: _yearProfit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                      color: Colors.blue.shade700,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    MoneyUtils.formatCompact(
+                      _months.fold<int>(
+                        0,
+                        (s, m) => s + m.expenseOut + m.saleCost + m.repairCost,
+                      ),
+                    ),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade600,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    '${_yearProfit >= 0 ? '+' : ''}${MoneyUtils.formatCompact(_yearProfit)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: _yearProfit >= 0
+                          ? Colors.green.shade700
+                          : Colors.red.shade700,
                     ),
                     textAlign: TextAlign.right,
                   ),
@@ -578,9 +780,18 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
 
   void _showMonthDetail(_MonthData m) {
     final monthNames = [
-      'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4',
-      'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8',
-      'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12',
+      'Tháng 1',
+      'Tháng 2',
+      'Tháng 3',
+      'Tháng 4',
+      'Tháng 5',
+      'Tháng 6',
+      'Tháng 7',
+      'Tháng 8',
+      'Tháng 9',
+      'Tháng 10',
+      'Tháng 11',
+      'Tháng 12',
     ];
     showModalBottomSheet(
       context: context,
@@ -613,7 +824,10 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                   const SizedBox(height: 12),
                   Text(
                     '${monthNames[m.month - 1]} / $_selectedYear',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -634,29 +848,43 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                   const SizedBox(height: 12),
                   // GIÁ VỐN section
                   if (_canViewCostPrice)
-                  _detailSection('📦 GIÁ VỐN', Colors.orange, [
-                    _detailRow('Giá vốn bán', m.saleCost),
-                    _detailRow('Giá vốn SC', m.repairCost),
-                  ]),
+                    _detailSection('📦 GIÁ VỐN', Colors.orange, [
+                      _detailRow('Giá vốn bán', m.saleCost),
+                      _detailRow('Giá vốn SC', m.repairCost),
+                    ]),
                   const SizedBox(height: 12),
                   // TỔNG KẾT
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: m.netProfit >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+                      color: m.netProfit >= 0
+                          ? Colors.green.shade50
+                          : Colors.red.shade50,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: m.netProfit >= 0 ? Colors.green.shade200 : Colors.red.shade200),
+                      border: Border.all(
+                        color: m.netProfit >= 0
+                            ? Colors.green.shade200
+                            : Colors.red.shade200,
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('💰 LỢI NHUẬN RÒNG', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        const Text(
+                          '💰 LỢI NHUẬN RÒNG',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                         Text(
-                          '${m.netProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(m.netProfit)}',
+                          '${m.netProfit >= 0 ? '+' : ''}${MoneyUtils.formatCompact(m.netProfit)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 17,
-                            color: m.netProfit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                            color: m.netProfit >= 0
+                                ? Colors.green.shade700
+                                : Colors.red.shade700,
                           ),
                         ),
                       ],
@@ -674,26 +902,64 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                         Expanded(
                           child: Column(
                             children: [
-                              Text('Tổng thu', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                              Text(MoneyUtils.formatVND(m.totalIn), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text('Tổng chi', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                              Text(MoneyUtils.formatVND(m.totalOut), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Text('Quỹ ròng', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                               Text(
-                                MoneyUtils.formatVND(m.totalIn - m.totalOut),
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.indigo),
+                                'Tổng thu',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                MoneyUtils.formatCompact(m.totalIn),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Tổng chi',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                MoneyUtils.formatCompact(m.totalOut),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(
+                                'Quỹ ròng',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              Text(
+                                MoneyUtils.formatCompact(
+                                  m.totalIn - m.totalOut,
+                                ),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.indigo,
+                                ),
                               ),
                             ],
                           ),
@@ -714,7 +980,14 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+        Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: color,
+          ),
+        ),
         const SizedBox(height: 4),
         ...children,
       ],
@@ -727,8 +1000,16 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
       child: Row(
         children: [
           const SizedBox(width: 16),
-          Expanded(child: Text(label, style: TextStyle(fontSize: 14, color: Colors.grey.shade700))),
-          Text(MoneyUtils.formatVND(amount), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+          ),
+          Text(
+            MoneyUtils.formatCompact(amount),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );

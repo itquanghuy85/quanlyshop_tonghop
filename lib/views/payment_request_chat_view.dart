@@ -298,7 +298,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
           if (_searchQuery.isNotEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               color: Colors.blue.shade50,
               child: Text(
                 'Tìm thấy ${displayed.length} kết quả cho "$_searchQuery"',
@@ -349,8 +349,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 : ListView.builder(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                      horizontal: 8,
+                      vertical: 4,
                     ),
                     itemCount: displayed.length,
                     itemBuilder: (ctx, i) => _buildRequestBubble(displayed[i]),
@@ -383,7 +383,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         .fold<double>(0, (sum, r) => sum + r.amount);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       color: Colors.white,
       child: Row(
         children: [
@@ -410,7 +410,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   Widget _statChip(String emoji, String count, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
@@ -447,7 +447,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 6),
+      padding: const EdgeInsets.only(left: 10, right: 10, bottom: 4),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -455,14 +455,14 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             ...chips.map((c) {
               final isSelected = _dateRange == c.$1;
               return Padding(
-                padding: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.only(right: 4),
                 child: InkWell(
                   onTap: () => setState(() => _dateRange = c.$1),
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                      horizontal: 9,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
@@ -473,7 +473,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                     child: Text(
                       c.$2,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: isSelected
                             ? FontWeight.w600
                             : FontWeight.normal,
@@ -487,7 +487,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             if (overdueCount > 0) ...[
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.red.shade50,
                   borderRadius: BorderRadius.circular(12),
@@ -524,15 +524,15 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         req.createdAt.isBefore(todayStart);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 5),
       child: Column(
         crossAxisAlignment: align,
         children: [
           // Sender name + time + overdue
           Padding(
             padding: EdgeInsets.only(
-              left: isMe ? 60 : 4,
-              right: isMe ? 4 : 60,
+              left: isMe ? 44 : 4,
+              right: isMe ? 4 : 44,
               bottom: 2,
             ),
             child: Row(
@@ -541,7 +541,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 if (isOverdue) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
+                      horizontal: 4,
                       vertical: 1,
                     ),
                     margin: const EdgeInsets.only(right: 4),
@@ -580,11 +580,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
               onLongPress: () => _showActionSheet(req),
               child: Container(
                 constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.82,
+                  maxWidth: MediaQuery.of(context).size.width * 0.86,
                 ),
                 margin: EdgeInsets.only(
-                  left: isMe ? 48 : 0,
-                  right: isMe ? 0 : 48,
+                  left: isMe ? 34 : 0,
+                  right: isMe ? 0 : 34,
                 ),
                 decoration: BoxDecoration(
                   color: color,
@@ -609,7 +609,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                     _buildStatusBadge(req),
                     // Content
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                      padding: const EdgeInsets.fromLTRB(10, 3, 10, 3),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -633,14 +633,14 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                               Text(
                                 '${_currencyFmt.format(req.amount)}đ',
                                 style: const TextStyle(
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.red,
                                 ),
                               ),
                             ],
                           ),
-                          const Divider(height: 12),
+                          const Divider(height: 8),
                           // Customer info
                           _infoRow(Icons.person, req.customerName),
                           _infoRow(Icons.phone, req.customerPhone),
@@ -783,11 +783,11 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                     // Processed info
                     if (req.processedByName != null && req.processedAt != null)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
                         child: Text(
                           '${req.statusDisplay} bởi ${req.processedByName} · ${DateFormat('dd/MM HH:mm').format(req.processedAt!)}',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: Colors.grey.shade500,
                             fontStyle: FontStyle.italic,
                           ),
@@ -832,7 +832,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: const BorderRadius.only(
@@ -853,15 +853,15 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   Widget _infoRow(IconData icon, String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: Colors.grey.shade600),
+          Icon(icon, size: 13, color: Colors.grey.shade600),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 12),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -876,7 +876,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     if (safeUrls.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      padding: const EdgeInsets.fromLTRB(6, 2, 6, 6),
       child: Wrap(
         spacing: 4,
         runSpacing: 4,
@@ -885,8 +885,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
             onTap: () => _showFullImage(url),
             child: _buildAttachmentImage(
               url,
-              width: 80,
-              height: 80,
+              width: 70,
+              height: 70,
               fit: BoxFit.cover,
               borderRadius: BorderRadius.circular(6),
               memCacheWidth: 200,
@@ -987,7 +987,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
   Widget _buildActionButtons(PaymentRequest req) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -1021,7 +1021,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
@@ -1030,12 +1030,12 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: color),
+            Icon(icon, size: 13, color: color),
             const SizedBox(width: 3),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -1422,7 +1422,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
     if (activeRequests.isEmpty || _isLoading) return const SizedBox.shrink();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -1443,8 +1443,8 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                 onTap: () => _showSelectRequestForImage(activeRequests),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+                    horizontal: 10,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
@@ -1491,7 +1491,7 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
                     : null,
                 borderRadius: BorderRadius.circular(24),
                 child: Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   child: _isSendingImage
                       ? const SizedBox(
                           width: 20,

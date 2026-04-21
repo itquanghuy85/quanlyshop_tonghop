@@ -331,8 +331,8 @@ class FinanceSummaryCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _metricTile(
-                    '� Doanh thu',
-                    MoneyUtils.formatVND(revenue),
+                    'Doanh thu',
+                    MoneyUtils.formatCompact(revenue),
                     Colors.blue.shade700,
                   ),
                 ),
@@ -340,7 +340,7 @@ class FinanceSummaryCard extends StatelessWidget {
                 Expanded(
                   child: _metricTile(
                     '📈 Lợi nhuận',
-                    '${netProfit >= 0 ? '+' : ''}${MoneyUtils.formatVND(netProfit)}',
+                    '${netProfit >= 0 ? '+' : ''}${MoneyUtils.formatCompact(netProfit)}',
                     netProfit >= 0
                         ? Colors.green.shade700
                         : Colors.red.shade700,
@@ -350,7 +350,7 @@ class FinanceSummaryCard extends StatelessWidget {
                 Expanded(
                   child: _metricTile(
                     '🏦 Quỹ',
-                    '${currentFund >= 0 ? '+' : ''}${MoneyUtils.formatVND(currentFund)}',
+                    '${currentFund >= 0 ? '+' : ''}${MoneyUtils.formatCompact(currentFund)}',
                     currentFund >= 0 ? Colors.indigo : Colors.red.shade700,
                   ),
                 ),
@@ -530,7 +530,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             icon: Icons.shopping_cart,
             color: Colors.green,
             title: 'Bán hàng - $name',
-            amount: '+${MoneyUtils.formatVND(price)}',
+            amount: '+${MoneyUtils.formatCompact(price)}',
             amountColor: Colors.green,
             timestamp: at,
             referenceType: 'sale',
@@ -558,7 +558,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             title: isDelivered
                 ? 'Giao máy - $name'
                 : 'Nhận sửa - ${device.isNotEmpty ? device : name}',
-            amount: isDelivered ? '+${MoneyUtils.formatVND(price)}' : '',
+            amount: isDelivered ? '+${MoneyUtils.formatCompact(price)}' : '',
             amountColor: Colors.blue,
             timestamp: at,
             referenceType: 'repair',
@@ -581,8 +581,8 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             color: isIncome ? Colors.teal : Colors.red,
             title: isIncome ? 'Thu: $title' : 'Chi: $title',
             amount: isIncome
-                ? '+${MoneyUtils.formatVND(amount)}'
-                : '-${MoneyUtils.formatVND(amount)}',
+                ? '+${MoneyUtils.formatCompact(amount)}'
+                : '-${MoneyUtils.formatCompact(amount)}',
             amountColor: isIncome ? Colors.teal : Colors.red,
             timestamp: at,
             referenceType: 'expense',
@@ -609,8 +609,8 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
                 ? 'Trả nợ NCC${note.isNotEmpty ? ' - $note' : ''}'
                 : 'Thu nợ KH${note.isNotEmpty ? ' - $note' : ''}',
             amount: isShopOwes
-                ? '-${MoneyUtils.formatVND(amount)}'
-                : '+${MoneyUtils.formatVND(amount)}',
+                ? '-${MoneyUtils.formatCompact(amount)}'
+                : '+${MoneyUtils.formatCompact(amount)}',
             amountColor: isShopOwes ? Colors.deepOrange : Colors.cyan,
             timestamp: at,
             referenceType: 'debt_payment',
@@ -628,7 +628,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             icon: Icons.local_shipping,
             color: Colors.brown,
             title: 'Trả NCC - $supplier',
-            amount: '-${MoneyUtils.formatVND(amount)}',
+            amount: '-${MoneyUtils.formatCompact(amount)}',
             amountColor: Colors.brown,
             timestamp: at,
             referenceType: 'supplier_payment',
@@ -646,7 +646,7 @@ class _ActivityFeedCardState extends State<ActivityFeedCard> {
             icon: Icons.handshake,
             color: Colors.indigo,
             title: 'TT đối tác - $partner',
-            amount: '-${MoneyUtils.formatVND(amount)}',
+            amount: '-${MoneyUtils.formatCompact(amount)}',
             amountColor: Colors.indigo,
             timestamp: at,
             referenceType: 'partner_payment',

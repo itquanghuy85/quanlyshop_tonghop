@@ -115,32 +115,33 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.error_outline,
-                                  size: 48, color: AppColors.error),
-                              const SizedBox(height: 12),
-                              Text(_error!,
-                                  textAlign: TextAlign.center,
-                                  style:
-                                      const TextStyle(color: AppColors.error)),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _loadReport,
-                                child: const Text('Thử lại'),
-                              ),
-                            ],
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: AppColors.error,
                           ),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadReport,
-                        child: _buildBody(),
+                          const SizedBox(height: 12),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.error),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadReport,
+                            child: const Text('Thử lại'),
+                          ),
+                        ],
                       ),
+                    ),
+                  )
+                : RefreshIndicator(onRefresh: _loadReport, child: _buildBody()),
           ),
         ],
       ),
@@ -157,9 +158,10 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         color: AppColors.surface,
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 4,
-              offset: const Offset(0, 2))
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
@@ -176,11 +178,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                   Text(
                     DateFormat('dd/MM/yyyy').format(_selectedDate),
                     style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  Text(dayLabel,
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.grey.shade600)),
+                  Text(
+                    dayLabel,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
                 ],
               ),
             ),
@@ -229,25 +234,28 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('TỔNG QUAN',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-                letterSpacing: 0.5)),
+        const Text(
+          'TỔNG QUAN',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.primary,
+            letterSpacing: 0.5,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
             _summaryCard(
               'Doanh thu',
-              MoneyUtils.formatCurrency(r.financial.totalIn),
+              MoneyUtils.formatCompactCurrency(r.financial.totalIn),
               Icons.trending_up,
               AppColors.success,
             ),
             const SizedBox(width: 8),
             _summaryCard(
               'Chi phí',
-              MoneyUtils.formatCurrency(r.financial.totalOut),
+              MoneyUtils.formatCompactCurrency(r.financial.totalOut),
               Icons.trending_down,
               AppColors.error,
             ),
@@ -258,11 +266,9 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           children: [
             _summaryCard(
               'Lợi nhuận',
-              MoneyUtils.formatCurrency(r.financial.netProfit),
+              MoneyUtils.formatCompactCurrency(r.financial.netProfit),
               Icons.account_balance_wallet,
-              r.financial.netProfit >= 0
-                  ? AppColors.success
-                  : AppColors.error,
+              r.financial.netProfit >= 0 ? AppColors.success : AppColors.error,
             ),
             const SizedBox(width: 8),
             _summaryCard(
@@ -277,8 +283,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     );
   }
 
-  Widget _summaryCard(
-      String label, String value, IconData icon, Color color) {
+  Widget _summaryCard(String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -302,18 +307,22 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600)),
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                   const SizedBox(height: 2),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
-                    child: Text(value,
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: color)),
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -332,7 +341,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       icon: Icons.swap_horiz,
       color: AppColors.info,
       trailing: Text(
-        'Lãi: ${MoneyUtils.formatCurrency(f.netProfit)}đ',
+        'Lãi: ${MoneyUtils.formatCompactCurrency(f.netProfit)}',
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
@@ -342,42 +351,39 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       child: Column(
         children: [
           if (r.previousClosingTotal > 0)
-            _cashFlowRow('Đầu ngày (tồn quỹ)',
-                r.previousClosingTotal, Colors.blueGrey),
-          _cashFlowRow(
-              'Bán hàng', f.saleIncome, AppColors.success),
-          if (f.settlementIncome > 0)
-            _cashFlowRow('Thu tất toán trả góp',
-                f.settlementIncome, AppColors.success),
-          if (r.shopSettings.enableRepair && f.repairIncome > 0)
             _cashFlowRow(
-                'Sửa chữa', f.repairIncome, AppColors.success),
+              'Đầu ngày (tồn quỹ)',
+              r.previousClosingTotal,
+              Colors.blueGrey,
+            ),
+          _cashFlowRow('Bán hàng', f.saleIncome, AppColors.success),
+          if (f.settlementIncome > 0)
+            _cashFlowRow(
+              'Thu tất toán trả góp',
+              f.settlementIncome,
+              AppColors.success,
+            ),
+          if (r.shopSettings.enableRepair && f.repairIncome > 0)
+            _cashFlowRow('Sửa chữa', f.repairIncome, AppColors.success),
           if (f.debtCollected > 0)
             _cashFlowRow('Thu nợ', f.debtCollected, AppColors.success),
           if (f.miscIncome > 0)
-            _cashFlowRow(
-                'Thu khác', f.miscIncome, AppColors.success),
+            _cashFlowRow('Thu khác', f.miscIncome, AppColors.success),
           const Divider(height: 16),
           if (f.expenseOut > 0)
-            _cashFlowRow(
-                'Chi phí', -f.expenseOut, AppColors.error),
+            _cashFlowRow('Chi phí', -f.expenseOut, AppColors.error),
           if (f.importOut > 0)
-            _cashFlowRow(
-                'Nhập hàng', -f.importOut, AppColors.error),
+            _cashFlowRow('Nhập hàng', -f.importOut, AppColors.error),
           if (f.supplierPaid > 0)
             _cashFlowRow('Trả NCC', -f.supplierPaid, AppColors.error),
           if (r.shopSettings.enableRepair && f.partnerPaid > 0)
-            _cashFlowRow('Trả ĐT sửa chữa',
-                -f.partnerPaid, AppColors.error),
+            _cashFlowRow('Trả ĐT sửa chữa', -f.partnerPaid, AppColors.error),
           if (f.saleCost > 0)
-            _cashFlowRow(
-                'Giá vốn bán hàng', -f.saleCost, AppColors.error),
+            _cashFlowRow('Giá vốn bán hàng', -f.saleCost, AppColors.error),
           if (r.shopSettings.enableRepair && f.repairCost > 0)
-            _cashFlowRow('Giá vốn sửa chữa',
-                -f.repairCost, AppColors.error),
+            _cashFlowRow('Giá vốn sửa chữa', -f.repairCost, AppColors.error),
           if (f.refundOut > 0)
-            _cashFlowRow(
-                'Hoàn trả', -f.refundOut, AppColors.error),
+            _cashFlowRow('Hoàn trả', -f.refundOut, AppColors.error),
         ],
       ),
     );
@@ -388,15 +394,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         children: [
-          Expanded(
-              child: Text(label,
-                  style: const TextStyle(fontSize: 14))),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
           Text(
-            '${amount >= 0 ? '+' : ''}${MoneyUtils.formatCurrency(amount)}đ',
+            '${amount >= 0 ? '+' : ''}${MoneyUtils.formatCompactCurrency(amount)}',
             style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: color),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -413,27 +418,39 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       icon: Icons.shopping_cart,
       color: AppColors.success,
       trailing: Text(
-        '${MoneyUtils.formatCurrency(r.totalSaleRevenue)}đ',
+        '${MoneyUtils.formatCompactCurrency(r.totalSaleRevenue)}',
         style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.success),
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: AppColors.success,
+        ),
       ),
       child: Column(
         children: [
-          if (sales.isNotEmpty) ...[            Padding(
+          if (sales.isNotEmpty) ...[
+            Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('Vốn: ${MoneyUtils.formatCurrency(r.totalSaleCost)}đ',
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
-                  ),
-                  Text('Lãi: ${MoneyUtils.formatCurrency(saleProfit)}đ',
+                    child: Text(
+                      'Vốn: ${MoneyUtils.formatCompactCurrency(r.totalSaleCost)}',
                       style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: saleProfit >= 0 ? AppColors.success : AppColors.error)),
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Lãi: ${MoneyUtils.formatCompactCurrency(saleProfit)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: saleProfit >= 0
+                          ? AppColors.success
+                          : AppColors.error,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -443,17 +460,20 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           if (sales.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Không có đơn bán hàng',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Không có đơn bán hàng',
+                style: TextStyle(color: Colors.grey),
+              ),
             )
           else ...[
             ...sales.take(20).map((s) => _saleRow(s)),
             if (sales.length > 20)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('... và ${sales.length - 20} đơn khác',
-                    style: TextStyle(
-                        color: Colors.grey.shade600, fontSize: 13)),
+                child: Text(
+                  '... và ${sales.length - 20} đơn khác',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
               ),
           ],
           if (returns.isNotEmpty) ...[
@@ -463,9 +483,10 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               child: Text(
                 'Trả hàng (${returns.length})',
                 style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.error),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.error,
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -490,10 +511,12 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       child: Row(
         children: [
           SizedBox(
-              width: 46,
-              child: Text(time,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600))),
+            width: 46,
+            child: Text(
+              time,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,12 +532,11 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                     productNames,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                 if (profit != 0)
                   Text(
-                    'Lãi: ${MoneyUtils.formatCurrency(profit)}đ',
+                    'Lãi: ${MoneyUtils.formatCompactCurrency(profit)}',
                     style: TextStyle(
                       fontSize: 12,
                       color: profit >= 0 ? AppColors.success : AppColors.error,
@@ -523,11 +545,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               ],
             ),
           ),
-          Text('${MoneyUtils.formatCurrency(amount)}đ',
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.success)),
+          Text(
+            '${MoneyUtils.formatCompactCurrency(amount)}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.success,
+            ),
+          ),
         ],
       ),
     );
@@ -542,10 +567,12 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       child: Row(
         children: [
           SizedBox(
-              width: 46,
-              child: Text(time,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600))),
+            width: 46,
+            child: Text(
+              time,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
           Expanded(
             child: Text(
               reason.isNotEmpty ? reason : 'Trả hàng',
@@ -554,11 +581,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               style: const TextStyle(fontSize: 14),
             ),
           ),
-          Text('-${MoneyUtils.formatCurrency(amount)}đ',
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.error)),
+          Text(
+            '-${MoneyUtils.formatCompactCurrency(amount)}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.error,
+            ),
+          ),
         ],
       ),
     );
@@ -570,9 +600,13 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final deliveredCount = r.repairsDelivered.length;
     // Compute delivered repair totals
     final deliveredRevenue = r.repairsDelivered.fold<int>(
-        0, (s, e) => s + ((e['price'] as int?) ?? 0));
+      0,
+      (s, e) => s + ((e['price'] as int?) ?? 0),
+    );
     final deliveredCost = r.repairsDelivered.fold<int>(
-        0, (s, e) => s + ((e['cost'] as int?) ?? 0));
+      0,
+      (s, e) => s + ((e['cost'] as int?) ?? 0),
+    );
     final deliveredProfit = deliveredRevenue - deliveredCost;
     return _sectionCard(
       title: 'Sửa chữa đã giao ($deliveredCount)',
@@ -585,11 +619,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                 color: AppColors.warning.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text('${r.pendingRepairs} chờ',
-                  style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.warning)),
+              child: Text(
+                '${r.pendingRepairs} chờ',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.warning,
+                ),
+              ),
             )
           : null,
       child: Column(
@@ -601,15 +638,23 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                 children: [
                   Expanded(
                     child: Text(
-                      'DT giao: ${MoneyUtils.formatCurrency(deliveredRevenue)}đ',
-                      style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                      'DT giao: ${MoneyUtils.formatCompactCurrency(deliveredRevenue)}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                   ),
-                  Text('Lãi: ${MoneyUtils.formatCurrency(deliveredProfit)}đ',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: deliveredProfit >= 0 ? AppColors.success : AppColors.error)),
+                  Text(
+                    'Lãi: ${MoneyUtils.formatCompactCurrency(deliveredProfit)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: deliveredProfit >= 0
+                          ? AppColors.success
+                          : AppColors.error,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -619,32 +664,39 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           if (repairs.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Không có đơn sửa chữa',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Không có đơn sửa chữa',
+                style: TextStyle(color: Colors.grey),
+              ),
             )
           else ...[
             ...repairs.take(30).map((re) => _repairRow(re)),
             if (repairs.length > 30)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text('... và ${repairs.length - 30} đơn khác',
-                    style: TextStyle(
-                        color: Colors.grey.shade600, fontSize: 13)),
+                child: Text(
+                  '... và ${repairs.length - 30} đơn khác',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
               ),
           ],
           if (r.pendingApprovals > 0) ...[
             const Divider(height: 16),
             Row(
               children: [
-                const Icon(Icons.warning_amber,
-                    size: 16, color: AppColors.warning),
+                const Icon(
+                  Icons.warning_amber,
+                  size: 16,
+                  color: AppColors.warning,
+                ),
                 const SizedBox(width: 6),
                 Text(
                   '${r.pendingApprovals} đơn chờ duyệt giao',
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.warning),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.warning,
+                  ),
                 ),
               ],
             ),
@@ -672,47 +724,55 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       child: Row(
         children: [
           SizedBox(
-              width: 46,
-              child: Text(time,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600))),
+            width: 46,
+            child: Text(
+              time,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text(statusLabel,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor)),
+            child: Text(
+              statusLabel,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: statusColor,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(customer,
+                Text(
+                  customer,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+                if (device.isNotEmpty)
+                  Text(
+                    device,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13)),
-                if (device.isNotEmpty)
-                  Text(device,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade600)),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 if (issue.isNotEmpty)
-                  Text(issue,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade500)),
+                  Text(
+                    issue,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
                 if (status == 4 && profit != 0)
                   Text(
-                    'Lãi: ${MoneyUtils.formatCurrency(profit)}đ',
+                    'Lãi: ${MoneyUtils.formatCompactCurrency(profit)}',
                     style: TextStyle(
                       fontSize: 12,
                       color: profit >= 0 ? AppColors.success : AppColors.error,
@@ -722,11 +782,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
             ),
           ),
           if (price > 0)
-            Text('${MoneyUtils.formatCurrency(price)}đ',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor)),
+            Text(
+              '${MoneyUtils.formatCompactCurrency(price)}',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: statusColor,
+              ),
+            ),
         ],
       ),
     );
@@ -737,9 +800,13 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final expList = r.expensesOnly;
     final incList = r.incomeOnly;
     final totalExp = expList.fold<int>(
-        0, (s, e) => s + ((e['amount'] as int?) ?? 0));
+      0,
+      (s, e) => s + ((e['amount'] as int?) ?? 0),
+    );
     final totalInc = incList.fold<int>(
-        0, (s, e) => s + ((e['amount'] as int?) ?? 0));
+      0,
+      (s, e) => s + ((e['amount'] as int?) ?? 0),
+    );
     return _sectionCard(
       title: 'Chi phí & Thu khác',
       icon: Icons.account_balance,
@@ -748,13 +815,23 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (totalInc > 0)
-            Text('+${MoneyUtils.formatCurrency(totalInc)}đ ',
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.success, fontWeight: FontWeight.w600)),
+            Text(
+              '+${MoneyUtils.formatCompactCurrency(totalInc)} ',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.success,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           if (totalExp > 0)
-            Text('-${MoneyUtils.formatCurrency(totalExp)}đ',
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.error, fontWeight: FontWeight.w600)),
+            Text(
+              '-${MoneyUtils.formatCompactCurrency(totalExp)}',
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
         ],
       ),
       child: Column(
@@ -762,8 +839,10 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           if (expList.isEmpty && incList.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Không có khoản chi/thu nào',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Không có khoản chi/thu nào',
+                style: TextStyle(color: Colors.grey),
+              ),
             )
           else ...[
             ...incList.map((e) => _expenseRow(e, isIncome: true)),
@@ -784,10 +863,12 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       child: Row(
         children: [
           SizedBox(
-              width: 46,
-              child: Text(time,
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade600))),
+            width: 46,
+            child: Text(
+              time,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -799,18 +880,20 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 if (category.isNotEmpty)
-                  Text(category,
-                      style: TextStyle(
-                          fontSize: 12, color: Colors.grey.shade500)),
+                  Text(
+                    category,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
               ],
             ),
           ),
           Text(
-            '${isIncome ? '+' : '-'}${MoneyUtils.formatCurrency(amount)}đ',
+            '${isIncome ? '+' : '-'}${MoneyUtils.formatCompactCurrency(amount)}',
             style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isIncome ? AppColors.success : AppColors.error),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: isIncome ? AppColors.success : AppColors.error,
+            ),
           ),
         ],
       ),
@@ -825,19 +908,24 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       icon: Icons.inventory,
       color: Colors.teal,
       trailing: imports.isNotEmpty
-          ? Text('${MoneyUtils.formatCurrency(r.totalImportValue)}đ',
+          ? Text(
+              '${MoneyUtils.formatCompactCurrency(r.totalImportValue)}',
               style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal))
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
+              ),
+            )
           : null,
       child: Column(
         children: [
           if (imports.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Không có nhập hàng',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Không có nhập hàng',
+                style: TextStyle(color: Colors.grey),
+              ),
             )
           else
             ...imports.take(20).map((im) {
@@ -846,41 +934,53 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               final qty = (im['quantity'] as int?) ?? 0;
               final total = (im['totalAmount'] as int?) ?? 0;
               final time = _fmtTime(
-                  (im['importDate'] as int?) ?? (im['createdAt'] as int?));
+                (im['importDate'] as int?) ?? (im['createdAt'] as int?),
+              );
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
                     SizedBox(
-                        width: 46,
-                        child: Text(time,
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600))),
+                      width: 46,
+                      child: Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(supplier,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 14)),
+                          Text(
+                            supplier,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14),
+                          ),
                           if (productName.isNotEmpty)
                             Text(
                               qty > 1 ? '$productName x$qty' : productName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                  fontSize: 12, color: Colors.grey.shade600),
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
                             ),
                         ],
                       ),
                     ),
-                    Text('${MoneyUtils.formatCurrency(total)}đ',
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.teal)),
+                    Text(
+                      '${MoneyUtils.formatCompactCurrency(total)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.teal,
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -895,18 +995,23 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
     final payments = r.debtPayments;
     final supplied = r.supplierPayments;
     final partner = r.partnerPayments;
-    final totalCollected =
-        payments.fold<int>(0, (s, e) => s + ((e['amount'] as int?) ?? 0));
+    final totalCollected = payments.fold<int>(
+      0,
+      (s, e) => s + ((e['amount'] as int?) ?? 0),
+    );
     return _sectionCard(
       title: 'Công nợ',
       icon: Icons.account_balance_wallet,
       color: Colors.indigo,
       trailing: totalCollected > 0
-          ? Text('+${MoneyUtils.formatCurrency(totalCollected)}đ',
+          ? Text(
+              '+${MoneyUtils.formatCompactCurrency(totalCollected)}',
               style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.success))
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.success,
+              ),
+            )
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -919,19 +1024,22 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
               children: [
                 if ((r.debtOverview['customerRemain'] ?? 0) > 0)
                   _debtChip(
-                      'KH nợ',
-                      r.debtOverview['customerRemain']!,
-                      AppColors.error),
+                    'KH nợ',
+                    r.debtOverview['customerRemain']!,
+                    AppColors.error,
+                  ),
                 if ((r.debtOverview['supplierRemain'] ?? 0) > 0)
                   _debtChip(
-                      'Nợ NCC',
-                      r.debtOverview['supplierRemain']!,
-                      Colors.orange),
+                    'Nợ NCC',
+                    r.debtOverview['supplierRemain']!,
+                    Colors.orange,
+                  ),
                 if ((r.debtOverview['partnerRemain'] ?? 0) > 0)
                   _debtChip(
-                      'Nợ ĐT',
-                      r.debtOverview['partnerRemain']!,
-                      Colors.indigo),
+                    'Nợ ĐT',
+                    r.debtOverview['partnerRemain']!,
+                    Colors.indigo,
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -940,32 +1048,45 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           if (payments.isEmpty && supplied.isEmpty && partner.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Không có giao dịch nợ',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Không có giao dịch nợ',
+                style: TextStyle(color: Colors.grey),
+              ),
             )
           else ...[
             if (payments.isNotEmpty) ...[
-              const Text('Thu nợ khách:',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600)),
+              const Text(
+                'Thu nợ khách:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 4),
               ...payments.take(15).map((p) {
                 final amount = (p['amount'] as int?) ?? 0;
-                final name = p['customerName'] ?? p['debtPersonName'] ?? p['personName'] ?? 'N/A';
+                final name =
+                    p['customerName'] ??
+                    p['debtPersonName'] ??
+                    p['personName'] ??
+                    'N/A';
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
                     children: [
                       Expanded(
-                          child: Text(name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13))),
-                      Text('+${MoneyUtils.formatCurrency(amount)}đ',
-                          style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.success,
-                              fontWeight: FontWeight.w600)),
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        '+${MoneyUtils.formatCompactCurrency(amount)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -973,9 +1094,10 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
             ],
             if (supplied.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Text('Trả nợ NCC:',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600)),
+              const Text(
+                'Trả nợ NCC:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 4),
               ...supplied.take(10).map((p) {
                 final amount = (p['amount'] as int?) ?? 0;
@@ -985,15 +1107,21 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                   child: Row(
                     children: [
                       Expanded(
-                          child: Text(name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13))),
-                      Text('-${MoneyUtils.formatCurrency(amount)}đ',
-                          style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.error,
-                              fontWeight: FontWeight.w600)),
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        '-${MoneyUtils.formatCompactCurrency(amount)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -1001,9 +1129,10 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
             ],
             if (partner.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Text('Trả đối tác:',
-                  style: TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600)),
+              const Text(
+                'Trả đối tác:',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 4),
               ...partner.take(10).map((p) {
                 final amount = (p['amount'] as int?) ?? 0;
@@ -1013,15 +1142,21 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                   child: Row(
                     children: [
                       Expanded(
-                          child: Text(name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13))),
-                      Text('-${MoneyUtils.formatCurrency(amount)}đ',
-                          style: const TextStyle(
-                              fontSize: 13,
-                              color: AppColors.error,
-                              fontWeight: FontWeight.w600)),
+                        child: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        '-${MoneyUtils.formatCompactCurrency(amount)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -1040,9 +1175,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text('$label: ${MoneyUtils.formatCurrency(amount)}đ',
-          style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+      child: Text(
+        '$label: ${MoneyUtils.formatCompactCurrency(amount)}',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
     );
   }
 
@@ -1059,8 +1199,10 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
           if (att.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Không có dữ liệu chấm công',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'Không có dữ liệu chấm công',
+                style: TextStyle(color: Colors.grey),
+              ),
             )
           else
             ...att.map((a) {
@@ -1077,41 +1219,58 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(a.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 14)),
+                      child: Text(
+                        a.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 14),
+                      ),
                     ),
                     if (late)
                       Container(
                         margin: const EdgeInsets.only(right: 4),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 1),
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.error.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text('Trễ',
-                            style: TextStyle(
-                                fontSize: 10, color: AppColors.error)),
+                        child: const Text(
+                          'Trễ',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.error,
+                          ),
+                        ),
                       ),
                     if (early)
                       Container(
                         margin: const EdgeInsets.only(right: 4),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 1),
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.warning.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text('Sớm',
-                            style: TextStyle(
-                                fontSize: 10, color: AppColors.warning)),
+                        child: const Text(
+                          'Sớm',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.warning,
+                          ),
+                        ),
                       ),
-                    Text('$checkIn → $checkOut',
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade600)),
+                    Text(
+                      '$checkIn → $checkOut',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -1132,15 +1291,26 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       child: Column(
         children: [
           if (logs.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('Không có hoạt động',
-                  style: TextStyle(color: Colors.grey)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Chưa có bản ghi hoạt động trong ngày đã chọn.',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Mục này hiển thị các phát sinh như bán hàng, sửa chữa, thu/chi và thao tác quản trị.',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  ),
+                ],
+              ),
             )
           else
             ...logs.take(50).map((log) {
-              final desc =
-                  log['description'] ?? log['activityType'] ?? '';
+              final desc = log['description'] ?? log['activityType'] ?? '';
               final time = _fmtTime(log['createdAt'] as int?);
               final direction = log['direction'] ?? '';
               final amount = (log['amount'] as int?) ?? 0;
@@ -1151,11 +1321,15 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(
-                        width: 46,
-                        child: Text(time,
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600))),
+                      width: 46,
+                      child: Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ),
                     Expanded(
                       child: Text(
                         desc,
@@ -1168,13 +1342,12 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
                       Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: Text(
-                          '${isIn ? '+' : '-'}${MoneyUtils.formatCurrency(amount)}đ',
+                          '${isIn ? '+' : '-'}${MoneyUtils.formatCompactCurrency(amount)}',
                           style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isIn
-                                  ? AppColors.success
-                                  : AppColors.error),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: isIn ? AppColors.success : AppColors.error,
+                          ),
                         ),
                       ),
                   ],
@@ -1206,14 +1379,13 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         child: ExpansionTile(
           initiallyExpanded: initiallyExpanded,
           tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-          childrenPadding:
-              const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
           leading: Icon(icon, color: color, size: 22),
-          title: Text(title,
-              style: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w600)),
-          trailing: trailing ??
-              const Icon(Icons.expand_more, size: 20),
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          trailing: trailing ?? const Icon(Icons.expand_more, size: 20),
           children: [child],
         ),
       ),
@@ -1223,8 +1395,7 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
   // ==================== HELPERS ====================
   String _fmtTime(int? ms) {
     if (ms == null || ms == 0) return '';
-    return DateFormat('HH:mm')
-        .format(DateTime.fromMillisecondsSinceEpoch(ms));
+    return DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(ms));
   }
 
   String _repairStatusLabel(int status) {
@@ -1267,9 +1438,9 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi xuất Excel: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi xuất Excel: $e')));
       }
     }
   }
@@ -1311,24 +1482,35 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
 
       // Summary
       lines.writeln('[C][B]--- TỔNG QUAN ---');
-      lines.writeln('Doanh thu:  ${MoneyUtils.formatCurrency(f.totalIn)}d');
-      lines.writeln('Chi phi:    ${MoneyUtils.formatCurrency(f.totalOut)}d');
-      lines.writeln('Loi nhuan:  ${MoneyUtils.formatCurrency(f.netProfit)}d');
+      lines.writeln(
+        'Doanh thu:  ${MoneyUtils.formatCompactCurrency(f.totalIn)}d',
+      );
+      lines.writeln(
+        'Chi phi:    ${MoneyUtils.formatCompactCurrency(f.totalOut)}d',
+      );
+      lines.writeln(
+        'Loi nhuan:  ${MoneyUtils.formatCompactCurrency(f.netProfit)}d',
+      );
       lines.writeln('Giao dich:  ${r.totalTransactions}');
       lines.writeln('');
 
       // Sales
       lines.writeln('[C][B]--- BAN HANG (${r.sales.length}) ---');
-      lines.writeln('Tong: ${MoneyUtils.formatCurrency(r.totalSaleRevenue)}d');
-      lines.writeln('Lai:  ${MoneyUtils.formatCurrency(f.saleProfit)}d');
+      lines.writeln(
+        'Tong: ${MoneyUtils.formatCompactCurrency(r.totalSaleRevenue)}d',
+      );
+      lines.writeln('Lai:  ${MoneyUtils.formatCompactCurrency(f.saleProfit)}d');
       for (final s in r.sales.take(15)) {
-        final total = ((s['totalPrice'] as int?) ?? 0) - ((s['discount'] as int?) ?? 0);
+        final total =
+            ((s['totalPrice'] as int?) ?? 0) - ((s['discount'] as int?) ?? 0);
         final cost = (s['totalCost'] as int?) ?? 0;
         final profit = total - cost;
         final name = s['customerName'] ?? 'Khach le';
-        lines.writeln('  $name: ${MoneyUtils.formatCurrency(total)}d');
+        lines.writeln('  $name: ${MoneyUtils.formatCompactCurrency(total)}d');
         if (profit != 0) {
-          lines.writeln('    Lai: ${MoneyUtils.formatCurrency(profit)}d');
+          lines.writeln(
+            '    Lai: ${MoneyUtils.formatCompactCurrency(profit)}d',
+          );
         }
       }
       if (r.sales.length > 15) {
@@ -1339,16 +1521,23 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       // Repairs (only delivered)
       if (r.shopSettings.enableRepair) {
         lines.writeln(
-            '[C][B]--- SUA CHUA DA GIAO (${r.repairsDelivered.length}) ---');
-        lines.writeln('Tong thu: ${MoneyUtils.formatCurrency(f.repairIncome)}d');
-        lines.writeln('Lai:      ${MoneyUtils.formatCurrency(f.repairProfit)}d');
+          '[C][B]--- SUA CHUA DA GIAO (${r.repairsDelivered.length}) ---',
+        );
+        lines.writeln(
+          'Tong thu: ${MoneyUtils.formatCompactCurrency(f.repairIncome)}d',
+        );
+        lines.writeln(
+          'Lai:      ${MoneyUtils.formatCompactCurrency(f.repairProfit)}d',
+        );
         for (final re in r.repairsDelivered.take(15)) {
           final cust = re['customerName'] ?? 'N/A';
           final price = (re['price'] as int?) ?? 0;
           final cost = (re['cost'] as int?) ?? 0;
-          lines.writeln('  $cust: ${MoneyUtils.formatCurrency(price)}d');
+          lines.writeln('  $cust: ${MoneyUtils.formatCompactCurrency(price)}d');
           if ((price - cost) != 0) {
-            lines.writeln('    Lai: ${MoneyUtils.formatCurrency(price - cost)}d');
+            lines.writeln(
+              '    Lai: ${MoneyUtils.formatCompactCurrency(price - cost)}d',
+            );
           }
         }
         lines.writeln('');
@@ -1358,14 +1547,18 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       final expOnly = r.expensesOnly;
       if (expOnly.isNotEmpty) {
         final totalExp = expOnly.fold<int>(
-            0, (s, e) => s + ((e['amount'] as int?) ?? 0));
+          0,
+          (s, e) => s + ((e['amount'] as int?) ?? 0),
+        );
         lines.writeln('[C][B]--- CHI PHI (${expOnly.length}) ---');
-        lines.writeln('Tong chi: ${MoneyUtils.formatCurrency(totalExp)}d');
+        lines.writeln(
+          'Tong chi: ${MoneyUtils.formatCompactCurrency(totalExp)}d',
+        );
         for (final e in expOnly.take(10)) {
           final cat = e['category'] ?? 'Chi phi';
           final detail = e['title'] ?? e['description'] ?? e['note'] ?? '';
           final amt = (e['amount'] as int?) ?? 0;
-          lines.writeln('  $cat: ${MoneyUtils.formatCurrency(amt)}d');
+          lines.writeln('  $cat: ${MoneyUtils.formatCompactCurrency(amt)}d');
           if (detail.isNotEmpty) {
             lines.writeln('    $detail');
           }
@@ -1377,14 +1570,18 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       final incOnly = r.incomeOnly;
       if (incOnly.isNotEmpty) {
         final totalInc = incOnly.fold<int>(
-            0, (s, e) => s + ((e['amount'] as int?) ?? 0));
+          0,
+          (s, e) => s + ((e['amount'] as int?) ?? 0),
+        );
         lines.writeln('[C][B]--- THU KHAC (${incOnly.length}) ---');
-        lines.writeln('Tong thu: ${MoneyUtils.formatCurrency(totalInc)}d');
+        lines.writeln(
+          'Tong thu: ${MoneyUtils.formatCompactCurrency(totalInc)}d',
+        );
         for (final e in incOnly.take(10)) {
           final cat = e['category'] ?? 'Thu';
           final detail = e['title'] ?? e['description'] ?? e['note'] ?? '';
           final amt = (e['amount'] as int?) ?? 0;
-          lines.writeln('  $cat: ${MoneyUtils.formatCurrency(amt)}d');
+          lines.writeln('  $cat: ${MoneyUtils.formatCompactCurrency(amt)}d');
           if (detail.isNotEmpty) {
             lines.writeln('    $detail');
           }
@@ -1399,20 +1596,25 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       if (debtPay.isNotEmpty || suppPay.isNotEmpty || partPay.isNotEmpty) {
         lines.writeln('[C][B]--- CONG NO ---');
         for (final p in debtPay.take(10)) {
-          final name = p['customerName'] ?? p['debtPersonName'] ?? p['personName'] ?? '';
+          final name =
+              p['customerName'] ?? p['debtPersonName'] ?? p['personName'] ?? '';
           final amt = (p['amount'] as int?) ?? 0;
-          lines.writeln('  Thu no KH: ${MoneyUtils.formatCurrency(amt)}d');
+          lines.writeln(
+            '  Thu no KH: ${MoneyUtils.formatCompactCurrency(amt)}d',
+          );
           if (name.isNotEmpty) lines.writeln('    $name');
         }
         for (final p in suppPay.take(10)) {
           final amt = (p['amount'] as int?) ?? 0;
-          lines.writeln('  Tra NCC: ${MoneyUtils.formatCurrency(amt)}d');
+          lines.writeln('  Tra NCC: ${MoneyUtils.formatCompactCurrency(amt)}d');
           final name = p['supplierName'] ?? '';
           if (name.isNotEmpty) lines.writeln('    $name');
         }
         for (final p in partPay.take(10)) {
           final amt = (p['amount'] as int?) ?? 0;
-          lines.writeln('  Tra doi tac: ${MoneyUtils.formatCurrency(amt)}d');
+          lines.writeln(
+            '  Tra doi tac: ${MoneyUtils.formatCompactCurrency(amt)}d',
+          );
           final name = p['partnerName'] ?? '';
           if (name.isNotEmpty) lines.writeln('    $name');
         }
@@ -1423,13 +1625,17 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       final imports = r.supplierImports;
       if (imports.isNotEmpty) {
         lines.writeln('[C][B]--- NHAP HANG (${imports.length}) ---');
-        lines.writeln('Tong: ${MoneyUtils.formatCurrency(r.totalImportValue)}d');
+        lines.writeln(
+          'Tong: ${MoneyUtils.formatCompactCurrency(r.totalImportValue)}d',
+        );
         for (final im in imports.take(10)) {
           final total = (im['totalAmount'] as int?) ?? 0;
           final supplier = im['supplierName'] ?? 'N/A';
           final product = im['productName'] ?? '';
           final qty = (im['quantity'] as int?) ?? 0;
-          lines.writeln('  $supplier: ${MoneyUtils.formatCurrency(total)}d');
+          lines.writeln(
+            '  $supplier: ${MoneyUtils.formatCompactCurrency(total)}d',
+          );
           if (product.isNotEmpty) {
             lines.writeln('    ${qty > 1 ? '$product x$qty' : product}');
           }
@@ -1444,10 +1650,14 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         for (final a in att) {
           final name = a.name ?? '';
           final inTime = a.checkInAt != null
-              ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(a.checkInAt!))
+              ? DateFormat(
+                  'HH:mm',
+                ).format(DateTime.fromMillisecondsSinceEpoch(a.checkInAt!))
               : '--:--';
           final outTime = a.checkOutAt != null
-              ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(a.checkOutAt!))
+              ? DateFormat(
+                  'HH:mm',
+                ).format(DateTime.fromMillisecondsSinceEpoch(a.checkOutAt!))
               : '--:--';
           final late = a.isLate == 1 ? ' (Tre)' : '';
           lines.writeln('  $name: $inTime-$outTime$late');
@@ -1458,27 +1668,41 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
       // Cash flow summary
       lines.writeln('[C][B]--- LUONG TIEN ---');
       if (f.saleIncome > 0) {
-        lines.writeln('Ban hang:     +${MoneyUtils.formatCurrency(f.saleIncome)}d');
+        lines.writeln(
+          'Ban hang:     +${MoneyUtils.formatCompactCurrency(f.saleIncome)}d',
+        );
       }
       if (r.shopSettings.enableRepair && f.repairIncome > 0) {
-        lines.writeln('Sua chua:     +${MoneyUtils.formatCurrency(f.repairIncome)}d');
+        lines.writeln(
+          'Sua chua:     +${MoneyUtils.formatCompactCurrency(f.repairIncome)}d',
+        );
       }
       if (f.debtCollected > 0) {
-        lines.writeln('Thu no:       +${MoneyUtils.formatCurrency(f.debtCollected)}d');
+        lines.writeln(
+          'Thu no:       +${MoneyUtils.formatCompactCurrency(f.debtCollected)}d',
+        );
       }
       if (f.expenseOut > 0) {
-        lines.writeln('Chi phi:      -${MoneyUtils.formatCurrency(f.expenseOut)}d');
+        lines.writeln(
+          'Chi phi:      -${MoneyUtils.formatCompactCurrency(f.expenseOut)}d',
+        );
       }
       if (f.importOut > 0) {
-        lines.writeln('Nhap hang:    -${MoneyUtils.formatCurrency(f.importOut)}d');
+        lines.writeln(
+          'Nhap hang:    -${MoneyUtils.formatCompactCurrency(f.importOut)}d',
+        );
       }
       lines.writeln('');
 
       lines.writeln('[C]================================');
-      lines.writeln('[C][B]LOI NHUAN: ${MoneyUtils.formatCurrency(f.netProfit)}d');
+      lines.writeln(
+        '[C][B]LOI NHUAN: ${MoneyUtils.formatCompactCurrency(f.netProfit)}d',
+      );
       lines.writeln('[C]================================');
       lines.writeln('');
-      lines.writeln('[C]In luc ${DateFormat('HH:mm dd/MM/yyyy').format(DateTime.now())}');
+      lines.writeln(
+        '[C]In luc ${DateFormat('HH:mm dd/MM/yyyy').format(DateTime.now())}',
+      );
 
       final success = await UnifiedPrinterService.printTextReceipt(
         lines.toString(),
@@ -1491,16 +1715,17 @@ class _DailyActivityReportViewState extends State<DailyActivityReportView> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                success ? 'Đã gửi lệnh in' : 'Không thể in, kiểm tra máy in'),
+              success ? 'Đã gửi lệnh in' : 'Không thể in, kiểm tra máy in',
+            ),
             backgroundColor: success ? AppColors.success : AppColors.error,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi in: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi in: $e')));
       }
     }
   }
