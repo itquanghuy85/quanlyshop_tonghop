@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +13,7 @@ import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../services/data_migration_service.dart';
 import '../services/sync_service.dart';
+import '../services/claims_service.dart';
 import '../services/category_service.dart';
 import '../services/osm_map_service.dart';
 import '../widgets/app_cached_image.dart';
@@ -123,17 +125,33 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
             .collection('shops')
             .doc(shopId)
             .get();
+        Map<String, dynamic>? data = shopDoc.data();
+
+        // Legacy fallback: some shops cannot update top-level doc due old owner metadata.
+        // In that case profile is stored under shops/{shopId}/settings/shop_profile.
+        final shouldTryProfileFallback = data == null ||
+            (((data['name'] ?? '').toString().trim().isEmpty) &&
+                ((data['address'] ?? '').toString().trim().isEmpty) &&
+                ((data['phone'] ?? '').toString().trim().isEmpty));
+        if (shouldTryProfileFallback) {
+          final profile = await _loadShopProfileFallback(shopId);
+          if (profile != null && profile.isNotEmpty) {
+            data = {...?data, ...profile};
+            debugPrint('Loaded shop profile fallback from settings/shop_profile');
+          }
+        }
+
         if (shopDoc.exists) {
-          final data = shopDoc.data()!;
+          final safeData = data ?? <String, dynamic>{};
           setState(() {
-            _shopName = data['name'] ?? '';
-            _shopAddress = data['address'] ?? '';
-            _shopPhone = data['phone'] ?? '';
-            _shopEmail = data['email'] ?? '';
-            _shopDescription = data['description'] ?? '';
-            _shopLogoUrl = data['logoUrl'] ?? '';
-            _shopLatitude = data['latitude']?.toDouble();
-            _shopLongitude = data['longitude']?.toDouble();
+            _shopName = safeData['name'] ?? '';
+            _shopAddress = safeData['address'] ?? '';
+            _shopPhone = safeData['phone'] ?? '';
+            _shopEmail = safeData['email'] ?? '';
+            _shopDescription = safeData['description'] ?? '';
+            _shopLogoUrl = safeData['logoUrl'] ?? '';
+            _shopLatitude = (safeData['latitude'] as num?)?.toDouble();
+            _shopLongitude = (safeData['longitude'] as num?)?.toDouble();
 
             _nameController.text = _shopName;
             _addressController.text = _shopAddress;
@@ -145,12 +163,60 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
           debugPrint('Shop data loaded successfully');
           break;
         } else {
+          final profileOnly = await _loadShopProfileFallback(shopId);
+          if (profileOnly != null && profileOnly.isNotEmpty) {
+            setState(() {
+              _shopName = profileOnly['name'] ?? '';
+              _shopAddress = profileOnly['address'] ?? '';
+              _shopPhone = profileOnly['phone'] ?? '';
+              _shopEmail = profileOnly['email'] ?? '';
+              _shopDescription = profileOnly['description'] ?? '';
+              _shopLogoUrl = profileOnly['logoUrl'] ?? '';
+              _shopLatitude = (profileOnly['latitude'] as num?)?.toDouble();
+              _shopLongitude = (profileOnly['longitude'] as num?)?.toDouble();
+
+              _nameController.text = _shopName;
+              _addressController.text = _shopAddress;
+              _phoneController.text = _shopPhone;
+              _emailController.text = _shopEmail;
+              _descriptionController.text = _shopDescription;
+            });
+            await _syncToSharedPreferences(_shopName, _shopAddress, _shopPhone);
+            debugPrint('Shop profile loaded from fallback document');
+            break;
+          }
+
           // Shop doc doesn't exist yet - this is normal for new registration
           debugPrint('Shop doc not found, may be new registration');
           break;
         }
       } catch (e) {
         debugPrint('Retry ${retry + 1}/3 - Load shop failed: $e');
+
+        // Permission on top-level doc can fail for legacy shops; try profile fallback.
+        final profileFallback = await _loadShopProfileFallback(shopId);
+        if (profileFallback != null && profileFallback.isNotEmpty) {
+          setState(() {
+            _shopName = profileFallback['name'] ?? '';
+            _shopAddress = profileFallback['address'] ?? '';
+            _shopPhone = profileFallback['phone'] ?? '';
+            _shopEmail = profileFallback['email'] ?? '';
+            _shopDescription = profileFallback['description'] ?? '';
+            _shopLogoUrl = profileFallback['logoUrl'] ?? '';
+            _shopLatitude = (profileFallback['latitude'] as num?)?.toDouble();
+            _shopLongitude = (profileFallback['longitude'] as num?)?.toDouble();
+
+            _nameController.text = _shopName;
+            _addressController.text = _shopAddress;
+            _phoneController.text = _shopPhone;
+            _emailController.text = _shopEmail;
+            _descriptionController.text = _shopDescription;
+          });
+          await _syncToSharedPreferences(_shopName, _shopAddress, _shopPhone);
+          debugPrint('Loaded shop profile fallback after load error');
+          break;
+        }
+
         if (retry < 2) {
           // Wait a bit for claims to sync before retry
           await Future.delayed(const Duration(seconds: 2));
@@ -169,6 +235,119 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     }
 
     setState(() => _loading = false);
+  }
+
+  bool _isPermissionDeniedError(Object error) {
+    if (error is FirebaseException) {
+      return error.code == 'permission-denied';
+    }
+    final message = error.toString().toLowerCase();
+    return message.contains('permission-denied') ||
+        message.contains('insufficient permissions');
+  }
+
+  Future<Map<String, dynamic>?> _loadShopProfileFallback(String shopId) async {
+    try {
+      final profileDoc = await FirebaseFirestore.instance
+          .collection('shops')
+          .doc(shopId)
+          .collection('settings')
+          .doc('shop_profile')
+          .get();
+      if (!profileDoc.exists) return null;
+      return profileDoc.data();
+    } catch (e) {
+      debugPrint('Failed to load shop_profile fallback: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveShopProfileFallback(
+    String shopId,
+    Map<String, dynamic> profile,
+  ) async {
+    final safePayload = {
+      'name': profile['name'] ?? '',
+      'address': profile['address'] ?? '',
+      'phone': profile['phone'] ?? '',
+      'email': profile['email'] ?? '',
+      'description': profile['description'] ?? '',
+      'logoUrl': profile['logoUrl'] ?? '',
+      'latitude': profile['latitude'],
+      'longitude': profile['longitude'],
+      'shopId': shopId,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': FirebaseAuth.instance.currentUser?.uid,
+    };
+
+    await FirebaseFirestore.instance
+        .collection('shops')
+        .doc(shopId)
+        .collection('settings')
+        .doc('shop_profile')
+        .set(safePayload, SetOptions(merge: true));
+  }
+
+  Future<void> _saveMainShopProfile(
+    String shopId,
+    Map<String, dynamic> shopData,
+    User? currentUser,
+  ) async {
+    final shopRef = FirebaseFirestore.instance.collection('shops').doc(shopId);
+    final shopDoc = await shopRef.get();
+    final payload = <String, dynamic>{...shopData, 'shopId': shopId};
+
+    if (shopDoc.exists) {
+      await shopRef.set(payload, SetOptions(merge: true));
+      return;
+    }
+
+    await shopRef.set({
+      ...payload,
+      'ownerUid': currentUser?.uid,
+      'ownerEmail': currentUser?.email,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _refreshClaimsForShopSave() async {
+    try {
+      await ClaimsService().refreshMyClaims();
+    } catch (e) {
+      debugPrint('refreshMyClaims before save shop failed: $e');
+    }
+
+    try {
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    } catch (e) {
+      debugPrint('force refresh ID token before save shop failed: $e');
+    }
+  }
+
+  Future<void> _saveShopProfileViaCallable(
+    String shopId,
+    Map<String, dynamic> profile,
+  ) async {
+    final callable = FirebaseFunctions.instanceFor(region: 'asia-southeast1')
+        .httpsCallable('updateShopProfileSecure');
+
+    final result = await callable.call({
+      'shopId': shopId,
+      'profile': {
+        'name': profile['name'] ?? '',
+        'address': profile['address'] ?? '',
+        'phone': profile['phone'] ?? '',
+        'email': profile['email'] ?? '',
+        'description': profile['description'] ?? '',
+        'logoUrl': profile['logoUrl'] ?? '',
+        'latitude': profile['latitude'],
+        'longitude': profile['longitude'],
+      },
+    });
+
+    final data = result.data;
+    if (data is Map && data['success'] == true) return;
+    throw Exception('Callable updateShopProfileSecure không trả về success=true');
   }
 
   /// Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
@@ -256,11 +435,11 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
 
     try {
       var shopId = await UserService.getCurrentShopId();
+      final currentUser = FirebaseAuth.instance.currentUser;
       // Fallback: thử dùng uid của user làm shopId (owner case)
       if (shopId == null || shopId.isEmpty) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
-          shopId = user.uid;
+        if (currentUser != null) {
+          shopId = currentUser.uid;
         }
       }
 
@@ -294,14 +473,53 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         'logoUrl': logoUrl,
         'latitude': _shopLatitude,
         'longitude': _shopLongitude,
-        'updatedAt': DateTime.now(),
-        'updatedBy': FirebaseAuth.instance.currentUser?.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': currentUser?.uid,
       };
 
-      await FirebaseFirestore.instance
-          .collection('shops')
-          .doc(shopId)
-          .update(shopData);
+      bool savedToMainShopDoc = false;
+      bool savedToFallbackProfile = false;
+      bool savedViaCallable = false;
+
+      try {
+        await _saveMainShopProfile(shopId, shopData, currentUser);
+        savedToMainShopDoc = true;
+      } catch (e) {
+        debugPrint('Primary save to shops/$shopId failed: $e');
+        if (_isPermissionDeniedError(e)) {
+          await _refreshClaimsForShopSave();
+
+          try {
+            await _saveMainShopProfile(shopId, shopData, currentUser);
+            savedToMainShopDoc = true;
+            debugPrint(
+              'Saved shop profile to main doc after claims/token refresh',
+            );
+          } catch (retryError) {
+            if (_isPermissionDeniedError(retryError)) {
+              try {
+                await _saveShopProfileFallback(shopId, shopData);
+                savedToFallbackProfile = true;
+                debugPrint('Saved shop profile to fallback settings/shop_profile');
+              } catch (fallbackError) {
+                if (_isPermissionDeniedError(fallbackError)) {
+                  await _saveShopProfileViaCallable(shopId, shopData);
+                  savedViaCallable = true;
+                  debugPrint(
+                    'Saved shop profile via callable updateShopProfileSecure',
+                  );
+                } else {
+                  rethrow;
+                }
+              }
+            } else {
+              rethrow;
+            }
+          }
+        } else {
+          rethrow;
+        }
+      }
 
       // Đồng bộ thông tin shop vào SharedPreferences để các màn hình in hóa đơn đọc được
       await _syncToSharedPreferences(
@@ -321,11 +539,20 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       });
 
       NotificationService.showSnackBar(
-        "✅ Đã cập nhật thông tin shop!",
+        savedToMainShopDoc
+            ? "✅ Đã cập nhật thông tin shop!"
+          : (savedViaCallable
+            ? "✅ Đã lưu thông tin cửa hàng (chế độ bảo mật)!"
+            : (savedToFallbackProfile
+                  ? "✅ Đã lưu thông tin cửa hàng (chế độ tương thích)!"
+            : "✅ Đã lưu thông tin cửa hàng!")),
         color: Colors.green,
       );
     } catch (e) {
-      NotificationService.showSnackBar("❌ Lỗi cập nhật: $e", color: Colors.red);
+      final message = _isPermissionDeniedError(e)
+          ? "❌ Tài khoản hiện tại chưa có quyền chỉnh sửa thông tin cửa hàng. Vui lòng đăng xuất/đăng nhập lại tài khoản chủ shop để đồng bộ quyền."
+          : "❌ Lỗi cập nhật: $e";
+      NotificationService.showSnackBar(message, color: Colors.red);
     } finally {
       setState(() => _saving = false);
     }

@@ -1974,7 +1974,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get compareInventory => 'Đối chiếu tồn kho';
 
   @override
-  String get pendingConfirmation => 'Hàng chờ xác nhận nhập vào kho';
+  String get pendingConfirmation => 'Xác nhận nhập kho vào kho';
 
   @override
   String get viewPendingStockList => 'Xem danh sách hàng nhập tạm chưa xác nhận.';

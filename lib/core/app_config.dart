@@ -59,7 +59,7 @@ class AppConfig {
 /// Environment-specific configuration
 class EnvConfig {
   static const String appName = 'HULUCA Shop Manager';
-  static const String packageName = 'com.huluca.shopmanager';
+  static const String packageName = 'com.huluca.shop';
   static const String supportEmail = 'support@huluca.com';
   static const String privacyPolicyUrl = 'https://huluca.com/privacy';
   static const String termsUrl = 'https://huluca.com/terms';

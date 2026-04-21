@@ -162,6 +162,9 @@ class SyncService {
   static bool _isDownloading = false;
   static bool _isInitializingRealtime = false;
   static const _downloadCooldown = Duration(seconds: 60);
+  static bool _isSyncingAllToCloud = false;
+  static DateTime? _lastSyncAllToCloudAt;
+  static const _syncAllToCloudCooldown = Duration(seconds: 12);
   static const int _collectionPollLimit = 20;
   static const Duration _collectionRefreshCooldown = Duration(seconds: 5);
 
@@ -2947,6 +2950,23 @@ class SyncService {
 
   /// Đẩy dữ liệu từ Local lên Cloud (Dùng khi có mạng trở lại)
   static Future<void> syncAllToCloud() async {
+    final now = DateTime.now();
+    if (_isSyncingAllToCloud) {
+      debugPrint('⏭️ syncAllToCloud: already running, skip duplicate trigger');
+      return;
+    }
+    if (_lastSyncAllToCloudAt != null) {
+      final elapsed = now.difference(_lastSyncAllToCloudAt!);
+      if (elapsed < _syncAllToCloudCooldown) {
+        debugPrint(
+          '⏭️ syncAllToCloud: cooldown active (${_syncAllToCloudCooldown.inSeconds - elapsed.inSeconds}s left)',
+        );
+        return;
+      }
+    }
+
+    _isSyncingAllToCloud = true;
+    _lastSyncAllToCloudAt = now;
     debugPrint("Bắt đầu syncAllToCloud...");
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -3913,6 +3933,8 @@ class SyncService {
       debugPrint("Đã hoàn thành đồng bộ toàn bộ dữ liệu lên Cloud.");
     } catch (e) {
       debugPrint("Lỗi syncAllToCloud: $e");
+    } finally {
+      _isSyncingAllToCloud = false;
     }
   }
 

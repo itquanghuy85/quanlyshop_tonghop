@@ -1,0 +1,1173 @@
+Launching lib\main.dart on CPH1989 in debug mode...
+Running Gradle task 'assembleDebug'...                             24,9s
+âˆ Built build\app\outputs\flutter-apk\app-debug.apk
+Installing build\app\outputs\flutter-apk\app-debug.apk...           6,8s
+D/FlutterJNI( 9526): Beginning load of flutter...
+D/FlutterJNI( 9526): flutter (null) was loaded normally!
+I/flutter ( 9526): [IMPORTANT:flutter/shell/common/shell.cc(528)] [Action Required]: Impeller opt-out deprecated.
+I/flutter ( 9526):     The application opted out of Impeller by either using the
+I/flutter ( 9526):     `--no-enable-impeller` flag or the
+I/flutter ( 9526):     `io.flutter.embedding.android.EnableImpeller` `AndroidManifest.xml` entry.
+I/flutter ( 9526):     These options are going to go away in an upcoming Flutter release. Remove
+I/flutter ( 9526):     the explicit opt-out. If you need to opt-out, please report a bug describing
+I/flutter ( 9526):     the issue.
+I/flutter ( 9526): 
+I/flutter ( 9526):     https://github.com/flutter/flutter/issues/new?template=02_bug.yml
+I/flutter ( 9526): 
+D/FlutterGeolocator( 9526): Attaching Geolocator to activity
+D/FlutterRenderer( 9526): Width is zero. 0,0
+Syncing files to device CPH1989...                              
+I/flutter ( 9526): ! Firebase-only mode active: ignoring deprecated backend/API dart-defines.
+I/flutter ( 9526):    - LOCAL_API_BASE_URL is ignored
+I/Choreographer( 9526): Skipped 178 frames!  The application may be doing too much work on its main thread.
+D/FlutterRenderer( 9526): Width is zero. 0,0
+Syncing files to device CPH1989...                                 204ms
+
+Flutter run key commands.
+r Hot reload. 
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on CPH1989 is available at: http://127.0.0.1:51434/5ATH-A-s_MM=/
+The Flutter DevTools debugger and profiler on CPH1989 is available at: http://127.0.0.1:51434/5ATH-A-s_MM=/devtools/?uri=ws://127.0.0.1:51434/5ATH-A-s_MM=/ws
+V/OplusZoomWindowDecorViewHelper( 9526): setLastReportedMergedConfiguration mZoomDisplayHeight: 2340 getDecorView.DecorView@6385e2[MainActivity]
+D/FlutterRenderer( 9526): Width is zero. 0,0
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+D/libMEOW ( 9526): applied 1 plugins for [com.huluca.shop]:
+D/libMEOW ( 9526):   plugin 1: [libMEOW_gift.so]:
+I/libMEOW_gift( 9526): ctx:0xb40000788a5e4db0, ARC not Enabled.
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/chatty  ( 9526): uid=13112(com.huluca.shop) RenderThread identical 1 line
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/chatty  ( 9526): uid=13112(com.huluca.shop) RenderThread identical 59 lines
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+D/libMEOW ( 9526): applied 1 plugins for [com.huluca.shop]:
+D/libMEOW ( 9526):   plugin 1: [libMEOW_gift.so]:
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/chatty  ( 9526): uid=13112(com.huluca.shop) 1.raster identical 67 lines
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+D/FlutterGeolocator( 9526): Creating service.
+D/FlutterGeolocator( 9526): Binding to location service.
+E/Parcel  ( 9526): Reading a NULL string not supported here.
+D/FlutterGeolocator( 9526): Geolocator foreground service connected
+D/FlutterGeolocator( 9526): Initializing Geolocator services
+D/FlutterGeolocator( 9526): Flutter engine connected. Connected engine count 1
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/KeyStore( 9526): interruptedPreservingGet pid = 9526, uid = 13112
+D/FirebaseAuth( 9526): Notifying id token listeners about user ( oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 ).
+I/uca.shopmanage( 9526): Waiting for a blocking GC ProfileSaver
+I/uca.shopmanage( 9526): ProcessProfilingInfo new_methods=4853 is saved saved_to_disk=1 resolve_classes_delay=5000
+E/ion     ( 9526): ioctl c0044901 failed with code -1: Invalid argument
+I/Choreographer( 9526): Skipped 151 frames!  The application may be doing too much work on its main thread.
+I/flutter ( 9526): getCurrentShopId: láº¥y dá»¯ liá»‡u user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ€ _getRoleAfterSync: START for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com
+I/flutter ( 9526): â™»ï¸ restoreAuthCache: restored shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2 for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â™»ï¸ _getRoleAfterSync: Restored shopId from prefs = xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): â¡ _getRoleAfterSync: Using cached mobile session role=employee, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): â±ï¸ PERF [_getRoleAfterSync]: 370ms
+I/flutter ( 9526): đŸ”„ syncUserInfo: START for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com
+I/Choreographer( 9526): Skipped 64 frames!  The application may be doing too much work on its main thread.
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+I/OpenGLRenderer( 9526): Davey! duration=1112ms; Flags=1, IntendedVsync=545201189706996, Vsync=545202256373684, OldestInputEvent=9223372036854775807, NewestInputEvent=0, HandleInputStart=545202260835649, AnimationStart=545202260888726, PerformTraversalsStart=545202260894495, DrawStart=545202277511342, SyncQueued=545202279256419, SyncStart=545202279544265, IssueDrawCommandsStart=545202280272188, SwapBuffers=545202299587880, FrameCompleted=545202302001803, DequeueBufferDuration=2380923, QueueBufferDuration=1479230, GpuCompleted=0, 
+I/flutter ( 9526): HomeView: _HomeViewState constructor called
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: _updatePermissions called
+I/flutter ( 9526): đŸ—‘ï¸ CategoryService: Cache cleared
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: START, user=r@e.com
+I/flutter ( 9526): Khá»Ÿi táº¡o real-time sync...
+I/flutter ( 9526): đŸ”´ Canceling all 0 subscriptions and 0 polling timers...
+I/flutter ( 9526): âœ… All subscriptions cancelled
+I/flutter ( 9526): đŸ  HomeView: Loading settings for shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: Cache - userName=Chá»§, shopName=
+I/flutter ( 9526): _loadUserAndShopInfo: Set state from cache - userName=Chá»§, shopName=
+I/flutter ( 9526): _loadUserAndShopInfo: Reloading user auth profile...
+I/flutter ( 9526): đŸ“¦ CategoryService.getShopSettings: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/FLTFireBGExecutor( 9526): Creating background FlutterEngine instance, with args: [--enable-dart-profiling]
+I/flutter ( 9526): [IMPORTANT:flutter/shell/common/shell.cc(528)] [Action Required]: Impeller opt-out deprecated.
+I/flutter ( 9526):     The application opted out of Impeller by either using the
+I/flutter ( 9526):     `--no-enable-impeller` flag or the
+I/flutter ( 9526):     `io.flutter.embedding.android.EnableImpeller` `AndroidManifest.xml` entry.
+I/flutter ( 9526):     These options are going to go away in an upcoming Flutter release. Remove
+I/flutter ( 9526):     the explicit opt-out. If you need to opt-out, please report a bug describing
+I/flutter ( 9526):     the issue.
+I/flutter ( 9526): 
+I/flutter ( 9526):     https://github.com/flutter/flutter/issues/new?template=02_bug.yml
+I/flutter ( 9526): 
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/libMEOW_gift( 9526): ctx:0xb4000078e4d13f00, ARC not Enabled.
+I/libMEOW_gift( 9526): ctx:0xb40000785789df20, ARC not Enabled.
+D/libMEOW ( 9526): applied 1 plugins for [com.huluca.shop]:
+D/libMEOW ( 9526):   plugin 1: [libMEOW_gift.so]:
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/chatty  ( 9526): uid=13112(com.huluca.shop) 2.io identical 6 lines
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+D/FLTFireContextHolder( 9526): received application context.
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/chatty  ( 9526): uid=13112(com.huluca.shop) 2.io identical 2 lines
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+D/[FBP-Android]( 9526): [FBP] onAttachedToEngine
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/chatty  ( 9526): uid=13112(com.huluca.shop) 2.io identical 55 lines
+E/libEGL  ( 9526): Invalid file path for libcolorx-loader.so
+I/flutter ( 9526): Báº¯t Ä‘áº§u syncAllToCloud...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ syncAllToCloud: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): FCM permission status: AuthorizationStatus.authorized
+D/ProfileInstaller( 9526): Installing profile for com.huluca.shop
+W/DynamiteModule( 9526): Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+E/Parcel  ( 9526): Reading a NULL string not supported here.
+I/DynamiteModule( 9526): Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+W/ProviderInstaller( 9526): Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+I/uca.shopmanage( 9526): The ClassLoaderContext is a special shared library.
+I/uca.shopmanage( 9526): The ClassLoaderContext is a special shared library.
+D/FlutterGeolocator( 9526): Geolocator foreground service connected
+D/FlutterGeolocator( 9526): Initializing Geolocator services
+D/FlutterGeolocator( 9526): Flutter engine connected. Connected engine count 2
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/ProviderInstaller( 9526): Failed to report request stats: com.google.android.gms.common.security.ProviderInstallerImpl.reportRequestStats [class android.content.Context, long, long]
+I/FLTFireMsgService( 9526): FlutterFirebaseMessagingBackgroundService started!
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+V/NativeCrypto( 9526): Registering com/google/android/gms/org/conscrypt/NativeCrypto's 336 native methods...
+W/System  ( 9526): ClassLoader referenced unknown path: system/framework/mediatek-cta.jar
+I/System.out( 9526): [okhttp] e:java.lang.ClassNotFoundException: com.mediatek.cta.CtaUtils
+I/uca.shopmanage( 9526): Waiting for a blocking GC ClassLinker
+I/System.out( 9526): [socket]:check permission begin!
+W/System  ( 9526): ClassLoader referenced unknown path: system/framework/mediatek-cta.jar
+I/System.out( 9526): [socket] e:java.lang.ClassNotFoundException: com.mediatek.cta.CtaUtils
+W/uca.shopmanage( 9526): Accessing hidden method Ljava/security/spec/ECParameterSpec;->getCurveName()Ljava/lang/String; (greylist, reflection, allowed)
+I/uca.shopmanage( 9526): Waiting for a blocking GC ClassLinker
+I/uca.shopmanage( 9526): WaitForGcToComplete blocked ClassLinker on ClassLinker for 74.631ms
+I/uca.shopmanage( 9526): Waiting for a blocking GC ClassLinker
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+I/uca.shopmanage( 9526): WaitForGcToComplete blocked ClassLinker on ClassLinker for 45.529ms
+E/GoogleApiManager( 9526): Failed to get service from broker. 
+E/GoogleApiManager( 9526): java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+E/GoogleApiManager( 9526): 	at android.os.Parcel.createExceptionOrNull(Parcel.java:2390)
+E/GoogleApiManager( 9526): 	at android.os.Parcel.createException(Parcel.java:2374)
+E/GoogleApiManager( 9526): 	at android.os.Parcel.readException(Parcel.java:2357)
+E/GoogleApiManager( 9526): 	at android.os.Parcel.readException(Parcel.java:2299)
+E/GoogleApiManager( 9526): 	at bfan.a(:com.google.android.gms@261332022@26.13.32 (150400-895912391):36)
+E/GoogleApiManager( 9526): 	at beyo.z(:com.google.android.gms@261332022@26.13.32 (150400-895912391):150)
+E/GoogleApiManager( 9526): 	at beep.run(:com.google.android.gms@261332022@26.13.32 (150400-895912391):42)
+E/GoogleApiManager( 9526): 	at android.os.Handler.handleCallback(Handler.java:938)
+E/GoogleApiManager( 9526): 	at android.os.Handler.dispatchMessage(Handler.java:99)
+E/GoogleApiManager( 9526): 	at csqa.ml(:com.google.android.gms@261332022@26.13.32 (150400-895912391):1)
+E/GoogleApiManager( 9526): 	at csqa.dispatchMessage(:com.google.android.gms@261332022@26.13.32 (150400-895912391):5)
+E/GoogleApiManager( 9526): 	at android.os.Looper.loop(Looper.java:264)
+E/GoogleApiManager( 9526): 	at android.os.HandlerThread.run(HandlerThread.java:67)
+W/GoogleApiManager( 9526): Not showing notification since connectionResult is not user-facing: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/uca.shopmanage( 9526): Accessing hidden method Ldalvik/system/VMStack;->getStackClass2()Ljava/lang/Class; (greylist, reflection, allowed)
+W/FlagRegistrar( 9526): Failed to register com.google.android.gms.providerinstaller#com.huluca.shop
+W/FlagRegistrar( 9526): fecl: 17: 17: API: Phenotype.API is not available on this device. Connection failed with: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/FlagRegistrar( 9526): 	at fecn.a(:com.google.android.gms@261332022@26.13.32 (150400-895912391):13)
+W/FlagRegistrar( 9526): 	at gatz.d(:com.google.android.gms@261332022@26.13.32 (150400-895912391):3)
+W/FlagRegistrar( 9526): 	at gaub.run(:com.google.android.gms@261332022@26.13.32 (150400-895912391):130)
+W/FlagRegistrar( 9526): 	at gawk.execute(:com.google.android.gms@261332022@26.13.32 (150400-895912391):1)
+W/FlagRegistrar( 9526): 	at gauj.f(:com.google.android.gms@261332022@26.13.32 (150400-895912391):1)
+W/FlagRegistrar( 9526): 	at gauj.m(:com.google.android.gms@261332022@26.13.32 (150400-895912391):99)
+W/FlagRegistrar( 9526): 	at gauj.r(:com.google.android.gms@261332022@26.13.32 (150400-895912391):17)
+W/FlagRegistrar( 9526): 	at evzs.hF(:com.google.android.gms@261332022@26.13.32 (150400-895912391):35)
+W/FlagRegistrar( 9526): 	at ekrb.run(:com.google.android.gms@261332022@26.13.32 (150400-895912391):12)
+W/FlagRegistrar( 9526): 	at gawk.execute(:com.google.android.gms@261332022@26.13.32 (150400-895912391):1)
+W/FlagRegistrar( 9526): 	at ekrc.b(:com.google.android.gms@261332022@26.13.32 (150400-895912391):18)
+W/FlagRegistrar( 9526): 	at ekrr.b(:com.google.android.gms@261332022@26.13.32 (150400-895912391):34)
+W/FlagRegistrar( 9526): 	at ekrt.d(:com.google.android.gms@261332022@26.13.32 (150400-895912391):25)
+W/FlagRegistrar( 9526): 	at beby.c(:com.google.android.gms@261332022@26.13.32 (150400-895912391):9)
+W/FlagRegistrar( 9526): 	at been.q(:com.google.android.gms@261332022@26.13.32 (150400-895912391):48)
+W/FlagRegistrar( 9526): 	at been.d(:com.google.android.gms@261332022@26.13.32 (150400-895912391):10)
+W/FlagRegistrar( 9526): 	at been.g(:com.google.android.gms@261332022@26.13.32 (150400-895912391):191)
+W/FlagRegistrar( 9526): 	at been.onConnectionFailed(:com.google.android.gms@261332022@26.13.32 (150400-895912391):2)
+W/FlagRegistrar( 9526): 	at beep.run(:com.google.android.gms@261332022@26.13.32 (150400-895912391):70)
+W/FlagRegistrar( 9526): 	at android.os.Handler.handleCallback(Handler.java:938)
+W/FlagRegistrar( 9526): 	at android.os.Handler.dispatchMessage(Handler.java:99)
+W/FlagRegistrar( 9526): 	at csqa.ml(:com.google.android.gms@261332022@26.13.32 (150400-895912391):1)
+W/FlagRegistrar( 9526): 	at csqa.dispatchMessage(:com.google.android.gms@261332022@26.13.32 (150400-895912391):5)
+W/FlagRegistrar( 9526): 	at android.os.Looper.loop(Looper.java:264)
+W/FlagRegistrar( 9526): 	at android.os.HandlerThread.run(HandlerThread.java:67)
+W/FlagRegistrar( 9526): Caused by: beaf: 17: API: Phenotype.API is not available on this device. Connection failed with: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+W/FlagRegistrar( 9526): 	at beya.a(:com.google.android.gms@261332022@26.13.32 (150400-895912391):15)
+W/FlagRegistrar( 9526): 	at becb.a(:com.google.android.gms@261332022@26.13.32 (150400-895912391):1)
+W/FlagRegistrar( 9526): 	at beby.c(:com.google.android.gms@261332022@26.13.32 (150400-895912391):5)
+W/FlagRegistrar( 9526): 	... 11 more
+I/flutter ( 9526): Notification status check: permission=true, fcmToken=true
+I/flutter ( 9526): Notification status: true
+I/ProviderInstaller( 9526): Installed default security provider GmsCore_OpenSSL
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/uca.shopmanage( 9526): Accessing hidden method Ljava/security/spec/ECParameterSpec;->setCurveName(Ljava/lang/String;)V (greylist, reflection, allowed)
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/System.out( 9526): [socket]:check permission begin!
+W/uca.shopmanage( 9526): Accessing hidden field Ljava/net/Socket;->impl:Ljava/net/SocketImpl; (greylist, reflection, allowed)
+W/uca.shopmanage( 9526): Accessing hidden method Ldalvik/system/CloseGuard;->get()Ldalvik/system/CloseGuard; (greylist,core-platform-api, linking, allowed)
+W/uca.shopmanage( 9526): Accessing hidden method Ldalvik/system/CloseGuard;->open(Ljava/lang/String;)V (greylist,core-platform-api, linking, allowed)
+I/flutter ( 9526): DB: ensured repair_parts table exists
+E/Parcel  ( 9526): Reading a NULL string not supported here.
+W/uca.shopmanage( 9526): Accessing hidden method Ldalvik/system/BlockGuard;->getThreadPolicy()Ldalvik/system/BlockGuard$Policy; (greylist,core-platform-api, linking, allowed)
+W/uca.shopmanage( 9526): Accessing hidden method Ldalvik/system/BlockGuard$Policy;->onNetwork()V (greylist, linking, allowed)
+I/flutter ( 9526): _loadUserAndShopInfo: Getting displayName via UserService...
+I/flutter ( 9526): _loadUserAndShopInfo: displayName=Chá»§
+I/flutter ( 9526): _loadUserAndShopInfo: SET userName=Chá»§ (before shop fetch)
+I/flutter ( 9526): _loadUserAndShopInfo: Getting shopId...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/flutter ( 9526): âœ… syncUserInfo: cached shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2 for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 (isNewShop=false)
+I/System.out( 9526): [socket]:check permission begin!
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): EncryptionService initialized for shop: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): EncryptionService: Initialized for shop xbtqoIk5fCOYa1kFIFM5zyv1cJV2, enabled=true
+I/flutter ( 9526): getCurrentUserPermissions: role from firestore = employee
+I/flutter ( 9526): getCurrentUserPermissions: defaults = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): getCurrentUserPermissions: Firestore allowViewCostPrice=null, forceTrue=false
+I/flutter ( 9526): getCurrentUserPermissions: role from firestore = employee
+I/flutter ( 9526): getCurrentUserPermissions: defaults = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): getCurrentUserPermissions: Firestore allowViewCostPrice=null, forceTrue=false
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+D/FirebaseAuth( 9526): Notifying id token listeners about user ( oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 ).
+I/flutter ( 9526): _loadUserAndShopInfo: Token refreshed before shop fetch
+I/flutter ( 9526): _loadUserAndShopInfo: Fetching shop doc from Firestore...
+I/flutter ( 9526): FCM Token: cbichwe1Qc-sjIWMyFYTcY:APA91bHIeWfQ-qE5U3u2htgj0bK0XJmdu678njr0AK-5G_kZKenajKUtfHCP0yxTh2Xv829MEA9LDaJ3iccTllvyxfV_RtZjbr5Ktdokb5DW_wRFtmvjOI0
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): DB: created indexes for products table
+I/flutter ( 9526): đŸ“¦ CategoryService: Found in local DB - businessType=electronics, enableRepair=true
+I/flutter ( 9526): đŸ  HomeView: Loaded shop settings:
+I/flutter ( 9526):    - businessType: electronics
+I/flutter ( 9526):    - enableRepair: true
+I/flutter ( 9526):    - enableSerial: true
+I/flutter ( 9526):    - enableExpiry: false
+I/flutter ( 9526):    - enableVariants: false
+I/flutter ( 9526):    - isDefault: false
+I/flutter ( 9526): đŸ  HomeView: setState done - _enableRepair=true, _enableVariants=false
+I/flutter ( 9526): DB_TRACE: getAllRepairs returned 1 repairs
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 repairs cáº§n sync
+I/flutter ( 9526): StorageService: normalized folder "repairs/1776653680860" -> "repairs"
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“¸ NĂ©n áº£nh: scaled_f0e588d4-dc91-4d4d-a78b-a1ed575fc7d37521597594839219204.jpg - Size gá»‘c: 438.9 KB
+I/flutter ( 9526): getCurrentShopId: shopId = xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho uid = oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): UserService: shop appLocked=false, adminFinanceLocked=false
+I/flutter ( 9526): UserService: final perms = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false, lockedByAdmin: [], lockedByOwner: []}
+I/flutter ( 9526): HomeView permissions updated: {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): Locked by Admin: []
+I/flutter ( 9526): Locked by Owner: []
+I/flutter ( 9526): UserService: shop appLocked=false, adminFinanceLocked=false
+I/flutter ( 9526): UserService: final perms = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false, lockedByAdmin: [], lockedByOwner: []}
+I/flutter ( 9526): getUserRole: currentUser email = r@e.com
+I/flutter ( 9526): getUserRole: role from claims = employee
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ initRealTimeSync: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+I/flutter ( 9526): _loadUserAndShopInfo: Shop doc data={createdAt: Timestamp(seconds=1776652343, nanoseconds=798000000), lastStaffCreatedBy: xbtqoIk5fCOYa1kFIFM5zyv1cJV2}
+I/flutter ( 9526): _loadUserAndShopInfo: shopName from Firestore=
+I/flutter ( 9526): _loadUserAndShopInfo: FINAL setState - userName=Chá»§, shopName=
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ’¾ syncUserInfo: cached role=employee for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ”„ syncUserInfo: waiting for claims sync (isNewShop=false)...
+I/flutter ( 9526): â¡ syncUserInfo: Existing user - skipping blocking claims wait. cached shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): âœ… syncUserInfo: COMPLETE for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+I/flutter ( 9526): CurrentShopService: Different user, cleared saved shop
+I/flutter ( 9526): â¸ï¸ Background warmup: skip full download on mobile startup (realtime sync will bootstrap local DB)
+I/flutter ( 9526): đŸ”„ SyncOrchestrator: Initializing...
+I/flutter ( 9526): đŸ’¾ saveAuthCache: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, role=employee
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+E/ion     ( 9526): ioctl c0044901 failed with code -1: Invalid argument
+D/skia    ( 9526): SkJpegCodec::onGetPixels +
+W/uca.shopmanage( 9526): Accessing hidden method Ldalvik/system/CloseGuard;->warnIfOpen()V (greylist,core-platform-api, reflection, allowed)
+I/flutter ( 9526): FCM token saved successfully for user: oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/DynamiteModule( 9526): Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+E/Parcel  ( 9526): Reading a NULL string not supported here.
+I/DynamiteModule( 9526): Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+W/ProviderInstaller( 9526): Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+W/ProviderInstaller( 9526): Failed to report request stats: com.google.android.gms.common.security.ProviderInstallerImpl.reportRequestStats [class android.content.Context, long, long]
+I/flutter ( 9526): Online status changed: true
+I/flutter ( 9526): ConnectivityService initialized. Current status: [ConnectivityResult.wifi]
+D/FirebaseAuth( 9526): Notifying id token listeners about user ( oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 ).
+W/FirebaseContextProvider( 9526): Error getting App Check token. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/flutter ( 9526): Received 0 notification changes
+I/flutter ( 9526): đŸ”‘ Token claims: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, role=employee
+I/System.out( 9526): [socket]:check permission begin!
+I/flutter ( 9526): Connectivity changed: [ConnectivityResult.wifi] -> [ConnectivityResult.wifi]
+I/flutter ( 9526): Máº¡ng Ä‘Ă£ Ä‘Æ°á»£c khĂ´i phá»¥c, báº¯t Ä‘áº§u Ä‘á»“ng bá»™...
+D/skia    ( 9526): SkJpegCodec::onGetPixels -
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 1 (13 queries) took 1357ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“‹ getPendingEntries: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/uca.shopmanage( 9526): NativeAlloc concurrent copying GC freed 24493(1685KB) AllocSpace objects, 4(144KB) LOS objects, 49% free, 6766KB/13MB, paused 229us total 123.606ms
+I/flutter ( 9526): đŸ“‹ getPendingEntries: found 0 docs
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+D/uca.shopmanage( 9526): ##Make: options.fQuality:70,quality:70,encoderMgr->imageprocessing_flag:0
+D/uca.shopmanage( 9526): Resolution: 1920 x 2560; FLAG:0
+I/flutter ( 9526): đŸ”„ SyncOrchestrator: Initialized with 0 pending items
+I/flutter ( 9526): âœ… SyncOrchestrator initialized
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): [SYNC][FETCH] collection=cash_closings count=1 reason=init limit=7
+I/flutter ( 9526): HomeView: Batch 2 (6 queries) took 1788ms
+I/flutter ( 9526): HomeView: _loadStats total took 1788ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/Firestore( 9526): (25.1.4) [Firestore]: Listen for Query(target=Query(cash_closings where shopId==xbtqoIk5fCOYa1kFIFM5zyv1cJV2 order by -createdAt, -__name__);limitType=LIMIT_TO_FIRST) failed: Status{code=PERMISSION_DENIED, description=Missing or insufficient permissions., cause=null}
+I/flutter ( 9526): CashClosingNotifier polling error: [cloud_firestore/permission-denied] The caller does not have permission to execute the specified operation.
+I/flutter ( 9526): CashClosingNotifier: Initialized for shop xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): âœ… NĂ©n xong: 309.2 KB (giáº£m 29.5%)
+I/flutter ( 9526): StorageService: uploading compressed_1776657864001.jpg to "repairs" mime=image/jpeg
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+W/StorageUtil( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/flutter ( 9526): DB: KhĂ´ng cĂ³ orphan repair_parts cáº§n cleanup
+I/System.out( 9526): [socket]:check permission begin!
+I/flutter ( 9526): DB: Force marked 0 repair_parts as synced
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/System.out( 9526): [OkHttp] sendRequest<<
+D/FirebaseAuth( 9526): Notifying id token listeners about user ( oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 ).
+I/flutter ( 9526): đŸ“‰ repairs: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=repairs count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ sales: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=sales count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ products: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=products count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to expenses - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ debts: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=debts count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ debt_payments: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=debt_payments count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ users: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=users count=1 reason=initial limit=20
+I/flutter ( 9526): â±ï¸ PERF [initRealTimeSync]: 6659ms (SLOW)
+I/flutter ( 9526): âœ… Critical sync ready (1 subs) â€” deferred collections will load in 3s...
+I/flutter ( 9526): đŸ“ Subscription status: {repairs: true, sales: true, products: true, expenses: false, debts: true, debt_payments: true, users: true}
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ’³ DB returned 0 pending rows
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): đŸ’³ PaymentIntentService initialized: 0 pending, 1 history
+I/flutter ( 9526): đŸ” Báº¯t Ä‘áº§u kiá»ƒm tra Sync Health...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ runFullCheck: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+I/flutter ( 9526): getCurrentUserPermissions: using in-memory cache
+I/flutter ( 9526): getUserRole: currentUser email = r@e.com
+I/flutter ( 9526): getUserRole: role from claims = employee
+I/flutter ( 9526): â„¹ï¸ Sync Health bá» qua collections ngoĂ i quyá»n hiá»‡n táº¡i: [expenses, attendance]
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): User does not have permission to access this object.
+E/StorageException( 9526):  Code: -13021 HttpResult: 403
+E/StorageException( 9526): The server has terminated the upload session
+E/StorageException( 9526): java.io.IOException: The server has terminated the upload session
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.serverStateValid(UploadTask.java:359)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.shouldContinue(UploadTask.java:325)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:246)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask.lambda$getRunnable$7$com-google-firebase-storage-StorageTask(StorageTask.java:1078)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor.lambda$decorate$0$com-google-firebase-concurrent-LimitedConcurrencyExecutor(LimitedConcurrencyExecutor.java:65)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0$com-google-firebase-concurrent-CustomThreadFactory(CustomThreadFactory.java:47)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.lang.Thread.run(Thread.java:923)
+E/StorageException( 9526): Caused by: java.io.IOException: {  "error": {    "code": 403,    "message": "Permission denied."  }}
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseResponse(NetworkRequest.java:415)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseErrorResponse(NetworkRequest.java:432)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.processResponseStream(NetworkRequest.java:423)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:265)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:282)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:76)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:68)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.sendWithRetry(UploadTask.java:527)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.beginResumableUpload(UploadTask.java:293)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:241)
+E/StorageException( 9526): 	... 9 more
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): User does not have permission to access this object.
+E/StorageException( 9526):  Code: -13021 HttpResult: 403
+E/StorageException( 9526): The server has terminated the upload session
+E/StorageException( 9526): java.io.IOException: The server has terminated the upload session
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.serverStateValid(UploadTask.java:359)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.shouldContinue(UploadTask.java:325)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:246)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask.lambda$getRunnable$7$com-google-firebase-storage-StorageTask(StorageTask.java:1078)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor.lambda$decorate$0$com-google-firebase-concurrent-LimitedConcurrencyExecutor(LimitedConcurrencyExecutor.java:65)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0$com-google-firebase-concurrent-CustomThreadFactory(CustomThreadFactory.java:47)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.lang.Thread.run(Thread.java:923)
+E/StorageException( 9526): Caused by: java.io.IOException: {  "error": {    "code": 403,    "message": "Permission denied."  }}
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseResponse(NetworkRequest.java:415)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseErrorResponse(NetworkRequest.java:432)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.processResponseStream(NetworkRequest.java:423)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:265)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:282)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:76)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:68)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.sendWithRetry(UploadTask.java:527)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.beginResumableUpload(UploadTask.java:293)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:241)
+E/StorageException( 9526): 	... 9 more
+I/flutter ( 9526): STORAGE_ERROR: [firebase_storage/unauthorized] User is not authorized to perform the desired action.
+I/flutter ( 9526): Upload áº£nh repair 440 chÆ°a hoĂ n táº¥t, giá»¯ local Ä‘á»ƒ retry: Exception: Repair images not fully uploaded (0/1)
+I/flutter ( 9526): âœ… Synced 0 repairs to cloud
+I/flutter ( 9526): đŸ“¡ Shop data changed for shopId: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): DB_TRACE: getAllSales returned 0 sales
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 sales cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 sales to cloud
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): The operation was cancelled.
+E/StorageException( 9526):  Code: -13040 HttpResult: 0
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 expenses cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 products cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 products to cloud
+I/flutter ( 9526): âœ… Synced shop info to SharedPreferences: QUAN LY SHOP, , 
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 attendance cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 attendance to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 quick input codes cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 quick input codes to cloud
+I/flutter ( 9526): DBHelper.getSuppliers: found 2 suppliers
+I/flutter ( 9526): syncAllToCloud: cĂ³ 2 suppliers cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): đŸ“ _checkCollection repairs: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ repairs chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526): đŸ“¥ Polled users: 2 docs (limit=20)
+I/flutter ( 9526): Updated cached shopId: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): EventBus: Emitting event: users_changed
+I/flutter ( 9526): HomeView: Received event: users_changed
+D/FirebaseAuth( 9526): Notifying id token listeners about user ( oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 ).
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=0, unsynced=1, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): âœ… syncUserInfo: background claims refresh done
+I/flutter ( 9526): đŸ“ _checkCollection sales: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ sales chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526): âœ… Synced 0 suppliers to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair partners cáº§n kiá»ƒm tra sync
+I/flutter ( 9526):    â†’ localCount=0, localWithFirestoreId=0, cloudCount=0, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 supplier payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): Báº¯t Ä‘áº§u syncAllToCloud...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ syncAllToCloud: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair partner payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): DB_TRACE: getAllRepairs returned 1 repairs
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 repairs cáº§n sync
+I/flutter ( 9526): StorageService: normalized folder "repairs/1776653680860" -> "repairs"
+I/flutter ( 9526): đŸ“¸ NĂ©n áº£nh: scaled_f0e588d4-dc91-4d4d-a78b-a1ed575fc7d37521597594839219204.jpg - Size gá»‘c: 438.9 KB
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 debts cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): đŸ“ _checkCollection products: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=1
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 debt payments cáº§n kiá»ƒm tra sync
+D/skia    ( 9526): SkJpegCodec::onGetPixels +
+I/flutter ( 9526): HomeView: Batch 1 (13 queries) took 107ms
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 audit logs cáº§n sync
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=1, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair parts cáº§n sync
+I/flutter ( 9526): HomeView: Batch 2 (6 queries) took 177ms
+I/flutter ( 9526): HomeView: _loadStats total took 178ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/chatty  ( 9526): uid=13112(com.huluca.shop) identical 1 line
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+D/skia    ( 9526): SkJpegCodec::onGetPixels -
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“ _checkCollection debts: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ debts chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526):    â†’ localCount=0, localWithFirestoreId=0, cloudCount=0, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 payment intents cáº§n sync
+I/flutter ( 9526): ÄĂ£ hoĂ n thĂ nh Ä‘á»“ng bá»™ toĂ n bá»™ dá»¯ liá»‡u lĂªn Cloud.
+D/uca.shopmanage( 9526): ##Make: options.fQuality:70,quality:70,encoderMgr->imageprocessing_flag:0
+D/uca.shopmanage( 9526): Resolution: 1920 x 2560; FLAG:0
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“ _checkCollection customers: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=2
+I/flutter ( 9526): âœ… NĂ©n xong: 309.2 KB (giáº£m 29.5%)
+I/flutter ( 9526): StorageService: uploading compressed_1776657867521.jpg to "repairs" mime=image/jpeg
+W/StorageUtil( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/flutter ( 9526):    â†’ localCount=2, localWithFirestoreId=2, cloudCount=2, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): đŸ“ _checkCollection suppliers: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=2
+I/flutter ( 9526):    â†’ localCount=2, localWithFirestoreId=2, cloudCount=2, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): đŸ“ _checkCollection quick_input_codes: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=1
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=1, unsynced=0, pendingCreate=0, pendingUpdate=0
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): User does not have permission to access this object.
+E/StorageException( 9526):  Code: -13021 HttpResult: 403
+E/StorageException( 9526): The server has terminated the upload session
+E/StorageException( 9526): java.io.IOException: The server has terminated the upload session
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.serverStateValid(UploadTask.java:359)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.shouldContinue(UploadTask.java:325)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:246)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask.lambda$getRunnable$7$com-google-firebase-storage-StorageTask(StorageTask.java:1078)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor.lambda$decorate$0$com-google-firebase-concurrent-LimitedConcurrencyExecutor(LimitedConcurrencyExecutor.java:65)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0$com-google-firebase-concurrent-CustomThreadFactory(CustomThreadFactory.java:47)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.lang.Thread.run(Thread.java:923)
+E/StorageException( 9526): Caused by: java.io.IOException: {  "error": {    "code": 403,    "message": "Permission denied."  }}
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseResponse(NetworkRequest.java:415)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseErrorResponse(NetworkRequest.java:432)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.processResponseStream(NetworkRequest.java:423)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:265)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:282)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:76)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:68)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.sendWithRetry(UploadTask.java:527)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.beginResumableUpload(UploadTask.java:293)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:241)
+E/StorageException( 9526): 	... 9 more
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): User does not have permission to access this object.
+E/StorageException( 9526):  Code: -13021 HttpResult: 403
+E/StorageException( 9526): The server has terminated the upload session
+E/StorageException( 9526): java.io.IOException: The server has terminated the upload session
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.serverStateValid(UploadTask.java:359)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.shouldContinue(UploadTask.java:325)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:246)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask.lambda$getRunnable$7$com-google-firebase-storage-StorageTask(StorageTask.java:1078)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor.lambda$decorate$0$com-google-firebase-concurrent-LimitedConcurrencyExecutor(LimitedConcurrencyExecutor.java:65)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0$com-google-firebase-concurrent-CustomThreadFactory(CustomThreadFactory.java:47)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.lang.Thread.run(Thread.java:923)
+E/StorageException( 9526): Caused by: java.io.IOException: {  "error": {    "code": 403,    "message": "Permission denied."  }}
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseResponse(NetworkRequest.java:415)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseErrorResponse(NetworkRequest.java:432)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.processResponseStream(NetworkRequest.java:423)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:265)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:282)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:76)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:68)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.sendWithRetry(UploadTask.java:527)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.beginResumableUpload(UploadTask.java:293)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:241)
+E/StorageException( 9526): 	... 9 more
+I/flutter ( 9526): STORAGE_ERROR: [firebase_storage/unauthorized] User is not authorized to perform the desired action.
+I/flutter ( 9526): Upload áº£nh repair 440 chÆ°a hoĂ n táº¥t, giá»¯ local Ä‘á»ƒ retry: Exception: Repair images not fully uploaded (0/1)
+I/flutter ( 9526): âœ… Synced 0 repairs to cloud
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): The operation was cancelled.
+E/StorageException( 9526):  Code: -13040 HttpResult: 0
+I/flutter ( 9526): DB_TRACE: getAllSales returned 0 sales
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 sales cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 sales to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 expenses cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 products cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 products to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 attendance cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 attendance to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 quick input codes cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 quick input codes to cloud
+I/flutter ( 9526): DBHelper.getSuppliers: found 2 suppliers
+I/flutter ( 9526): syncAllToCloud: cĂ³ 2 suppliers cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): đŸ“ _checkCollection repair_parts: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=1
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=1, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): âœ… Synced 0 suppliers to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair partners cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 supplier payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair partner payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 debts cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 debt payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 audit logs cáº§n sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair parts cáº§n sync
+I/flutter ( 9526): đŸ“ _checkCollection debt_payments: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ debt_payments chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526):    â†’ localCount=0, localWithFirestoreId=0, cloudCount=0, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 payment intents cáº§n sync
+I/flutter ( 9526): ÄĂ£ hoĂ n thĂ nh Ä‘á»“ng bá»™ toĂ n bá»™ dá»¯ liá»‡u lĂªn Cloud.
+I/flutter ( 9526): Äá»“ng bá»™ sau khi khĂ´i phá»¥c máº¡ng hoĂ n thĂ nh
+I/flutter ( 9526): đŸ“ Sync Health Report:
+I/flutter ( 9526):    Shop: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526):    Local: 8 | Cloud: 7 | Mismatches: 1
+I/flutter ( 9526):    ! repairs: local=1, cloud=0, unsynced=1
+I/flutter ( 9526):    âœ… sales: local=0, cloud=0, unsynced=0
+I/flutter ( 9526):    âœ… products: local=1, cloud=1, unsynced=0
+I/flutter ( 9526):    âœ… debts: local=0, cloud=0, unsynced=0
+I/flutter ( 9526):    âœ… customers: local=2, cloud=2, unsynced=0
+I/flutter ( 9526):    âœ… suppliers: local=2, cloud=2, unsynced=0
+I/flutter ( 9526):    âœ… quick_input_codes: local=1, cloud=1, unsynced=0
+I/flutter ( 9526):    âœ… repair_parts: local=1, cloud=1, unsynced=0
+I/flutter ( 9526):    âœ… debt_payments: local=0, cloud=0, unsynced=0
+I/flutter ( 9526): đŸ• Starting deferred sync subscriptions...
+I/flutter ( 9526): â­ï¸ Skipping subscribe to attendance - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to leave_requests - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ quick_input_codes: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=quick_input_codes count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to supplier_payments - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to repair_partner_payments - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ customers: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=customers count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ suppliers: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=suppliers count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ repair_partners: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=repair_partners count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ partner_repair_history: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=partner_repair_history count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to audit_logs - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ repair_parts: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=repair_parts count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ supplier_import_history: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=supplier_import_history count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ supplier_product_prices: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=supplier_product_prices count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ import_orders: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=import_orders count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ import_order_items: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=import_order_items count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to cash_closings - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to adjustment_entries - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to purchase_orders - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ payment_intents: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=payment_intents count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ payment_requests: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=payment_requests count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ work_schedules: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=work_schedules count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to employee_salary_settings - not allowed for role=employee
+I/flutter ( 9526): [SYNC][FETCH] collection=product_categories count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ product_variants: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=product_variants count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ sales_returns: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=sales_returns count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ sales_return_items: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=sales_return_items count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ salvage_phones: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=salvage_phones count=1 reason=initial limit=20
+I/flutter ( 9526): â±ï¸ PERF [deferredSync]: 61ms
+I/flutter ( 9526): âœ… Deferred sync done â€” total 1 subscriptions active for shop: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): đŸ“ Subscription status: {repairs: true, sales: true, products: true, expenses: false, debts: true, debt_payments: true, users: true, attendance: false, leave_requests: false, quick_input_codes: true, supplier_payments: false, repair_partner_payments: false, customers: true, suppliers: true, repair_partners: true, partner_repair_history: true, audit_logs: false, repair_parts: true, supplier_import_history: true, supplier_product_prices: true, import_orders: true, import_order_items: true, cash_closings: false, adjustment_entries: false, purchase_orders: false, payment_intents: true, payment_requests: true, work_schedules: true, employee_salary_settings: false, product_variants: true, sales_returns: true, sales_return_items: true, salvage_phones: true}
+I/flutter ( 9526): đŸ“¥ Polled suppliers: 2 docs (limit=20)
+I/flutter ( 9526): đŸ“¥ Polled payment_intents: 1 docs (limit=20)
+I/flutter ( 9526): đŸ“¥ Polled import_orders: 1 docs (limit=20)
+I/flutter ( 9526): EventBus: Emitting event: payment_intents_changed
+I/flutter ( 9526): HomeView: Received event: payment_intents_changed
+I/flutter ( 9526): đŸ“¥ Polled import_order_items: 1 docs (limit=20)
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 1 (13 queries) took 63ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 2 (6 queries) took 115ms
+I/flutter ( 9526): HomeView: _loadStats total took 116ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/chatty  ( 9526): uid=13112(com.huluca.shop) identical 2 lines
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+E/GoogleApiManager( 9526): Failed to get service from broker. 
+E/GoogleApiManager( 9526): java.lang.SecurityException: Unknown calling package name 'com.google.android.gms'.
+E/GoogleApiManager( 9526): 	at android.os.Parcel.createExceptionOrNull(Parcel.java:2390)
+E/GoogleApiManager( 9526): 	at android.os.Parcel.createException(Parcel.java:2374)
+E/GoogleApiManager( 9526): 	at android.os.Parcel.readException(Parcel.java:2357)
+E/GoogleApiManager( 9526): 	at android.os.Parcel.readException(Parcel.java:2299)
+E/GoogleApiManager( 9526): 	at bfan.a(:com.google.android.gms@261332022@26.13.32 (150400-895912391):36)
+E/GoogleApiManager( 9526): 	at beyo.z(:com.google.android.gms@261332022@26.13.32 (150400-895912391):150)
+E/GoogleApiManager( 9526): 	at beep.run(:com.google.android.gms@261332022@26.13.32 (150400-895912391):42)
+E/GoogleApiManager( 9526): 	at android.os.Handler.handleCallback(Handler.java:938)
+E/GoogleApiManager( 9526): 	at android.os.Handler.dispatchMessage(Handler.java:99)
+E/GoogleApiManager( 9526): 	at csqa.ml(:com.google.android.gms@261332022@26.13.32 (150400-895912391):1)
+E/GoogleApiManager( 9526): 	at csqa.dispatchMessage(:com.google.android.gms@261332022@26.13.32 (150400-895912391):5)
+E/GoogleApiManager( 9526): 	at android.os.Looper.loop(Looper.java:264)
+E/GoogleApiManager( 9526): 	at android.os.HandlerThread.run(HandlerThread.java:67)
+W/GoogleApiManager( 9526): Not showing notification since connectionResult is not user-facing: ConnectionResult{statusCode=DEVELOPER_ERROR, resolution=null, message=null, clientMethodKey=null}
+
+
+Performing hot restart...                                       
+lib/services/storage_service.dart:155:22: Error: The argument type 'List<int>' can't be assigned to the parameter type 'Uint8List'.
+ - 'List' is from 'dart:core'.
+ - 'Uint8List' is from 'dart:typed_data'.
+            .putData(bytes, metadata)
+                     ^
+Restarted application in 2.257ms.
+Try again after fixing the above error(s).
+
+Performing hot restart...                                       
+I/GED     ( 9526): ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 15, oppidx_max 15, oppidx_min 0
+I/flutter ( 9526): ! Firebase-only mode active: ignoring deprecated backend/API dart-defines.
+I/flutter ( 9526):    - LOCAL_API_BASE_URL is ignored
+Restarted application in 9.511ms.
+I/FLTFireMsgService( 9526): FlutterFirebaseMessagingBackgroundService started!
+W/uca.shopmanage( 9526): Accessing hidden method Ldalvik/system/CloseGuard;->close()V (greylist,core-platform-api, linking, allowed)
+W/FLTFireMsgService( 9526): Attempted to start a duplicate background isolate. Returning...
+I/flutter ( 9526): getCurrentShopId: láº¥y dá»¯ liá»‡u user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+I/flutter ( 9526): đŸ€ _getRoleAfterSync: START for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com
+I/flutter ( 9526): â™»ï¸ restoreAuthCache: restored shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2 for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â™»ï¸ _getRoleAfterSync: Restored shopId from prefs = xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): â¡ _getRoleAfterSync: Using cached mobile session role=employee, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): â±ï¸ PERF [_getRoleAfterSync]: 325ms
+I/flutter ( 9526): đŸ”„ syncUserInfo: START for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com
+I/flutter ( 9526): FCM permission status: AuthorizationStatus.authorized
+W/DynamiteModule( 9526): Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+E/Parcel  ( 9526): Reading a NULL string not supported here.
+I/DynamiteModule( 9526): Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+W/ProviderInstaller( 9526): Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+W/ProviderInstaller( 9526): Failed to report request stats: com.google.android.gms.common.security.ProviderInstallerImpl.reportRequestStats [class android.content.Context, long, long]
+I/flutter ( 9526): HomeView: _HomeViewState constructor called
+I/System.out( 9526): [socket]:check permission begin!
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+
+Performing hot restart...                                       
+I/flutter ( 9526): HomeView: _updatePermissions called
+I/flutter ( 9526): đŸ—‘ï¸ CategoryService: Cache cleared
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: START, user=r@e.com
+I/flutter ( 9526): Khá»Ÿi táº¡o real-time sync...
+I/flutter ( 9526): đŸ”´ Canceling all 0 subscriptions and 0 polling timers...
+I/flutter ( 9526): âœ… All subscriptions cancelled
+I/flutter ( 9526): đŸ  HomeView: Loading settings for shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: Cache - userName=Chá»§, shopName=
+I/flutter ( 9526): _loadUserAndShopInfo: Set state from cache - userName=Chá»§, shopName=
+I/flutter ( 9526): _loadUserAndShopInfo: Reloading user auth profile...
+I/flutter ( 9526): đŸ“¦ CategoryService.getShopSettings: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): âœ… syncUserInfo: cached shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2 for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 (isNewShop=false)
+I/flutter ( 9526): EncryptionService initialized for shop: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): EncryptionService: Initialized for shop xbtqoIk5fCOYa1kFIFM5zyv1cJV2, enabled=true
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): Báº¯t Ä‘áº§u syncAllToCloud...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ syncAllToCloud: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/flutter ( 9526): getCurrentUserPermissions: role from firestore = employee
+I/flutter ( 9526): getCurrentUserPermissions: defaults = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): getCurrentUserPermissions: Firestore allowViewCostPrice=null, forceTrue=false
+I/System.out( 9526): [socket]:check permission begin!
+I/flutter ( 9526): getCurrentUserPermissions: role from firestore = employee
+I/flutter ( 9526): getCurrentUserPermissions: defaults = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): getCurrentUserPermissions: Firestore allowViewCostPrice=null, forceTrue=false
+I/GED     ( 9526): ged_boost_gpu_freq, level 100, eOrigin 2, final_idx 15, oppidx_max 15, oppidx_min 0
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): ! Firebase-only mode active: ignoring deprecated backend/API dart-defines.
+I/flutter ( 9526):    - LOCAL_API_BASE_URL is ignored
+I/Choreographer( 9526): Skipped 132 frames!  The application may be doing too much work on its main thread.
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+Restarted application in 4.851ms.
+I/FLTFireMsgService( 9526): FlutterFirebaseMessagingBackgroundService started!
+W/FLTFireMsgService( 9526): Attempted to start a duplicate background isolate. Returning...
+I/flutter ( 9526): getCurrentShopId: láº¥y dá»¯ liá»‡u user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+I/flutter ( 9526): đŸ€ _getRoleAfterSync: START for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com
+I/flutter ( 9526): â™»ï¸ restoreAuthCache: restored shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2 for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â™»ï¸ _getRoleAfterSync: Restored shopId from prefs = xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): â¡ _getRoleAfterSync: Using cached mobile session role=employee, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): â±ï¸ PERF [_getRoleAfterSync]: 287ms
+I/flutter ( 9526): đŸ”„ syncUserInfo: START for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com
+I/flutter ( 9526): FCM permission status: AuthorizationStatus.authorized
+W/DynamiteModule( 9526): Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+E/Parcel  ( 9526): Reading a NULL string not supported here.
+I/DynamiteModule( 9526): Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+W/ProviderInstaller( 9526): Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+W/ProviderInstaller( 9526): Failed to report request stats: com.google.android.gms.common.security.ProviderInstallerImpl.reportRequestStats [class android.content.Context, long, long]
+I/System.out( 9526): [socket]:check permission begin!
+I/flutter ( 9526): HomeView: _HomeViewState constructor called
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: _updatePermissions called
+I/flutter ( 9526): đŸ—‘ï¸ CategoryService: Cache cleared
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: START, user=r@e.com
+I/flutter ( 9526): Khá»Ÿi táº¡o real-time sync...
+I/flutter ( 9526): đŸ”´ Canceling all 0 subscriptions and 0 polling timers...
+I/flutter ( 9526): âœ… All subscriptions cancelled
+I/flutter ( 9526): đŸ  HomeView: Loading settings for shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: Cache - userName=Chá»§, shopName=
+I/flutter ( 9526): _loadUserAndShopInfo: Set state from cache - userName=Chá»§, shopName=
+I/flutter ( 9526): _loadUserAndShopInfo: Reloading user auth profile...
+I/flutter ( 9526): đŸ“¦ CategoryService.getShopSettings: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): âœ… syncUserInfo: cached shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2 for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 (isNewShop=false)
+I/flutter ( 9526): EncryptionService initialized for shop: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): EncryptionService: Initialized for shop xbtqoIk5fCOYa1kFIFM5zyv1cJV2, enabled=true
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+D/FlutterJNI( 9526): Sending viewport metrics to the engine.
+I/flutter ( 9526): Notification status check: permission=true, fcmToken=true
+I/flutter ( 9526): Notification status: true
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentUserPermissions: role from firestore = employee
+I/flutter ( 9526): getCurrentUserPermissions: defaults = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): getCurrentUserPermissions: Firestore allowViewCostPrice=null, forceTrue=false
+I/flutter ( 9526): getCurrentUserPermissions: role from firestore = employee
+I/flutter ( 9526): getCurrentUserPermissions: defaults = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): getCurrentUserPermissions: Firestore allowViewCostPrice=null, forceTrue=false
+I/flutter ( 9526): Báº¯t Ä‘áº§u syncAllToCloud...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ syncAllToCloud: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+I/flutter ( 9526): getCurrentShopId: shopId = xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho uid = oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ’¾ syncUserInfo: cached role=employee for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ”„ syncUserInfo: waiting for claims sync (isNewShop=false)...
+I/flutter ( 9526): â¡ syncUserInfo: Existing user - skipping blocking claims wait. cached shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): âœ… syncUserInfo: COMPLETE for uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): CurrentShopService: Different user, cleared saved shop
+I/flutter ( 9526): â¸ï¸ Background warmup: skip full download on mobile startup (realtime sync will bootstrap local DB)
+I/flutter ( 9526): đŸ”„ SyncOrchestrator: Initializing...
+I/flutter ( 9526): đŸ’¾ saveAuthCache: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, role=employee
+I/flutter ( 9526): _loadUserAndShopInfo: Getting displayName via UserService...
+I/flutter ( 9526): _loadUserAndShopInfo: displayName=Chá»§
+I/flutter ( 9526): _loadUserAndShopInfo: SET userName=Chá»§ (before shop fetch)
+I/flutter ( 9526): _loadUserAndShopInfo: Getting shopId...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+W/FirebaseContextProvider( 9526): Error getting App Check token. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): UserService: shop appLocked=false, adminFinanceLocked=false
+I/flutter ( 9526): UserService: final perms = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false, lockedByAdmin: [], lockedByOwner: []}
+I/flutter ( 9526): HomeView permissions updated: {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false}
+I/flutter ( 9526): Locked by Admin: []
+I/flutter ( 9526): Locked by Owner: []
+I/flutter ( 9526): UserService: shop appLocked=false, adminFinanceLocked=false
+I/flutter ( 9526): UserService: final perms = {allowViewSales: true, allowViewRepairs: true, allowViewInventory: true, allowViewParts: true, allowViewSuppliers: true, allowViewCustomers: true, allowViewPurchaseOrders: false, allowCreatePurchaseOrders: false, allowViewWarranty: true, allowViewChat: true, allowViewAttendance: true, allowViewPrinter: true, allowViewRevenue: false, allowViewExpenses: false, allowViewDebts: false, allowViewCostPrice: false, allowViewSettings: false, allowManageStaff: false, shopAppLocked: false, shopAdminFinanceLocked: false, lockedByAdmin: [], lockedByOwner: []}
+I/flutter ( 9526): getUserRole: currentUser email = r@e.com
+I/flutter ( 9526): getUserRole: role from claims = employee
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ initRealTimeSync: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): DB: ensured repair_parts table exists
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+I/System.out( 9526): [OkHttp] sendRequest<<
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/flutter ( 9526): Received 0 notification changes
+I/System.out( 9526): [socket]:check permission begin!
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [socket]:check permission begin!
+E/Parcel  ( 9526): Reading a NULL string not supported here.
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): DB: created indexes for products table
+I/flutter ( 9526): đŸ“¦ CategoryService: Found in local DB - businessType=electronics, enableRepair=true
+I/flutter ( 9526): đŸ  HomeView: Loaded shop settings:
+I/flutter ( 9526):    - businessType: electronics
+I/flutter ( 9526):    - enableRepair: true
+I/flutter ( 9526):    - enableSerial: true
+I/flutter ( 9526):    - enableExpiry: false
+I/flutter ( 9526):    - enableVariants: false
+I/flutter ( 9526):    - isDefault: false
+I/flutter ( 9526): đŸ  HomeView: setState done - _enableRepair=true, _enableVariants=false
+I/flutter ( 9526): DB_TRACE: getAllRepairs returned 1 repairs
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 repairs cáº§n sync
+D/FirebaseAuth( 9526): Notifying id token listeners about user ( oDT8O4iTZbX5dTJ3l1UL5G0iMTC3 ).
+I/flutter ( 9526): StorageService: normalized folder "repairs/1776653680860" -> "repairs"
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): _loadUserAndShopInfo: Token refreshed before shop fetch
+I/flutter ( 9526): _loadUserAndShopInfo: Fetching shop doc from Firestore...
+I/flutter ( 9526): đŸ“¸ NĂ©n áº£nh: scaled_f0e588d4-dc91-4d4d-a78b-a1ed575fc7d37521597594839219204.jpg - Size gá»‘c: 438.9 KB
+I/flutter ( 9526): đŸ”‘ Token claims: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, role=employee
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“‹ getPendingEntries: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+W/System  ( 9526): Ignoring header X-Firebase-Locale because its value was null.
+W/LocalRequestInterceptor( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+D/skia    ( 9526): SkJpegCodec::onGetPixels +
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): FCM Token: cbichwe1Qc-sjIWMyFYTcY:APA91bHIeWfQ-qE5U3u2htgj0bK0XJmdu678njr0AK-5G_kZKenajKUtfHCP0yxTh2Xv829MEA9LDaJ3iccTllvyxfV_RtZjbr5Ktdokb5DW_wRFtmvjOI0
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ”„ SyncOrchestrator: Initialized with 0 pending items
+I/flutter ( 9526): âœ… SyncOrchestrator initialized
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): [SYNC][FETCH] collection=cash_closings count=1 reason=init limit=7
+I/flutter ( 9526): đŸ“‹ getPendingEntries: found 0 docs
+I/flutter ( 9526): _loadUserAndShopInfo: Shop doc data={createdAt: Timestamp(seconds=1776652343, nanoseconds=798000000), lastStaffCreatedBy: xbtqoIk5fCOYa1kFIFM5zyv1cJV2}
+I/flutter ( 9526): _loadUserAndShopInfo: shopName from Firestore=
+I/flutter ( 9526): _loadUserAndShopInfo: FINAL setState - userName=Chá»§, shopName=
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+D/skia    ( 9526): SkJpegCodec::onGetPixels -
+I/uca.shopmanage( 9526): NativeAlloc concurrent copying GC freed 56368(3485KB) AllocSpace objects, 29(2068KB) LOS objects, 49% free, 6910KB/13MB, paused 340us total 143.792ms
+I/flutter ( 9526): âœ… syncUserInfo: background claims refresh done
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 1 (13 queries) took 338ms
+W/Firestore( 9526): (25.1.4) [Firestore]: Listen for Query(target=Query(cash_closings where shopId==xbtqoIk5fCOYa1kFIFM5zyv1cJV2 order by -createdAt, -__name__);limitType=LIMIT_TO_FIRST) failed: Status{code=PERMISSION_DENIED, description=Missing or insufficient permissions., cause=null}
+D/uca.shopmanage( 9526): ##Make: options.fQuality:70,quality:70,encoderMgr->imageprocessing_flag:0
+D/uca.shopmanage( 9526): Resolution: 1920 x 2560; FLAG:0
+I/flutter ( 9526): CashClosingNotifier polling error: [cloud_firestore/permission-denied] The caller does not have permission to execute the specified operation.
+I/flutter ( 9526): CashClosingNotifier: Initialized for shop xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): DB: KhĂ´ng cĂ³ orphan repair_parts cáº§n cleanup
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): FCM token saved successfully for user: oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): âœ… NĂ©n xong: 309.2 KB (giáº£m 29.5%)
+I/flutter ( 9526): DB: Force marked 0 repair_parts as synced
+I/flutter ( 9526): HomeView: Batch 2 (6 queries) took 699ms
+I/flutter ( 9526): HomeView: _loadStats total took 701ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/chatty  ( 9526): uid=13112(com.huluca.shop) identical 1 line
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): Online status changed: true
+I/flutter ( 9526): ConnectivityService initialized. Current status: [ConnectivityResult.wifi]
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): StorageService: uploading compressed_1776658006071.jpg to "repairs" mime=image/jpeg uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“‰ repairs: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=repairs count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ sales: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=sales count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ products: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=products count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to expenses - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ debts: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=debts count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ debt_payments: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=debt_payments count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ users: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=users count=1 reason=initial limit=20
+I/flutter ( 9526): â±ï¸ PERF [initRealTimeSync]: 4162ms (SLOW)
+I/flutter ( 9526): âœ… Critical sync ready (1 subs) â€” deferred collections will load in 3s...
+I/flutter ( 9526): đŸ“ Subscription status: {repairs: true, sales: true, products: true, expenses: false, debts: true, debt_payments: true, users: true}
+W/StorageUtil( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): đŸ’³ DB returned 0 pending rows
+I/flutter ( 9526): đŸ’³ PaymentIntentService initialized: 0 pending, 1 history
+I/flutter ( 9526): đŸ” Báº¯t Ä‘áº§u kiá»ƒm tra Sync Health...
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): â¡ runFullCheck: user=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3, email=r@e.com, shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, isSuperAdmin=false
+I/flutter ( 9526): getCurrentUserPermissions: using in-memory cache
+I/flutter ( 9526): getUserRole: currentUser email = r@e.com
+I/flutter ( 9526): getUserRole: role from claims = employee
+I/flutter ( 9526): â„¹ï¸ Sync Health bá» qua collections ngoĂ i quyá»n hiá»‡n táº¡i: [expenses, attendance]
+I/flutter ( 9526): đŸ“¡ Shop data changed for shopId: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): âœ… Synced shop info to SharedPreferences: QUAN LY SHOP, , 
+I/flutter ( 9526): đŸ“¥ Polled users: 2 docs (limit=20)
+I/flutter ( 9526): Updated cached shopId: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): đŸ“ _checkCollection repairs: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ repairs chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526): EventBus: Emitting event: users_changed
+I/flutter ( 9526): HomeView: Received event: users_changed
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): User does not have permission to access this object.
+E/StorageException( 9526):  Code: -13021 HttpResult: 403
+E/StorageException( 9526): The server has terminated the upload session
+E/StorageException( 9526): java.io.IOException: The server has terminated the upload session
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.serverStateValid(UploadTask.java:359)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.shouldContinue(UploadTask.java:325)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:246)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask.lambda$getRunnable$7$com-google-firebase-storage-StorageTask(StorageTask.java:1078)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor.lambda$decorate$0$com-google-firebase-concurrent-LimitedConcurrencyExecutor(LimitedConcurrencyExecutor.java:65)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0$com-google-firebase-concurrent-CustomThreadFactory(CustomThreadFactory.java:47)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.lang.Thread.run(Thread.java:923)
+E/StorageException( 9526): Caused by: java.io.IOException: {  "error": {    "code": 403,    "message": "Permission denied."  }}
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseResponse(NetworkRequest.java:415)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseErrorResponse(NetworkRequest.java:432)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.processResponseStream(NetworkRequest.java:423)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:265)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:282)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:76)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:68)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.sendWithRetry(UploadTask.java:527)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.beginResumableUpload(UploadTask.java:293)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:241)
+E/StorageException( 9526): 	... 9 more
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): User does not have permission to access this object.
+E/StorageException( 9526):  Code: -13021 HttpResult: 403
+E/StorageException( 9526): The server has terminated the upload session
+E/StorageException( 9526): java.io.IOException: The server has terminated the upload session
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.serverStateValid(UploadTask.java:359)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.shouldContinue(UploadTask.java:325)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:246)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask.lambda$getRunnable$7$com-google-firebase-storage-StorageTask(StorageTask.java:1078)
+E/StorageException( 9526): 	at com.google.firebase.storage.StorageTask$$ExternalSyntheticLambda1.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor.lambda$decorate$0$com-google-firebase-concurrent-LimitedConcurrencyExecutor(LimitedConcurrencyExecutor.java:65)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.LimitedConcurrencyExecutor$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+E/StorageException( 9526): 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory.lambda$newThread$0$com-google-firebase-concurrent-CustomThreadFactory(CustomThreadFactory.java:47)
+E/StorageException( 9526): 	at com.google.firebase.concurrent.CustomThreadFactory$$ExternalSyntheticLambda0.run(D8$$SyntheticClass:0)
+E/StorageException( 9526): 	at java.lang.Thread.run(Thread.java:923)
+E/StorageException( 9526): Caused by: java.io.IOException: {  "error": {    "code": 403,    "message": "Permission denied."  }}
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseResponse(NetworkRequest.java:415)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.parseErrorResponse(NetworkRequest.java:432)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.processResponseStream(NetworkRequest.java:423)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:265)
+E/StorageException( 9526): 	at com.google.firebase.storage.network.NetworkRequest.performRequest(NetworkRequest.java:282)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:76)
+E/StorageException( 9526): 	at com.google.firebase.storage.internal.ExponentialBackoffSender.sendWithExponentialBackoff(ExponentialBackoffSender.java:68)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.sendWithRetry(UploadTask.java:527)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.beginResumableUpload(UploadTask.java:293)
+E/StorageException( 9526): 	at com.google.firebase.storage.UploadTask.run(UploadTask.java:241)
+E/StorageException( 9526): 	... 9 more
+I/flutter ( 9526): StorageService: unauthorized at "repairs", retrying next fallback folder...
+I/flutter ( 9526): StorageService: uploading compressed_1776658006071.jpg to "repairs/xbtqoIk5fCOYa1kFIFM5zyv1cJV2" mime=image/jpeg uid=oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=0, unsynced=1, pendingCreate=0, pendingUpdate=0
+E/StorageException( 9526): StorageException has occurred.
+E/StorageException( 9526): The operation was cancelled.
+E/StorageException( 9526):  Code: -13040 HttpResult: 0
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/StorageUtil( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 1 (13 queries) took 82ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 2 (6 queries) took 117ms
+I/flutter ( 9526): HomeView: _loadStats total took 117ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/chatty  ( 9526): uid=13112(com.huluca.shop) identical 1 line
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“ _checkCollection sales: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ sales chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526):    â†’ localCount=0, localWithFirestoreId=0, cloudCount=0, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): đŸ“ _checkCollection products: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=1
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=1, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): đŸ“ _checkCollection debts: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ debts chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526):    â†’ localCount=0, localWithFirestoreId=0, cloudCount=0, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): đŸ“ _checkCollection customers: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=2
+I/flutter ( 9526):    â†’ localCount=2, localWithFirestoreId=2, cloudCount=2, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): đŸ“ _checkCollection suppliers: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=2
+I/flutter ( 9526):    â†’ localCount=2, localWithFirestoreId=2, cloudCount=2, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): đŸ“ _checkCollection quick_input_codes: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=1
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=1, unsynced=0, pendingCreate=0, pendingUpdate=0
+D/UploadTask( 9526): Waiting 0 milliseconds
+I/flutter ( 9526): đŸ“ _checkCollection repair_parts: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=1
+I/flutter ( 9526):    â†’ localCount=1, localWithFirestoreId=1, cloudCount=1, unsynced=0, pendingCreate=0, pendingUpdate=0
+W/StorageUtil( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): đŸ“ _checkCollection debt_payments: shopId=xbtqoIk5fCOYa1kFIFM5zyv1cJV2, cloudDocs=0
+I/flutter ( 9526): â„¹ï¸ debt_payments chÆ°a cĂ³ dá»¯ liá»‡u cloud cho shop hiá»‡n táº¡i (xbtqoIk5fCOYa1kFIFM5zyv1cJV2)
+I/flutter ( 9526):    â†’ localCount=0, localWithFirestoreId=0, cloudCount=0, unsynced=0, pendingCreate=0, pendingUpdate=0
+I/flutter ( 9526): đŸ“ Sync Health Report:
+I/flutter ( 9526):    Shop: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526):    Local: 8 | Cloud: 7 | Mismatches: 1
+I/flutter ( 9526):    ! repairs: local=1, cloud=0, unsynced=1
+I/flutter ( 9526):    âœ… sales: local=0, cloud=0, unsynced=0
+I/flutter ( 9526):    âœ… products: local=1, cloud=1, unsynced=0
+I/flutter ( 9526):    âœ… debts: local=0, cloud=0, unsynced=0
+I/flutter ( 9526):    âœ… customers: local=2, cloud=2, unsynced=0
+I/flutter ( 9526):    âœ… suppliers: local=2, cloud=2, unsynced=0
+I/flutter ( 9526):    âœ… quick_input_codes: local=1, cloud=1, unsynced=0
+I/flutter ( 9526):    âœ… repair_parts: local=1, cloud=1, unsynced=0
+I/flutter ( 9526):    âœ… debt_payments: local=0, cloud=0, unsynced=0
+I/flutter ( 9526): đŸ• Starting deferred sync subscriptions...
+I/flutter ( 9526): â­ï¸ Skipping subscribe to attendance - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to leave_requests - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ quick_input_codes: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=quick_input_codes count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to supplier_payments - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to repair_partner_payments - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ customers: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=customers count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ suppliers: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=suppliers count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ repair_partners: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=repair_partners count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ partner_repair_history: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=partner_repair_history count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to audit_logs - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ repair_parts: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=repair_parts count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ supplier_import_history: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=supplier_import_history count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ supplier_product_prices: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=supplier_product_prices count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ import_orders: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=import_orders count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ import_order_items: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=import_order_items count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to cash_closings - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to adjustment_entries - not allowed for role=employee
+I/flutter ( 9526): â­ï¸ Skipping subscribe to purchase_orders - not allowed for role=employee
+I/flutter ( 9526): đŸ“‰ payment_intents: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=payment_intents count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ payment_requests: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=payment_requests count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ work_schedules: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=work_schedules count=1 reason=initial limit=20
+I/flutter ( 9526): â­ï¸ Skipping subscribe to employee_salary_settings - not allowed for role=employee
+I/flutter ( 9526): [SYNC][FETCH] collection=product_categories count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ product_variants: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=product_variants count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ sales_returns: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=sales_returns count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ sales_return_items: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=sales_return_items count=1 reason=initial limit=20
+I/flutter ( 9526): đŸ“‰ salvage_phones: using controlled get() fetch instead of snapshots()
+I/flutter ( 9526): [SYNC][FETCH] collection=salvage_phones count=1 reason=initial limit=20
+I/flutter ( 9526): â±ï¸ PERF [deferredSync]: 27ms
+I/flutter ( 9526): âœ… Deferred sync done â€” total 1 subscriptions active for shop: xbtqoIk5fCOYa1kFIFM5zyv1cJV2
+I/flutter ( 9526): đŸ“ Subscription status: {repairs: true, sales: true, products: true, expenses: false, debts: true, debt_payments: true, users: true, attendance: false, leave_requests: false, quick_input_codes: true, supplier_payments: false, repair_partner_payments: false, customers: true, suppliers: true, repair_partners: true, partner_repair_history: true, audit_logs: false, repair_parts: true, supplier_import_history: true, supplier_product_prices: true, import_orders: true, import_order_items: true, cash_closings: false, adjustment_entries: false, purchase_orders: false, payment_intents: true, payment_requests: true, work_schedules: true, employee_salary_settings: false, product_variants: true, sales_returns: true, sales_return_items: true, salvage_phones: true}
+I/flutter ( 9526): đŸ“¥ Polled suppliers: 2 docs (limit=20)
+I/flutter ( 9526): đŸ“¥ Polled import_order_items: 1 docs (limit=20)
+I/flutter ( 9526): đŸ“¥ Polled import_orders: 1 docs (limit=20)
+I/flutter ( 9526): đŸ“¥ Polled payment_intents: 1 docs (limit=20)
+I/flutter ( 9526): EventBus: Emitting event: payment_intents_changed
+I/flutter ( 9526): HomeView: Received event: payment_intents_changed
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 1 (13 queries) took 57ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/flutter ( 9526): HomeView: Batch 2 (6 queries) took 94ms
+I/flutter ( 9526): HomeView: _loadStats total took 95ms
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+I/chatty  ( 9526): uid=13112(com.huluca.shop) identical 2 lines
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+D/UploadTask( 9526): Increasing chunk size to 524288
+D/UploadTask( 9526): Waiting 0 milliseconds
+W/StorageUtil( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): getCurrentShopId: tráº£ vá» cache xbtqoIk5fCOYa1kFIFM5zyv1cJV2 cho user oDT8O4iTZbX5dTJ3l1UL5G0iMTC3
+W/StorageTask( 9526): unable to change internal state to: INTERNAL_STATE_CANCELED, INTERNAL_STATE_CANCELING isUser: true from state:INTERNAL_STATE_SUCCESS
+W/StorageUtil( 9526): Error getting App Check token; using placeholder token instead. Error: com.google.firebase.FirebaseException: No AppCheckProvider installed.
+I/System.out( 9526): [OkHttp] sendRequest>>
+I/System.out( 9526): [OkHttp] sendRequest<<
+I/flutter ( 9526): âœ… Synced 1 repairs to cloud
+I/flutter ( 9526): DB_TRACE: getAllSales returned 0 sales
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 sales cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 sales to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 expenses cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 products cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 products to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 attendance cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 attendance to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 1 quick input codes cáº§n sync
+I/flutter ( 9526): âœ… Synced 0 quick input codes to cloud
+I/flutter ( 9526): DBHelper.getSuppliers: found 2 suppliers
+I/flutter ( 9526): syncAllToCloud: cĂ³ 2 suppliers cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): âœ… Synced 0 suppliers to cloud
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair partners cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 supplier payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair partner payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 debts cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 debt payments cáº§n kiá»ƒm tra sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 audit logs cáº§n sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 repair parts cáº§n sync
+I/flutter ( 9526): syncAllToCloud: cĂ³ 0 payment intents cáº§n sync
+I/flutter ( 9526): ÄĂ£ hoĂ n thĂ nh Ä‘á»“ng bá»™ toĂ n bá»™ dá»¯ liá»‡u lĂªn Cloud.
+

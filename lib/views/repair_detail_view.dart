@@ -92,7 +92,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   void _bindRepairEvents() {
     _repairEventSub = EventBus().stream.listen((event) {
       if (event == 'repairs_changed' || event == 'parts_changed') {
-        debugPrint('🔧 [RepairDetailView] Nhận event "$event" → debounce reload từ local DB');
+        debugPrint(
+          '🔧 [RepairDetailView] Nhận event "$event" → debounce reload từ local DB',
+        );
         _repairReloadDebounce?.cancel();
         _repairReloadDebounce = Timer(const Duration(milliseconds: 400), () {
           if (mounted) _reloadRepairFromDb();
@@ -110,7 +112,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     try {
       final updated = await db.getRepairByFirestoreId(fid);
       if (updated != null && mounted) {
-        debugPrint('✅ [RepairDetailView] Reload từ local DB: ${updated.customerName} (status ${updated.status})');
+        debugPrint(
+          '✅ [RepairDetailView] Reload từ local DB: ${updated.customerName} (status ${updated.status})',
+        );
         setState(() => r = updated);
       }
     } catch (e) {
@@ -629,7 +633,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       case 3:
         return AppColors.repairDone;
       case 4:
-        return AppColors.repairDelivered;
+        return AppColors.primary;
       default:
         return Colors.grey;
     }
@@ -778,6 +782,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     if (confirm != true) return;
 
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+
     r.warranty = selectedWarranty;
     r.paymentMethod = payMethod;
     r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
@@ -794,6 +801,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
         r.repairedByUid = currentUser?.uid;
       }
+      // Người gửi yêu cầu giao được xem là người giao thực tế.
+      r.deliveredBy = userName;
+      r.deliveredByUid = user?.uid;
       r.pendingDeliveryApproval = true; // Đánh dấu chờ duyệt
       _isUpdating = true;
     });
@@ -819,8 +829,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         SyncService.syncRepairData();
       }
 
-      final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
       final key = r.firestoreId ?? "repair_${r.createdAt}";
 
       // Gửi notification cho quản lý
@@ -1010,9 +1018,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final user = FirebaseAuth.instance.currentUser;
     final userName = user?.email?.split('@').first.toUpperCase() ?? "QL";
 
-    // Ghi nhận người giao máy
-    r.deliveredBy = userName;
-    r.deliveredByUid = user?.uid;
+    // Giữ người giao do nhân viên đã gửi yêu cầu; chỉ fallback về người duyệt nếu chưa có.
+    if ((r.deliveredBy ?? '').trim().isEmpty) {
+      r.deliveredBy = userName;
+      r.deliveredByUid = user?.uid;
+    }
 
     setState(() {
       r.status = 4; // Đã giao
@@ -3248,31 +3258,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
     }
 
-    // Status < 3: hiện nút ĐÃ XONG (bỏ nút ĐANG SỬA)
-    return Column(
-      children: [
-        if (r.status < 3)
-          Row(
-            children: [
-              // Nút ĐÃ XONG - sau khi bấm sẽ tự động chờ duyệt
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _updateStatus(3),
-                  icon: const Icon(Icons.check_circle, size: 18),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: AppColors.onSuccess,
-                  ),
-                  label: Text(
-                    loc.repairDoneButton,
-                    style: AppTextStyles.button,
-                  ),
-                ),
-              ),
-            ],
-          ),
-      ],
-    );
+    // Status < 3: nút ĐÃ XONG đã được dời xuống thanh hành động dưới cùng
+    // để gom cùng LƯU/IN/ZALO trên một hàng.
+    return const SizedBox.shrink();
   }
 
   Widget _buildFinancialContent() {
@@ -4719,6 +4707,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildBottomActions() {
+    final showDoneButton = r.status < 3;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       decoration: BoxDecoration(
@@ -4730,6 +4720,44 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       child: SafeArea(
         child: Row(
           children: [
+            if (showDoneButton) ...[
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isUpdating ? null : () => _updateStatus(3),
+                  icon: _isUpdating
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.check_circle,
+                          color: Colors.white,
+                          size: 15,
+                        ),
+                  label: const Text(
+                    "ĐÃ XONG",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: _isUpdating ? null : _saveData,

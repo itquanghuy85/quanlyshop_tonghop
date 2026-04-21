@@ -14,7 +14,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.huluca.shopmanager"
+    namespace = "com.huluca.shop"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
@@ -29,7 +29,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.huluca.shopmanager"
+        applicationId = "com.huluca.shop"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode

@@ -41,7 +41,7 @@ User hiện tại (Email/Password)
 
 ### Vào Firebase Console:
 1. Mở https://console.firebase.google.com/project/huyaka-1809/settings/general
-2. Kéo xuống phần **"Your apps"** → chọn app **Android** (`com.huluca.shopmanager`)
+2. Kéo xuống phần **"Your apps"** → chọn app **Android** (`com.huluca.shop`)
 3. Click **"Add fingerprint"**
 
 ### Thêm lần lượt 2 SHA-1 và 2 SHA-256:
@@ -292,9 +292,10 @@ Cần tạo **Services ID** trong Apple Developer Console:
 | Thông số | Giá trị |
 |----------|---------|
 | Firebase Project | `huyaka-1809` |
-| Android Package | `com.huluca.shopmanager` |
+| Android Package | `com.huluca.shop` |
 | iOS Bundle ID | `com.huluca.shop` |
 | Web Auth Domain | `huyaka-1809.firebaseapp.com` |
 | Firebase Project Number | `51200928212` |
 | Keystore | `D:\android-keys\upload-keystore.jks` |
 | Key Alias | `upload` |
+

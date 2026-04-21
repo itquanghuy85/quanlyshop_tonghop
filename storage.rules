@@ -41,6 +41,11 @@ service firebase.storage {
       allow read:   if isAuth();
       allow write:  if isAuth() && withinSizeLimit() && isImage();
     }
+    match /repairs/{shopId}/{fileName} {
+      allow read:   if isAuth() && (isSuperAdmin() || myShopId() == shopId);
+      allow write:  if isAuth() && (isSuperAdmin() || myShopId() == shopId)
+                       && withinSizeLimit() && isImage();
+    }
     match /attendance/{fileName} {
       allow read:   if isAuth();
       allow write:  if isAuth() && withinSizeLimit() && isImage();

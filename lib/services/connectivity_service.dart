@@ -15,6 +15,9 @@ class ConnectivityService {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   List<ConnectivityResult> _currentStatus = [];
   bool _isOnline = false;
+  Timer? _networkRestoredDebounce;
+  DateTime? _lastNetworkRestoredSyncAt;
+  static const Duration _networkRestoredSyncCooldown = Duration(seconds: 30);
 
   /// Khởi tạo theo dõi kết nối
   Future<void> initialize() async {
@@ -37,6 +40,8 @@ class ConnectivityService {
   Future<void> dispose() async {
     await _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
+    _networkRestoredDebounce?.cancel();
+    _networkRestoredDebounce = null;
   }
 
   /// Kiểm tra trạng thái online
@@ -52,12 +57,27 @@ class ConnectivityService {
     _updateOnlineStatus(results);
 
     if (_isOnline) {
-      // Có mạng trở lại, thực hiện sync
-      _onNetworkRestored();
+      // Có mạng trở lại: debounce để tránh spam khi OS bắn nhiều event liên tiếp.
+      _scheduleNetworkRestoredSync();
     } else {
       // Mất mạng
       _onNetworkLost();
     }
+  }
+
+  void _scheduleNetworkRestoredSync() {
+    _networkRestoredDebounce?.cancel();
+    _networkRestoredDebounce = Timer(const Duration(seconds: 2), () {
+      final now = DateTime.now();
+      if (_lastNetworkRestoredSyncAt != null &&
+          now.difference(_lastNetworkRestoredSyncAt!) <
+              _networkRestoredSyncCooldown) {
+        debugPrint('Bỏ qua auto-sync do cooldown sau khi khôi phục mạng');
+        return;
+      }
+      _lastNetworkRestoredSyncAt = now;
+      unawaited(_onNetworkRestored());
+    });
   }
 
   /// Cập nhật trạng thái online

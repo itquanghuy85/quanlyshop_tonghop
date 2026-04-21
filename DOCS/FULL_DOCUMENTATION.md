@@ -1,7 +1,7 @@
 # HULUCA Shop Manager — Complete Technical Documentation
 
 > **App Name:** HULUCA Shop Manager (`quanlyshop`)
-> **Package:** `com.huluca.shopmanager`
+> **Package:** `com.huluca.shop`
 > **Version:** 10.1.0+172
 > **Flutter SDK:** >=3.10.0 <4.0.0
 > **Firebase Project:** huyaka-1809
@@ -1029,7 +1029,7 @@ class AppConfig {
 
 class EnvConfig {
   static const appName = 'HULUCA Shop Manager';
-  static const packageName = 'com.huluca.shopmanager';
+  static const packageName = 'com.huluca.shop';
 }
 ```
 
@@ -1631,3 +1631,4 @@ otherIncome, otherExpense, settlementPayment, debtCollection, staffAdvance
 ---
 
 *Documentation generated from comprehensive codebase analysis. Last updated: 2025.*
+

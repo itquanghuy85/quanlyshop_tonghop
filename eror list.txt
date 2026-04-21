@@ -1,0 +1,16 @@
+
+tôi đang test bằng 2 máy iphone 17prm tk chủ shop : q@e.com và tk nhân viên r@e.com nhân viên trên máy oppo sau bản chỉnh sửa vừa rồi tôi test và nhận thấy các lỗi bên dưới:
+trước đõ đã tắt rất nhiều trang sử dụng listener vì app read quá nhiều firebase.
+1 lỗi: dăng ký tài khoản khi bấm đăng ký xong không tự vào home mà vẫn ở trang đăng ký
+2: lỗi:  khi sửa nhân viên thay đổi tên và quyền hệ thống cho nhân viên bấm lưu  báo lỗi cloude_firestore
+3: lỗi: khi đăng nhập tk nhân viên lần đầu thì hiện popup thiết lập loại hình kinh doanh mặc dù đăng ký từ tài khoản shop đã đăng ký loại hình kinh doanh rồi
+4: bạn hãy nghiên cứu chi tiết trang list kho : danh sách hiển thị được ít sắp xếp và loại bỏ những icon không cần thiết tối ưu hiển thị list mà trải nghiệm người dùng vẫn ổn định
+5: khách hàng khi thêm thì máy khách ko cập nhật mà phải đăng xuất ra vào lại mới có 
+6: khi thêm đơn sửa mới có hình ảnh trên iphone  thì thấy mút đồng bộ đỏ gạch chéo tài khoản khác chung shop cũng không thấy. một lúc sau trên iphone thấy nút đồng bộ chuyển màu xanh nhưng oppo ko thấy đơn sửa trong danh sách( iphone chat nhóm ko có tin nhắn)iphone đã có thông báo oppo không thấy thông báo trên iphone báo lỗi ( không thể gửi tin nhắn push, ...)
+7: thao tác 6 ngược lại trên oppo cũng bị lỗi tương tự
+8: khi nhập xác nhận nhập kho thì không thấy hiển thị hàng vừa nhập vào kho 
+ảnh  4: bạn hãy tối ưu hiển thị list được quá ít sản phẩm hiển thị trong list trang bị chiếm chỗ quá nhiêu 
+ảnh 5: thêm linh kiện là cảnh báo nút đồng bộ có lẽ sync có vấn đề
+
+kho linh kiện hoạt động sync rất tốt
+

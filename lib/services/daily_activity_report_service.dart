@@ -23,7 +23,8 @@ class DailyActivityReport {
     final discount = (e['discount'] as int?) ?? 0;
     return s + total - discount;
   });
-  int get totalSaleCost => sales.fold(0, (s, e) => s + ((e['totalCost'] as int?) ?? 0));
+  int get totalSaleCost =>
+      sales.fold(0, (s, e) => s + ((e['totalCost'] as int?) ?? 0));
 
   // Repairs
   final List<Map<String, dynamic>> repairsCreated;
@@ -34,12 +35,15 @@ class DailyActivityReport {
 
   // Inventory
   final List<Map<String, dynamic>> supplierImports;
-  int get totalImportValue => supplierImports.fold(0, (s, e) => s + ((e['totalAmount'] as int?) ?? 0));
+  int get totalImportValue =>
+      supplierImports.fold(0, (s, e) => s + ((e['totalAmount'] as int?) ?? 0));
 
   // Expenses
   final List<Map<String, dynamic>> expenses;
-  List<Map<String, dynamic>> get expensesOnly => expenses.where((e) => (e['type'] ?? 'CHI') == 'CHI').toList();
-  List<Map<String, dynamic>> get incomeOnly => expenses.where((e) => e['type'] == 'THU').toList();
+  List<Map<String, dynamic>> get expensesOnly =>
+      expenses.where((e) => (e['type'] ?? 'CHI') == 'CHI').toList();
+  List<Map<String, dynamic>> get incomeOnly =>
+      expenses.where((e) => e['type'] == 'THU').toList();
 
   // Debts
   final List<Map<String, dynamic>> debtPayments;
@@ -107,7 +111,8 @@ class DailyActivityReportService {
     final shopId = await UserService.getCurrentShopId() ?? '';
     ShopSettings shopSettings;
     try {
-      shopSettings = await CategoryService().getShopSettings() ??
+      shopSettings =
+          await CategoryService().getShopSettings() ??
           ShopSettings.electronics(shopId);
     } catch (_) {
       shopSettings = ShopSettings.electronics(shopId);
@@ -123,31 +128,90 @@ class DailyActivityReportService {
     // Batch parallel queries (all return List<Map<String, dynamic>>)
     final results = await Future.wait([
       // 0: Sales today
-      db.query('sales', where: 'soldAt >= ? AND soldAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'soldAt DESC'),
+      db.query(
+        'sales',
+        where: 'soldAt >= ? AND soldAt < ? AND deleted != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+        orderBy: 'soldAt DESC',
+      ),
       // 1: Settlement sales
-      db.query('sales', where: 'settlementReceivedAt >= ? AND settlementReceivedAt < ? AND isInstallment = 1 AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg]),
+      db.query(
+        'sales',
+        where:
+            'settlementReceivedAt >= ? AND settlementReceivedAt < ? AND isInstallment = 1 AND deleted != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+      ),
       // 2: Delivered repairs
-      db.query('repairs', where: 'status = 4 AND deliveredAt >= ? AND deliveredAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'deliveredAt DESC'),
+      db.query(
+        'repairs',
+        where:
+            'status = 4 AND deliveredAt >= ? AND deliveredAt < ? AND deleted != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+        orderBy: 'deliveredAt DESC',
+      ),
       // 3: Created repairs today
-      db.query('repairs', where: 'createdAt >= ? AND createdAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'createdAt DESC'),
+      db.query(
+        'repairs',
+        where: 'createdAt >= ? AND createdAt < ? AND deleted != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+        orderBy: 'createdAt DESC',
+      ),
       // 4: Expenses today
-      db.query('expenses', where: 'COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) < ? AND COALESCE(deleted, 0) != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'COALESCE(date, createdAt) DESC'),
+      db.query(
+        'expenses',
+        where:
+            'COALESCE(date, createdAt) >= ? AND COALESCE(date, createdAt) < ? AND COALESCE(deleted, 0) != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+        orderBy: 'COALESCE(date, createdAt) DESC',
+      ),
       // 5: Debt payments
       _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs),
       // 6: Partner payments
-      db.query('repair_partner_payments', where: 'paidAt >= ? AND paidAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'paidAt DESC'),
+      db.query(
+        'repair_partner_payments',
+        where: 'paidAt >= ? AND paidAt < ? AND deleted != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+        orderBy: 'paidAt DESC',
+      ),
       // 7: Supplier payments
-      db.query('supplier_payments', where: 'paidAt >= ? AND paidAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg], orderBy: 'paidAt DESC'),
+      db.query(
+        'supplier_payments',
+        where: 'paidAt >= ? AND paidAt < ? AND deleted != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+        orderBy: 'paidAt DESC',
+      ),
       // 8: Supplier imports
-      db.query('supplier_import_history', where: '((importDate >= ? AND importDate < ?) OR (createdAt >= ? AND createdAt < ?))$shopFilter', whereArgs: [startMs, endMs, startMs, endMs, ...shopArg], orderBy: 'createdAt DESC'),
+      db.query(
+        'supplier_import_history',
+        where:
+            '((importDate >= ? AND importDate < ?) OR (createdAt >= ? AND createdAt < ?))$shopFilter',
+        whereArgs: [startMs, endMs, startMs, endMs, ...shopArg],
+        orderBy: 'createdAt DESC',
+      ),
       // 9: Repair parts cost fund
-      db.query('repairs', where: 'costRecordedInFund = 1 AND costRecordedAt >= ? AND costRecordedAt < ? AND deleted != 1$shopFilter', whereArgs: [startMs, endMs, ...shopArg]),
+      db.query(
+        'repairs',
+        where:
+            'costRecordedInFund = 1 AND costRecordedAt >= ? AND costRecordedAt < ? AND deleted != 1$shopFilter',
+        whereArgs: [startMs, endMs, ...shopArg],
+      ),
       // 10: Sales returns
-      db.query('sales_returns', where: 'returnDate >= ? AND returnDate < ? AND status = ?$shopFilter', whereArgs: [startMs, endMs, 'APPROVED', ...shopArg], orderBy: 'returnDate DESC'),
+      db.query(
+        'sales_returns',
+        where: 'returnDate >= ? AND returnDate < ? AND status = ?$shopFilter',
+        whereArgs: [startMs, endMs, 'APPROVED', ...shopArg],
+        orderBy: 'returnDate DESC',
+      ),
       // 11: Pending repairs count
-      db.rawQuery('SELECT COUNT(*) as cnt FROM repairs WHERE status IN (1, 2) AND deleted != 1${hasShop ? " AND (shopId = ? OR shopId IS NULL)" : ""}', hasShop ? [shopId] : []),
+      db.rawQuery(
+        'SELECT COUNT(*) as cnt FROM repairs WHERE status IN (1, 2) AND deleted != 1${hasShop ? " AND (shopId = ? OR shopId IS NULL)" : ""}',
+        hasShop ? [shopId] : [],
+      ),
       // 12: Pending approvals count
-      db.rawQuery('SELECT COUNT(*) as cnt FROM repairs WHERE status = 3 AND pendingDeliveryApproval = 1 AND deleted != 1${hasShop ? " AND (shopId = ? OR shopId IS NULL)" : ""}', hasShop ? [shopId] : []),
+      db.rawQuery(
+        'SELECT COUNT(*) as cnt FROM repairs WHERE status = 3 AND pendingDeliveryApproval = 1 AND deleted != 1${hasShop ? " AND (shopId = ? OR shopId IS NULL)" : ""}',
+        hasShop ? [shopId] : [],
+      ),
     ]);
 
     // Separate queries with different return types
@@ -178,14 +242,82 @@ class DailyActivityReportService {
         return tb.compareTo(ta); // newest first
       });
 
-    // Audit logs for the day
+    // Activity logs for the day: merge financial logs + audit logs.
     List<Map<String, dynamic>> auditLogs = [];
     try {
-      auditLogs = await _db.getFinancialActivities(
+      final financialLogs = await _db.getFinancialActivities(
         startDate: startMs,
         endDate: endMs,
         limit: 200,
       );
+
+      final auditWhere = hasShop
+          ? 'createdAt >= ? AND createdAt < ? AND (shopId = ? OR shopId IS NULL)'
+          : 'createdAt >= ? AND createdAt < ?';
+      final auditArgs = hasShop
+          ? <dynamic>[startMs, endMs, shopId]
+          : <dynamic>[startMs, endMs];
+
+      final rawAuditLogs = await db.query(
+        'audit_logs',
+        where: auditWhere,
+        whereArgs: auditArgs,
+        orderBy: 'createdAt DESC',
+        limit: 200,
+      );
+
+      final merged = <Map<String, dynamic>>[];
+      final dedupe = <String>{};
+
+      void appendLog(Map<String, dynamic> log) {
+        final createdAt = (log['createdAt'] as int?) ?? 0;
+        final desc = (log['description'] ?? '').toString();
+        final amount = (log['amount'] as int?) ?? 0;
+        final key = '$createdAt|$desc|$amount';
+        if (dedupe.add(key)) {
+          merged.add(log);
+        }
+      }
+
+      for (final log in financialLogs) {
+        appendLog(Map<String, dynamic>.from(log));
+      }
+
+      for (final raw in rawAuditLogs) {
+        final summary = (raw['summary'] ?? '').toString().trim();
+        final description = (raw['description'] ?? '').toString().trim();
+        final action = (raw['action'] ?? '').toString().trim();
+        final targetType = (raw['targetType'] ?? '').toString().trim();
+        final fallbackDesc = [
+          action,
+          targetType,
+        ].where((part) => part.isNotEmpty).join(' ').trim();
+
+        final desc = summary.isNotEmpty
+            ? summary
+            : (description.isNotEmpty
+                  ? description
+                  : (fallbackDesc.isNotEmpty
+                        ? fallbackDesc
+                        : 'Hoạt động hệ thống'));
+
+        appendLog({
+          'createdAt': raw['createdAt'] ?? 0,
+          'description': desc,
+          'activityType': (raw['action'] ?? 'AUDIT').toString(),
+          'direction': '',
+          'amount': 0,
+          'source': 'audit',
+        });
+      }
+
+      merged.sort((a, b) {
+        final ta = (a['createdAt'] as int?) ?? 0;
+        final tb = (b['createdAt'] as int?) ?? 0;
+        return tb.compareTo(ta);
+      });
+
+      auditLogs = merged.take(200).toList();
     } catch (e) {
       debugPrint('DailyActivityReport: audit log error: $e');
     }
@@ -193,7 +325,8 @@ class DailyActivityReportService {
     // Previous closing balance
     int prevClosingTotal = 0;
     if (prevClosing != null) {
-      prevClosingTotal = ((prevClosing['cashEnd'] as int?) ?? 0) +
+      prevClosingTotal =
+          ((prevClosing['cashEnd'] as int?) ?? 0) +
           ((prevClosing['bankEnd'] as int?) ?? 0);
     }
 

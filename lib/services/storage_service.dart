@@ -19,6 +19,7 @@ class StorageService {
     'shop_logos',
     'user_photos',
     'chat_images',
+    'payment_requests',
     'products',
   };
 
@@ -77,24 +78,47 @@ class StorageService {
   static Future<List<String>> _buildUploadFolderCandidates(
     String uploadFolder,
   ) async {
-    final candidates = <String>[uploadFolder];
+    final candidates = <String>[];
+    void addCandidate(String value) {
+      final normalized = value.trim().replaceAll('\\', '/');
+      if (normalized.isEmpty || candidates.contains(normalized)) return;
+      candidates.add(normalized);
+    }
+
     final parts = uploadFolder
         .split('/')
         .where((e) => e.trim().isNotEmpty)
         .toList();
 
-    if (parts.length == 1 &&
-        parts.first != 'chat_images' &&
-        parts.first != 'payment_requests') {
-      final shopId = await _getCurrentUserShopIdClaim();
-      if (shopId != null && shopId.isNotEmpty) {
-        final scoped = '${parts.first}/$shopId';
-        if (!candidates.contains(scoped)) {
-          candidates.add(scoped);
-        }
-      }
+    if (parts.isEmpty) {
+      addCandidate('products');
+      return candidates;
     }
 
+    final root = parts.first;
+    final shopId = await _getCurrentUserShopIdClaim();
+
+    if (root == 'chat_images' || root == 'payment_requests') {
+      if (parts.length >= 2) {
+        addCandidate('$root/${parts[1]}');
+      }
+      if (shopId != null && shopId.isNotEmpty) {
+        addCandidate('$root/$shopId');
+      }
+      addCandidate(uploadFolder);
+      return candidates;
+    }
+
+    // Ưu tiên path theo shop cho repair images để tránh unauthorized trên bucket đang enforce scope.
+    if (parts.length == 1 && root == 'repairs') {
+      if (shopId != null && shopId.isNotEmpty) {
+        addCandidate('$root/$shopId');
+      }
+      addCandidate(root);
+      return candidates;
+    }
+
+    addCandidate(uploadFolder);
     return candidates;
   }
 

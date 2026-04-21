@@ -81,10 +81,52 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   @override
   void initState() {
     super.initState();
-    s = widget.sale;
+    s = _normalizeSaleForDisplay(widget.sale);
     _loadShopInfo();
     _loadReturnInfo();
     _loadCostPermission();
+  }
+
+  SaleOrder _normalizeSaleForDisplay(SaleOrder sale) {
+    return SaleOrder.fromMap({
+      'id': sale.id,
+      'firestoreId': sale.firestoreId,
+      'customerName': sale.customerName,
+      'phone': sale.phone,
+      'isWalkIn': sale.isWalkIn,
+      'walkInName': sale.walkInName,
+      'walkInPhone': sale.walkInPhone,
+      'address': sale.address,
+      'productNames': sale.productNames,
+      'productImeis': sale.productImeis,
+      'totalPrice': sale.totalPrice,
+      'totalCost': sale.totalCost,
+      'discount': sale.discount,
+      'paymentMethod': sale.paymentMethod,
+      'sellerName': sale.sellerName,
+      'sellerUid': sale.sellerUid,
+      'soldAt': sale.soldAt,
+      'notes': sale.notes,
+      'gifts': sale.gifts,
+      'warranty': sale.warranty,
+      'isInstallment': sale.isInstallment,
+      'downPayment': sale.downPayment,
+      'downPaymentMethod': sale.downPaymentMethod,
+      'loanAmount': sale.loanAmount,
+      'installmentTerm': sale.installmentTerm,
+      'bankName': sale.bankName,
+      'bankName2': sale.bankName2,
+      'loanAmount2': sale.loanAmount2,
+      'settlementPlannedAt': sale.settlementPlannedAt,
+      'settlementReceivedAt': sale.settlementReceivedAt,
+      'settlementAmount': sale.settlementAmount,
+      'settlementFee': sale.settlementFee,
+      'settlementNote': sale.settlementNote,
+      'settlementCode': sale.settlementCode,
+      'cashAmount': sale.cashAmount,
+      'transferAmount': sale.transferAmount,
+      'isSynced': sale.isSynced,
+    });
   }
 
   Future<void> _loadCostPermission() async {

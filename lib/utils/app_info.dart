@@ -27,7 +27,7 @@ class AppInfo {
     return info.appName;
   }
 
-  /// Trả về package name (VD: "com.huluca.shopmanager")
+  /// Trả về package name (VD: "com.huluca.shop")
   static Future<String> getPackageName() async {
     final info = await _getPackageInfo();
     return info.packageName;

@@ -447,6 +447,118 @@ exports.updateUserProfileSecure = onCall(async (request) => {
 });
 
 /**
+ * 🏪 SECURE: UPDATE SHOP PROFILE
+ * Fallback cho trường hợp client bị permission-denied khi cập nhật shops/{shopId}.
+ * Cho phép owner/manager cùng shop (hoặc super admin) cập nhật profile shop.
+ */
+exports.updateShopProfileSecure = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Vui lòng đăng nhập");
+  }
+
+  const data = request.data || {};
+  const shopId = (data.shopId || "").toString().trim();
+  const profile = data.profile || {};
+
+  if (!shopId) {
+    throw new HttpsError("invalid-argument", "Thiếu shopId");
+  }
+
+  const callerEmail = auth.token.email || "";
+  const callerIsSuperAdmin = checkIsSuperAdmin(callerEmail);
+
+  const callerDoc = await admin.firestore().doc(`users/${auth.uid}`).get();
+  const callerData = callerDoc.data() || {};
+  const callerRole = callerIsSuperAdmin ? "admin" : (callerData.role || "user");
+  const callerShopId = (callerData.shopId || "").toString().trim();
+
+  if (!callerIsSuperAdmin) {
+    if (!["owner", "manager"].includes(callerRole)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Chỉ owner/manager mới có thể cập nhật thông tin cửa hàng",
+      );
+    }
+    if (!callerShopId || callerShopId !== shopId) {
+      throw new HttpsError(
+        "permission-denied",
+        "Không thể cập nhật thông tin cửa hàng khác shop",
+      );
+    }
+  }
+
+  const toText = (value) => (value == null ? "" : value.toString().trim());
+  const toNumOrNull = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const safeProfile = {
+    name: toText(profile.name),
+    address: toText(profile.address),
+    phone: toText(profile.phone),
+    email: toText(profile.email),
+    description: toText(profile.description),
+    logoUrl: toText(profile.logoUrl),
+    latitude: toNumOrNull(profile.latitude),
+    longitude: toNumOrNull(profile.longitude),
+  };
+
+  if (!safeProfile.name) {
+    throw new HttpsError("invalid-argument", "Tên cửa hàng không được để trống");
+  }
+
+  const shopRef = admin.firestore().collection("shops").doc(shopId);
+  const shopSnap = await shopRef.get();
+  const shopData = shopSnap.data() || {};
+  const shouldBackfillOwner =
+    !shopData.ownerUid && (callerIsSuperAdmin || callerRole === "owner");
+
+  const topLevelPayload = {
+    ...safeProfile,
+    shopId,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedBy: auth.uid,
+  };
+
+  if (!shopSnap.exists) {
+    topLevelPayload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+  }
+
+  if (shouldBackfillOwner) {
+    topLevelPayload.ownerUid = auth.uid;
+    topLevelPayload.ownerEmail = callerEmail || callerData.email || "";
+  }
+
+  await shopRef.set(topLevelPayload, { merge: true });
+
+  await shopRef
+    .collection("settings")
+    .doc("shop_profile")
+    .set(
+      {
+        ...safeProfile,
+        shopId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: auth.uid,
+      },
+      { merge: true },
+    );
+
+  console.log(
+    `✅ updateShopProfileSecure: shop=${shopId}, by=${auth.uid}, ownerBackfilled=${shouldBackfillOwner}`,
+  );
+
+  return {
+    success: true,
+    shopId,
+    ownerBackfilled: shouldBackfillOwner,
+  };
+});
+
+/**
  * 🚪 ADMIN: REMOVE USER FROM SHOP
  * Removes user from shop (sets shopId to null)
  */
@@ -768,10 +880,29 @@ exports.createStaffAccount = onCall(async (request) => {
       ...basePermissions,
     }, { merge: true });
 
-    await admin.firestore().collection("shops").doc(shopId).set({
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      lastStaffCreatedBy: requesterUid,
-    }, { merge: true });
+    const shopRef = admin.firestore().collection("shops").doc(shopId);
+    const shopSnap = await shopRef.get();
+
+    if (shopSnap.exists) {
+      await shopRef.set({
+        lastStaffCreatedBy: requesterUid,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+    } else if (isSuperAdmin || requesterRole === "owner") {
+      await shopRef.set({
+        shopId,
+        ownerUid: requesterUid,
+        ownerEmail: requesterData.email || auth.token.email || "",
+        name: requesterData.shopName || "Cửa hàng mới",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastStaffCreatedBy: requesterUid,
+      }, { merge: true });
+    } else {
+      console.warn(
+        `⚠️ createStaffAccount: shop ${shopId} missing and caller is ${requesterRole}, skip creating shop doc to avoid invalid ownerUid`,
+      );
+    }
 
     return {
       uid: userRecord.uid,

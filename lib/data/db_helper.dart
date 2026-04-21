@@ -86,6 +86,19 @@ class DBHelper {
     );
   }
 
+  /// Helper để lấy shopId cho các truy vấn nhạy cảm theo tenant.
+  /// Trả về null nếu chưa có shopId (caller nên trả về rỗng để tránh lộ dữ liệu chéo shop).
+  Future<String?> _getScopedShopId(String context) async {
+    final shopId = await _getCurrentShopId();
+    if (shopId == null || shopId.isEmpty) {
+      debugPrint(
+        'DBHelper.$context: missing shopId, return empty scoped result',
+      );
+      return null;
+    }
+    return shopId;
+  }
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDB();
@@ -199,7 +212,9 @@ class DBHelper {
         )
       ''');
 
-      final cols = await dbExecutor.rawQuery('PRAGMA table_info(payment_intents)');
+      final cols = await dbExecutor.rawQuery(
+        'PRAGMA table_info(payment_intents)',
+      );
       final colNames = cols.map((c) => c['name'] as String).toSet();
 
       if (!colNames.contains('firestoreId')) {
@@ -338,7 +353,7 @@ class DBHelper {
     String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
     return await openDatabase(
       path,
-      version: 94,
+      version: 95,
       onConfigure: (db) async {
         try {
           await db.rawQuery('PRAGMA foreign_keys = ON');
@@ -380,7 +395,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS suppliers(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, name TEXT, contactPerson TEXT, phone TEXT, email TEXT, address TEXT, note TEXT, items TEXT, importCount INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, active INTEGER DEFAULT 1, favorite INTEGER DEFAULT 0, type TEXT, createdAt INTEGER, updatedAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI", scope TEXT DEFAULT "SHOP")',
+          'CREATE TABLE IF NOT EXISTS expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, title TEXT, description TEXT, amount INTEGER, category TEXT, date INTEGER, note TEXT, paymentMethod TEXT, createdAt INTEGER, createdBy TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, relatedPartId TEXT, type TEXT DEFAULT "CHI", scope TEXT DEFAULT "SHOP")',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS debts(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, personName TEXT, phone TEXT, totalAmount INTEGER, paidAmount INTEGER DEFAULT 0, type TEXT, debtType TEXT, status TEXT, createdAt INTEGER, note TEXT, isSynced INTEGER DEFAULT 0, linkedId TEXT, linkedType TEXT, createdBy TEXT, shopId TEXT, relatedPartId TEXT, deleted INTEGER DEFAULT 0, updatedAt INTEGER)',
@@ -395,7 +410,7 @@ class DBHelper {
           'CREATE TABLE IF NOT EXISTS audit_logs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, userId TEXT, userName TEXT, action TEXT, targetType TEXT, targetId TEXT, description TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, summary TEXT, role TEXT, email TEXT, payload TEXT, entityType TEXT, entityId TEXT)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS inventory_checks(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, type TEXT, checkDate INTEGER, itemsJson TEXT, status TEXT, createdBy TEXT, isSynced INTEGER DEFAULT 0, isCompleted INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS inventory_checks(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, type TEXT, checkDate INTEGER, itemsJson TEXT, status TEXT, createdBy TEXT, createdAt INTEGER, isSynced INTEGER DEFAULT 0, isCompleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS supplier_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, supplierId INTEGER, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
@@ -1621,16 +1636,28 @@ class DBHelper {
             await db.execute(
               "CREATE TABLE IF NOT EXISTS import_orders(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, orderCode TEXT, supplierId TEXT, supplierName TEXT, totalQuantity INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, paymentMethod TEXT, paymentStatus TEXT DEFAULT 'PAID', paidAmount INTEGER, status TEXT DEFAULT 'CONFIRMED', importDate INTEGER, importedBy TEXT, importedByUid TEXT, stockEntryId TEXT, notes TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)",
             );
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_shopId ON import_orders(shopId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_importDate ON import_orders(importDate)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_status ON import_orders(status)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_orders_stockEntryId ON import_orders(stockEntryId)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_import_orders_shopId ON import_orders(shopId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_import_orders_importDate ON import_orders(importDate)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_import_orders_status ON import_orders(status)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_import_orders_stockEntryId ON import_orders(stockEntryId)',
+            );
 
             await db.execute(
               "CREATE TABLE IF NOT EXISTS import_order_items(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, importOrderFirestoreId TEXT, productType TEXT DEFAULT 'OTHER', categoryId TEXT, productName TEXT, productBrand TEXT, productModel TEXT, imei TEXT, sku TEXT, quantity INTEGER DEFAULT 1, unit TEXT, costPrice INTEGER DEFAULT 0, totalAmount INTEGER DEFAULT 0, color TEXT, size TEXT, capacity TEXT, condition TEXT, warranty INTEGER, compatibleModels TEXT, notes TEXT, shopId TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)",
             );
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_order_items_orderFsId ON import_order_items(importOrderFirestoreId)');
-            await db.execute('CREATE INDEX IF NOT EXISTS idx_import_order_items_shopId ON import_order_items(shopId)');
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_import_order_items_orderFsId ON import_order_items(importOrderFirestoreId)',
+            );
+            await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_import_order_items_shopId ON import_order_items(shopId)',
+            );
           } catch (e) {
             debugPrint('v93 error (import_orders): $e');
           }
@@ -1647,6 +1674,23 @@ class DBHelper {
               "UPDATE expenses SET scope = 'SHOP' WHERE scope IS NULL OR TRIM(scope) = ''",
             );
           } catch (_) {}
+        }
+        if (oldV < 95) {
+          // v95: Backfill columns missing on legacy iOS/Android DBs.
+          await _ensureColumnExists(
+            executor: db,
+            table: 'expenses',
+            column: 'createdBy',
+            definition: 'TEXT',
+            logScope: 'DB upgrade v95',
+          );
+          await _ensureColumnExists(
+            executor: db,
+            table: 'inventory_checks',
+            column: 'createdAt',
+            definition: 'INTEGER',
+            logScope: 'DB upgrade v95',
+          );
         }
         if (oldV < 26) {
           // Migration to remove kpkPrice and pkPrice columns from products and quick_input_codes tables
@@ -3054,20 +3098,26 @@ class DBHelper {
           debugPrint('DB onOpen check error (quick_input_codes labelInfo): $e');
         }
 
-        // Ensure checkedBy column exists in inventory_checks table
+        // Ensure checkedBy/createdAt columns exist in inventory_checks table
         try {
           final cols = await db.rawQuery('PRAGMA table_info(inventory_checks)');
-          final has = cols.any(
-            (c) => (c['name'] ?? c['name'.toString()]) == 'checkedBy',
-          );
-          if (!has) {
+          final colNames = cols.map((c) => c['name'] as String).toSet();
+          if (!colNames.contains('checkedBy')) {
             await db.execute(
               'ALTER TABLE inventory_checks ADD COLUMN checkedBy TEXT',
             );
             debugPrint('DB: added checkedBy column to inventory_checks');
           }
+          if (!colNames.contains('createdAt')) {
+            await db.execute(
+              'ALTER TABLE inventory_checks ADD COLUMN createdAt INTEGER',
+            );
+            debugPrint('DB: added createdAt column to inventory_checks');
+          }
         } catch (e) {
-          debugPrint('DB onOpen check error (inventory_checks checkedBy): $e');
+          debugPrint(
+            'DB onOpen check error (inventory_checks checkedBy/createdAt): $e',
+          );
         }
 
         // Ensure stockEntryId column exists in repair_parts table
@@ -3174,15 +3224,21 @@ class DBHelper {
             debugPrint('DB onOpen: added deleted to repairs');
           }
           if (!colNames.contains('createdByUid')) {
-            await db.execute('ALTER TABLE repairs ADD COLUMN createdByUid TEXT');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN createdByUid TEXT',
+            );
             debugPrint('DB onOpen: added createdByUid to repairs');
           }
           if (!colNames.contains('repairedByUid')) {
-            await db.execute('ALTER TABLE repairs ADD COLUMN repairedByUid TEXT');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN repairedByUid TEXT',
+            );
             debugPrint('DB onOpen: added repairedByUid to repairs');
           }
           if (!colNames.contains('deliveredByUid')) {
-            await db.execute('ALTER TABLE repairs ADD COLUMN deliveredByUid TEXT');
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN deliveredByUid TEXT',
+            );
             debugPrint('DB onOpen: added deliveredByUid to repairs');
           }
         } catch (e) {
@@ -3430,7 +3486,7 @@ class DBHelper {
           );
         }
 
-        // Ensure description, createdAt, shopId, relatedPartId columns exist in expenses table
+        // Ensure description, createdAt, createdBy, shopId, relatedPartId columns exist in expenses table
         try {
           final cols = await db.rawQuery('PRAGMA table_info(expenses)');
           final colNames = cols.map((c) => c['name'] as String).toSet();
@@ -3445,6 +3501,10 @@ class DBHelper {
               'ALTER TABLE expenses ADD COLUMN createdAt INTEGER',
             );
             debugPrint('DB onOpen: added createdAt to expenses');
+          }
+          if (!colNames.contains('createdBy')) {
+            await db.execute('ALTER TABLE expenses ADD COLUMN createdBy TEXT');
+            debugPrint('DB onOpen: added createdBy to expenses');
           }
           if (!colNames.contains('shopId')) {
             await db.execute('ALTER TABLE expenses ADD COLUMN shopId TEXT');
@@ -3894,12 +3954,16 @@ class DBHelper {
     int limit = 25,
   }) async {
     final db = await database;
+    final shopId = await _getScopedShopId('searchProducts');
+    if (shopId == null) return [];
+
     final like = '%$query%';
     final likeNorm = '%$normalizedQuery%';
     final maps = await db.rawQuery(
       '''
       SELECT * FROM products
       WHERE (deleted = 0 OR deleted IS NULL)
+        AND shopId = ?
         AND (name LIKE ? OR name LIKE ?
           OR imei LIKE ?
           OR description LIKE ? OR description LIKE ?
@@ -3909,6 +3973,7 @@ class DBHelper {
       LIMIT ?
     ''',
       [
+        shopId,
         like,
         likeNorm,
         like,
@@ -4197,9 +4262,14 @@ class DBHelper {
   }
 
   Future<List<Product>> getInStockProducts() async {
+    final shopId = await _getScopedShopId('getInStockProducts');
+    if (shopId == null) return [];
+
     final maps = await (await database).query(
       'products',
-      where: 'status = 1 AND quantity > 0',
+      where:
+          'shopId = ? AND status = 1 AND quantity > 0 AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [shopId],
       orderBy: 'createdAt DESC',
     );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
@@ -4209,9 +4279,13 @@ class DBHelper {
   /// Dùng cho FastInventoryCheckView để kiểm kho phụ kiện
   Future<List<Product>> getRepairPartsAsProducts() async {
     final db = await database;
+    final shopId = await _getScopedShopId('getRepairPartsAsProducts');
+    if (shopId == null) return [];
+
     final parts = await db.query(
       'repair_parts',
-      where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0',
+      where: 'shopId = ? AND (deleted = 0 OR deleted IS NULL) AND quantity > 0',
+      whereArgs: [shopId],
       orderBy: 'createdAt DESC',
     );
     return parts
@@ -4242,15 +4316,11 @@ class DBHelper {
     String? type,
     bool inStockOnly = false,
   }) async {
-    final shopId = UserService.getShopIdSync();
-    String where = '(deleted = 0 OR deleted IS NULL)';
-    List<dynamic> whereArgs = [];
+    final shopId = await _getScopedShopId('getProductsPaged');
+    if (shopId == null) return [];
 
-    // Add shopId filter for multi-shop support
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND (shopId = ? OR shopId IS NULL)';
-      whereArgs.add(shopId);
-    }
+    String where = 'shopId = ? AND (deleted = 0 OR deleted IS NULL)';
+    List<dynamic> whereArgs = [shopId];
 
     if (type != null) {
       where += ' AND ${_typeWhereClause(type, whereArgs)}';
@@ -4273,15 +4343,11 @@ class DBHelper {
 
   /// Get total count of products for pagination
   Future<int> getProductsCount({String? type, bool inStockOnly = false}) async {
-    final shopId = UserService.getShopIdSync();
-    String where = '(deleted = 0 OR deleted IS NULL)';
-    List<dynamic> args = [];
+    final shopId = await _getScopedShopId('getProductsCount');
+    if (shopId == null) return 0;
 
-    // Add shopId filter for multi-shop support
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND (shopId = ? OR shopId IS NULL)';
-      args.add(shopId);
-    }
+    String where = 'shopId = ? AND (deleted = 0 OR deleted IS NULL)';
+    List<dynamic> args = [shopId];
 
     if (type != null) {
       where += ' AND ${_typeWhereClause(type, args)}';
@@ -4299,15 +4365,13 @@ class DBHelper {
   /// Get inventory summary (total quantity and capital) for all products
   /// This calculates from ALL products in DB, not just paginated data
   Future<Map<String, int>> getInventorySummary({String? type}) async {
-    final shopId = UserService.getShopIdSync();
-    String shopFilter = '';
-    List<dynamic> args = [];
-
-    // Add shopId filter for multi-shop support
-    if (shopId != null && shopId.isNotEmpty) {
-      shopFilter = ' AND (shopId = ? OR shopId IS NULL)';
-      args.add(shopId);
+    final shopId = await _getScopedShopId('getInventorySummary');
+    if (shopId == null) {
+      return {'totalQty': 0, 'totalCapital': 0};
     }
+
+    const shopFilter = ' AND shopId = ?';
+    List<dynamic> args = [shopId];
 
     String query =
         '''
@@ -4342,20 +4406,16 @@ class DBHelper {
   }
 
   Future<List<Product>> getAllProducts() async {
-    final shopId = UserService.getShopIdSync();
-    String whereClause = '(deleted = 0 OR deleted IS NULL)';
-    List<dynamic> whereArgs = [];
+    final shopId = await _getScopedShopId('getAllProducts');
+    if (shopId == null) return [];
 
-    // Filter by shopId if available (for multi-shop support)
-    if (shopId != null && shopId.isNotEmpty) {
-      whereClause += ' AND (shopId = ? OR shopId IS NULL)';
-      whereArgs.add(shopId);
-    }
+    const whereClause = 'shopId = ? AND (deleted = 0 OR deleted IS NULL)';
+    final whereArgs = [shopId];
 
     final maps = await (await database).query(
       'products',
       where: whereClause,
-      whereArgs: whereArgs.isEmpty ? null : whereArgs,
+      whereArgs: whereArgs,
     );
     return List.generate(maps.length, (i) => Product.fromMap(maps[i]));
   }
@@ -4365,16 +4425,14 @@ class DBHelper {
     String type, {
     bool inStockOnly = true,
   }) async {
-    final shopId = UserService.getShopIdSync();
+    final shopId = await _getScopedShopId('getProductsByType');
+    if (shopId == null) return [];
+
     List<dynamic> whereArgs = [];
     final typeClause = _typeWhereClause(type, whereArgs);
-    String where = '$typeClause AND (deleted = 0 OR deleted IS NULL)';
-
-    // Add shopId filter for multi-shop support
-    if (shopId != null && shopId.isNotEmpty) {
-      where += ' AND (shopId = ? OR shopId IS NULL)';
-      whereArgs.add(shopId);
-    }
+    String where =
+        'shopId = ? AND $typeClause AND (deleted = 0 OR deleted IS NULL)';
+    whereArgs.insert(0, shopId);
 
     if (inStockOnly) {
       where += ' AND quantity > 0 AND (status = 1 OR status IS NULL)';
@@ -4449,6 +4507,9 @@ class DBHelper {
     String partName,
     int quantity,
   ) async {
+    final shopId = await _getScopedShopId('restorePartQuantityByNameUnified');
+    if (shopId == null) return false;
+
     // Try repair_parts first
     final restored = await restorePartQuantityByName(partName, quantity);
     if (restored) return true;
@@ -4457,8 +4518,9 @@ class DBHelper {
     final db = await database;
     final products = await db.query(
       'products',
-      where: 'UPPER(name) = ? AND (deleted = 0 OR deleted IS NULL)',
-      whereArgs: [partName.toUpperCase()],
+      where:
+          'shopId = ? AND UPPER(name) = ? AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [shopId, partName.toUpperCase()],
       limit: 1,
     );
     if (products.isEmpty) {
@@ -4475,20 +4537,27 @@ class DBHelper {
   }
 
   Future<Product?> getProductByFirestoreId(String firestoreId) async {
+    final shopId = await _getScopedShopId('getProductByFirestoreId');
+    if (shopId == null) return null;
+
     final res = await (await database).query(
       'products',
-      where: 'firestoreId = ? AND (deleted = 0 OR deleted IS NULL)',
-      whereArgs: [firestoreId],
+      where:
+          'firestoreId = ? AND shopId = ? AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [firestoreId, shopId],
       limit: 1,
     );
     return res.isNotEmpty ? Product.fromMap(res.first) : null;
   }
 
   Future<Product?> getProductById(int id) async {
+    final shopId = await _getScopedShopId('getProductById');
+    if (shopId == null) return null;
+
     final res = await (await database).query(
       'products',
-      where: 'id = ? AND (deleted = 0 OR deleted IS NULL)',
-      whereArgs: [id],
+      where: 'id = ? AND shopId = ? AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [id, shopId],
       limit: 1,
     );
     return res.isNotEmpty ? Product.fromMap(res.first) : null;
@@ -4503,12 +4572,14 @@ class DBHelper {
   /// Trừ số lượng sản phẩm trong kho và sync ngay lập tức
   Future<void> deductProductQuantity(int id, int amount) async {
     final db = await database;
+    final shopId = await _getScopedShopId('deductProductQuantity');
+    if (shopId == null) return;
 
     // Lấy thông tin product trước để có firestoreId và quantity
     final productResult = await db.query(
       'products',
-      where: 'id = ?',
-      whereArgs: [id],
+      where: 'id = ? AND shopId = ?',
+      whereArgs: [id, shopId],
       limit: 1,
     );
 
@@ -4520,12 +4591,12 @@ class DBHelper {
     final firestoreId = product['firestoreId'] as String?;
 
     await db.rawUpdate(
-      'UPDATE products SET quantity = quantity - ?, updatedAt = ?, isSynced = 0 WHERE id = ?',
-      [amount, DateTime.now().millisecondsSinceEpoch, id],
+      'UPDATE products SET quantity = quantity - ?, updatedAt = ?, isSynced = 0 WHERE id = ? AND shopId = ?',
+      [amount, DateTime.now().millisecondsSinceEpoch, id, shopId],
     );
     await db.rawUpdate(
-      'UPDATE products SET status = 0 WHERE id = ? AND quantity <= 0',
-      [id],
+      'UPDATE products SET status = 0 WHERE id = ? AND shopId = ? AND quantity <= 0',
+      [id, shopId],
     );
 
     // FIX: Sync ngay lập tức để tránh trường hợp 2 thiết bị bán cùng 1 sản phẩm
@@ -4540,9 +4611,10 @@ class DBHelper {
               'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
         // Đánh dấu đã sync
-        await db.rawUpdate('UPDATE products SET isSynced = 1 WHERE id = ?', [
-          id,
-        ]);
+        await db.rawUpdate(
+          'UPDATE products SET isSynced = 1 WHERE id = ? AND shopId = ?',
+          [id, shopId],
+        );
         debugPrint('✅ Synced product quantity: $firestoreId, newQty: $newQty');
       } catch (e) {
         debugPrint('⚠️ Failed to sync product quantity immediately: $e');
@@ -4553,15 +4625,18 @@ class DBHelper {
 
   Future<void> addProductQuantity(int id, int amount) async {
     final db = await database;
+    final shopId = await _getScopedShopId('addProductQuantity');
+    if (shopId == null) return;
+
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.rawUpdate(
-      'UPDATE products SET quantity = quantity + ?, isSynced = 0, updatedAt = ? WHERE id = ?',
-      [amount, now, id],
+      'UPDATE products SET quantity = quantity + ?, isSynced = 0, updatedAt = ? WHERE id = ? AND shopId = ?',
+      [amount, now, id, shopId],
     );
     // Nếu sản phẩm đã bán hết (status = 0) và giờ có hàng lại, có thể cần cập nhật status
     await db.rawUpdate(
-      'UPDATE products SET status = 1 WHERE id = ? AND status = 0 AND quantity > 0',
-      [id],
+      'UPDATE products SET status = 1 WHERE id = ? AND shopId = ? AND status = 0 AND quantity > 0',
+      [id, shopId],
     );
   }
 
@@ -4569,11 +4644,14 @@ class DBHelper {
   /// Dùng để kiểm tra trước khi bán, tránh 2 nhân viên bán cùng 1 món
   Future<int> getProductQuantityById(int id) async {
     final db = await database;
+    final shopId = await _getScopedShopId('getProductQuantityById');
+    if (shopId == null) return 0;
+
     final result = await db.query(
       'products',
       columns: ['quantity'],
-      where: 'id = ?',
-      whereArgs: [id],
+      where: 'id = ? AND shopId = ?',
+      whereArgs: [id, shopId],
       limit: 1,
     );
     if (result.isEmpty) return 0;
@@ -4581,9 +4659,12 @@ class DBHelper {
   }
 
   Future<Product?> getProductByImei(String imei) async {
+    final shopId = await _getScopedShopId('getProductByImei');
+    if (shopId == null) return null;
+
     final res = await (await database).rawQuery(
-      'SELECT * FROM products WHERE UPPER(imei) = UPPER(?) LIMIT 1',
-      [imei],
+      'SELECT * FROM products WHERE UPPER(imei) = UPPER(?) AND shopId = ? AND (deleted = 0 OR deleted IS NULL) LIMIT 1',
+      [imei, shopId],
     );
     return res.isNotEmpty ? Product.fromMap(res.first) : null;
   }
@@ -4591,20 +4672,14 @@ class DBHelper {
   /// Tìm sản phẩm theo tên (case-insensitive, dùng cho phụ kiện không có IMEI)
   /// Ưu tiên sản phẩm cùng shopId, còn hàng (quantity > 0 hoặc status > 0)
   Future<Product?> getProductByName(String name) async {
-    final shopId = UserService.getShopIdSync();
+    final shopId = await _getScopedShopId('getProductByName');
+    if (shopId == null) return null;
+
     final db = await database;
-    // Thử tìm chính xác (case-insensitive) với shopId
-    var res = await db.rawQuery(
+    final res = await db.rawQuery(
       'SELECT * FROM products WHERE UPPER(name) = UPPER(?) AND shopId = ? AND (deleted IS NULL OR deleted != 1) ORDER BY quantity DESC LIMIT 1',
       [name, shopId],
     );
-    // Fallback: không lọc shopId
-    if (res.isEmpty) {
-      res = await db.rawQuery(
-        'SELECT * FROM products WHERE UPPER(name) = UPPER(?) AND (deleted IS NULL OR deleted != 1) ORDER BY quantity DESC LIMIT 1',
-        [name],
-      );
-    }
     return res.isNotEmpty ? Product.fromMap(res.first) : null;
   }
 
@@ -4776,9 +4851,13 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getSuppliers() async {
     final db = await database;
+    final shopId = await _getScopedShopId('getSuppliers');
+    if (shopId == null) return [];
+
     final res = await db.query(
       'suppliers',
-      where: 'deleted = 0 OR deleted IS NULL',
+      where: 'shopId = ? AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [shopId],
       orderBy: 'name ASC',
     );
     debugPrint('DBHelper.getSuppliers: found ${res.length} suppliers');
@@ -4844,8 +4923,19 @@ class DBHelper {
   // --- FINANCE ---
   Future<void> upsertExpense(Expense e) async =>
       _upsert('expenses', e.toMap(), e.firestoreId ?? "exp_${e.date}");
-  Future<int> insertExpense(Map<String, dynamic> e) async =>
-      (await database).insert('expenses', e);
+  Future<int> insertExpense(Map<String, dynamic> e) async {
+    final db = await database;
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(e));
+    cleanData['createdAt'] =
+        cleanData['createdAt'] ??
+        cleanData['date'] ??
+        DateTime.now().millisecondsSinceEpoch;
+    cleanData['date'] = cleanData['date'] ?? cleanData['createdAt'];
+    cleanData['isSynced'] = cleanData['isSynced'] ?? 0;
+
+    await _filterToTableColumns('expenses', cleanData, executor: db);
+    return db.insert('expenses', cleanData);
+  }
 
   /// Lấy tất cả expenses của shop hiện tại
   Future<List<Map<String, dynamic>>> getAllExpenses() async {
@@ -4915,7 +5005,8 @@ class DBHelper {
 
   // --- SALVAGE PHONES (Kho máy xác) ---
   Future<void> upsertSalvagePhone(Map<String, dynamic> data) async {
-    final fId = data['firestoreId'] ??
+    final fId =
+        data['firestoreId'] ??
         'sp_${data['createdAt']}_${data['deviceName'].hashCode}';
     await _upsert('salvage_phones', data, fId);
   }
@@ -4939,8 +5030,11 @@ class DBHelper {
   }
 
   Future<int> deleteSalvagePhoneByFirestoreId(String fId) async =>
-      (await database)
-          .delete('salvage_phones', where: 'firestoreId = ?', whereArgs: [fId]);
+      (await database).delete(
+        'salvage_phones',
+        where: 'firestoreId = ?',
+        whereArgs: [fId],
+      );
 
   Future<Map<String, dynamic>?> getSalvagePhoneByFirestoreId(
     String firestoreId,
@@ -5567,7 +5661,16 @@ class DBHelper {
     final map = (data is Map<String, dynamic>)
         ? data
         : (data as dynamic).toMap();
-    return await db.insert('inventory_checks', map);
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(map));
+    cleanData['createdAt'] =
+        cleanData['createdAt'] ??
+        cleanData['checkDate'] ??
+        DateTime.now().millisecondsSinceEpoch;
+    cleanData['checkDate'] = cleanData['checkDate'] ?? cleanData['createdAt'];
+    cleanData['isSynced'] = cleanData['isSynced'] ?? 0;
+
+    await _filterToTableColumns('inventory_checks', cleanData, executor: db);
+    return await db.insert('inventory_checks', cleanData);
   }
 
   Future<int> updateInventoryCheck(dynamic data) async {
@@ -5575,11 +5678,14 @@ class DBHelper {
     final map = (data is Map<String, dynamic>)
         ? data
         : (data as dynamic).toMap();
+    final cleanData = _sanitizeForSqlite(Map<String, dynamic>.from(map));
+    await _filterToTableColumns('inventory_checks', cleanData, executor: db);
+
     return await db.update(
       'inventory_checks',
-      map,
+      cleanData,
       where: 'id = ?',
-      whereArgs: [map['id']],
+      whereArgs: [cleanData['id']],
     );
   }
 
@@ -5587,19 +5693,23 @@ class DBHelper {
     String type,
   ) async {
     final db = await database;
+    final shopId = await _getScopedShopId('getItemsForInventoryCheck');
+    if (shopId == null) return [];
 
     if (type == 'DIEN_THOAI') {
       return await db.query(
         'products',
-        where: 'status = 1 AND type = ?',
-        whereArgs: ['DIEN_THOAI'],
+        where:
+            'shopId = ? AND status = 1 AND type = ? AND (deleted = 0 OR deleted IS NULL)',
+        whereArgs: [shopId, 'DIEN_THOAI'],
       );
     } else if (type == 'LINH_KIEN') {
       // Linh kiện - match cả giá trị cũ 'LINH KIỆN' và mới 'LINH_KIEN'
       return await db.query(
         'products',
-        where: 'status = 1 AND (type = ? OR type = ?)',
-        whereArgs: ['LINH KIỆN', 'LINH_KIEN'],
+        where:
+            'shopId = ? AND status = 1 AND (type = ? OR type = ?) AND (deleted = 0 OR deleted IS NULL)',
+        whereArgs: [shopId, 'LINH KIỆN', 'LINH_KIEN'],
       );
     }
     // PHU_KIEN - gộp cả hai nguồn:
@@ -5610,15 +5720,17 @@ class DBHelper {
     // Phụ kiện từ bảng products (match cả format cũ và mới)
     final productPK = await db.query(
       'products',
-      where: 'status = 1 AND (type = ? OR type = ?)',
-      whereArgs: ['PHU_KIEN', 'PHỤ KIỆN'],
+      where:
+          'shopId = ? AND status = 1 AND (type = ? OR type = ?) AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [shopId, 'PHU_KIEN', 'PHỤ KIỆN'],
     );
     results.addAll(productPK);
 
     // Phụ tùng từ bảng repair_parts (map partName → name để UI đọc được)
     final parts = await db.query(
       'repair_parts',
-      where: '(deleted = 0 OR deleted IS NULL) AND quantity > 0',
+      where: 'shopId = ? AND (deleted = 0 OR deleted IS NULL) AND quantity > 0',
+      whereArgs: [shopId],
     );
     for (final p in parts) {
       results.add({...p, 'name': p['partName'] ?? p['name'] ?? ''});
@@ -5630,11 +5742,15 @@ class DBHelper {
   // --- PARTS HELPERS ---
   Future<List<Map<String, dynamic>>> getAllParts() async {
     final db = await database;
+    final shopId = await _getScopedShopId('getAllParts');
+    if (shopId == null) return [];
+
     // Return all repair parts, excluding soft-deleted items
     // Sắp xếp theo thời gian nhập mới nhất lên đầu
     return await db.query(
       'repair_parts',
-      where: 'deleted = 0 OR deleted IS NULL',
+      where: 'shopId = ? AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [shopId],
       orderBy: 'createdAt DESC',
     );
   }
@@ -6495,6 +6611,54 @@ class DBHelper {
     });
 
     debugPrint('deleteDataByShopId: Completed for shop $shopId');
+  }
+
+  /// Dọn dữ liệu của shop khác khỏi local DB để tránh lẫn tenant.
+  /// Giữ lại các hàng có shopId NULL để không làm mất dữ liệu legacy chưa gán shop.
+  Future<void> purgeDataOutsideShop(String currentShopId) async {
+    if (currentShopId.isEmpty) return;
+
+    final db = await database;
+    final tablesWithShopId = [
+      'products',
+      'customers',
+      'suppliers',
+      'expenses',
+      'debts',
+      'attendance',
+      'audit_logs',
+      'work_schedules',
+      'debt_payments',
+      'quick_input_codes',
+      'repair_parts',
+      'supplier_payments',
+      'repair_partner_payments',
+      'repair_partners',
+      'partner_repair_history',
+      'supplier_product_prices',
+      'supplier_import_history',
+      'payment_intents',
+      'payment_requests',
+    ];
+
+    await db.transaction((txn) async {
+      for (final table in tablesWithShopId) {
+        try {
+          final deleted = await txn.delete(
+            table,
+            where: 'shopId IS NOT NULL AND shopId != ?',
+            whereArgs: [currentShopId],
+          );
+          if (deleted > 0) {
+            debugPrint(
+              'purgeDataOutsideShop: deleted $deleted rows from $table (not in $currentShopId)',
+            );
+          }
+        } catch (e) {
+          debugPrint('purgeDataOutsideShop: $table error: $e');
+        }
+      }
+    });
   }
 
   // --- LỊCH SỬ TRẢ NỢ ---
@@ -8114,7 +8278,15 @@ class DBHelper {
 
   Future<List<Map<String, dynamic>>> getCustomers() async {
     final db = await database;
-    return await db.query('customers', orderBy: 'name ASC');
+    final shopId = await _getScopedShopId('getCustomers');
+    if (shopId == null) return [];
+
+    return await db.query(
+      'customers',
+      where: 'shopId = ? AND deleted = 0',
+      whereArgs: [shopId],
+      orderBy: 'name ASC',
+    );
   }
 
   Future<void> upsertCustomer(Map<String, dynamic> customer) async {
@@ -8570,7 +8742,7 @@ class DBHelper {
     List<dynamic> args = [];
 
     if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
-      conditions.add('shopId = ?');
+      conditions.add('(shopId = ? OR shopId IS NULL)');
       args.add(effectiveShopId);
     }
 
@@ -9523,4 +9695,3 @@ class DBHelper {
     );
   }
 }
-

@@ -39,6 +39,16 @@ import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 
 final Completer<void> _firebaseBootstrapCompleter = Completer<void>();
 bool _appCheckActivated = false;
+bool _appCheckSkipLogged = false;
+
+const bool _disableFirebaseAppCheck = bool.fromEnvironment(
+  'DISABLE_FIREBASE_APP_CHECK',
+  defaultValue: false,
+);
+const bool _disableIosAppCheck = bool.fromEnvironment(
+  'DISABLE_IOS_APP_CHECK',
+  defaultValue: true,
+);
 
 const String _deprecatedLocalApiBaseUrl = String.fromEnvironment(
   'LOCAL_API_BASE_URL',
@@ -63,6 +73,18 @@ void _markFirebaseBootstrapReady() {
 
 Future<void> _activateFirebaseAppCheck() async {
   if (kIsWeb || _appCheckActivated) return;
+
+  final shouldSkipForIOS = !kIsWeb && Platform.isIOS && _disableIosAppCheck;
+  if (_disableFirebaseAppCheck || shouldSkipForIOS) {
+    if (!_appCheckSkipLogged) {
+      final reason = _disableFirebaseAppCheck
+          ? 'DISABLE_FIREBASE_APP_CHECK=true'
+          : 'DISABLE_IOS_APP_CHECK=true';
+      debugPrint('ℹ️ Firebase App Check activation skipped ($reason)');
+      _appCheckSkipLogged = true;
+    }
+    return;
+  }
 
   try {
     await FirebaseAppCheck.instance.activate(
@@ -773,7 +795,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   Future<void> _checkAndClearLocalDataIfShopChanged(
     String? currentShopId,
   ) async {
-    if (currentShopId == null) return; // Super admin - không kiểm tra
+    if (currentShopId == null || currentShopId.isEmpty) {
+      return; // Super admin chưa chọn shop hoặc chưa có shopId
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final lastShopId = prefs.getString('last_synced_shop_id');
@@ -787,7 +811,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     final needClear =
         lastShopId == null ||
         lastShopId != currentShopId ||
-        (lastUserId != null && lastUserId != currentUserId);
+        lastUserId == null ||
+        lastUserId != currentUserId;
 
     if (needClear) {
       debugPrint(
@@ -795,6 +820,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       );
       await DBHelper().clearAllData();
       debugPrint('✅ Đã xóa local data cũ');
+    }
+
+    // Luôn dọn dữ liệu khác shop để tránh lộ chéo tenant trong các phiên chuyển đổi tài khoản.
+    try {
+      await DBHelper().purgeDataOutsideShop(currentShopId);
+    } catch (e) {
+      debugPrint('⚠️ purgeDataOutsideShop error: $e');
     }
 
     // Lưu shopId và userId hiện tại
@@ -824,6 +856,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
         // Không có user = đã đăng xuất
         if (snap.hasError || currentUser == null) {
+          if (currentUser == null) {
+            UserService.clearCache();
+          }
           _resetCache(); // Reset cache khi đăng xuất
           return LoginView(setLocale: widget.setLocale);
         }

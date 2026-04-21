@@ -130,7 +130,7 @@ class _PendingStockWidgetState extends State<PendingStockWidget> {
                           Row(
                             children: [
                               Text(
-                                'Hàng chờ xác nhận nhập vào kho',
+                                'Xác nhận nhập vào kho',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: AppTextStyles.headline4.fontSize,
@@ -342,7 +342,7 @@ class PendingStockStreamWidget extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Hàng chờ xác nhận nhập vào kho',
+                          'Xác nhận nhập kho',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: AppTextStyles.headline4.fontSize,

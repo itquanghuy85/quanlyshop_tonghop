@@ -19,6 +19,32 @@ class CategoryService {
   // === CACHED DATA ===
   ShopSettings? _cachedSettings;
   List<ProductCategory>? _cachedCategories;
+  DateTime? _remoteWriteDeniedAt;
+  static const Duration _remoteWriteDeniedCooldown = Duration(minutes: 2);
+
+  bool _isPermissionDeniedError(Object error) {
+    if (error is FirebaseException) {
+      return error.code == 'permission-denied';
+    }
+    final msg = error.toString().toLowerCase();
+    return msg.contains('permission-denied') ||
+        msg.contains('insufficient permissions');
+  }
+
+  bool _isRemoteWriteCooldownActive() {
+    final lastDeniedAt = _remoteWriteDeniedAt;
+    if (lastDeniedAt == null) return false;
+    return DateTime.now().difference(lastDeniedAt) < _remoteWriteDeniedCooldown;
+  }
+
+  void _markRemoteWriteDenied(String operation, Object error) {
+    if (_isPermissionDeniedError(error)) {
+      _remoteWriteDeniedAt = DateTime.now();
+      debugPrint(
+        '⚠️ CategoryService: $operation denied by rules, pause remote writes for ${_remoteWriteDeniedCooldown.inMinutes}m',
+      );
+    }
+  }
 
   // === SHOP SETTINGS ===
 
@@ -132,11 +158,12 @@ class CategoryService {
   /// Lưu ShopSettings
   Future<bool> saveShopSettings(ShopSettings settings) async {
     // Nếu settings đã có shopId thì dùng đó, nếu không thì lấy từ UserService
-    String? shopId = settings.shopId;
-    if (shopId == null || shopId.isEmpty) {
-      shopId = await UserService.getCurrentShopId();
+    String shopId = settings.shopId;
+    if (shopId.isEmpty) {
+      final currentShopId = await UserService.getCurrentShopId();
+      if (currentShopId == null || currentShopId.isEmpty) return false;
+      shopId = currentShopId;
     }
-    if (shopId == null) return false;
 
     final settingsWithShop = settings.copyWith(shopId: shopId);
     
@@ -152,35 +179,49 @@ class CategoryService {
     }
 
     // Save to Firestore
-    try {
-      await _firestore
-          .collection('shops')
-          .doc(shopId)
-          .collection('settings')
-          .doc('shop_settings')
-          .set(settingsWithShop.toFirestoreMap(), SetOptions(merge: true));
-      debugPrint('💾 CategoryService: Saved to Firestore successfully');
-    } catch (e) {
-      debugPrint('Error saving shop settings to Firestore: $e');
+    if (_isRemoteWriteCooldownActive()) {
+      debugPrint(
+        '⏭️ CategoryService: skip shop_settings remote write (permission cooldown active)',
+      );
+    } else {
+      try {
+        await _firestore
+            .collection('shops')
+            .doc(shopId)
+            .collection('settings')
+            .doc('shop_settings')
+            .set(settingsWithShop.toFirestoreMap(), SetOptions(merge: true));
+        debugPrint('💾 CategoryService: Saved to Firestore successfully');
+      } catch (e) {
+        _markRemoteWriteDenied('save shop_settings', e);
+        debugPrint('Error saving shop settings to Firestore: $e');
+      }
     }
 
     // Also update shop doc for correct businessType fallback
-    try {
-      await _firestore.collection('shops').doc(shopId).set({
-        'businessType': settingsWithShop.businessType,
-        'businessTypeName': settingsWithShop.businessTypeName,
-        'enableRepair': settingsWithShop.enableRepair,
-        'enableSerial': settingsWithShop.enableSerial,
-        'enableWarranty': settingsWithShop.enableWarranty,
-        'enableExpiry': settingsWithShop.enableExpiry,
-        'enableBatch': settingsWithShop.enableBatch,
-        'enableVariants': settingsWithShop.enableVariants,
-        'defaultUnit': settingsWithShop.defaultUnit,
-        'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
-      }, SetOptions(merge: true));
-      debugPrint('💾 CategoryService: Updated shop doc businessType');
-    } catch (e) {
-      debugPrint('Error updating shop doc businessType: $e');
+    if (_isRemoteWriteCooldownActive()) {
+      debugPrint(
+        '⏭️ CategoryService: skip shop doc remote write (permission cooldown active)',
+      );
+    } else {
+      try {
+        await _firestore.collection('shops').doc(shopId).set({
+          'businessType': settingsWithShop.businessType,
+          'businessTypeName': settingsWithShop.businessTypeName,
+          'enableRepair': settingsWithShop.enableRepair,
+          'enableSerial': settingsWithShop.enableSerial,
+          'enableWarranty': settingsWithShop.enableWarranty,
+          'enableExpiry': settingsWithShop.enableExpiry,
+          'enableBatch': settingsWithShop.enableBatch,
+          'enableVariants': settingsWithShop.enableVariants,
+          'defaultUnit': settingsWithShop.defaultUnit,
+          'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
+        }, SetOptions(merge: true));
+        debugPrint('💾 CategoryService: Updated shop doc businessType');
+      } catch (e) {
+        _markRemoteWriteDenied('update shop doc businessType', e);
+        debugPrint('Error updating shop doc businessType: $e');
+      }
     }
 
     // Save locally

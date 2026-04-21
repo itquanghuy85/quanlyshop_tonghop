@@ -1,3 +1,5 @@
+import '../services/encryption_service.dart';
+
 class SaleOrder {
   int? id;
   String? firestoreId;
@@ -137,19 +139,32 @@ class SaleOrder {
   }
 
   factory SaleOrder.fromMap(Map<String, dynamic> map) {
+    final m = EncryptionService.decryptMap(Map<String, dynamic>.from(map));
+
+    int toSafeInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    int? toNullableInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
     // Validate và sanitize các giá trị số
-    final totalPriceRaw = map['totalPrice'] is int ? map['totalPrice'] : 0;
-    final totalCostRaw = map['totalCost'] is int ? map['totalCost'] : 0;
-    final discountRaw = map['discount'] is int ? map['discount'] : 0;
-    final downPaymentRaw = map['downPayment'] is int ? map['downPayment'] : 0;
-    final loanAmountRaw = map['loanAmount'] is int ? map['loanAmount'] : 0;
-    final loanAmount2Raw = map['loanAmount2'] is int ? map['loanAmount2'] : 0;
-    final settlementAmountRaw = map['settlementAmount'] is int
-        ? map['settlementAmount']
-        : 0;
-    final settlementFeeRaw = map['settlementFee'] is int
-        ? map['settlementFee']
-        : 0;
+    final totalPriceRaw = toSafeInt(m['totalPrice']);
+    final totalCostRaw = toSafeInt(m['totalCost']);
+    final discountRaw = toSafeInt(m['discount']);
+    final downPaymentRaw = toSafeInt(m['downPayment']);
+    final loanAmountRaw = toSafeInt(m['loanAmount']);
+    final loanAmount2Raw = toSafeInt(m['loanAmount2']);
+    final settlementAmountRaw = toSafeInt(m['settlementAmount']);
+    final settlementFeeRaw = toSafeInt(m['settlementFee']);
 
     // Đảm bảo các giá trị không âm
     final totalPrice = totalPriceRaw < 0 ? 0 : totalPriceRaw;
@@ -160,49 +175,49 @@ class SaleOrder {
     final loanAmount2 = loanAmount2Raw < 0 ? 0 : loanAmount2Raw;
     final settlementAmount = settlementAmountRaw < 0 ? 0 : settlementAmountRaw;
     final settlementFee = settlementFeeRaw < 0 ? 0 : settlementFeeRaw;
-    final cashAmountRaw = map['cashAmount'] is int ? map['cashAmount'] : 0;
-    final transferAmountRaw = map['transferAmount'] is int ? map['transferAmount'] : 0;
+    final cashAmountRaw = toSafeInt(m['cashAmount']);
+    final transferAmountRaw = toSafeInt(m['transferAmount']);
     final cashAmount = cashAmountRaw < 0 ? 0 : cashAmountRaw;
     final transferAmount = transferAmountRaw < 0 ? 0 : transferAmountRaw;
 
     return SaleOrder(
-      id: map['id'],
-      firestoreId: map['firestoreId'],
-      customerName: map['customerName'] ?? "",
-      phone: map['phone'] ?? "",
-      isWalkIn: map['isWalkIn'] == 1 || map['isWalkIn'] == true,
-      walkInName: map['walkInName'],
-      walkInPhone: map['walkInPhone'],
-      address: map['address'] ?? "",
-      productNames: map['productNames'] ?? "",
-      productImeis: map['productImeis'] ?? "",
+      id: m['id'],
+      firestoreId: m['firestoreId'],
+      customerName: m['customerName'] ?? "",
+      phone: m['phone'] ?? "",
+      isWalkIn: m['isWalkIn'] == 1 || m['isWalkIn'] == true,
+      walkInName: m['walkInName'],
+      walkInPhone: m['walkInPhone'],
+      address: m['address'] ?? "",
+      productNames: m['productNames'] ?? "",
+      productImeis: m['productImeis'] ?? "",
       totalPrice: totalPrice,
       totalCost: totalCost,
       discount: discount,
-      paymentMethod: map['paymentMethod'] ?? "TIỀN MẶT",
-      sellerName: map['sellerName'] ?? "",
-      sellerUid: map['sellerUid'],
-      soldAt: map['soldAt'] is int ? map['soldAt'] : 0,
-      notes: map['notes'],
-      gifts: map['gifts'],
-      warranty: map['warranty'] ?? "KO BH",
-      isInstallment: map['isInstallment'] == 1 || map['isInstallment'] == true,
+      paymentMethod: m['paymentMethod'] ?? "TIỀN MẶT",
+      sellerName: m['sellerName'] ?? "",
+      sellerUid: m['sellerUid'],
+      soldAt: toSafeInt(m['soldAt']),
+      notes: m['notes'],
+      gifts: m['gifts'],
+      warranty: m['warranty'] ?? "KO BH",
+      isInstallment: m['isInstallment'] == 1 || m['isInstallment'] == true,
       downPayment: downPayment,
-      downPaymentMethod: map['downPaymentMethod']?.toString(),
+      downPaymentMethod: m['downPaymentMethod']?.toString(),
       loanAmount: loanAmount,
-      installmentTerm: map['installmentTerm']?.toString(),
-      bankName: map['bankName']?.toString(),
-      bankName2: map['bankName2']?.toString(),
+      installmentTerm: m['installmentTerm']?.toString(),
+      bankName: m['bankName']?.toString(),
+      bankName2: m['bankName2']?.toString(),
       loanAmount2: loanAmount2,
-      settlementPlannedAt: map['settlementPlannedAt'],
-      settlementReceivedAt: map['settlementReceivedAt'],
+      settlementPlannedAt: toNullableInt(m['settlementPlannedAt']),
+      settlementReceivedAt: toNullableInt(m['settlementReceivedAt']),
       settlementAmount: settlementAmount,
       settlementFee: settlementFee,
-      settlementNote: map['settlementNote']?.toString(),
-      settlementCode: map['settlementCode']?.toString(),
+      settlementNote: m['settlementNote']?.toString(),
+      settlementCode: m['settlementCode']?.toString(),
       cashAmount: cashAmount,
       transferAmount: transferAmount,
-      isSynced: map['isSynced'] == 1 || map['isSynced'] == true,
+      isSynced: m['isSynced'] == 1 || m['isSynced'] == true,
     );
   }
 }

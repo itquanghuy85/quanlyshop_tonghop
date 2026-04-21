@@ -46,7 +46,7 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('THỐNG KÊ FIREBASE READ/WRITE'),
+        title: const Text('THỐNG KÊ DỮ LIỆU READ/WRITE'),
         actions: [
           IconButton(
             tooltip: 'Làm mới',

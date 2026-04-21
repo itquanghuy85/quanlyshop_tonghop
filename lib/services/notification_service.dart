@@ -54,11 +54,19 @@ class NotificationService {
   // Handle background messages
   static Future<void> handleBackgroundMessage(RemoteMessage message) async {
     debugPrint('Handling background message: ${message.messageId}');
+    final data = Map<String, dynamic>.from(message.data);
+    final canDisplay = await _isNotificationForCurrentContext(data);
+    if (!canDisplay) {
+      debugPrint(
+        'Skipping background notification outside current user/shop context',
+      );
+      return;
+    }
     await _showLocalNotification(
       message.notification?.title ?? 'Thông báo mới',
       message.notification?.body ?? '',
       channelId: _getChannelId(message.data['type']),
-      payload: jsonEncode(message.data),
+      payload: jsonEncode(data),
     );
   }
 
@@ -98,15 +106,16 @@ class NotificationService {
 
     // Step 1: Firebase Messaging (primary for iOS, also works on Android)
     try {
-      NotificationSettings settings = await _firebaseMessaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-        announcement: false,
-        carPlay: false,
-        criticalAlert: false,
-      );
+      NotificationSettings settings = await _firebaseMessaging
+          .requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+            announcement: false,
+            carPlay: false,
+            criticalAlert: false,
+          );
 
       debugPrint('FCM permission status: ${settings.authorizationStatus}');
 
@@ -158,11 +167,16 @@ class NotificationService {
       // iOS sometimes reports "denied" via permission_handler but "authorized" via FCM
       if (!permissionGranted) {
         try {
-          final fcmSettings = await _firebaseMessaging.getNotificationSettings();
-          if (fcmSettings.authorizationStatus == AuthorizationStatus.authorized ||
-              fcmSettings.authorizationStatus == AuthorizationStatus.provisional) {
+          final fcmSettings = await _firebaseMessaging
+              .getNotificationSettings();
+          if (fcmSettings.authorizationStatus ==
+                  AuthorizationStatus.authorized ||
+              fcmSettings.authorizationStatus ==
+                  AuthorizationStatus.provisional) {
             permissionGranted = true;
-            debugPrint('Notification permission: permission_handler=denied but FCM=authorized (iOS quirk)');
+            debugPrint(
+              'Notification permission: permission_handler=denied but FCM=authorized (iOS quirk)',
+            );
           }
         } catch (e) {
           debugPrint('FCM getNotificationSettings fallback error: $e');
@@ -476,11 +490,15 @@ class NotificationService {
             debugPrint('forceRefreshFCMToken: APNs token available');
             break;
           }
-          debugPrint('forceRefreshFCMToken: APNs token not ready, retry ${i + 1}/10');
+          debugPrint(
+            'forceRefreshFCMToken: APNs token not ready, retry ${i + 1}/10',
+          );
           await Future.delayed(const Duration(milliseconds: 800));
         }
         if (apnsToken == null) {
-          debugPrint('forceRefreshFCMToken: APNs token unavailable - trying getToken anyway');
+          debugPrint(
+            'forceRefreshFCMToken: APNs token unavailable - trying getToken anyway',
+          );
         }
       }
 
@@ -489,7 +507,9 @@ class NotificationService {
       try {
         await _firebaseMessaging.deleteToken();
       } catch (deleteError) {
-        debugPrint('forceRefreshFCMToken: deleteToken failed (non-fatal): $deleteError');
+        debugPrint(
+          'forceRefreshFCMToken: deleteToken failed (non-fatal): $deleteError',
+        );
       }
 
       // Wait for FCM reset
@@ -504,7 +524,9 @@ class NotificationService {
           newToken = await _firebaseMessaging.getToken();
           if (newToken != null && newToken.isNotEmpty) break;
         } catch (getError) {
-          debugPrint('forceRefreshFCMToken: getToken attempt $attempt failed: $getError');
+          debugPrint(
+            'forceRefreshFCMToken: getToken attempt $attempt failed: $getError',
+          );
         }
         if (attempt < 5) {
           await Future.delayed(Duration(seconds: attempt));
@@ -512,7 +534,9 @@ class NotificationService {
       }
 
       if (newToken == null || newToken.isEmpty) {
-        debugPrint('forceRefreshFCMToken: Failed to get new token after all retries!');
+        debugPrint(
+          'forceRefreshFCMToken: Failed to get new token after all retries!',
+        );
         return false;
       }
 
@@ -567,7 +591,6 @@ class NotificationService {
         final existingTokens = await _db
             .collection('users')
             .where('fcmToken', isEqualTo: token)
-            .where('shopId', isEqualTo: shopId)
             .get();
 
         // Remove duplicate tokens from other users
@@ -576,13 +599,19 @@ class NotificationService {
 
         for (final doc in existingTokens.docs) {
           if (doc.id != user.uid) {
+            final duplicateShopId = (doc.data()['shopId'] ?? '')
+                .toString()
+                .trim();
             batch.update(doc.reference, {
               'fcmToken': FieldValue.delete(),
               'fcmTokenUpdatedAt': FieldValue.delete(),
+              'fcmTokenShopId': FieldValue.delete(),
               'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
             });
             hasDuplicates = true;
-            debugPrint('Removing duplicate FCM token from user: ${doc.id}');
+            debugPrint(
+              'Removing duplicate FCM token from user: ${doc.id} (shop: $duplicateShopId)',
+            );
           }
         }
 
@@ -599,6 +628,7 @@ class NotificationService {
       await _db.collection('users').doc(user.uid).set({
         'fcmToken': token,
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        'fcmTokenShopId': shopId,
         'devicePlatform': _getDevicePlatform(),
         'lastTokenUpdate': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -616,32 +646,86 @@ class NotificationService {
     return 'flutter_app'; // Generic identifier
   }
 
+  static Future<bool> _isNotificationForCurrentContext(
+    Map<String, dynamic> data, {
+    String? fallbackShopId,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    final targetUserId = (data['targetUserId'] ?? '').toString().trim();
+    if (targetUserId.isNotEmpty && targetUserId != user.uid) {
+      return false;
+    }
+
+    final messageShopId = (data['shopId'] ?? '').toString().trim();
+    if (messageShopId.isEmpty) return true;
+
+    String? currentShopId = UserService.getShopIdSync();
+    if (currentShopId == null || currentShopId.isEmpty) {
+      currentShopId = fallbackShopId;
+    }
+    if (currentShopId == null || currentShopId.isEmpty) {
+      currentShopId = await UserService.getCurrentShopId();
+    }
+    if (currentShopId == null || currentShopId.isEmpty) {
+      return false;
+    }
+
+    final isSameShop = currentShopId == messageShopId;
+    if (!isSameShop) {
+      debugPrint(
+        'Skipping notification from shop=$messageShopId while current shop=$currentShopId',
+      );
+    }
+    return isSameShop;
+  }
+
   static void _handleForegroundMessage(RemoteMessage message) {
     debugPrint('Foreground message received: ${message.notification?.title}');
+    final data = Map<String, dynamic>.from(message.data);
 
-    // Show in-app snackbar notification
-    final title = message.notification?.title ?? 'Thông báo mới';
-    final body = message.notification?.body ?? '';
-    // Show structured in-app notification instead of simple text
-    _showInAppNotification(title, body);
-
-    // Check if notifications are enabled for this type
-    _shouldShowNotification(message.data['type']).then((shouldShow) {
-      if (shouldShow) {
-        _showLocalNotification(
-          title,
-          body,
-          channelId: _getChannelId(message.data['type']),
-          payload: jsonEncode(message.data),
+    _isNotificationForCurrentContext(data).then((canDisplay) {
+      if (!canDisplay) {
+        debugPrint(
+          'Skipping foreground notification outside current user/shop context',
         );
+        return;
       }
+
+      // Show in-app snackbar notification
+      final title = message.notification?.title ?? 'Thông báo mới';
+      final body = message.notification?.body ?? '';
+      // Show structured in-app notification instead of simple text
+      _showInAppNotification(title, body);
+
+      // Check if notifications are enabled for this type
+      _shouldShowNotification(data['type']?.toString()).then((shouldShow) {
+        if (shouldShow) {
+          _showLocalNotification(
+            title,
+            body,
+            channelId: _getChannelId(data['type']?.toString()),
+            payload: jsonEncode(data),
+          );
+        }
+      });
     });
   }
 
   static void _handleMessageOpenedApp(RemoteMessage message) {
     debugPrint('Message opened app: ${message.notification?.title}');
-    // Handle navigation based on message type
-    _handleNotificationNavigation(message.data);
+    final data = Map<String, dynamic>.from(message.data);
+    _isNotificationForCurrentContext(data).then((canNavigate) {
+      if (!canNavigate) {
+        debugPrint(
+          'Skipping notification deep-link outside current user/shop context',
+        );
+        return;
+      }
+      // Handle navigation based on message type
+      _handleNotificationNavigation(data);
+    });
   }
 
   static void _onNotificationTapped(NotificationResponse response) {
@@ -696,9 +780,7 @@ class NotificationService {
     _handleNotificationNavigation(data);
   }
 
-  static Map<String, dynamic> _extractNavigationData(
-    Map<String, dynamic> raw,
-  ) {
+  static Map<String, dynamic> _extractNavigationData(Map<String, dynamic> raw) {
     final normalized = <String, dynamic>{};
     final nested = raw['data'];
     if (nested is Map) {
@@ -722,7 +804,9 @@ class NotificationService {
             .toString();
 
     if (targetType.isEmpty) {
-      if (type == 'new_order' || type == 'repair' || type == 'approval_needed') {
+      if (type == 'new_order' ||
+          type == 'repair' ||
+          type == 'approval_needed') {
         targetType = 'repair';
       } else if (type == 'payment' || type == 'sale') {
         targetType = 'sale';
@@ -804,11 +888,48 @@ class NotificationService {
           .limit(20)
           .snapshots()
           .listen((snapshot) {
+            final activeShopId = UserService.getShopIdSync();
+            if (activeShopId != null &&
+                activeShopId.isNotEmpty &&
+                activeShopId != shopId) {
+              debugPrint(
+                'Detected shop switch while listening notifications ($shopId -> $activeShopId), re-subscribing',
+              );
+              _notificationSubscription?.cancel();
+              _notificationSubscription = null;
+              listenToNotifications(onMessageReceived);
+              return;
+            }
+            final effectiveShopId =
+                (activeShopId == null || activeShopId.isEmpty)
+                ? shopId
+                : activeShopId;
+
             debugPrint(
               'Received ${snapshot.docChanges.length} notification changes',
             );
             for (var change in snapshot.docChanges) {
               if (change.type == DocumentChangeType.added) {
+                final data = change.doc.data() as Map<String, dynamic>;
+
+                final targetUserId = (data['targetUserId'] ?? '')
+                    .toString()
+                    .trim();
+                if (targetUserId.isNotEmpty && targetUserId != user.uid) {
+                  debugPrint(
+                    'Skipping notification for targetUserId=$targetUserId (current user: ${user.uid})',
+                  );
+                  continue;
+                }
+
+                final rowShopId = (data['shopId'] ?? '').toString().trim();
+                if (rowShopId.isNotEmpty && rowShopId != effectiveShopId) {
+                  debugPrint(
+                    'Skipping notification from shop=$rowShopId while active shop=$effectiveShopId',
+                  );
+                  continue;
+                }
+
                 final docId = change.doc.id;
                 // Skip if already processed (avoid duplicate display)
                 if (_processedNotificationIds.contains(docId)) {
@@ -818,10 +939,10 @@ class NotificationService {
                 _processedNotificationIds.add(docId);
                 // Limit memory: keep only last 100 processed IDs
                 if (_processedNotificationIds.length > 100) {
-                  _processedNotificationIds.remove(_processedNotificationIds.first);
+                  _processedNotificationIds.remove(
+                    _processedNotificationIds.first,
+                  );
                 }
-
-                final data = change.doc.data() as Map<String, dynamic>;
                 debugPrint(
                   'New notification: ${data['title']} from ${data['senderId']} (current user: ${user.uid})',
                 );
@@ -898,7 +1019,8 @@ class NotificationService {
         'data': data ?? {},
         if (data != null && data['targetType'] != null)
           'targetType': data['targetType'],
-        if (data != null && data['targetId'] != null) 'targetId': data['targetId'],
+        if (data != null && data['targetId'] != null)
+          'targetId': data['targetId'],
         'senderId': user?.uid,
         'senderName': user?.email?.split('@').first.toUpperCase() ?? "NV",
         'createdAt': FieldValue.serverTimestamp(),
@@ -1021,7 +1143,8 @@ class NotificationService {
       // iOS fallback: permission_handler có thể sai → check FCM
       if (!hasPermission) {
         final fcmSettings = await _firebaseMessaging.getNotificationSettings();
-        hasPermission = fcmSettings.authorizationStatus == AuthorizationStatus.authorized ||
+        hasPermission =
+            fcmSettings.authorizationStatus == AuthorizationStatus.authorized ||
             fcmSettings.authorizationStatus == AuthorizationStatus.provisional;
       }
     } catch (e) {
@@ -1196,7 +1319,9 @@ class NotificationService {
   }
 
   static bool _shouldPlaySound(String channelId) {
-    return channelId == 'new_order_channel' || channelId == 'payment_channel' || channelId == 'system_channel';
+    return channelId == 'new_order_channel' ||
+        channelId == 'payment_channel' ||
+        channelId == 'system_channel';
   }
 
   // Notification Settings Management
@@ -1316,7 +1441,8 @@ class NotificationService {
   }) async {
     const title = '🔧 ĐƠN SỬA MỚI';
     final now = DateTime.now();
-    final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     final lines = <String>[
       '👤 $customerName${phone != null && phone.isNotEmpty ? ' • 📞 $phone' : ''}',
       if (model != null && model.isNotEmpty) '📱 $model',
@@ -1328,11 +1454,7 @@ class NotificationService {
       title: title,
       body: body,
       type: 'new_order',
-      data: {
-        'targetType': 'repair',
-        'targetId': orderId,
-        'repairId': orderId,
-      },
+      data: {'targetType': 'repair', 'targetId': orderId, 'repairId': orderId},
     );
   }
 
@@ -1357,7 +1479,8 @@ class NotificationService {
   }) async {
     const title = '💰 THANH TOÁN THÀNH CÔNG';
     final now = DateTime.now();
-    final time = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final time =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     final lines = <String>[
       if (customerName != null && customerName.isNotEmpty) '👤 $customerName',
       '💵 ${MoneyUtils.formatVND(amount.toInt())}đ • 💳 $paymentMethod',
@@ -1401,11 +1524,13 @@ class NotificationService {
     String status,
     String time,
   ) async {
-    final isCheckIn = status.contains('check-in') || status.contains('check_in');
+    final isCheckIn =
+        status.contains('check-in') || status.contains('check_in');
     final emoji = isCheckIn ? '✅' : '🚪';
     final title = '$emoji CHẤM CÔNG';
     final now = DateTime.now();
-    final date = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    final date =
+        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
     final lines = <String>[
       '👤 $staffName',
       '$emoji ${status.toUpperCase()} lúc $time',
@@ -1519,4 +1644,3 @@ class NotificationService {
     );
   }
 }
-
