@@ -1,4 +1,4 @@
-import 'dart:async';
+rimport 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -73,7 +73,7 @@ class _InventoryViewState extends State<InventoryView>
   bool _hasMore = true;
   int _currentOffset = 0;
   static const int _pageSize =
-      10; // Load 10 products at a time for better performance
+      20; // Load 20 products at a time to reduce frequent paging on long lists
   int _unsyncedCount = 0;
   bool _isAdmin = false; // Used in _init for permission check
   bool _canViewCostPrice = false; // Phân quyền xem giá vốn
@@ -223,7 +223,9 @@ class _InventoryViewState extends State<InventoryView>
         .where((event) => _inventoryRefreshEvents.contains(event))
         .listen((event) {
           if (!mounted) return;
-          debugPrint('📦 [InventoryView] Nhận event "$event" → refresh local DB');
+          debugPrint(
+            '📦 [InventoryView] Nhận event "$event" → refresh local DB',
+          );
 
           // sales_returns_changed cần cloud refresh vì product quantity thay đổi từ cloud
           // stock_entries_changed không cần: stock_entry_service đã ghi local DB trực tiếp
@@ -238,7 +240,9 @@ class _InventoryViewState extends State<InventoryView>
 
           _inventoryRefreshDebounce?.cancel();
           _inventoryRefreshDebounce = Timer(
-            Duration(milliseconds: event == 'sales_returns_changed' ? 600 : 220),
+            Duration(
+              milliseconds: event == 'sales_returns_changed' ? 600 : 220,
+            ),
             () async {
               if (!mounted) return;
               await _refreshLocalData();
@@ -389,7 +393,9 @@ class _InventoryViewState extends State<InventoryView>
         final localProduct = await db.getProductByFirestoreId(p.firestoreId!);
         if (localProduct != null) {
           displayProduct = localProduct;
-          debugPrint('✅ [InventoryView] Đọc product từ local DB: ${localProduct.name}');
+          debugPrint(
+            '✅ [InventoryView] Đọc product từ local DB: ${localProduct.name}',
+          );
         }
       } catch (e) {
         debugPrint('⚠️ [InventoryView] Lỗi đọc local DB: $e');
@@ -553,8 +559,14 @@ class _InventoryViewState extends State<InventoryView>
                       Text(
                         "Khách: ${r.customerName}",
                         style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text("Vấn đề: ${r.issue}"),
+                      Text(
+                        "Vấn đề: ${r.issue}",
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       Text(
                         "Trạng thái: ${_getStatusText(r.status)}",
                         style: TextStyle(color: _getStatusColor(r.status)),
@@ -2358,6 +2370,9 @@ class _InventoryViewState extends State<InventoryView>
             if (!_isSelectionMode)
               _buildInventorySummary(totalQty, totalCapital),
 
+            if (!_isSelectionMode)
+              _buildInventoryLoadInsight(filteredList.length),
+
             // Search Box
             _buildSearchBox(),
 
@@ -2375,13 +2390,30 @@ class _InventoryViewState extends State<InventoryView>
                         controller: _scrollController,
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 76),
                         itemCount:
-                            filteredList.length + (_isLoadingMore ? 1 : 0),
+                            filteredList.length +
+                            (_isLoadingMore ? 1 : 0) +
+                            (!_hasMore && filteredList.isNotEmpty ? 1 : 0),
                         itemBuilder: (ctx, i) {
                           if (i >= filteredList.length) {
-                            // Loading indicator at bottom
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator()),
+                            if (_isLoadingMore) {
+                              return const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Center(
+                                child: Text(
+                                  'Đã hiển thị ${filteredList.length} ${_terms.productLabel.toLowerCase()}',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                             );
                           }
                           return _buildProfessionalCard(filteredList[i], i + 1);
@@ -2705,9 +2737,57 @@ class _InventoryViewState extends State<InventoryView>
           _summaryItemCompact(
             "VỐN TỒN KHO",
             _canViewCostPrice
-                ? "${MoneyUtils.formatCurrency(capital)} đ"
+                ? "${MoneyUtils.formatCompactCurrency(capital)} đ"
                 : "***",
             Icons.account_balance_wallet,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInventoryLoadInsight(int shownCount) {
+    final modeLabel = _needsFullData
+        ? 'Đang lọc: tải toàn bộ dữ liệu'
+        : 'Tải cuộn $_pageSize mục/lần';
+    final statusLabel = (!_needsFullData && _hasMore)
+        ? 'Còn dữ liệu để tải thêm'
+        : 'Đã tải hết dữ liệu hiện có';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insights, size: 14, color: Color(0xFF2962FF)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '$modeLabel • Đang hiển thị $shownCount mục',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            statusLabel,
+            style: TextStyle(
+              fontSize: 10,
+              color: (!_needsFullData && _hasMore)
+                  ? Colors.orange.shade700
+                  : Colors.green.shade700,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -2984,22 +3064,37 @@ class _InventoryViewState extends State<InventoryView>
     if (p.type == 'LINH_KIEN') typeIcon = '🔧';
 
     // Colors based on state
+    final rowIndex = index ?? 0;
+    final isAltRow = rowIndex.isEven;
+    final normalRowColor = isAltRow ? Colors.white : const Color(0xFFF7FAFF);
     final bgColor = isPending
-        ? Colors.orange.shade50
-        : (p.quantity <= 0 ? Colors.red.shade50 : Colors.white);
+      ? (isAltRow ? Colors.orange.shade50 : Colors.orange.shade100)
+      : (p.quantity <= 0
+          ? (isAltRow ? Colors.red.shade50 : Colors.red.shade100)
+          : normalRowColor);
     final borderColor = isSelected
         ? Colors.red
         : (isPending
               ? Colors.orange.shade300
               : (p.quantity <= 0 ? Colors.red.shade200 : Colors.grey.shade200));
+    final titleColor = isPending
+        ? Colors.orange.shade900
+        : const Color(0xFF0F172A);
+    final secondaryBgColor = isPending
+        ? Colors.orange.shade100
+        : Colors.blueGrey.shade50;
+    final secondaryTextColor = isPending
+        ? Colors.orange.shade900
+        : Colors.blueGrey.shade700;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 1),
+      margin: const EdgeInsets.only(bottom: 6),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: borderColor, width: isSelected ? 2 : 1),
       ),
-      elevation: 1,
+      elevation: 1.5,
+      shadowColor: borderColor.withValues(alpha: 0.25),
       color: bgColor,
       child: InkWell(
         onLongPress: () {
@@ -3083,9 +3178,7 @@ class _InventoryViewState extends State<InventoryView>
                                 style: AppTextStyles.body2.copyWith(
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
-                                  color: isPending
-                                      ? Colors.orange.shade800
-                                      : const Color(0xFF1A237E),
+                                  color: titleColor,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -3094,15 +3187,26 @@ class _InventoryViewState extends State<InventoryView>
                           ],
                         ),
                         if (secondaryLine.isNotEmpty)
-                          Text(
-                            secondaryLine,
-                            style: AppTextStyles.overline.copyWith(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            margin: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            decoration: BoxDecoration(
+                              color: secondaryBgColor,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              secondaryLine,
+                              style: AppTextStyles.overline.copyWith(
+                                fontSize: 10,
+                                color: secondaryTextColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                       ],
                     ),
@@ -3161,19 +3265,19 @@ class _InventoryViewState extends State<InventoryView>
   String _buildCompactMetaLine(Product p, bool isPending) {
     final parts = <String>[];
     if (_canViewCostPrice && !isPending && p.cost > 0) {
-      parts.add('Vốn ${NumberFormat.compact(locale: 'vi').format(p.cost)}đ');
+      parts.add('Vốn ${MoneyUtils.formatCompactCurrency(p.cost)}đ');
     }
     if (!isPending) {
-      parts.add('Bán ${NumberFormat.compact(locale: 'vi').format(p.price)}đ');
+      parts.add('Bán ${MoneyUtils.formatCompactCurrency(p.price)}đ');
     }
     if (p.supplier != null && p.supplier!.trim().isNotEmpty) {
       parts.add('NCC: ${p.supplier!.trim()}');
     }
     // Ngày nhập kho
     if (p.createdAt > 0) {
-      final ngayNhap = DateFormat('dd/MM/yy').format(
-        DateTime.fromMillisecondsSinceEpoch(p.createdAt),
-      );
+      final ngayNhap = DateFormat(
+        'dd/MM/yy',
+      ).format(DateTime.fromMillisecondsSinceEpoch(p.createdAt));
       parts.add('Nhập: $ngayNhap');
     }
     if (isPending) {

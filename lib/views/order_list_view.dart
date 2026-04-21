@@ -18,6 +18,7 @@ import '../services/business_type_helper.dart';
 import '../services/storage_service.dart';
 import '../services/user_service.dart';
 import '../utils/vietnamese_utils.dart';
+import '../utils/money_utils.dart';
 import '../widgets/gradient_fab.dart';
 import 'repair_detail_view.dart';
 import 'create_repair_order_view.dart';
@@ -120,9 +121,12 @@ class OrderListViewState extends State<OrderListView> {
     // Listen for repairs_changed events to refresh list
     _eventSubscription = EventBus().stream.listen((event) {
       if ((event == 'repairs_changed' ||
-           event == EventBus.shopChanged ||
-           event == EventBus.dataRefresh) && mounted) {
-        debugPrint('🔧 [OrderListView] Nhận event "$event" → debounce refresh local DB');
+              event == EventBus.shopChanged ||
+              event == EventBus.dataRefresh) &&
+          mounted) {
+        debugPrint(
+          '🔧 [OrderListView] Nhận event "$event" → debounce refresh local DB',
+        );
         _repairRefreshDebounce?.cancel();
         _repairRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
           if (mounted) _loadInitialData();
@@ -1176,6 +1180,10 @@ class OrderListViewState extends State<OrderListView> {
                 ),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: _buildListInsightBar(),
+            ),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -1269,6 +1277,11 @@ class OrderListViewState extends State<OrderListView> {
         borderColor = Colors.grey.shade300;
     }
 
+    final bool isAltRow = index.isEven;
+    final Color cardColor = isAltRow
+        ? bgColor
+        : Color.alphaBlend(const Color(0x14000000), bgColor);
+
     return Dismissible(
       key: Key(r.firestoreId ?? r.createdAt.toString()),
       direction: canDelete
@@ -1288,12 +1301,13 @@ class OrderListViewState extends State<OrderListView> {
         return false;
       },
       child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        color: bgColor,
-        elevation: 0,
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        color: cardColor,
+        elevation: 1.5,
+        shadowColor: borderColor.withValues(alpha: 0.25),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: borderColor),
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: borderColor, width: 1.2),
         ),
         child: InkWell(
           onTap: () async {
@@ -1458,6 +1472,7 @@ class OrderListViewState extends State<OrderListView> {
                             r.model,
                             style: AppTextStyles.subtitle1.copyWith(
                               fontWeight: FontWeight.bold,
+                              color: const Color(0xFF0F172A),
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -1515,19 +1530,28 @@ class OrderListViewState extends State<OrderListView> {
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
-                    // Khách hàng + SĐT (gom xuống chip)
-                    _repairInfoChip(
-                      '👤 ${r.customerName} • ${r.phone}',
-                      Colors.grey.shade200,
-                      textColor: Colors.grey.shade800,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
+                    // Khách hàng / SĐT: tách riêng để tránh overflow trên màn hình nhỏ.
+                    if (r.customerName.trim().isNotEmpty)
+                      _repairInfoChip(
+                        '👤 ${r.customerName}',
+                        Colors.blueGrey.shade50,
+                        textColor: Colors.blueGrey.shade800,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    if (r.phone.trim().isNotEmpty)
+                      _repairInfoChip(
+                        '📞 ${r.phone}',
+                        Colors.blueGrey.shade50,
+                        textColor: Colors.blueGrey.shade800,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     // Ngày tạo
                     _repairInfoChip(
                       '⏱ ${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.createdAt))}',
-                      Colors.grey.shade200,
-                      textColor: Colors.grey.shade800,
+                      Colors.blueGrey.shade50,
+                      textColor: Colors.blueGrey.shade800,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
@@ -1549,7 +1573,7 @@ class OrderListViewState extends State<OrderListView> {
                     // Giá thu khách (chỉ hiện khi có giá > 0)
                     if (r.price > 0)
                       _repairInfoChip(
-                        '💰 ${NumberFormat.compact(locale: 'vi').format(r.price)}đ',
+                        '💰 ${MoneyUtils.formatCompactCurrency(r.price)}đ',
                         Colors.green.shade100,
                         textColor: Colors.green.shade800,
                         fontWeight: FontWeight.w600,
@@ -1557,7 +1581,7 @@ class OrderListViewState extends State<OrderListView> {
                     // Giá vốn + Lợi nhuận (chỉ hiện với người có quyền)
                     if (_canViewCostPrice && r.cost > 0)
                       _repairInfoChip(
-                        '🏷 Vốn ${NumberFormat.compact(locale: 'vi').format(r.cost)}đ',
+                        '🏷 Vốn ${MoneyUtils.formatCompactCurrency(r.cost)}đ',
                         Colors.blue.shade50,
                         textColor: Colors.blue.shade700,
                         fontWeight: FontWeight.w600,
@@ -1565,10 +1589,14 @@ class OrderListViewState extends State<OrderListView> {
                     if (_canViewCostPrice && r.price > 0 && r.cost > 0)
                       _repairInfoChip(
                         (r.price - r.cost) >= 0
-                            ? '📈 Lãi ${NumberFormat.compact(locale: 'vi').format(r.price - r.cost)}đ'
-                            : '📉 Lỗ ${NumberFormat.compact(locale: 'vi').format((r.price - r.cost).abs())}đ',
-                        (r.price - r.cost) >= 0 ? Colors.green.shade50 : Colors.red.shade50,
-                        textColor: (r.price - r.cost) >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                            ? '📈 Lãi ${MoneyUtils.formatCompactCurrency(r.price - r.cost)}đ'
+                            : '📉 Lỗ ${MoneyUtils.formatCompactCurrency((r.price - r.cost).abs())}đ',
+                        (r.price - r.cost) >= 0
+                            ? Colors.green.shade50
+                            : Colors.red.shade50,
+                        textColor: (r.price - r.cost) >= 0
+                            ? Colors.green.shade700
+                            : Colors.red.shade700,
                         fontWeight: FontWeight.w600,
                       ),
                     // Ghi chú KTV (nếu có) - giới hạn 2 dòng tránh overflow
@@ -1698,6 +1726,53 @@ class OrderListViewState extends State<OrderListView> {
     );
   }
 
+  Widget _buildListInsightBar() {
+    final modeLabel = _needsFullData
+        ? 'Đang lọc: tải toàn bộ dữ liệu'
+        : 'Tải cuộn $_pageSize đơn/lần';
+    final statusLabel = (!_needsFullData && _hasMore)
+        ? 'Còn dữ liệu để tải thêm'
+        : 'Đã tải hết dữ liệu hiện có';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insights, size: 14, color: Color(0xFF2962FF)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '$modeLabel • Đang hiển thị ${_displayedRepairs.length} đơn',
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            statusLabel,
+            style: TextStyle(
+              fontSize: 10,
+              color: (!_needsFullData && _hasMore)
+                  ? Colors.orange.shade700
+                  : Colors.green.shade700,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getStatusLabel(int status, {bool pendingApproval = false}) {
     if (status == 3 && pendingApproval) {
       return loc.statusPendingApproval;
@@ -1734,4 +1809,3 @@ class OrderListViewState extends State<OrderListView> {
     }
   }
 }
-

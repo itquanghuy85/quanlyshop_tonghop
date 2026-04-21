@@ -14,6 +14,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
 import '../utils/vietnamese_utils.dart';
+import '../utils/money_utils.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
@@ -49,7 +50,7 @@ class _SaleListViewState extends State<SaleListView> {
   String _paymentStatusFilter = 'all'; // all, paid, debt
   DateTime? _customStartDate;
   DateTime? _customEndDate;
-  
+
   // Return tracking: saleId -> return summary
   Map<int, _SaleReturnInfo> _returnInfoMap = {};
 
@@ -63,12 +64,13 @@ class _SaleListViewState extends State<SaleListView> {
 
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
-  
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
   /// Check if we need full data (for filtering)
-  bool get _needsFullData => 
-      _search.isNotEmpty || 
-      _timeFilter != 'all' || 
+  bool get _needsFullData =>
+      _search.isNotEmpty ||
+      _timeFilter != 'all' ||
       _paymentStatusFilter != 'all';
 
   @override
@@ -79,10 +81,10 @@ class _SaleListViewState extends State<SaleListView> {
     }
     _refresh();
     _loadPermissions();
-    
+
     // Setup scroll listener for lazy loading
     _scrollController.addListener(_onScroll);
-    
+
     // Listen to sales changes (e.g., when settlement is received)
     _saleChangedSub = EventBus().on('sales_changed', (event) {
       debugPrint('🛒 [SaleListView] Nhận event "$event" → refresh local DB');
@@ -120,19 +122,19 @@ class _SaleListViewState extends State<SaleListView> {
       if (mounted) _refresh();
     });
   }
-  
+
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 300) {
       _loadMoreIfNeeded();
     }
   }
-  
+
   Future<void> _loadMoreIfNeeded() async {
     if (_isLoadingMore || !_hasMore || _needsFullData) return;
-    
+
     setState(() => _isLoadingMore = true);
-    
+
     try {
       final newData = await db.getSalesPaged(_pageSize, _currentOffset);
       if (mounted) {
@@ -157,7 +159,7 @@ class _SaleListViewState extends State<SaleListView> {
       _allLoadedSales = [];
       _hasMore = true;
     });
-    
+
     // Load shop settings for terminology
     final settings = await CategoryService().getShopSettings();
     if (mounted) _shopSettings = settings;
@@ -175,7 +177,7 @@ class _SaleListViewState extends State<SaleListView> {
       }
       _returnInfoMap = map;
     } catch (_) {}
-    
+
     if (_needsFullData || widget.todayOnly) {
       // Optimize: use date-range query when time filter is set
       final List<SaleOrder> data;
@@ -204,7 +206,10 @@ class _SaleListViewState extends State<SaleListView> {
           if (_customStartDate != null && _customEndDate != null) {
             data = await db.getSalesByDateRange(
               _customStartDate!.millisecondsSinceEpoch,
-              _customEndDate!.add(const Duration(days: 1)).millisecondsSinceEpoch - 1,
+              _customEndDate!
+                      .add(const Duration(days: 1))
+                      .millisecondsSinceEpoch -
+                  1,
             );
           } else {
             data = await db.getAllSales();
@@ -242,7 +247,9 @@ class _SaleListViewState extends State<SaleListView> {
     bool changed = false;
     for (final entry in _returnInfoMap.entries) {
       try {
-        final sale = _allLoadedSales.where((s) => s.id == entry.key).firstOrNull;
+        final sale = _allLoadedSales
+            .where((s) => s.id == entry.key)
+            .firstOrNull;
         if (sale != null && sale.id != null && sale.id! > 0) {
           final was = entry.value.allReturned;
           entry.value.allReturned = await _checkAllReturned(sale);
@@ -283,7 +290,8 @@ class _SaleListViewState extends State<SaleListView> {
           if (saleDate.isBefore(monthStart)) return false;
           break;
         case 'custom':
-          if (_customStartDate != null && saleDate.isBefore(_customStartDate!)) {
+          if (_customStartDate != null &&
+              saleDate.isBefore(_customStartDate!)) {
             return false;
           }
           if (_customEndDate != null &&
@@ -535,7 +543,6 @@ class _SaleListViewState extends State<SaleListView> {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = NumberFormat('#,###');
     final list = _applyFilters();
 
     // Calculate summary stats
@@ -550,7 +557,8 @@ class _SaleListViewState extends State<SaleListView> {
       backgroundColor: AppColors.background,
       appBar: CustomAppBar.build(
         title: widget.todayOnly ? 'DOANH SỐ HÔM NAY' : 'QUẢN LÝ ĐƠN BÁN',
-        subtitle: '$totalSales đơn • ${fmt.format(totalRevenue)}đ',
+        subtitle:
+            '$totalSales đơn • ${MoneyUtils.formatCompactCurrency(totalRevenue)}đ',
         accentColor: AppBarAccents.sales,
         centerTitle: false,
         actions: [
@@ -560,16 +568,26 @@ class _SaleListViewState extends State<SaleListView> {
               context,
               MaterialPageRoute(builder: (_) => const CreateSaleView()),
             ).then((_) => _refresh()),
-            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
+            icon: const Icon(
+              Icons.add_circle_outline_rounded,
+              color: Colors.white,
+            ),
             tooltip: 'Tạo đơn bán',
           ),
           // Xuất Excel
           IconButton(
             onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất đơn bán');
+              final result = await ExportDateFilterDialog.show(
+                context,
+                title: 'Xuất đơn bán',
+              );
               if (result == null) return;
               if (!mounted) return;
-              await ExcelExportHelper.exportSales(context, startMs: result['startMs'], endMs: result['endMs']);
+              await ExcelExportHelper.exportSales(
+                context,
+                startMs: result['startMs'],
+                endMs: result['endMs'],
+              );
             },
             icon: const Icon(Icons.file_download_outlined, color: Colors.white),
             tooltip: 'Xuất Excel',
@@ -617,8 +635,12 @@ class _SaleListViewState extends State<SaleListView> {
               onChanged: (v) => setState(() => _search = v),
               style: TextStyle(fontSize: AppTextStyles.headline5.fontSize),
               decoration: InputDecoration(
-                hintText: "Tìm theo tên khách, ${_terms.productLabel.toLowerCase()} hoặc ${_terms.specialField1Label}...",
-                hintStyle: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade500),
+                hintText:
+                    "Tìm theo tên khách, ${_terms.productLabel.toLowerCase()} hoặc ${_terms.specialField1Label}...",
+                hintStyle: TextStyle(
+                  fontSize: AppTextStyles.headline5.fontSize,
+                  color: Colors.grey.shade500,
+                ),
                 prefixIcon: const Icon(
                   Icons.search_rounded,
                   color: AppBarAccents.sales,
@@ -644,291 +666,459 @@ class _SaleListViewState extends State<SaleListView> {
           ? const Center(child: CircularProgressIndicator())
           : ResponsiveCenter(
               child: Column(
-              children: [
-                // Summary stats bar
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surface,
-                    boxShadow: [
-                      BoxShadow(color: AppColors.shadow, blurRadius: 4),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _summaryItem(
-                        'Đơn hàng',
-                        '$totalSales',
-                        AppColors.primary,
-                      ),
-                      _summaryItem(
-                        'Doanh thu',
-                        '${fmt.format(totalRevenue)}đ',
-                        AppColors.success,
-                      ),
-                      _summaryItem(
-                        'Còn nợ',
-                        '${fmt.format(totalDebt)}đ',
-                        totalDebt > 0 ? AppColors.error : AppColors.success,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Active filters chips
-                if (_activeFilterCount > 0)
+                children: [
+                  // Summary stats bar
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
-                      vertical: 8,
+                      vertical: 12,
                     ),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          if (_timeFilter != 'all' && !widget.todayOnly)
-                            _activeFilterChip(
-                              _getTimeFilterLabel(),
-                              () { _timeFilter = 'all'; _refresh(); },
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      boxShadow: [
+                        BoxShadow(color: AppColors.shadow, blurRadius: 4),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _summaryItem(
+                              'Đơn hàng',
+                              '$totalSales',
+                              AppColors.primary,
                             ),
-                          if (_paymentStatusFilter != 'all')
-                            _activeFilterChip(
-                              _getPaymentStatusLabel(),
-                              () =>
-                                  setState(() => _paymentStatusFilter = 'all'),
+                            _summaryItem(
+                              'Doanh thu',
+                              '${MoneyUtils.formatCompactCurrency(totalRevenue)}đ',
+                              AppColors.success,
                             ),
-                        ],
-                      ),
+                            _summaryItem(
+                              'Còn nợ',
+                              '${MoneyUtils.formatCompactCurrency(totalDebt)}đ',
+                              totalDebt > 0
+                                  ? AppColors.error
+                                  : AppColors.success,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _needsFullData
+                                ? 'Đang lọc: tải toàn bộ dữ liệu • hiển thị ${list.length} đơn'
+                                : 'Tải cuộn $_pageSize đơn/lần • hiển thị ${list.length} đơn',
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
-                // List
-                Expanded(
-                  child: list.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.shopping_bag_outlined,
-                                size: 80,
-                                color: AppColors.onSurface.withOpacity(0.3),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                "Không có đơn hàng nào",
-                                style: AppTextStyles.body1.copyWith(
-                                  color: AppColors.onSurface.withOpacity(0.6),
+                  // Active filters chips
+                  if (_activeFilterCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            if (_timeFilter != 'all' && !widget.todayOnly)
+                              _activeFilterChip(_getTimeFilterLabel(), () {
+                                _timeFilter = 'all';
+                                _refresh();
+                              }),
+                            if (_paymentStatusFilter != 'all')
+                              _activeFilterChip(
+                                _getPaymentStatusLabel(),
+                                () => setState(
+                                  () => _paymentStatusFilter = 'all',
                                 ),
                               ),
-                              if (_activeFilterCount > 0)
-                                TextButton(
-                                  onPressed: () {
-                                    _timeFilter = widget.todayOnly
-                                        ? 'today'
-                                        : 'all';
-                                    _paymentStatusFilter = 'all';
-                                    _refresh();
-                                  },
-                                  child: const Text('Xóa bộ lọc'),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // List
+                  Expanded(
+                    child: list.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_bag_outlined,
+                                  size: 80,
+                                  color: AppColors.onSurface.withOpacity(0.3),
                                 ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                          itemCount: list.length + (_isLoadingMore ? 1 : 0) + (!_hasMore && list.isNotEmpty ? 1 : 0),
-                          itemBuilder: (ctx, i) {
-                            if (i >= list.length) {
-                              if (_isLoadingMore) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Center(child: CircularProgressIndicator()),
+                                const SizedBox(height: 10),
+                                Text(
+                                  "Không có đơn hàng nào",
+                                  style: AppTextStyles.body1.copyWith(
+                                    color: AppColors.onSurface.withOpacity(0.6),
+                                  ),
+                                ),
+                                if (_activeFilterCount > 0)
+                                  TextButton(
+                                    onPressed: () {
+                                      _timeFilter = widget.todayOnly
+                                          ? 'today'
+                                          : 'all';
+                                      _paymentStatusFilter = 'all';
+                                      _refresh();
+                                    },
+                                    child: const Text('Xóa bộ lọc'),
+                                  ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                            itemCount:
+                                list.length +
+                                (_isLoadingMore ? 1 : 0) +
+                                (!_hasMore && list.isNotEmpty ? 1 : 0),
+                            itemBuilder: (ctx, i) {
+                              if (i >= list.length) {
+                                if (_isLoadingMore) {
+                                  return const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Center(
+                                    child: Text(
+                                      'Đã hiển thị ${list.length} đơn bán',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize:
+                                            AppTextStyles.subtitle1.fontSize,
+                                      ),
+                                    ),
+                                  ),
                                 );
                               }
-                              return Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Center(
-                                  child: Text(
-                                    'Đã hiển thị ${list.length} đơn bán',
-                                    style: TextStyle(color: Colors.grey[600], fontSize: AppTextStyles.subtitle1.fontSize),
+
+                              final s = list[i];
+                              final date = DateFormat('dd/MM HH:mm').format(
+                                DateTime.fromMillisecondsSinceEpoch(s.soldAt),
+                              );
+                              final remain = s.remainingDebt;
+                              final index = i + 1;
+                              final isPaid = s.isPaid;
+                              final returnInfo = s.id != null
+                                  ? _returnInfoMap[s.id]
+                                  : null;
+                              final isFullyReturned =
+                                  returnInfo?.allReturned == true;
+                              final borderColor = isFullyReturned
+                                  ? Colors.grey.shade300
+                                  : (isPaid
+                                        ? Colors.green.shade200
+                                        : Colors.orange.shade300);
+                              final isAltRow = index.isEven;
+                              final cardBgColor = isFullyReturned
+                                  ? (isAltRow
+                                        ? Colors.grey.shade50
+                                        : Colors.grey.shade100)
+                                  : (isAltRow
+                                        ? Colors.white
+                                        : const Color(0xFFEFF4FF));
+                              final customerBgColor = isFullyReturned
+                                  ? Colors.grey.shade100
+                                  : Colors.indigo.shade50;
+                              final secondaryBgColor = remain > 0
+                                  ? Colors.orange.shade50
+                                  : Colors.blueGrey.shade50;
+                              final customerTextColor = isFullyReturned
+                                  ? Colors.blueGrey.shade600
+                                  : Colors.indigo.shade700;
+                              final secondaryTextColor = remain > 0
+                                  ? Colors.orange.shade800
+                                  : Colors.blueGrey.shade700;
+
+                              // Chi tiết tài chính + khách hàng
+                              final metaParts = <String>[];
+                              final customerLine = s.customerName.isNotEmpty
+                                  ? '👤 ${s.customerName}'
+                                  : '';
+                              if (_canViewCostPrice && s.totalCost > 0)
+                                metaParts.add(
+                                  'Vốn ${MoneyUtils.formatCompactCurrency(s.totalCost)}đ',
+                                );
+                              if (s.finalPrice > 0)
+                                metaParts.add(
+                                  'Bán ${MoneyUtils.formatCompactCurrency(s.finalPrice)}đ',
+                                );
+                              if (_canViewCostPrice &&
+                                  s.totalCost > 0 &&
+                                  s.finalPrice > 0) {
+                                final profit = s.finalPrice - s.totalCost;
+                                metaParts.add(
+                                  profit >= 0
+                                      ? 'Lãi ${MoneyUtils.formatCompactCurrency(profit)}đ'
+                                      : 'Lỗ ${MoneyUtils.formatCompactCurrency(profit.abs())}đ',
+                                );
+                              }
+                              if (remain > 0)
+                                metaParts.add(
+                                  'Nợ ${MoneyUtils.formatCompactCurrency(remain)}đ',
+                                );
+                              if (s.sellerName.isNotEmpty)
+                                metaParts.add(s.sellerName);
+                              if (returnInfo != null) {
+                                metaParts.add(
+                                  isFullyReturned
+                                      ? 'Trả hết ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)}đ'
+                                      : 'Trả ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)}đ (${returnInfo.returnCount} lần)',
+                                );
+                              }
+                              final secondaryLine = metaParts.join(' • ');
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  side: BorderSide(
+                                    color: borderColor,
+                                    width: 1,
+                                  ),
+                                ),
+                                elevation: 1.8,
+                                shadowColor: borderColor.withOpacity(0.25),
+                                color: cardBgColor,
+                                child: InkWell(
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SaleDetailView(sale: s),
+                                      ),
+                                    ).then((_) => _refresh());
+                                  },
+                                  onLongPress: () {
+                                    HapticFeedback.mediumImpact();
+                                    _openReturn(s);
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 3,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 3,
+                                          height: 44,
+                                          margin: const EdgeInsets.only(
+                                            right: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isFullyReturned
+                                                ? Colors.grey.shade400
+                                                : (isPaid
+                                                      ? Colors.green.shade500
+                                                      : Colors.orange),
+                                            borderRadius: BorderRadius.circular(
+                                              3,
+                                            ),
+                                          ),
+                                        ),
+                                        // STT badge
+                                        Container(
+                                          width: 16,
+                                          height: 16,
+                                          margin: const EdgeInsets.only(
+                                            right: 3,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              '$index',
+                                              style: AppTextStyles.caption
+                                                  .copyWith(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: AppColors.primary,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                        const Text(
+                                          '🛒',
+                                          style: TextStyle(fontSize: 13),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        // Thông tin chính
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                s.productNames,
+                                                style: AppTextStyles.body2
+                                                    .copyWith(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: const Color(
+                                                        0xFF0F172A,
+                                                      ),
+                                                    ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              if (customerLine.isNotEmpty)
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                    top: 2,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 1,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: customerBgColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    customerLine,
+                                                    style: AppTextStyles
+                                                        .overline
+                                                        .copyWith(
+                                                          fontSize: 10,
+                                                          color:
+                                                              customerTextColor,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              if (secondaryLine.isNotEmpty)
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                    top: 2,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 1,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: secondaryBgColor,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    secondaryLine,
+                                                    style: AppTextStyles
+                                                        .overline
+                                                        .copyWith(
+                                                          fontSize: 10,
+                                                          color:
+                                                              secondaryTextColor,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Trạng thái + ngày
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 4,
+                                                    vertical: 0,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: isFullyReturned
+                                                    ? Colors.grey.shade400
+                                                    : (isPaid
+                                                          ? Colors
+                                                                .green
+                                                                .shade500
+                                                          : Colors.orange),
+                                                borderRadius:
+                                                    BorderRadius.circular(3),
+                                              ),
+                                              child: Text(
+                                                isFullyReturned
+                                                    ? 'TRẢ'
+                                                    : (isPaid
+                                                          ? 'ĐÃ THU'
+                                                          : 'CÒN NỢ'),
+                                                style: AppTextStyles.overline
+                                                    .copyWith(
+                                                      color: Colors.white,
+                                                      fontSize: 8,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                              ),
+                                            ),
+                                            Text(
+                                              date,
+                                              style: AppTextStyles.overline
+                                                  .copyWith(
+                                                    fontSize: 9,
+                                                    color: Colors.grey.shade500,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               );
-                            }
-
-                            final s = list[i];
-                            final date = DateFormat('dd/MM HH:mm').format(
-                              DateTime.fromMillisecondsSinceEpoch(s.soldAt),
-                            );
-                            final remain = s.remainingDebt;
-                            final index = i + 1;
-                            final isPaid = s.isPaid;
-                            final returnInfo = s.id != null ? _returnInfoMap[s.id] : null;
-                            final isFullyReturned = returnInfo?.allReturned == true;
-                            final borderColor = isFullyReturned
-                                ? Colors.grey.shade300
-                                : (isPaid ? Colors.green.shade200 : Colors.orange.shade300);
-
-                            // Chi tiết tài chính + khách hàng
-                            final cFmt = NumberFormat.compact(locale: 'vi');
-                            final metaParts = <String>[];
-                            if (s.customerName.isNotEmpty) metaParts.add('👤 ${s.customerName}');
-                            if (_canViewCostPrice && s.totalCost > 0)
-                              metaParts.add('Vốn ${cFmt.format(s.totalCost)}đ');
-                            if (s.finalPrice > 0) metaParts.add('Bán ${cFmt.format(s.finalPrice)}đ');
-                            if (_canViewCostPrice && s.totalCost > 0 && s.finalPrice > 0) {
-                              final profit = s.finalPrice - s.totalCost;
-                              metaParts.add(profit >= 0
-                                  ? 'Lãi ${cFmt.format(profit)}đ'
-                                  : 'Lỗ ${cFmt.format(profit.abs())}đ');
-                            }
-                            if (remain > 0) metaParts.add('Nợ ${fmt.format(remain)}đ');
-                            if (s.sellerName.isNotEmpty) metaParts.add(s.sellerName);
-                            if (returnInfo != null) {
-                              metaParts.add(isFullyReturned
-                                  ? 'Trả hết ${fmt.format(returnInfo.totalReturnedAmount)}đ'
-                                  : 'Trả ${fmt.format(returnInfo.totalReturnedAmount)}đ (${returnInfo.returnCount} lần)');
-                            }
-                            final secondaryLine = metaParts.join(' • ');
-
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 1),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                side: BorderSide(color: borderColor, width: 1),
-                              ),
-                              elevation: 1,
-                              color: Colors.white,
-                              child: InkWell(
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => SaleDetailView(sale: s),
-                                    ),
-                                  ).then((_) => _refresh());
-                                },
-                                onLongPress: () {
-                                  HapticFeedback.mediumImpact();
-                                  _openReturn(s);
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 7,
-                                    vertical: 3,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      // STT badge
-                                      Container(
-                                        width: 16,
-                                        height: 16,
-                                        margin: const EdgeInsets.only(right: 3),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primary.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            '$index',
-                                            style: AppTextStyles.caption.copyWith(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppColors.primary,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const Text('🛒', style: TextStyle(fontSize: 13)),
-                                      const SizedBox(width: 4),
-                                      // Thông tin chính
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              s.productNames,
-                                              style: AppTextStyles.body2.copyWith(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.bold,
-                                                color: const Color(0xFF1A237E),
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            if (secondaryLine.isNotEmpty)
-                                              Text(
-                                                secondaryLine,
-                                                style: AppTextStyles.overline.copyWith(
-                                                  fontSize: 10,
-                                                  color: remain > 0
-                                                      ? Colors.orange.shade700
-                                                      : Colors.grey.shade600,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                          ],
-                                        ),
-                                      ),
-                                      // Trạng thái + ngày
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 4,
-                                              vertical: 0,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: isFullyReturned
-                                                  ? Colors.grey.shade400
-                                                  : (isPaid
-                                                      ? Colors.green.shade500
-                                                      : Colors.orange),
-                                              borderRadius: BorderRadius.circular(3),
-                                            ),
-                                            child: Text(
-                                              isFullyReturned
-                                                  ? 'TRẢ'
-                                                  : (isPaid ? 'ĐÃ THU' : 'CÒN NỢ'),
-                                              style: AppTextStyles.overline.copyWith(
-                                                color: Colors.white,
-                                                fontSize: 8,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                          Text(
-                                            date,
-                                            style: AppTextStyles.overline.copyWith(
-                                              fontSize: 9,
-                                              color: Colors.grey.shade500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
     );
   }
@@ -1039,7 +1229,7 @@ class _SaleListViewState extends State<SaleListView> {
     if (m.contains("TRẢ GÓP")) return AppColors.warning;
     return AppColors.error;
   }
-  
+
   Widget _saleInfoChip(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1048,7 +1238,7 @@ class _SaleListViewState extends State<SaleListView> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        text, 
+        text,
         style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -1078,7 +1268,10 @@ class _SaleListViewState extends State<SaleListView> {
       if (imei.toUpperCase().startsWith('PKX')) {
         origQty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
       }
-      final isPhone = imei.isNotEmpty && !imei.toUpperCase().startsWith('PKX') && imei != 'NO_IMEI';
+      final isPhone =
+          imei.isNotEmpty &&
+          !imei.toUpperCase().startsWith('PKX') &&
+          imei != 'NO_IMEI';
       final key = isPhone ? imei.toUpperCase() : cleanName.toUpperCase();
       final returned = returnedMap[key] ?? 0;
       if (returned < origQty) return false;
@@ -1089,11 +1282,10 @@ class _SaleListViewState extends State<SaleListView> {
   List<Widget> _buildReturnChips(SaleOrder s) {
     final info = _returnInfoMap[s.id];
     if (info == null) return [];
-    final fmt = NumberFormat('#,###');
     if (info.allReturned) {
       return [
         _saleInfoChip(
-          '↩️ Trả hết ${fmt.format(info.totalReturnedAmount)}đ',
+          '↩️ Trả hết ${MoneyUtils.formatCompactCurrency(info.totalReturnedAmount)}đ',
           Colors.grey.shade300,
         ),
       ];
@@ -1102,7 +1294,7 @@ class _SaleListViewState extends State<SaleListView> {
       GestureDetector(
         onTap: () => _openReturn(s),
         child: _saleInfoChip(
-          '↩️ Trả ${fmt.format(info.totalReturnedAmount)}đ (${info.returnCount} lần)',
+          '↩️ Trả ${MoneyUtils.formatCompactCurrency(info.totalReturnedAmount)}đ (${info.returnCount} lần)',
           Colors.purple.shade100,
         ),
       ),
@@ -1113,7 +1305,10 @@ class _SaleListViewState extends State<SaleListView> {
     final info = _returnInfoMap[s.id];
     if (info != null && info.allReturned) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đơn này đã trả hết hàng'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Đơn này đã trả hết hàng'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
