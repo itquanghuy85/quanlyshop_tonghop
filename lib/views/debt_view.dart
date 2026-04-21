@@ -549,9 +549,9 @@ class _DebtViewState extends State<DebtView>
         subtitle: '$activeDebtsCount khoản nợ còn',
         tabController: _tabController!,
         tabs: [
-          const Tab(text: "KHÁCH NỢ"),
-          const Tab(text: "NỢ NCC"),
-          if (_enableRepair) const Tab(text: "NỢ ĐỐI TÁC"),
+          const Tab(text: "KHÁCH"),
+          const Tab(text: "NCC"),
+          if (_enableRepair) const Tab(text: "ĐỐI TÁC"),
           const Tab(text: "KHÁC"),
         ],
         accentColor: AppBarAccents.customer,
@@ -1051,38 +1051,30 @@ class _DebtViewState extends State<DebtView>
 
               // Amount row
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildDebtAmount('Tổng phí', totalCost, Colors.grey.shade700),
-                  _buildDebtAmount('Đã trả', totalPaid, Colors.green),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Tổng phí',
+                      amount: totalCost,
+                      valueColor: Colors.grey.shade700,
                     ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(8),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Đã trả',
+                      amount: totalPaid,
+                      valueColor: Colors.green,
                     ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'CÒN NỢ',
-                          style: TextStyle(
-                            fontSize: AppTextStyles.overlineSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        Text(
-                          MoneyUtils.formatCompactCurrency(remainingDebt),
-                          style: TextStyle(
-                            fontSize: AppTextStyles.subtitle1.fontSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Còn nợ',
+                      amount: remainingDebt,
+                      valueColor: Colors.white,
+                      bgColor: Colors.orange,
+                      labelColor: Colors.white70,
                     ),
                   ),
                 ],
@@ -1202,6 +1194,7 @@ class _DebtViewState extends State<DebtView>
               color: color,
               fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
           Text(
@@ -1210,6 +1203,16 @@ class _DebtViewState extends State<DebtView>
               color: color,
               fontWeight: FontWeight.bold,
             ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${MoneyUtils.formatCurrency(amount)}đ',
+            style: AppTextStyles.overline.copyWith(
+              color: color.withOpacity(0.75),
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1402,38 +1405,30 @@ class _DebtViewState extends State<DebtView>
 
               // Amount row
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildDebtAmount('Tổng nợ', total, Colors.grey.shade700),
-                  _buildDebtAmount('Đã trả', paid, Colors.green),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Tổng nợ',
+                      amount: total,
+                      valueColor: Colors.grey.shade700,
                     ),
-                    decoration: BoxDecoration(
-                      color: mainColor,
-                      borderRadius: BorderRadius.circular(8),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Đã trả',
+                      amount: paid,
+                      valueColor: Colors.green,
                     ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'CÒN NỢ',
-                          style: TextStyle(
-                            fontSize: AppTextStyles.overlineSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        Text(
-                          MoneyUtils.formatCompactCurrency(remain),
-                          style: TextStyle(
-                            fontSize: AppTextStyles.subtitle1.fontSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Còn nợ',
+                      amount: remain,
+                      valueColor: Colors.white,
+                      bgColor: mainColor,
+                      labelColor: Colors.white70,
                     ),
                   ),
                 ],
@@ -1510,27 +1505,52 @@ class _DebtViewState extends State<DebtView>
     );
   }
 
-  Widget _buildDebtAmount(String label, int amount, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: AppTextStyles.overlineSize,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey.shade500,
+  Widget _amountPill({
+    required String label,
+    required int amount,
+    required Color valueColor,
+    Color? bgColor,
+    Color? labelColor,
+  }) {
+    final chipBg = bgColor ?? Colors.grey.shade100;
+    final chipLabelColor = labelColor ?? Colors.grey.shade600;
+    final borderColor = bgColor == null
+        ? Colors.grey.shade200
+        : chipBg.withOpacity(0.7);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: chipBg,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTextStyles.overlineSize,
+              fontWeight: FontWeight.bold,
+              color: chipLabelColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-        Text(
-          MoneyUtils.formatCompactCurrency(amount),
-          style: TextStyle(
-            fontSize: AppTextStyles.subtitle1.fontSize,
-            fontWeight: FontWeight.bold,
-            color: color,
+          const SizedBox(height: 2),
+          Text(
+            MoneyUtils.formatCompactCurrency(amount),
+            style: TextStyle(
+              fontSize: AppTextStyles.subtitle1.fontSize,
+              fontWeight: FontWeight.bold,
+              color: valueColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

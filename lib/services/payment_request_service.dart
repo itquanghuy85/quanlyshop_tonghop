@@ -79,8 +79,10 @@ class PaymentRequestService {
       );
 
       final map = request.toMap();
-      // Use server timestamp for consistent ordering
-      map['createdAt'] = FieldValue.serverTimestamp();
+      // Keep a client timestamp so new requests appear immediately in ordered queries.
+      // Server timestamp is stored separately for audit/reconciliation if needed.
+      map['createdAt'] = Timestamp.fromDate(DateTime.now());
+      map['createdAtServer'] = FieldValue.serverTimestamp();
 
       final docRef = await _db.collection(_collection).add(map);
       debugPrint('✅ PaymentRequest created: ${docRef.id}');
@@ -490,7 +492,7 @@ class PaymentRequestService {
 
     Query<Map<String, dynamic>> query = _db
         .collection(_collection)
-      .where('shopId', isEqualTo: shopId);
+        .where('shopId', isEqualTo: shopId);
 
     if (statusFilter != null) {
       query = query.where('status', isEqualTo: statusFilter.name);
@@ -498,7 +500,7 @@ class PaymentRequestService {
 
     query = query
         .orderBy('createdAt', descending: true)
-      .limit(limit.clamp(1, 200));
+        .limit(limit.clamp(1, 200));
 
     final effectiveLimit = limit.clamp(1, 200);
     List<PaymentRequest> lastData = const <PaymentRequest>[];
@@ -509,8 +511,21 @@ class PaymentRequestService {
         '[SYNC][FETCH] collection=payment_requests count=$_requestsFetchCount reason=$reason limit=$effectiveLimit',
       );
       final snapshot = await query.get();
+      var docs = snapshot.docs;
+
+      // Fallback: newly created docs may temporarily miss `createdAt` in some writes,
+      // making them absent from orderBy queries. Pull a raw shop slice and sort client-side.
+      if (docs.isEmpty) {
+        final fallbackSnapshot = await _db
+            .collection(_collection)
+            .where('shopId', isEqualTo: shopId)
+            .limit(effectiveLimit)
+            .get();
+        docs = fallbackSnapshot.docs;
+      }
+
       final parsed = <PaymentRequest>[];
-      for (final doc in snapshot.docs) {
+      for (final doc in docs) {
         try {
           final req = PaymentRequest.fromSnapshot(doc);
           if (req.deleted) continue;
@@ -518,6 +533,15 @@ class PaymentRequestService {
         } catch (e) {
           debugPrint('❌ PaymentRequest parse error (${doc.id}): $e');
         }
+      }
+
+      if (statusFilter != null) {
+        parsed.removeWhere((r) => r.status != statusFilter);
+      }
+
+      parsed.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      if (parsed.length > effectiveLimit) {
+        return parsed.take(effectiveLimit).toList();
       }
       return parsed;
     }

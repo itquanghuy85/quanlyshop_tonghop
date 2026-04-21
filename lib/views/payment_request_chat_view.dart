@@ -1660,26 +1660,52 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _CreatePaymentRequestSheet(
-        onCreated: () {
-          _subscribeToRequests();
-          // Scroll to top to see new request
-          if (_scrollCtrl.hasClients) {
-            _scrollCtrl.animateTo(
-              0,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
+        onCreated: (requestId) {
+          _handleCreatedRequest(requestId);
         },
       ),
     );
+  }
+
+  Future<void> _handleCreatedRequest(String requestId) async {
+    if (!mounted) return;
+
+    setState(() {
+      _statusFilter = null;
+      _dateRange = 'all';
+      _searchQuery = '';
+      _searchCtrl.clear();
+      _isLoading = true;
+    });
+
+    try {
+      final created = await PaymentRequestService.getById(requestId);
+      if (!mounted) return;
+      if (created != null) {
+        setState(() {
+          _requests = [created, ..._requests.where((r) => r.id != created.id)];
+        });
+      }
+    } catch (_) {
+      // Ignore optimistic insert failures; stream refresh below is the source of truth.
+    }
+
+    _subscribeToRequests();
+
+    if (_scrollCtrl.hasClients) {
+      _scrollCtrl.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 }
 
 // ============== CREATE SHEET (separate widget for cleaner state) ==============
 
 class _CreatePaymentRequestSheet extends StatefulWidget {
-  final VoidCallback? onCreated;
+  final ValueChanged<String>? onCreated;
 
   const _CreatePaymentRequestSheet({this.onCreated});
 
@@ -2227,7 +2253,7 @@ class _CreatePaymentRequestSheetState
 
     if (result != null) {
       Navigator.pop(context);
-      widget.onCreated?.call();
+      widget.onCreated?.call(result);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ Đã gửi yêu cầu đóng tiền'),

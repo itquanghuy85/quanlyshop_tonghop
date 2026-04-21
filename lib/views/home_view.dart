@@ -7202,27 +7202,36 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'CÔNG NỢ TỔNG HỢP',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade700,
-                    fontSize: 14,
-                    letterSpacing: 0.5,
+                Expanded(
+                  child: Text(
+                    'CÔNG NỢ TỔNG HỢP',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade700,
+                      fontSize: 13,
+                      letterSpacing: 0.4,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
-                Text(
-                  'Tổng: ${MoneyUtils.formatVND(totalDebtRemain)}đ',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: totalDebtRemain > 0
-                        ? Colors.red.shade600
-                        : Colors.grey.shade500,
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Tổng: ${MoneyUtils.formatCompact(totalDebtRemain)}',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: totalDebtRemain > 0
+                          ? Colors.red.shade600
+                          : Colors.grey.shade500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 3),
                 Icon(
                   Icons.arrow_forward_ios,
                   size: 10,
@@ -7277,16 +7286,20 @@ class _HomeViewState extends State<HomeView>
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
         Text(
-          MoneyUtils.formatVND(amount),
+          MoneyUtils.formatCompact(amount),
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.bold,
             color: amount > 0 ? color : Colors.grey,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         Text(
           subLabel,

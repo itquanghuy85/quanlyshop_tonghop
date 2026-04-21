@@ -39,7 +39,7 @@ class MoneyUtils {
       final value = abs / 1000000;
       return '$sign${_compactFormat.format(value)} Tr';
     }
-    return '$sign$abs';
+    return '$sign${formatVND(abs)}';
   }
 
   /// DEPRECATED: Logic nhân 1000 đã bị loại bỏ vì gây bug.
