@@ -1,4 +1,4 @@
-rimport 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -3068,10 +3068,10 @@ class _InventoryViewState extends State<InventoryView>
     final isAltRow = rowIndex.isEven;
     final normalRowColor = isAltRow ? Colors.white : const Color(0xFFF7FAFF);
     final bgColor = isPending
-      ? (isAltRow ? Colors.orange.shade50 : Colors.orange.shade100)
-      : (p.quantity <= 0
-          ? (isAltRow ? Colors.red.shade50 : Colors.red.shade100)
-          : normalRowColor);
+        ? (isAltRow ? Colors.orange.shade50 : Colors.orange.shade100)
+        : (p.quantity <= 0
+              ? (isAltRow ? Colors.red.shade50 : Colors.red.shade100)
+              : normalRowColor);
     final borderColor = isSelected
         ? Colors.red
         : (isPending
