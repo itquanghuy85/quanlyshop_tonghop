@@ -7,35 +7,59 @@ class MoneyUtils {
     return MoneyInputFormatter.formatValue(value);
   }
 
-  /// Format rút gọn cho số tiền lớn: 1.200.000 -> 1.2 M, 1.000.000.000 -> 1 B
+  /// Format rút gọn cho số tiền lớn theo đơn vị Việt: Tr/Tỷ.
+  /// Ví dụ:
+  /// - 6_350_000_000 -> 6,350 Tr
+  /// - 30_450_000_000_000 -> 30,450 Tỷ
   static String formatCompactCurrency(int value) {
     final abs = value.abs();
     final sign = value < 0 ? '-' : '';
 
     if (abs >= 1000000000000) {
-      return '$sign${_formatCompactNumber(abs / 1000000000000)} T';
+      return '$sign${_formatCompactUnit(abs / 1000000000)} Tỷ';
     }
     if (abs >= 1000000000) {
-      return '$sign${_formatCompactNumber(abs / 1000000000)} B';
+      return '$sign${_formatCompactUnit(abs / 1000000000)} Tỷ';
     }
     if (abs >= 1000000) {
-      return '$sign${_formatCompactNumber(abs / 1000000)} M';
-    }
-    if (abs >= 1000) {
-      return '$sign${_formatCompactNumber(abs / 1000)} K';
+      return '$sign${_formatCompactUnit(abs / 1000000)} Tr';
     }
     return formatCurrency(value);
   }
 
-  static String _formatCompactNumber(double value) {
-    final raw = value >= 100
-        ? value.toStringAsFixed(0)
-        : value >= 10
-        ? value.toStringAsFixed(1)
-        : value.toStringAsFixed(2);
-    return raw
+  static String _formatCompactUnit(double value) {
+    final abs = value.abs();
+    final decimals = abs >= 1000
+        ? 0
+        : abs >= 100
+        ? 1
+        : abs >= 10
+        ? 2
+        : 3;
+
+    final raw = value.toStringAsFixed(decimals);
+    final cleaned = raw
         .replaceFirst(RegExp(r'([.]0+)$'), '')
         .replaceFirst(RegExp(r'(\.\d*[1-9])0+$'), r'$1');
+
+    final parts = cleaned.split('.');
+    final intPart = parts.first;
+    final fracPart = parts.length > 1 ? parts.last : '';
+    final grouped = _groupThousandsByComma(intPart);
+    if (fracPart.isEmpty) return grouped;
+    return '$grouped.$fracPart';
+  }
+
+  static String _groupThousandsByComma(String intPart) {
+    final buf = StringBuffer();
+    for (int i = 0; i < intPart.length; i++) {
+      final revIdx = intPart.length - i;
+      buf.write(intPart[i]);
+      if (revIdx > 1 && revIdx % 3 == 1) {
+        buf.write(',');
+      }
+    }
+    return buf.toString();
   }
 
   /// Parse chuỗi tiền có dấu chấm -> int VNĐ (mặc định 0 nếu lỗi)

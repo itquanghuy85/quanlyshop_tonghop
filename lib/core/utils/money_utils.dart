@@ -16,6 +16,7 @@ import '../../utils/money_input_formatter.dart';
 /// - Nhập "1500000" (>= 100000) → Giữ nguyên "1.500.000" → Lưu 1500000
 class MoneyUtils {
   static final NumberFormat _vndFormat = NumberFormat('#,###', 'vi_VN');
+  static final NumberFormat _compactFormat = NumberFormat('#,##0.###', 'en_US');
 
   /// Formats VNĐ amount to display string with dot separators.
   /// Example: 5000000 -> "5.000.000"
@@ -24,22 +25,19 @@ class MoneyUtils {
     return _vndFormat.format(vnd).replaceAll(',', '.');
   }
 
-  /// Formats VNĐ amount in compact form (K, M, B)
-  /// Example: 5000000 -> "5M", 1500000 -> "1.5M", 500000 -> "500K"
+  /// Formats VNĐ amount in compact form (Tr, Tỷ).
+  /// Example: 6_350_000_000 -> "6,350 Tr", 30_450_000_000_000 -> "30,450 Tỷ"
   static String formatCompact(int vnd) {
     if (vnd == 0) return '0';
     final abs = vnd.abs();
     final sign = vnd < 0 ? '-' : '';
-    
+
     if (abs >= 1000000000) {
       final value = abs / 1000000000;
-      return '$sign${value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 1)}B';
+      return '$sign${_compactFormat.format(value)} Tỷ';
     } else if (abs >= 1000000) {
       final value = abs / 1000000;
-      return '$sign${value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 1)}M';
-    } else if (abs >= 1000) {
-      final value = abs / 1000;
-      return '$sign${value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 1)}K';
+      return '$sign${_compactFormat.format(value)} Tr';
     }
     return '$sign$abs';
   }
@@ -72,7 +70,7 @@ class MoneyUtils {
   static int parseMoney(String text) {
     return MoneyInputFormatter.parseRaw(text);
   }
-  
+
   /// Parse raw value from formatted text (no conversion)
   static int parseRaw(String text) {
     return MoneyInputFormatter.parseRaw(text);

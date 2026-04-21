@@ -17,6 +17,7 @@ import '../widgets/gradient_fab.dart';
 import 'smart_stock_in_view.dart';
 import 'inventory_view.dart';
 import 'package:intl/intl.dart';
+import '../utils/money_utils.dart';
 
 /// Danh sách hàng chờ xác nhận (DRAFT)
 class PendingStockListView extends StatefulWidget {
@@ -328,7 +329,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
           children: [
             Expanded(
               child: Text(
-                'HÀNG CHỜ XÁC NHẬN NHẬP VÀO KHO',
+                'XÁC NHẬN NHẬP VÀO KHO',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -536,13 +537,13 @@ class _PendingStockListViewState extends State<PendingStockListView> {
         itemCount: _filteredEntries.length,
         itemBuilder: (ctx, index) {
           final entry = _filteredEntries[index];
-          return _buildEntryCard(entry);
+          return _buildEntryCard(entry, index);
         },
       ),
     );
   }
 
-  Widget _buildEntryCard(StockEntry entry) {
+  Widget _buildEntryCard(StockEntry entry, int index) {
     final item = entry.items.isNotEmpty ? entry.items.first : null;
 
     // Hiển thị card lỗi nếu không có items
@@ -618,11 +619,15 @@ class _PendingStockListViewState extends State<PendingStockListView> {
         : '';
 
     // Determine card color based on completeness
-    final bgColor = entry.canConfirm
+    final baseBgColor = entry.canConfirm
         ? Colors.green.shade50
         : entry.daysSinceCreated > 7
         ? Colors.red.shade50
         : Colors.orange.shade50;
+    final isAltRow = index.isEven;
+    final bgColor = isAltRow
+        ? Color.alphaBlend(Colors.blue.withOpacity(0.04), baseBgColor)
+        : baseBgColor;
 
     final borderColor = entry.canConfirm
         ? Colors.green.shade300
@@ -641,7 +646,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
     }
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       color: bgColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
@@ -673,7 +678,7 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                           item.name,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: AppTextStyles.headline4.fontSize,
+                            fontSize: AppTextStyles.headline5.fontSize,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -757,12 +762,12 @@ class _PendingStockListViewState extends State<PendingStockListView> {
                 children: [
                   if (item.cost != null && _canViewCostPrice)
                     _infoChip(
-                      'Vốn: ${NumberFormat.compact(locale: 'vi').format(item.cost)}đ',
+                      'Vốn: ${MoneyUtils.formatCompactCurrency(item.cost!.round())}',
                       Colors.orange.shade100,
                     ),
                   if (item.price != null)
                     _infoChip(
-                      'Bán: ${NumberFormat.compact(locale: 'vi').format(item.price)}đ',
+                      'Bán: ${MoneyUtils.formatCompactCurrency(item.price!.round())}',
                       Colors.green.shade100,
                     ),
                   if (item.color != null && item.color!.isNotEmpty)

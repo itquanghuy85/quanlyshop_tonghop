@@ -748,7 +748,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                   const Spacer(),
                   Text(
-                    MoneyUtils.formatCurrency(totalReceivable),
+                    MoneyUtils.formatCompactCurrency(totalReceivable),
                     style: AppTextStyles.body1.copyWith(
                       color: AppColors.error,
                       fontWeight: FontWeight.bold,
@@ -762,7 +762,7 @@ class _DebtViewState extends State<DebtView>
           if (receivableDebts.isNotEmpty)
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: receivableDebts.length,
                 itemBuilder: (ctx, i) => _debtCardWithIcon(
                   receivableDebts[i],
@@ -796,7 +796,7 @@ class _DebtViewState extends State<DebtView>
                   ),
                   const Spacer(),
                   Text(
-                    MoneyUtils.formatCurrency(totalPayable),
+                    MoneyUtils.formatCompactCurrency(totalPayable),
                     style: AppTextStyles.body1.copyWith(
                       color: AppColors.info,
                       fontWeight: FontWeight.bold,
@@ -810,7 +810,7 @@ class _DebtViewState extends State<DebtView>
           if (payableDebts.isNotEmpty)
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: payableDebts.length,
                 itemBuilder: (ctx, i) => _debtCardWithIcon(
                   payableDebts[i],
@@ -855,7 +855,7 @@ class _DebtViewState extends State<DebtView>
         ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             itemCount: list.length,
             itemBuilder: (ctx, i) => _debtCard(list[i], i + 1),
           ),
@@ -901,7 +901,7 @@ class _DebtViewState extends State<DebtView>
         _summaryHeader("TỔNG NỢ ĐỐI TÁC SỬA CHỮA", totalRemain, Colors.orange),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             itemCount: _partnerDebts.length,
             itemBuilder: (ctx, i) => _partnerDebtCard(_partnerDebts[i], i + 1),
           ),
@@ -920,19 +920,20 @@ class _DebtViewState extends State<DebtView>
     final remainingDebt = partner['remainingDebt'] as int? ?? 0;
     final note = partner['note']?.toString() ?? '';
     final source = partner['source'] ?? 'repairs';
+    final isAltRow = index.isEven;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      color: Colors.orange.shade50,
+      margin: const EdgeInsets.only(bottom: 6),
+      color: isAltRow ? const Color(0xFFFFF8EF) : Colors.orange.shade50,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: Colors.orange.shade200),
       ),
       child: InkWell(
         onTap: () => _navigateToPartnerDetail(partner),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -982,7 +983,7 @@ class _DebtViewState extends State<DebtView>
                           name.toUpperCase(),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: AppTextStyles.headline4.fontSize,
+                            fontSize: AppTextStyles.headline5.fontSize,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -991,7 +992,7 @@ class _DebtViewState extends State<DebtView>
                           Text(
                             '📞 $phone',
                             style: TextStyle(
-                              fontSize: AppTextStyles.body1.fontSize,
+                              fontSize: AppTextStyles.caption.fontSize,
                               color: Colors.grey.shade700,
                             ),
                           ),
@@ -1013,7 +1014,7 @@ class _DebtViewState extends State<DebtView>
                       style: TextStyle(
                         color: Colors.blue.shade700,
                         fontWeight: FontWeight.bold,
-                        fontSize: AppTextStyles.body1.fontSize,
+                        fontSize: AppTextStyles.caption.fontSize,
                       ),
                     ),
                   ),
@@ -1074,9 +1075,9 @@ class _DebtViewState extends State<DebtView>
                           ),
                         ),
                         Text(
-                          MoneyUtils.formatCurrency(remainingDebt),
+                          MoneyUtils.formatCompactCurrency(remainingDebt),
                           style: TextStyle(
-                            fontSize: AppTextStyles.headline5.fontSize,
+                            fontSize: AppTextStyles.subtitle1.fontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -1134,7 +1135,7 @@ class _DebtViewState extends State<DebtView>
         ),
         const SizedBox(height: 4),
         Text(
-          MoneyUtils.formatCurrency(amount),
+          MoneyUtils.formatCompactCurrency(amount),
           style: AppTextStyles.body1.copyWith(
             color: color,
             fontWeight: FontWeight.bold,
@@ -1204,7 +1205,7 @@ class _DebtViewState extends State<DebtView>
           ),
           const SizedBox(height: 4),
           Text(
-            MoneyUtils.formatCurrency(amount),
+            MoneyUtils.formatCompactCurrency(amount),
             style: AppTextStyles.headline4.copyWith(
               color: color,
               fontWeight: FontWeight.bold,
@@ -1237,7 +1238,6 @@ class _DebtViewState extends State<DebtView>
         debtType == 'OWE' ||
         debtType == 'OTHER_CUSTOMER_OWES';
     final mainColor = isCustomerDebt ? Colors.red : Colors.blue;
-    final bgColor = isCustomerDebt ? Colors.red.shade50 : Colors.blue.shade50;
     final borderColor = isCustomerDebt
         ? Colors.red.shade200
         : Colors.blue.shade200;
@@ -1248,14 +1248,19 @@ class _DebtViewState extends State<DebtView>
         .inDays;
     final isUrgent = daysSince > 30;
     final isVeryUrgent = daysSince > 60;
+    final isAltRow = (index ?? 0).isEven;
+    final normalBg = isCustomerDebt ? Colors.red.shade50 : Colors.blue.shade50;
+    final zebraBg = isAltRow
+        ? Color.alphaBlend(mainColor.withOpacity(0.04), normalBg)
+        : normalBg;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 6),
       color: isVeryUrgent
           ? Colors.red.shade100
-          : (isUrgent ? Colors.orange.shade50 : bgColor),
+          : (isUrgent ? Colors.orange.shade50 : zebraBg),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(
           color: isVeryUrgent
               ? Colors.red.shade400
@@ -1265,9 +1270,9 @@ class _DebtViewState extends State<DebtView>
       ),
       child: InkWell(
         onTap: () => _showDebtHistory(d),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1320,7 +1325,7 @@ class _DebtViewState extends State<DebtView>
                           personName.toUpperCase(),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: AppTextStyles.headline4.fontSize,
+                            fontSize: AppTextStyles.headline5.fontSize,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1329,7 +1334,7 @@ class _DebtViewState extends State<DebtView>
                           Text(
                             '📞 $phone',
                             style: TextStyle(
-                              fontSize: AppTextStyles.body1.fontSize,
+                              fontSize: AppTextStyles.caption.fontSize,
                               color: Colors.grey.shade700,
                             ),
                           ),
@@ -1343,7 +1348,7 @@ class _DebtViewState extends State<DebtView>
                       Text(
                         date,
                         style: TextStyle(
-                          fontSize: AppTextStyles.body1.fontSize,
+                          fontSize: AppTextStyles.body2.fontSize,
                           fontWeight: FontWeight.w500,
                           color: Colors.grey.shade700,
                         ),
@@ -1421,9 +1426,9 @@ class _DebtViewState extends State<DebtView>
                           ),
                         ),
                         Text(
-                          MoneyUtils.formatCurrency(remain),
+                          MoneyUtils.formatCompactCurrency(remain),
                           style: TextStyle(
-                            fontSize: AppTextStyles.headline5.fontSize,
+                            fontSize: AppTextStyles.subtitle1.fontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -1518,7 +1523,7 @@ class _DebtViewState extends State<DebtView>
           ),
         ),
         Text(
-          MoneyUtils.formatCurrency(amount),
+          MoneyUtils.formatCompactCurrency(amount),
           style: TextStyle(
             fontSize: AppTextStyles.subtitle1.fontSize,
             fontWeight: FontWeight.bold,
@@ -1541,7 +1546,7 @@ class _DebtViewState extends State<DebtView>
         ),
       ),
       Text(
-        MoneyUtils.formatCurrency(v),
+        MoneyUtils.formatCompactCurrency(v),
         style: TextStyle(
           fontSize: AppTextStyles.subtitle1.fontSize,
           fontWeight: FontWeight.bold,
@@ -2077,23 +2082,27 @@ class _DebtViewState extends State<DebtView>
   ]) {
     final int total = d['totalAmount'];
     final int paid = d['paidAmount'] ?? 0;
-    final int remain = total - paid;
+    final int remain = (total - paid).clamp(0, total);
     final date = DateFormat(
       'dd/MM/yyyy',
     ).format(DateTime.fromMillisecondsSinceEpoch(d['createdAt']));
+    final isAltRow = (index ?? 0).isEven;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        color: isAltRow
+            ? Color.alphaBlend(iconColor.withOpacity(0.04), Colors.white)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: iconColor.withOpacity(0.1)),
         boxShadow: [
           BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10),
         ],
       ),
       child: ListTile(
         onTap: () => _showDebtHistory(d),
-        contentPadding: const EdgeInsets.all(15),
+        contentPadding: const EdgeInsets.all(12),
         leading: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -2132,7 +2141,7 @@ class _DebtViewState extends State<DebtView>
                 (d['personName'] ?? 'N/A').toString().toUpperCase(),
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: AppTextStyles.headline4.fontSize,
+                  fontSize: AppTextStyles.headline5.fontSize,
                 ),
               ),
             ),
@@ -2152,13 +2161,13 @@ class _DebtViewState extends State<DebtView>
               Text(
                 "SĐT: ${d['phone']}",
                 style: TextStyle(
-                  fontSize: AppTextStyles.body1.fontSize,
+                  fontSize: AppTextStyles.caption.fontSize,
                   color: Colors.blueGrey,
                 ),
               ),
             Text(
               "Nội dung: ${d['note'] ?? ''}",
-              style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+              style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
             ),
             const SizedBox(height: 10),
             Row(

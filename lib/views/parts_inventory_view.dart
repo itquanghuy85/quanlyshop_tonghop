@@ -29,7 +29,8 @@ import 'supplier_form_view.dart';
 class PartsInventoryViewContent extends StatefulWidget {
   const PartsInventoryViewContent({super.key});
   @override
-  State<PartsInventoryViewContent> createState() => _PartsInventoryViewContentState();
+  State<PartsInventoryViewContent> createState() =>
+      _PartsInventoryViewContentState();
 }
 
 class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
@@ -42,7 +43,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   final searchCtrl = TextEditingController();
   String _searchQuery = '';
   // ignore: unused_field
-  bool _isAdmin = false; // Set in _loadPermissions, reserved for UI restrictions
+  bool _isAdmin =
+      false; // Set in _loadPermissions, reserved for UI restrictions
   bool _canViewCostPrice = false; // Phân quyền xem giá vốn
   bool _isSelectionMode = false;
   final Set<int> _selectedIds = {};
@@ -50,26 +52,27 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   String _sortBy = 'name'; // name, quantity, cost
   StreamSubscription? _eventBusSub;
   Timer? _partsRefreshDebounce;
-  
+
   // Dynamic terminology
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
-  
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
+
   // Navigation - filter by model category
   String? _selectedModelCategory;
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
-  
+
   // Available model categories for quick navigation
   static const List<String> _modelCategories = [
     'IPHONE',
-    'SAMSUNG', 
+    'SAMSUNG',
     'XIAOMI',
     'OPPO',
     'VIVO',
     'REALME',
   ];
-  
+
   // Theme colors - đồng bộ với InventoryView
   static const Color _primaryColor = Color(0xFF0068FF); // Zalo Blue
   static const Color _gradientStart = Color(0xFF0068FF);
@@ -94,17 +97,18 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         )
         .listen((event) {
           if (!mounted) return;
-          debugPrint('🔧 [PartsInventoryView] Nhận event "$event" → refresh local DB');
-          _partsRefreshDebounce?.cancel();
-          _partsRefreshDebounce = Timer(
-            const Duration(milliseconds: 300),
-            () { if (mounted) _refreshParts(); },
+          debugPrint(
+            '🔧 [PartsInventoryView] Nhận event "$event" → refresh local DB',
           );
+          _partsRefreshDebounce?.cancel();
+          _partsRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
+            if (mounted) _refreshParts();
+          });
         });
     // Scroll controller listener for scroll-to-top button
     _scrollController.addListener(_onScroll);
   }
-  
+
   void _onScroll() {
     if (!mounted) return;
     final showButton = _scrollController.offset > 200;
@@ -112,7 +116,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       setState(() => _showScrollToTop = showButton);
     }
   }
-  
+
   void _scrollToTop() {
     _scrollController.animateTo(
       0,
@@ -120,7 +124,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       curve: Curves.easeOut,
     );
   }
-  
+
   @override
   void dispose() {
     _partsRefreshDebounce?.cancel();
@@ -153,13 +157,17 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     setState(() => _isLoading = true);
     try {
       var data = await db.getAllParts();
-      debugPrint('🔧 [PartsInventoryView] Local DB trả về ${data.length} linh kiện');
+      debugPrint(
+        '🔧 [PartsInventoryView] Local DB trả về ${data.length} linh kiện',
+      );
 
       // Nếu local DB trống, thử sửa bản ghi bị stuck-deleted và đọc lại
       if (data.isEmpty) {
         final fixed = await db.fixStuckDeletedRepairParts();
         if (fixed > 0) {
-          debugPrint('🔧 [PartsInventoryView] Đã sửa $fixed linh kiện stuck-deleted, đọc lại...');
+          debugPrint(
+            '🔧 [PartsInventoryView] Đã sửa $fixed linh kiện stuck-deleted, đọc lại...',
+          );
           data = await db.getAllParts();
         }
       }
@@ -167,7 +175,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       // Nếu vẫn trống sau fix: SyncService sẽ tự đồng bộ từ cloud theo chu kỳ polling.
       // Không đọc Firestore trực tiếp tại đây để đảm bảo Single Source of Truth = local DB.
       if (data.isEmpty) {
-        debugPrint('🔧 [PartsInventoryView] Local DB trống — chờ SyncService đồng bộ từ cloud');
+        debugPrint(
+          '🔧 [PartsInventoryView] Local DB trống — chờ SyncService đồng bộ từ cloud',
+        );
       }
 
       if (!mounted) return;
@@ -192,7 +202,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         return;
       }
     } catch (e) {
-      debugPrint('PartsInventoryViewContent: Error loading suppliers via service: $e');
+      debugPrint(
+        'PartsInventoryViewContent: Error loading suppliers via service: $e',
+      );
     }
     // Fallback: raw local DB (no shopId filter) – always shows local data
     try {
@@ -200,43 +212,63 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       if (!mounted) return;
       setState(() => _suppliers = s);
     } catch (e) {
-      debugPrint('PartsInventoryViewContent: Error loading suppliers from DB: $e');
+      debugPrint(
+        'PartsInventoryViewContent: Error loading suppliers from DB: $e',
+      );
     }
   }
 
   void _applyFilter() {
     var filtered = _parts.where((p) {
       // Lọc theo search
-      final matchSearch = _searchQuery.isEmpty ||
-          (p['partName']?.toString().toUpperCase().contains(_searchQuery.toUpperCase()) ?? false) ||
-          (p['compatibleModels']?.toString().toUpperCase().contains(_searchQuery.toUpperCase()) ?? false);
-      
+      final matchSearch =
+          _searchQuery.isEmpty ||
+          (p['partName']?.toString().toUpperCase().contains(
+                _searchQuery.toUpperCase(),
+              ) ??
+              false) ||
+          (p['compatibleModels']?.toString().toUpperCase().contains(
+                _searchQuery.toUpperCase(),
+              ) ??
+              false);
+
       // Lọc hết hàng
       final qty = p['quantity'] as int? ?? 0;
       final matchStock = _showOutOfStock || qty > 0;
-      
+
       // Lọc theo model category (navigation)
-      final matchCategory = _selectedModelCategory == null ||
-          (p['compatibleModels']?.toString().toUpperCase().contains(_selectedModelCategory!) ?? false) ||
-          (p['partName']?.toString().toUpperCase().contains(_selectedModelCategory!) ?? false);
-      
+      final matchCategory =
+          _selectedModelCategory == null ||
+          (p['compatibleModels']?.toString().toUpperCase().contains(
+                _selectedModelCategory!,
+              ) ??
+              false) ||
+          (p['partName']?.toString().toUpperCase().contains(
+                _selectedModelCategory!,
+              ) ??
+              false);
+
       return matchSearch && matchStock && matchCategory;
     }).toList();
-    
+
     // Sort
     filtered.sort((a, b) {
       switch (_sortBy) {
         case 'quantity':
-          return (b['quantity'] as int? ?? 0).compareTo(a['quantity'] as int? ?? 0);
+          return (b['quantity'] as int? ?? 0).compareTo(
+            a['quantity'] as int? ?? 0,
+          );
         case 'cost':
           final costA = (a['cost'] as int? ?? 0) * (a['quantity'] as int? ?? 0);
           final costB = (b['cost'] as int? ?? 0) * (b['quantity'] as int? ?? 0);
           return costB.compareTo(costA);
         default:
-          return (a['partName'] ?? '').toString().compareTo((b['partName'] ?? '').toString());
+          return (a['partName'] ?? '').toString().compareTo(
+            (b['partName'] ?? '').toString(),
+          );
       }
     });
-    
+
     _filteredParts = filtered;
   }
 
@@ -261,11 +293,25 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
   @override
   Widget build(BuildContext context) {
     // Tính tổng
-    final partsWithStock = _showOutOfStock ? _parts : _parts.where((p) => (p['quantity'] as int? ?? 0) > 0).toList();
+    final partsWithStock = _showOutOfStock
+        ? _parts
+        : _parts.where((p) => (p['quantity'] as int? ?? 0) > 0).toList();
     final totalTypes = partsWithStock.length;
-    final totalQty = partsWithStock.fold<int>(0, (s, p) => s + (p['quantity'] as int? ?? 0));
-    final totalCost = partsWithStock.fold<int>(0, (s, p) => s + (p['cost'] as int? ?? 0) * (p['quantity'] as int? ?? 0));
-    final lowStockCount = _parts.where((p) => (p['quantity'] as int? ?? 0) > 0 && (p['quantity'] as int? ?? 0) <= 2).length;
+    final totalQty = partsWithStock.fold<int>(
+      0,
+      (s, p) => s + (p['quantity'] as int? ?? 0),
+    );
+    final totalCost = partsWithStock.fold<int>(
+      0,
+      (s, p) => s + (p['cost'] as int? ?? 0) * (p['quantity'] as int? ?? 0),
+    );
+    final lowStockCount = _parts
+        .where(
+          (p) =>
+              (p['quantity'] as int? ?? 0) > 0 &&
+              (p['quantity'] as int? ?? 0) <= 2,
+        )
+        .length;
 
     return Container(
       color: _backgroundColor,
@@ -276,17 +322,22 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 Column(
                   children: [
                     // Summary Card - đồng bộ style với Kho chính
-                    _buildSummaryCard(totalTypes, totalQty, totalCost, lowStockCount),
-                    
+                    _buildSummaryCard(
+                      totalTypes,
+                      totalQty,
+                      totalCost,
+                      lowStockCount,
+                    ),
+
                     // Navigation chips - Quick filter by model
                     _buildNavigationChips(),
-                    
+
                     // Search & Filter Bar
                     _buildSearchFilterBar(),
-                    
+
                     // Selection mode header
                     if (_isSelectionMode) _buildSelectionHeader(),
-                    
+
                     // List
                     Expanded(
                       child: _filteredParts.isEmpty
@@ -298,9 +349,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                                 controller: _scrollController,
                                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 80),
                                 itemCount: _filteredParts.length,
-                                itemBuilder: (ctx, i) => _buildPartCard(_filteredParts[i], i + 1),
-                          ),
-                        ),
+                                itemBuilder: (ctx, i) =>
+                                    _buildPartCard(_filteredParts[i], i + 1),
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -312,7 +364,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     child: FloatingActionButton.small(
                       onPressed: _scrollToTop,
                       backgroundColor: _primaryColor,
-                      child: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
+                      child: const Icon(
+                        Icons.keyboard_arrow_up,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 // Add new part FAB
@@ -324,14 +379,20 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     onPressed: _showAddNewPartDialog,
                     backgroundColor: _primaryColor,
                     icon: const Icon(Icons.add, color: Colors.white),
-                    label: Text('Thêm ${_terms.category3}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    label: Text(
+                      'Thêm ${_terms.category3}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
     );
   }
-  
+
   // Navigation chips for quick model filtering
   Widget _buildNavigationChips() {
     return Container(
@@ -348,8 +409,12 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 'Tất cả',
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: _selectedModelCategory == null ? FontWeight.bold : FontWeight.normal,
-                  color: _selectedModelCategory == null ? Colors.white : Colors.black87,
+                  fontWeight: _selectedModelCategory == null
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  color: _selectedModelCategory == null
+                      ? Colors.white
+                      : Colors.black87,
                 ),
               ),
               selected: _selectedModelCategory == null,
@@ -366,7 +431,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(
-                  color: _selectedModelCategory == null ? _primaryColor : Colors.grey.shade300,
+                  color: _selectedModelCategory == null
+                      ? _primaryColor
+                      : Colors.grey.shade300,
                 ),
               ),
             ),
@@ -375,11 +442,20 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           ..._modelCategories.map((category) {
             final isSelected = _selectedModelCategory == category;
             // Count parts matching this category
-            final count = _parts.where((p) =>
-              (p['compatibleModels']?.toString().toUpperCase().contains(category) ?? false) ||
-              (p['partName']?.toString().toUpperCase().contains(category) ?? false)
-            ).length;
-            
+            final count = _parts
+                .where(
+                  (p) =>
+                      (p['compatibleModels']?.toString().toUpperCase().contains(
+                            category,
+                          ) ??
+                          false) ||
+                      (p['partName']?.toString().toUpperCase().contains(
+                            category,
+                          ) ??
+                          false),
+                )
+                .length;
+
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
@@ -387,7 +463,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   '$category ($count)',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                     color: isSelected ? Colors.white : Colors.black87,
                   ),
                 ),
@@ -442,18 +520,32 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           _summaryItem(Icons.inventory_2, '$qty', 'Tổng SL'),
           if (_canViewCostPrice) ...[
             _verticalDivider(),
-            _summaryItem(Icons.account_balance_wallet, MoneyUtils.formatCompact(cost), 'Giá vốn'),
+            _summaryItem(
+              Icons.account_balance_wallet,
+              MoneyUtils.formatCompact(cost),
+              'Giá vốn',
+            ),
           ],
           if (lowStock > 0) ...[
             _verticalDivider(),
-            _summaryItem(Icons.warning_amber, '$lowStock', 'Sắp hết', Colors.amber),
+            _summaryItem(
+              Icons.warning_amber,
+              '$lowStock',
+              'Sắp hết',
+              Colors.amber,
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _summaryItem(IconData icon, String value, String label, [Color? iconColor]) {
+  Widget _summaryItem(
+    IconData icon,
+    String value,
+    String label, [
+    Color? iconColor,
+  ]) {
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -463,15 +555,24 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
             children: [
               Icon(icon, color: iconColor ?? Colors.white70, size: 14),
               const SizedBox(width: 4),
-              Text(value, style: TextStyle(
-                color: Colors.white,
-                fontSize: AppTextStyles.headline3.fontSize,
-                fontWeight: FontWeight.bold,
-              )),
+              Text(
+                value,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: AppTextStyles.headline3.fontSize,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: Colors.white70, fontSize: AppTextStyles.caption.fontSize)),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: AppTextStyles.caption.fontSize,
+            ),
+          ),
         ],
       ),
     );
@@ -494,7 +595,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                  ),
                 ],
               ),
               child: TextField(
@@ -507,8 +611,15 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 style: TextStyle(fontSize: AppTextStyles.headline4.fontSize),
                 decoration: InputDecoration(
                   hintText: 'Tìm ${_terms.category3}, model...',
-                  hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.headline5.fontSize),
-                  prefixIcon: const Icon(Icons.search, color: _primaryColor, size: 20),
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: AppTextStyles.headline5.fontSize,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: _primaryColor,
+                    size: 20,
+                  ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
                           icon: const Icon(Icons.clear, size: 18),
@@ -562,7 +673,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     );
   }
 
-  PopupMenuItem<String> _sortMenuItem(String value, String label, IconData icon) {
+  PopupMenuItem<String> _sortMenuItem(
+    String value,
+    String label,
+    IconData icon,
+  ) {
     final isSelected = _sortBy == value;
     return PopupMenuItem(
       value: value,
@@ -570,10 +685,13 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         children: [
           Icon(icon, size: 18, color: isSelected ? _primaryColor : Colors.grey),
           const SizedBox(width: 8),
-          Text(label, style: TextStyle(
-            color: isSelected ? _primaryColor : Colors.black87,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          )),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? _primaryColor : Colors.black87,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
           if (isSelected) ...[
             const Spacer(),
             const Icon(Icons.check, size: 16, color: _primaryColor),
@@ -606,11 +724,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           children: [
             Icon(icon, size: 14, color: selected ? _primaryColor : Colors.grey),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(
-              fontSize: AppTextStyles.body1.fontSize,
-              color: selected ? _primaryColor : Colors.grey,
-              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-            )),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: AppTextStyles.body1.fontSize,
+                color: selected ? _primaryColor : Colors.grey,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
           ],
         ),
       ),
@@ -632,7 +753,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           ),
           Text(
             'Đã chọn ${_selectedIds.length}',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryColor),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: _primaryColor,
+            ),
           ),
           const Spacer(),
           TextButton.icon(
@@ -658,14 +782,23 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     final supplierName = _getSupplierName(p['supplierId'] as int?);
     final dateMs = updatedAt ?? createdAt;
     final dateText = dateMs != null
-      ? DateFormat('dd/MM/yy').format(DateTime.fromMillisecondsSinceEpoch(dateMs))
-      : null;
+        ? DateFormat(
+            'dd/MM/yy',
+          ).format(DateTime.fromMillisecondsSinceEpoch(dateMs))
+        : null;
+    final isAltRow = index.isEven;
 
     // Color coding
-    final bgColor = isOut ? Colors.grey.shade50 : (isLow ? Colors.orange.shade50 : Colors.white);
-    final borderColor = isSelected 
-        ? _primaryColor 
-        : (isOut ? Colors.grey.shade300 : (isLow ? Colors.orange.shade200 : Colors.grey.shade200));
+    final bgColor = isOut
+        ? Colors.grey.shade50
+        : (isLow
+              ? Colors.orange.shade50
+              : (isAltRow ? const Color(0xFFF7FAFF) : Colors.white));
+    final borderColor = isSelected
+        ? _primaryColor
+        : (isOut
+              ? Colors.grey.shade300
+              : (isLow ? Colors.orange.shade200 : Colors.grey.shade200));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -692,7 +825,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               // Leading: index + quantity badge
               if (_isSelectionMode)
                 SizedBox(
-                  width: 36, height: 36,
+                  width: 36,
+                  height: 36,
                   child: Checkbox(
                     value: isSelected,
                     onChanged: (_) => _toggleSelection(id),
@@ -702,16 +836,22 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               else
                 Column(
                   children: [
-                    Text('$index', style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                    Text(
+                      '$index',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade400,
+                      ),
+                    ),
                     Container(
                       width: 38,
                       height: 30,
                       decoration: BoxDecoration(
-                        color: isOut 
-                            ? Colors.grey.shade200 
-                            : isLow 
-                                ? Colors.orange.withOpacity(0.15)
-                                : _primaryColor.withOpacity(0.1),
+                        color: isOut
+                            ? Colors.grey.shade200
+                            : isLow
+                            ? Colors.orange.withOpacity(0.15)
+                            : _primaryColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
@@ -720,7 +860,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: isOut ? Colors.grey : isLow ? Colors.orange : _primaryColor,
+                            color: isOut
+                                ? Colors.grey
+                                : isLow
+                                ? Colors.orange
+                                : _primaryColor,
                           ),
                         ),
                       ),
@@ -742,7 +886,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                             p['partName'] ?? 'N/A',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                              fontSize: 13,
                               color: isOut ? Colors.grey : Colors.black87,
                             ),
                             maxLines: 1,
@@ -751,25 +895,41 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                         ),
                         if (isLow && !isOut)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.orange.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('SẮP HẾT', style: TextStyle(
-                              fontSize: 9, color: Colors.orange, fontWeight: FontWeight.bold,
-                            )),
+                            child: const Text(
+                              'SẮP HẾT',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         if (isOut)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.grey.shade200,
                               borderRadius: BorderRadius.circular(4),
                             ),
-                            child: const Text('HẾT HÀNG', style: TextStyle(
-                              fontSize: 9, color: Colors.grey, fontWeight: FontWeight.bold,
-                            )),
+                            child: const Text(
+                              'HẾT HÀNG',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -778,28 +938,50 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     if ((p['compatibleModels'] ?? '').toString().isNotEmpty)
                       Text(
                         'Dùng cho: ${p['compatibleModels']}',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade600,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     const SizedBox(height: 4),
                     // Row 3: Info chips
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
                         if (_canViewCostPrice)
-                          _infoChip(Icons.attach_money, 'Vốn: ${NumberFormat.compact().format(cost)}', Colors.green.shade700),
-                        if (_canViewCostPrice)
-                          const SizedBox(width: 6),
-                        _infoChip(Icons.sell, 'Bán: ${NumberFormat('#,###').format(price)}đ', Colors.red.shade600),
-                        if (supplierName != 'Không xác định') ...[
-                          const SizedBox(width: 6),
-                          Flexible(child: _infoChip(Icons.local_shipping, supplierName, _primaryColor)),
-                        ],
+                          _infoChip(
+                            Icons.attach_money,
+                            'Vốn: ${MoneyUtils.formatCompact(cost)}',
+                            Colors.green.shade700,
+                          ),
+                        _infoChip(
+                          Icons.sell,
+                          'Bán: ${MoneyUtils.formatCompact(price)}',
+                          Colors.red.shade600,
+                        ),
+                        if (supplierName != 'Không xác định')
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 180),
+                            child: _infoChip(
+                              Icons.local_shipping,
+                              supplierName,
+                              _primaryColor,
+                            ),
+                          ),
                       ],
                     ),
                     if (dateText != null) ...[
                       const SizedBox(height: 2),
-                      Text(dateText, style: TextStyle(fontSize: 10, color: Colors.grey.shade400)),
+                      Text(
+                        dateText,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
                     ],
                   ],
                 ),
@@ -819,10 +1001,18 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.add_shopping_cart, size: 18, color: Colors.green.shade700),
+                      Icon(
+                        Icons.add_shopping_cart,
+                        size: 18,
+                        color: Colors.green.shade700,
+                      ),
                       Text(
-                        '${NumberFormat.compact().format(price)} đ',
-                        style: TextStyle(fontSize: 9, color: Colors.red.shade600, fontWeight: FontWeight.bold),
+                        MoneyUtils.formatCompact(price),
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.red.shade600,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -847,7 +1037,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         children: [
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 3),
-          Text(label, style: TextStyle(fontSize: AppTextStyles.body1.fontSize, color: color, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: AppTextStyles.body1.fontSize,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -858,18 +1055,30 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.build_circle_outlined, size: 80, color: Colors.grey.shade300),
+          Icon(
+            Icons.build_circle_outlined,
+            size: 80,
+            color: Colors.grey.shade300,
+          ),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty ? 'Không tìm thấy ${_terms.category3}' : 'Chưa có ${_terms.category3} trong kho',
-            style: TextStyle(fontSize: AppTextStyles.headline3.fontSize, color: Colors.grey.shade600),
+            _searchQuery.isNotEmpty
+                ? 'Không tìm thấy ${_terms.category3}'
+                : 'Chưa có ${_terms.category3} trong kho',
+            style: TextStyle(
+              fontSize: AppTextStyles.headline3.fontSize,
+              color: Colors.grey.shade600,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            _searchQuery.isNotEmpty 
-                ? 'Thử từ khóa khác' 
+            _searchQuery.isNotEmpty
+                ? 'Thử từ khóa khác'
                 : 'Nhấn "THÊM ${_terms.category3.toUpperCase()}" để bắt đầu',
-            style: TextStyle(fontSize: AppTextStyles.headline5.fontSize, color: Colors.grey.shade400),
+            style: TextStyle(
+              fontSize: AppTextStyles.headline5.fontSize,
+              color: Colors.grey.shade400,
+            ),
           ),
         ],
       ),
@@ -882,7 +1091,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     final currentQty = p['quantity'] as int? ?? 0;
     final currentCost = p['cost'] as int? ?? 0;
     final qtyCtrl = TextEditingController(text: '1');
-    final costCtrl = TextEditingController(text: currentCost > 0 ? CurrencyTextField.formatDisplay(currentCost) : '');
+    final costCtrl = TextEditingController(
+      text: currentCost > 0 ? CurrencyTextField.formatDisplay(currentCost) : '',
+    );
     String paymentMethod = 'TIỀN MẶT';
 
     showDialog(
@@ -892,9 +1103,18 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           return AlertDialog(
             title: Row(
               children: [
-                Icon(Icons.add_shopping_cart, color: Colors.green.shade700, size: 22),
+                Icon(
+                  Icons.add_shopping_cart,
+                  color: Colors.green.shade700,
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
-                Expanded(child: Text('NHẬP THÊM', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                Expanded(
+                  child: Text(
+                    'NHẬP THÊM',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
             content: SingleChildScrollView(
@@ -916,8 +1136,20 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(partName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                              Text('Tồn kho hiện tại: $currentQty', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                              Text(
+                                partName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                'Tồn kho hiện tại: $currentQty',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -932,7 +1164,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     decoration: InputDecoration(
                       labelText: 'Số lượng nhập thêm',
                       prefixIcon: const Icon(Icons.add_circle_outline),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -949,12 +1183,23 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     decoration: InputDecoration(
                       labelText: 'Phương thức thanh toán',
                       prefixIcon: const Icon(Icons.payment),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     items: const [
-                      DropdownMenuItem(value: 'TIỀN MẶT', child: Text('Tiền mặt')),
-                      DropdownMenuItem(value: 'CHUYỂN KHOẢN', child: Text('Chuyển khoản')),
-                      DropdownMenuItem(value: 'CÔNG NỢ', child: Text('Công nợ')),
+                      DropdownMenuItem(
+                        value: 'TIỀN MẶT',
+                        child: Text('Tiền mặt'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'CHUYỂN KHOẢN',
+                        child: Text('Chuyển khoản'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'CÔNG NỢ',
+                        child: Text('Công nợ'),
+                      ),
                     ],
                     onChanged: (v) => setDialogState(() => paymentMethod = v!),
                   ),
@@ -962,23 +1207,42 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('HỦY')),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('HỦY'),
+              ),
               ElevatedButton.icon(
                 icon: const Icon(Icons.check, color: Colors.white),
-                label: const Text('NHẬP KHO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                label: const Text(
+                  'NHẬP KHO',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 onPressed: () async {
                   CurrencyTextField.finalizeAll();
                   final addQty = int.tryParse(qtyCtrl.text) ?? 0;
                   if (addQty <= 0) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Vui lòng nhập số lượng hợp lệ'), backgroundColor: Colors.red),
+                      const SnackBar(
+                        content: Text('Vui lòng nhập số lượng hợp lệ'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                     return;
                   }
-                  final cost = CurrencyTextField.parseValueWithMultiply(costCtrl.text);
+                  final cost = CurrencyTextField.parseValueWithMultiply(
+                    costCtrl.text,
+                  );
                   Navigator.pop(ctx);
-                  await _processQuickPartStockIn(p, addQty, cost, paymentMethod);
+                  await _processQuickPartStockIn(
+                    p,
+                    addQty,
+                    cost,
+                    paymentMethod,
+                  );
                 },
               ),
             ],
@@ -988,7 +1252,12 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     );
   }
 
-  Future<void> _processQuickPartStockIn(Map<String, dynamic> p, int addQty, int cost, String paymentMethod) async {
+  Future<void> _processQuickPartStockIn(
+    Map<String, dynamic> p,
+    int addQty,
+    int cost,
+    String paymentMethod,
+  ) async {
     try {
       final partId = p['id'] as int;
       final partName = p['partName'] as String? ?? '';
@@ -1013,10 +1282,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               .collection('repair_parts')
               .doc(firestoreId)
               .update({
-            'quantity': newQty,
-            'cost': cost > 0 ? cost : (p['cost'] as int? ?? 0),
-            'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
-          });
+                'quantity': newQty,
+                'cost': cost > 0 ? cost : (p['cost'] as int? ?? 0),
+                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
+              });
         } catch (e) {
           debugPrint('⚠️ Quick stock-in Firestore sync error: $e');
         }
@@ -1028,7 +1297,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         action: 'PART_IMPORT',
         entityType: 'repair_part',
         entityId: firestoreId ?? partId.toString(),
-        summary: 'Nhập thêm ${_terms.category3}: $partName +$addQty (${NumberFormat('#,###').format(cost * addQty)}đ) - $paymentMethod',
+        summary:
+            'Nhập thêm ${_terms.category3}: $partName +$addQty (${NumberFormat('#,###').format(cost * addQty)}đ) - $paymentMethod',
         payload: {
           'partName': partName,
           'addQuantity': addQty,
@@ -1087,7 +1357,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       // Refresh and notify
       _refreshParts();
       EventBus().emit('parts_changed');
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1112,7 +1382,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     final supplierName = _getSupplierName(p['supplierId'] as int?);
     final createdAt = p['createdAt'] as int?;
     // updatedAt tracked but not displayed in current UI
-    
+
     showAppBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1151,7 +1421,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       color: _primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.build_circle, color: _primaryColor, size: 32),
+                    child: const Icon(
+                      Icons.build_circle,
+                      color: _primaryColor,
+                      size: 32,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1160,7 +1434,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       children: [
                         Text(
                           p['partName'] ?? 'N/A',
-                          style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: AppTextStyles.headline2.fontSize,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
                           p['compatibleModels'] ?? 'N/A',
@@ -1184,19 +1461,38 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     _detailRow('Số lượng tồn', '$qty', Icons.inventory_2),
                     if (_canViewCostPrice) ...[
                       const Divider(height: 20),
-                      _detailRow('Giá vốn/sp', '${NumberFormat('#,###').format(cost)}đ', Icons.attach_money),
+                      _detailRow(
+                        'Giá vốn/sp',
+                        '${NumberFormat('#,###').format(cost)}đ',
+                        Icons.attach_money,
+                      ),
                     ],
                     const Divider(height: 20),
-                    _detailRow('Giá bán/sp', '${NumberFormat('#,###').format(price)}đ', Icons.sell),
+                    _detailRow(
+                      'Giá bán/sp',
+                      '${NumberFormat('#,###').format(price)}đ',
+                      Icons.sell,
+                    ),
                     if (_canViewCostPrice) ...[
                       const Divider(height: 20),
-                      _detailRow('Tổng vốn tồn', '${NumberFormat('#,###').format(totalCost)}đ', Icons.account_balance_wallet, Colors.green),
+                      _detailRow(
+                        'Tổng vốn tồn',
+                        '${NumberFormat('#,###').format(totalCost)}đ',
+                        Icons.account_balance_wallet,
+                        Colors.green,
+                      ),
                     ],
                     const Divider(height: 20),
                     _detailRow('Nhà cung cấp', supplierName, Icons.store),
                     if (createdAt != null) ...[
                       const Divider(height: 20),
-                      _detailRow('Ngày nhập', DateFormat('dd/MM/yyyy').format(DateTime.fromMillisecondsSinceEpoch(createdAt)), Icons.calendar_today),
+                      _detailRow(
+                        'Ngày nhập',
+                        DateFormat('dd/MM/yyyy').format(
+                          DateTime.fromMillisecondsSinceEpoch(createdAt),
+                        ),
+                        Icons.calendar_today,
+                      ),
                     ],
                   ],
                 ),
@@ -1249,13 +1545,23 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       context: context,
                       builder: (c) => AlertDialog(
                         title: const Text('Xác nhận xóa'),
-                        content: Text('Bạn có chắc muốn xóa "${p['partName']}"?'),
+                        content: Text(
+                          'Bạn có chắc muốn xóa "${p['partName']}"?',
+                        ),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('HỦY')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(c, false),
+                            child: const Text('HỦY'),
+                          ),
                           ElevatedButton(
                             onPressed: () => Navigator.pop(c, true),
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            child: const Text('XÓA', style: TextStyle(color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            child: const Text(
+                              'XÓA',
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         ],
                       ),
@@ -1265,7 +1571,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     }
                   },
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  label: const Text('Xóa linh kiện', style: TextStyle(color: Colors.red)),
+                  label: const Text(
+                    'Xóa linh kiện',
+                    style: TextStyle(color: Colors.red),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.red),
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1279,16 +1588,26 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     );
   }
 
-  Widget _detailRow(String label, String value, IconData icon, [Color? valueColor]) {
+  Widget _detailRow(
+    String label,
+    String value,
+    IconData icon, [
+    Color? valueColor,
+  ]) {
     return Row(
       children: [
         Icon(icon, size: 18, color: Colors.grey),
         const SizedBox(width: 12),
-        Expanded(child: Text(label, style: TextStyle(color: Colors.grey.shade600))),
-        Text(value, style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: valueColor ?? Colors.black87,
-        )),
+        Expanded(
+          child: Text(label, style: TextStyle(color: Colors.grey.shade600)),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: valueColor ?? Colors.black87,
+          ),
+        ),
       ],
     );
   }
@@ -1344,7 +1663,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       Expanded(
                         child: Text(
                           'Chỉ sửa thông tin & giá bán. Muốn nhập thêm số lượng → dùng nút NHẬP THÊM.',
-                          style: TextStyle(color: Colors.blue, height: 1.3, fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.blue,
+                            height: 1.3,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -1353,7 +1676,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 // Read-only cost
                 if (_canViewCostPrice)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
                       color: Colors.grey.withOpacity(0.08),
@@ -1361,10 +1687,16 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.attach_money, size: 18, color: Colors.grey),
+                        const Icon(
+                          Icons.attach_money,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(width: 8),
-                        Text('Giá vốn: ${NumberFormat('#,###').format(p['cost'] ?? 0)}đ',
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(
+                          'Giá vốn: ${NumberFormat('#,###').format(p['cost'] ?? 0)}đ',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ],
                     ),
                   ),
@@ -1376,17 +1708,26 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 const SizedBox(height: 8),
                 // Read-only quantity
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.inventory_2, size: 18, color: Colors.grey),
+                      const Icon(
+                        Icons.inventory_2,
+                        size: 18,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(width: 8),
-                      Text('Tồn kho: ${p['quantity'] ?? 0}',
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(
+                        'Tồn kho: ${p['quantity'] ?? 0}',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
@@ -1395,7 +1736,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY")),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("HỦY"),
+          ),
           ElevatedButton(
             onPressed: () async {
               CurrencyTextField.finalizeAll();
@@ -1403,7 +1747,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               try {
                 final partId = p['id'] as int;
                 final partName = nameC.text.toUpperCase();
-                final price = CurrencyTextField.parseValueWithMultiply(priceC.text);
+                final price = CurrencyTextField.parseValueWithMultiply(
+                  priceC.text,
+                );
                 final now = DateTime.now().millisecondsSinceEpoch;
 
                 final editData = {
@@ -1414,8 +1760,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   'isSynced': 0,
                 };
                 await (await db.database).update(
-                  'repair_parts', editData,
-                  where: 'id = ?', whereArgs: [partId],
+                  'repair_parts',
+                  editData,
+                  where: 'id = ?',
+                  whereArgs: [partId],
                 );
 
                 // Sync to cloud
@@ -1426,7 +1774,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     entityId: partId,
                     firestoreId: firestoreId,
                     operation: SyncOperation.update,
-                    data: {...editData, 'id': partId, 'firestoreId': firestoreId},
+                    data: {
+                      ...editData,
+                      'id': partId,
+                      'firestoreId': firestoreId,
+                    },
                   );
                 }
 
@@ -1435,7 +1787,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   entityType: 'repair_part',
                   entityId: partId.toString(),
                   summary: 'Cập nhật ${_terms.category3}: $partName',
-                  payload: {'partName': partName, 'price': price, 'oldPrice': p['price']},
+                  payload: {
+                    'partName': partName,
+                    'price': price,
+                    'oldPrice': p['price'],
+                  },
                 );
 
                 if (!mounted) return;
@@ -1443,11 +1799,17 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 _refreshParts();
                 EventBus().emit('parts_changed');
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('✅ Đã cập nhật $partName'), backgroundColor: Colors.green),
+                  SnackBar(
+                    content: Text('✅ Đã cập nhật $partName'),
+                    backgroundColor: Colors.green,
+                  ),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                  SnackBar(
+                    content: Text('Lỗi: $e'),
+                    backgroundColor: Colors.red,
+                  ),
                 );
               }
             },
@@ -1503,13 +1865,19 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.orange.withOpacity(0.3),
+                          ),
                         ),
                         child: Column(
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Colors.orange,
+                                  size: 18,
+                                ),
                                 SizedBox(width: 8),
                                 Expanded(child: Text('Chưa có nhà cung cấp.')),
                               ],
@@ -1519,9 +1887,16 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                               width: double.infinity,
                               child: OutlinedButton.icon(
                                 onPressed: () async {
-                                  final result = await Navigator.push(ctx,
-                                    MaterialPageRoute(builder: (_) => const SupplierFormView()));
-                                  if (result == true) { await _loadSuppliers(); setS(() {}); }
+                                  final result = await Navigator.push(
+                                    ctx,
+                                    MaterialPageRoute(
+                                      builder: (_) => const SupplierFormView(),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    await _loadSuppliers();
+                                    setS(() {});
+                                  }
                                 },
                                 icon: const Icon(Icons.add, size: 16),
                                 label: const Text('THÊM NCC MỚI'),
@@ -1541,22 +1916,38 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                           _SupplierSearchField(
                             suppliers: _suppliers,
                             selectedSupplierId: selectedSupplierId,
-                            onChanged: (v) => setS(() => selectedSupplierId = v),
+                            onChanged: (v) =>
+                                setS(() => selectedSupplierId = v),
                           ),
                           const SizedBox(height: 6),
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton.icon(
                               onPressed: () async {
-                                final result = await Navigator.push(ctx,
-                                  MaterialPageRoute(builder: (_) => const SupplierFormView()));
-                                if (result == true) { await _loadSuppliers(); setS(() {}); }
+                                final result = await Navigator.push(
+                                  ctx,
+                                  MaterialPageRoute(
+                                    builder: (_) => const SupplierFormView(),
+                                  ),
+                                );
+                                if (result == true) {
+                                  await _loadSuppliers();
+                                  setS(() {});
+                                }
                               },
-                              icon: const Icon(Icons.add_circle_outline, size: 16),
-                              label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 14)),
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                size: 16,
+                              ),
+                              label: const Text(
+                                'Thêm NCC mới',
+                                style: TextStyle(fontSize: 14),
+                              ),
                               style: TextButton.styleFrom(
                                 foregroundColor: Colors.teal,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 visualDensity: VisualDensity.compact,
                               ),
                             ),
@@ -1587,7 +1978,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: qtyC,
-                      decoration: const InputDecoration(labelText: "Số lượng nhập"),
+                      decoration: const InputDecoration(
+                        labelText: "Số lượng nhập",
+                      ),
                       keyboardType: TextInputType.number,
                       validator: (v) {
                         final parsed = int.tryParse((v ?? '').trim()) ?? 0;
@@ -1596,41 +1989,69 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    const Text('Hình thức thanh toán:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Hình thức thanh toán:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((m) {
+                      children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((
+                        m,
+                      ) {
                         final selected = paymentMethod == m;
                         return ChoiceChip(
-                          label: Text(m, style: TextStyle(color: selected ? Colors.white : Colors.black)),
+                          label: Text(
+                            m,
+                            style: TextStyle(
+                              color: selected ? Colors.white : Colors.black,
+                            ),
+                          ),
                           selected: selected,
                           selectedColor: Colors.blue,
                           onSelected: (_) => setS(() => paymentMethod = m),
                         );
                       }).toList(),
                     ),
-                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId != null)
+                    if (paymentMethod == 'CÔNG NỢ' &&
+                        selectedSupplierId != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
-                            Expanded(child: Text('Sẽ tạo công nợ với: ${_getSupplierName(selectedSupplierId)}',
-                                style: const TextStyle(color: Colors.orange))),
+                            Expanded(
+                              child: Text(
+                                'Sẽ tạo công nợ với: ${_getSupplierName(selectedSupplierId)}',
+                                style: const TextStyle(color: Colors.orange),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId == null)
+                    if (paymentMethod == 'CÔNG NỢ' &&
+                        selectedSupplierId == null)
                       const Padding(
                         padding: EdgeInsets.only(top: 8),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline, color: Colors.red, size: 18),
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
-                            Expanded(child: Text('Chọn nhà cung cấp để ghi nhận công nợ.',
-                                style: TextStyle(color: Colors.red))),
+                            Expanded(
+                              child: Text(
+                                'Chọn nhà cung cấp để ghi nhận công nợ.',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1639,7 +2060,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("HỦY")),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("HỦY"),
+              ),
               ElevatedButton(
                 onPressed: () async {
                   CurrencyTextField.finalizeAll();
@@ -1647,8 +2071,12 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   try {
                     final now = DateTime.now().millisecondsSinceEpoch;
                     final partName = nameC.text.toUpperCase();
-                    final cost = CurrencyTextField.parseValueWithMultiply(costC.text);
-                    final price = CurrencyTextField.parseValueWithMultiply(priceC.text);
+                    final cost = CurrencyTextField.parseValueWithMultiply(
+                      costC.text,
+                    );
+                    final price = CurrencyTextField.parseValueWithMultiply(
+                      priceC.text,
+                    );
                     final qty = int.tryParse(qtyC.text) ?? 0;
                     if (qty <= 0) return;
 
@@ -1683,10 +2111,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                       action: 'PART_IMPORT',
                       entityType: 'repair_part',
                       entityId: insertedId.toString(),
-                      summary: 'Nhập ${_terms.category3}: $partName x$qty - ${NumberFormat('#,###').format(cost * qty)}đ ($paymentMethod)',
+                      summary:
+                          'Nhập ${_terms.category3}: $partName x$qty - ${NumberFormat('#,###').format(cost * qty)}đ ($paymentMethod)',
                       payload: {
-                        'partName': partName, 'quantity': qty, 'cost': cost,
-                        'totalCost': cost * qty, 'paymentMethod': paymentMethod,
+                        'partName': partName,
+                        'quantity': qty,
+                        'cost': cost,
+                        'totalCost': cost * qty,
+                        'paymentMethod': paymentMethod,
                         'supplierName': supplierName,
                       },
                     );
@@ -1694,7 +2126,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     // Supplier import history
                     if (selectedSupplierId != null) {
                       final user = FirebaseAuth.instance.currentUser;
-                      final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+                      final userName =
+                          user?.email?.split('@').first.toUpperCase() ?? 'NV';
                       final importHistory = {
                         'supplierId': selectedSupplierId,
                         'supplierName': supplierName,
@@ -1711,7 +2144,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                         'shopId': shopId,
                         'isSynced': 0,
                       };
-                      final importHistoryId = await db.insertSupplierImportHistory(importHistory);
+                      final importHistoryId = await db
+                          .insertSupplierImportHistory(importHistory);
                       if (importHistoryId > 0) {
                         await SyncOrchestrator().enqueueSupplierImportHistory(
                           importHistoryId,
@@ -1719,7 +2153,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                           operation: SyncOperation.create,
                         );
                       }
-                      await db.updateSupplierStats(selectedSupplierId!, cost * qty, qty);
+                      await db.updateSupplierStats(
+                        selectedSupplierId!,
+                        cost * qty,
+                        qty,
+                      );
                       EventBus().emit('suppliers_changed');
                     }
 
@@ -1727,7 +2165,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     final totalCost = cost * qty;
                     if (totalCost > 0) {
                       if (paymentMethod == 'CÔNG NỢ') {
-                        final debtFId = 'debt_part_${now}_${selectedSupplierId ?? 0}';
+                        final debtFId =
+                            'debt_part_${now}_${selectedSupplierId ?? 0}';
                         final debtData = {
                           'firestoreId': debtFId,
                           'personName': supplierName,
@@ -1762,7 +2201,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                           'amount': totalCost,
                           'category': 'NHẬP ${_terms.category3.toUpperCase()}',
                           'date': now,
-                          'note': 'Nhập từ kho ${_terms.category3} - $paymentMethod',
+                          'note':
+                              'Nhập từ kho ${_terms.category3} - $paymentMethod',
                           'paymentMethod': paymentMethod,
                           'createdAt': now,
                           'shopId': shopId,
@@ -1795,11 +2235,17 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     _refreshParts();
                     EventBus().emit('parts_changed');
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('✅ Đã nhập $partName x$qty'), backgroundColor: Colors.green),
+                      SnackBar(
+                        content: Text('✅ Đã nhập $partName x$qty'),
+                        backgroundColor: Colors.green,
+                      ),
                     );
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+                      SnackBar(
+                        content: Text('Lỗi: $e'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 },
@@ -1840,7 +2286,10 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đã xóa ${p['partName']}'), backgroundColor: Colors.green),
+        SnackBar(
+          content: Text('Đã xóa ${p['partName']}'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1852,7 +2301,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
 
   Future<void> _deleteSelectedParts() async {
     if (_selectedIds.isEmpty) return;
-    
+
     final count = _selectedIds.length;
     final confirm = await showDialog<bool>(
       context: context,
@@ -1874,9 +2323,9 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         ],
       ),
     );
-    
+
     if (confirm != true) return;
-    
+
     try {
       final database = await db.database;
       int deletedCount = 0;
@@ -1896,10 +2345,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         deletedCount++;
 
         // Log audit
-        final part = _parts.firstWhere(
-          (p) => p['id'] == id,
-          orElse: () => {},
-        );
+        final part = _parts.firstWhere((p) => p['id'] == id, orElse: () => {});
         if (part.isNotEmpty) {
           await AuditService.logAction(
             action: 'DELETE_PART',
@@ -1916,7 +2362,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         _selectedIds.clear();
         _isSelectionMode = false;
       });
-      
+
       _refreshParts();
       EventBus().emit('repair_parts_changed');
 
@@ -1967,7 +2413,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
   // Dynamic terminology
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
@@ -1987,12 +2434,13 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
         )
         .listen((event) {
           if (!mounted) return;
-          debugPrint('🔧 [PartsInventoryView] Nhận event "$event" → refresh local DB');
-          _partsRefreshDebounce2?.cancel();
-          _partsRefreshDebounce2 = Timer(
-            const Duration(milliseconds: 300),
-            () { if (mounted) _refreshParts(); },
+          debugPrint(
+            '🔧 [PartsInventoryView] Nhận event "$event" → refresh local DB',
           );
+          _partsRefreshDebounce2?.cancel();
+          _partsRefreshDebounce2 = Timer(const Duration(milliseconds: 300), () {
+            if (mounted) _refreshParts();
+          });
         });
     super.dispose();
   }
@@ -2019,19 +2467,25 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     setState(() => _isLoading = true);
     try {
       var data = await db.getAllParts();
-      debugPrint('🔧 [PartsInventoryView] Local DB trả về ${data.length} linh kiện');
+      debugPrint(
+        '🔧 [PartsInventoryView] Local DB trả về ${data.length} linh kiện',
+      );
 
       if (data.isEmpty) {
         final fixed = await db.fixStuckDeletedRepairParts();
         if (fixed > 0) {
-          debugPrint('🔧 [PartsInventoryView] Đã sửa $fixed linh kiện stuck-deleted, đọc lại...');
+          debugPrint(
+            '🔧 [PartsInventoryView] Đã sửa $fixed linh kiện stuck-deleted, đọc lại...',
+          );
           data = await db.getAllParts();
         }
       }
 
       // Nếu vẫn trống: SyncService sẽ tự đồng bộ từ cloud theo chu kỳ polling.
       if (data.isEmpty) {
-        debugPrint('🔧 [PartsInventoryView] Local DB trống — chờ SyncService đồng bộ từ cloud');
+        debugPrint(
+          '🔧 [PartsInventoryView] Local DB trống — chờ SyncService đồng bộ từ cloud',
+        );
       }
 
       if (!mounted) return;
@@ -2120,7 +2574,11 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
             nameC.addListener(() => setS(() {}));
           }
           return AlertDialog(
-            title: Text(isEdit ? "SỬA ${_terms.category3.toUpperCase()}" : "NHẬP ${_terms.category3.toUpperCase()} MỚI"),
+            title: Text(
+              isEdit
+                  ? "SỬA ${_terms.category3.toUpperCase()}"
+                  : "NHẬP ${_terms.category3.toUpperCase()} MỚI",
+            ),
             content: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -2197,11 +2655,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                   size: 18,
                                 ),
                                 SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Chưa có nhà cung cấp.',
-                                  ),
-                                ),
+                                Expanded(child: Text('Chưa có nhà cung cấp.')),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -2239,7 +2693,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           _SupplierSearchField(
                             suppliers: _suppliers,
                             selectedSupplierId: selectedSupplierId,
-                            onChanged: (v) => setS(() => selectedSupplierId = v),
+                            onChanged: (v) =>
+                                setS(() => selectedSupplierId = v),
                           ),
                           const SizedBox(height: 6),
                           // Shortcut to add new supplier
@@ -2258,11 +2713,19 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                                   setS(() {});
                                 }
                               },
-                              icon: const Icon(Icons.add_circle_outline, size: 16),
-                              label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 14)),
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                size: 16,
+                              ),
+                              label: const Text(
+                                'Thêm NCC mới',
+                                style: TextStyle(fontSize: 14),
+                              ),
                               style: TextButton.styleFrom(
                                 foregroundColor: Colors.teal,
-                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
                                 visualDensity: VisualDensity.compact,
                               ),
                             ),
@@ -2275,7 +2738,11 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Row(
                           children: [
-                            const Icon(Icons.local_shipping, size: 16, color: Colors.grey),
+                            const Icon(
+                              Icons.local_shipping,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'NCC: ${_getSupplierName(selectedSupplierId)}',
@@ -2296,8 +2763,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                               enabled: !isEdit,
                             ),
                           ),
-                        if (_canViewCostPrice)
-                          const SizedBox(width: 10),
+                        if (_canViewCostPrice) const SizedBox(width: 10),
                         Expanded(
                           child: CurrencyTextField(
                             controller: priceC,
@@ -2311,18 +2777,27 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     if (isEdit)
                       // Edit mode: show quantity as read-only info
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.grey.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.inventory_2, size: 18, color: Colors.grey),
+                            const Icon(
+                              Icons.inventory_2,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Tồn kho: ${part?['quantity'] ?? 0}',
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -2534,7 +3009,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         final user = FirebaseAuth.instance.currentUser;
                         if (paymentMethod == 'CÔNG NỢ') {
                           // Công nợ NCC → Tạo debt record + PaymentIntent (CHỜ CHI)
-                          final debtFId = 'debt_part_${DateTime.now().millisecondsSinceEpoch}_${selectedSupplierId ?? 0}';
+                          final debtFId =
+                              'debt_part_${DateTime.now().millisecondsSinceEpoch}_${selectedSupplierId ?? 0}';
                           final debtData = {
                             'firestoreId': debtFId,
                             'personName': supplierName,
@@ -2550,7 +3026,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             'shopId': shopId,
                           };
                           final debtId = await db.insertDebt(debtData);
-                          
+
                           if (debtId > 0) {
                             await SyncOrchestrator().enqueue(
                               entityType: SyncEntityType.debt,
@@ -2560,21 +3036,26 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                               data: debtData,
                             );
                           }
-                          
+
                           // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
-                          debugPrint('✅ Part debt recorded (no PaymentIntent needed)');
+                          debugPrint(
+                            '✅ Part debt recorded (no PaymentIntent needed)',
+                          );
                           EventBus().emit('debts_changed');
                         } else {
                           // TIỀN MẶT/CHUYỂN KHOẢN → Tạo expense record TRỰC TIẾP
-                          final expenseFirestoreId = 'exp_part_${DateTime.now().millisecondsSinceEpoch}_$partName';
+                          final expenseFirestoreId =
+                              'exp_part_${DateTime.now().millisecondsSinceEpoch}_$partName';
                           final expenseData = {
                             'firestoreId': expenseFirestoreId,
                             'title': 'Nhập ${_terms.category3}: $partName',
                             'description': 'NCC: $supplierName - SL: $qty',
                             'amount': totalCost,
-                            'category': 'NHẬP ${_terms.category3.toUpperCase()}',
+                            'category':
+                                'NHẬP ${_terms.category3.toUpperCase()}',
                             'date': DateTime.now().millisecondsSinceEpoch,
-                            'note': 'Nhập từ kho ${_terms.category3} - $paymentMethod',
+                            'note':
+                                'Nhập từ kho ${_terms.category3} - $paymentMethod',
                             'paymentMethod': paymentMethod,
                             'createdAt': DateTime.now().millisecondsSinceEpoch,
                             'shopId': shopId,
@@ -2590,7 +3071,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                               data: expenseData,
                             );
                           }
-                          
+
                           // Log vào financial_activity_log để hiện trong Nhật ký tài chính
                           await FinancialActivityService.logPurchase(
                             firestoreId: expenseFirestoreId,
@@ -2600,9 +3081,11 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             paymentMethod: paymentMethod,
                             supplierName: supplierName,
                           );
-                          
+
                           EventBus().emit('expenses_changed');
-                          debugPrint('PartsInventory: Created expense for $paymentMethod: $totalCost');
+                          debugPrint(
+                            'PartsInventory: Created expense for $paymentMethod: $totalCost',
+                          );
                         }
                       }
                     } else {
@@ -2626,7 +3109,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
 
                       // Queue sync update to cloud
                       final partFirestoreId = part['firestoreId'] as String?;
-                      if (partFirestoreId != null && partFirestoreId.isNotEmpty) {
+                      if (partFirestoreId != null &&
+                          partFirestoreId.isNotEmpty) {
                         await SyncOrchestrator().enqueue(
                           entityType: SyncEntityType.repairPart,
                           entityId: partId,
@@ -2644,7 +3128,8 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         action: 'PART_INFO_UPDATE',
                         entityType: 'repair_part',
                         entityId: partId.toString(),
-                        summary: 'Cập nhật thông tin ${_terms.category3}: $partName',
+                        summary:
+                            'Cập nhật thông tin ${_terms.category3}: $partName',
                         payload: {
                           'partName': partName,
                           'price': price,
@@ -2680,7 +3165,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     final currentQty = part['quantity'] as int? ?? 0;
     final currentCost = part['cost'] as int? ?? 0;
     final partId = part['id'] as int;
-    
+
     final addQtyC = TextEditingController(text: '1');
     final costC = TextEditingController(
       text: CurrencyTextField.formatDisplay(currentCost),
@@ -2714,7 +3199,11 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.inventory_2, size: 18, color: Colors.teal),
+                          const Icon(
+                            Icons.inventory_2,
+                            size: 18,
+                            color: Colors.teal,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Tồn kho hiện tại: $currentQty',
@@ -2773,7 +3262,10 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             }
                           },
                           icon: const Icon(Icons.add_circle_outline, size: 16),
-                          label: const Text('Thêm NCC mới', style: TextStyle(fontSize: 14)),
+                          label: const Text(
+                            'Thêm NCC mới',
+                            style: TextStyle(fontSize: 14),
+                          ),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.teal,
                             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -2791,7 +3283,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((m) {
+                      children: ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'].map((
+                        m,
+                      ) {
                         final selected = paymentMethod == m;
                         return ChoiceChip(
                           label: Text(
@@ -2806,12 +3300,17 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         );
                       }).toList(),
                     ),
-                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId != null)
+                    if (paymentMethod == 'CÔNG NỢ' &&
+                        selectedSupplierId != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 18),
+                            const Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -2822,12 +3321,17 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           ],
                         ),
                       ),
-                    if (paymentMethod == 'CÔNG NỢ' && selectedSupplierId == null)
+                    if (paymentMethod == 'CÔNG NỢ' &&
+                        selectedSupplierId == null)
                       const Padding(
                         padding: EdgeInsets.only(top: 8.0),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline, color: Colors.red, size: 18),
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red,
+                              size: 18,
+                            ),
                             SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -2856,7 +3360,9 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     final now = DateTime.now().millisecondsSinceEpoch;
                     final addQty = int.tryParse(addQtyC.text.trim()) ?? 0;
                     if (addQty <= 0) return;
-                    final cost = CurrencyTextField.parseValueWithMultiply(costC.text);
+                    final cost = CurrencyTextField.parseValueWithMultiply(
+                      costC.text,
+                    );
                     final totalCost = cost * addQty;
                     final newQty = currentQty + addQty;
                     final supplierName = _getSupplierName(selectedSupplierId);
@@ -2933,13 +3439,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         'shopId': shopId,
                         'isSynced': 0,
                       };
-                      final importHistoryId =
-                          await db.insertSupplierImportHistory(importHistory);
+                      final importHistoryId = await db
+                          .insertSupplierImportHistory(importHistory);
                       if (importHistoryId > 0) {
                         await SyncOrchestrator().enqueueSupplierImportHistory(
                           importHistoryId,
-                          firestoreId:
-                              importHistory['firestoreId'] as String?,
+                          firestoreId: importHistory['firestoreId'] as String?,
                           operation: SyncOperation.create,
                         );
                       }
@@ -2986,20 +3491,19 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         }
 
                         // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
-                        debugPrint('✅ Add-stock debt recorded (no PaymentIntent needed)');
+                        debugPrint(
+                          '✅ Add-stock debt recorded (no PaymentIntent needed)',
+                        );
                         EventBus().emit('debts_changed');
                       } else {
                         // TIỀN MẶT / CHUYỂN KHOẢN → expense
                         final expFId = 'exp_part_${now}_$partName';
                         final expenseData = {
                           'firestoreId': expFId,
-                          'title':
-                              'Nhập thêm ${_terms.category3}: $partName',
-                          'description':
-                              'NCC: $supplierName - SL: $addQty',
+                          'title': 'Nhập thêm ${_terms.category3}: $partName',
+                          'description': 'NCC: $supplierName - SL: $addQty',
                           'amount': totalCost,
-                          'category':
-                              'NHẬP ${_terms.category3.toUpperCase()}',
+                          'category': 'NHẬP ${_terms.category3.toUpperCase()}',
                           'date': now,
                           'note':
                               'Nhập thêm vào kho ${_terms.category3} - $paymentMethod',
@@ -3008,8 +3512,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'shopId': shopId,
                           'isSynced': 0,
                         };
-                        final expenseId =
-                            await db.insertExpense(expenseData);
+                        final expenseId = await db.insertExpense(expenseData);
                         if (expenseId > 0) {
                           await SyncOrchestrator().enqueue(
                             entityType: SyncEntityType.expense,
@@ -3197,15 +3700,17 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        flexibleSpace: _isSelectionMode ? null : Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
+        flexibleSpace: _isSelectionMode
+            ? null
+            : Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0068FF), Color(0xFF0084FF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
         leading: _isSelectionMode
             ? IconButton(
                 icon: const Icon(Icons.close),
@@ -3222,9 +3727,14 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
               )
             : Text(
                 "KHO ${_terms.category3.toUpperCase()} SỬA CHỮA",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppTextStyles.headline3.fontSize,
+                ),
               ),
-        backgroundColor: _isSelectionMode ? Colors.red.shade700 : Colors.transparent,
+        backgroundColor: _isSelectionMode
+            ? Colors.red.shade700
+            : Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: !_isSelectionMode,
@@ -3253,189 +3763,205 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
       ),
       body: ResponsiveCenter(
         child: _isLoading
-          ? Center(child: CircularProgressIndicator(color: _primaryColor))
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: TextField(
-                    controller: searchCtrl,
-                    onChanged: (v) {
-                      setState(() {
-                        _searchQuery = v.trim();
-                        _applyFilter();
-                      });
-                    },
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: 'Tìm ${_terms.category3} theo tên / dòng máy',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+            ? Center(child: CircularProgressIndicator(color: _primaryColor))
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: TextField(
+                      controller: searchCtrl,
+                      onChanged: (v) {
+                        setState(() {
+                          _searchQuery = v.trim();
+                          _applyFilter();
+                        });
+                      },
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Tìm ${_terms.category3} theo tên / dòng máy',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: _filteredParts.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Chưa có ${_terms.category3} nào',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _searchQuery.isNotEmpty
-                                    ? 'Không tìm thấy kết quả cho "$_searchQuery"'
-                                    : 'Nhấn nút Nhập LK để thêm ${_terms.category3} mới\nhoặc đợi dữ liệu đồng bộ từ Firestore',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade400,
-                                  height: 1.4,
-                                ),
-                              ),
-                              if (_searchQuery.isEmpty) ...[
-                                const SizedBox(height: 16),
-                                OutlinedButton.icon(
-                                  onPressed: _refreshParts,
-                                  icon: const Icon(Icons.refresh, size: 18),
-                                  label: const Text('Tải lại'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _primaryColor,
+                  Expanded(
+                    child: _filteredParts.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.inventory_2_outlined,
+                                    size: 64,
+                                    color: Colors.grey.shade300,
                                   ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 15,
-                      vertical: 8,
-                    ),
-                    itemCount: _filteredParts.length,
-                    itemBuilder: (ctx, i) {
-                      final p = _filteredParts[i];
-                      final int? partId = p['id'] as int?;
-                      final bool isSelected =
-                          partId != null && _selectedIds.contains(partId);
-                      final bool isLow = (p['quantity'] as int? ?? 0) < 3;
-
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          side: isSelected
-                              ? BorderSide(color: Colors.red.shade700, width: 2)
-                              : BorderSide.none,
-                        ),
-                        color: isSelected ? Colors.red.shade50 : null,
-                        child: ListTile(
-                          leading: _isSelectionMode
-                              ? Checkbox(
-                                  value: isSelected,
-                                  activeColor: Colors.red.shade700,
-                                  onChanged: partId != null
-                                      ? (_) => _toggleSelection(partId)
-                                      : null,
-                                )
-                              : CircleAvatar(
-                                  backgroundColor: isLow
-                                      ? Colors.red.withAlpha(25)
-                                      : _primaryColor.withAlpha(25),
-                                  child: Icon(
-                                    Icons.settings_input_component,
-                                    color: isLow ? Colors.red : _primaryColor,
-                                  ),
-                                ),
-                          title: Text(
-                            p['partName'] ?? '',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: AppTextStyles.headline4.fontSize,
-                            ),
-                          ),
-                          subtitle: Text(
-                            "Dùng cho: ${p['compatibleModels'] ?? 'N/A'}\nSố lượng: ${p['quantity'] ?? 0}${p['supplierId'] != null ? "\nNCC: ${_getSupplierName(p['supplierId'] as int?)}" : ''}",
-                          ),
-                          trailing: _isSelectionMode
-                              ? null
-                              : _isAdmin
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      // Nút nhập thêm
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.add_shopping_cart,
-                                          color: Colors.teal,
-                                          size: 20,
-                                        ),
-                                        tooltip: 'Nhập thêm',
-                                        onPressed: () => _showAddStockDialog(p),
-                                        visualDensity: VisualDensity.compact,
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(
-                                          minWidth: 32,
-                                          minHeight: 32,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "${NumberFormat('#,###').format(p['price'] ?? 0)} đ",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    ],
-                                  )
-                                : Text(
-                                    "${NumberFormat('#,###').format(p['price'] ?? 0)} đ",
-                                    style: const TextStyle(
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Chưa có ${_terms.category3} nào',
+                                    style: TextStyle(
+                                      fontSize: 17,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.red,
+                                      color: Colors.grey.shade500,
                                     ),
                                   ),
-                          onTap: _isSelectionMode
-                              ? (partId != null
-                                    ? () => _toggleSelection(partId)
-                                    : null)
-                              : (_isAdmin
-                                    ? () => _showAddPartDialog(part: p)
-                                    : null),
-                          onLongPress:
-                              !_isSelectionMode && _isAdmin && partId != null
-                              ? () {
-                                  setState(() {
-                                    _isSelectionMode = true;
-                                    _selectedIds.add(partId);
-                                  });
-                                }
-                              : null,
-                        ),
-                      );
-                    },
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _searchQuery.isNotEmpty
+                                        ? 'Không tìm thấy kết quả cho "$_searchQuery"'
+                                        : 'Nhấn nút Nhập LK để thêm ${_terms.category3} mới\nhoặc đợi dữ liệu đồng bộ từ Firestore',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade400,
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                  if (_searchQuery.isEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    OutlinedButton.icon(
+                                      onPressed: _refreshParts,
+                                      icon: const Icon(Icons.refresh, size: 18),
+                                      label: const Text('Tải lại'),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: _primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 15,
+                              vertical: 8,
+                            ),
+                            itemCount: _filteredParts.length,
+                            itemBuilder: (ctx, i) {
+                              final p = _filteredParts[i];
+                              final int? partId = p['id'] as int?;
+                              final bool isSelected =
+                                  partId != null &&
+                                  _selectedIds.contains(partId);
+                              final bool isLow =
+                                  (p['quantity'] as int? ?? 0) < 3;
+
+                              return Card(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                  side: isSelected
+                                      ? BorderSide(
+                                          color: Colors.red.shade700,
+                                          width: 2,
+                                        )
+                                      : BorderSide.none,
+                                ),
+                                color: isSelected ? Colors.red.shade50 : null,
+                                child: ListTile(
+                                  leading: _isSelectionMode
+                                      ? Checkbox(
+                                          value: isSelected,
+                                          activeColor: Colors.red.shade700,
+                                          onChanged: partId != null
+                                              ? (_) => _toggleSelection(partId)
+                                              : null,
+                                        )
+                                      : CircleAvatar(
+                                          backgroundColor: isLow
+                                              ? Colors.red.withAlpha(25)
+                                              : _primaryColor.withAlpha(25),
+                                          child: Icon(
+                                            Icons.settings_input_component,
+                                            color: isLow
+                                                ? Colors.red
+                                                : _primaryColor,
+                                          ),
+                                        ),
+                                  title: Text(
+                                    p['partName'] ?? '',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize:
+                                          AppTextStyles.headline4.fontSize,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    "Dùng cho: ${p['compatibleModels'] ?? 'N/A'}\nSố lượng: ${p['quantity'] ?? 0}${p['supplierId'] != null ? "\nNCC: ${_getSupplierName(p['supplierId'] as int?)}" : ''}",
+                                  ),
+                                  trailing: _isSelectionMode
+                                      ? null
+                                      : _isAdmin
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Nút nhập thêm
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.add_shopping_cart,
+                                                color: Colors.teal,
+                                                size: 20,
+                                              ),
+                                              tooltip: 'Nhập thêm',
+                                              onPressed: () =>
+                                                  _showAddStockDialog(p),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(
+                                                minWidth: 32,
+                                                minHeight: 32,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              "${NumberFormat('#,###').format(p['price'] ?? 0)} đ",
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      : Text(
+                                          "${NumberFormat('#,###').format(p['price'] ?? 0)} đ",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                  onTap: _isSelectionMode
+                                      ? (partId != null
+                                            ? () => _toggleSelection(partId)
+                                            : null)
+                                      : (_isAdmin
+                                            ? () => _showAddPartDialog(part: p)
+                                            : null),
+                                  onLongPress:
+                                      !_isSelectionMode &&
+                                          _isAdmin &&
+                                          partId != null
+                                      ? () {
+                                          setState(() {
+                                            _isSelectionMode = true;
+                                            _selectedIds.add(partId);
+                                          });
+                                        }
+                                      : null,
+                                ),
+                              );
+                            },
+                          ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
       ),
       floatingActionButton: _isSelectionMode
           ? null
@@ -3501,9 +4027,7 @@ class _SupplierSearchField extends StatelessWidget {
           labelText: "Nhà cung cấp (${suppliers.length} NCC)",
           prefixIcon: const Icon(Icons.store),
           suffixIcon: const Icon(Icons.arrow_drop_down),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
             vertical: 8,
@@ -3567,7 +4091,8 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
             const SizedBox(height: 8),
             Center(
               child: Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 decoration: BoxDecoration(
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2),
@@ -3593,7 +4118,10 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
                   if (widget.selectedSupplierId != null)
                     TextButton(
                       onPressed: () => widget.onSelected(null),
-                      child: const Text('Bỏ chọn', style: TextStyle(fontSize: 14)),
+                      child: const Text(
+                        'Bỏ chọn',
+                        style: TextStyle(fontSize: 14),
+                      ),
                     ),
                 ],
               ),
@@ -3648,7 +4176,9 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
                                 ? Colors.blue.withOpacity(0.15)
                                 : Colors.grey.withOpacity(0.1),
                             child: Icon(
-                              isSelected ? Icons.check_circle : Icons.store_outlined,
+                              isSelected
+                                  ? Icons.check_circle
+                                  : Icons.store_outlined,
                               size: 18,
                               color: isSelected ? Colors.blue : Colors.grey,
                             ),
@@ -3656,10 +4186,17 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
                           title: Text(
                             name,
                             style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           ),
-                          subtitle: phone.isNotEmpty ? Text(phone, style: const TextStyle(fontSize: 14)) : null,
+                          subtitle: phone.isNotEmpty
+                              ? Text(
+                                  phone,
+                                  style: const TextStyle(fontSize: 14),
+                                )
+                              : null,
                           onTap: () => widget.onSelected(id),
                         );
                       },
@@ -3671,4 +4208,3 @@ class _SupplierPickerSheetState extends State<_SupplierPickerSheet> {
     );
   }
 }
-

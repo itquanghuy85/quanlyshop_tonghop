@@ -297,7 +297,10 @@ class _ExpenseViewState extends State<ExpenseView> {
         .fold(0, (sum, e) => sum + ((e['amount'] as num?)?.toInt() ?? 0));
   }
 
-  Widget _buildScopeSummaryBar(List<Map<String, dynamic>> list, Color accentColor) {
+  Widget _buildScopeSummaryBar(
+    List<Map<String, dynamic>> list,
+    Color accentColor,
+  ) {
     final shopTotal = _sumAmountByScope(list, 'SHOP');
     final personalTotal = _sumAmountByScope(list, 'CA_NHAN');
 
@@ -335,7 +338,7 @@ class _ExpenseViewState extends State<ExpenseView> {
               ),
               const SizedBox(height: 2),
               Text(
-                MoneyUtils.formatCurrency(value),
+                MoneyUtils.formatCompactCurrency(value),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -354,11 +357,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       children: [
         buildScopeBox(label: 'SHOP', value: shopTotal, isPersonal: false),
         const SizedBox(width: 8),
-        buildScopeBox(
-          label: 'CÁ NHÂN',
-          value: personalTotal,
-          isPersonal: true,
-        ),
+        buildScopeBox(label: 'CÁ NHÂN', value: personalTotal, isPersonal: true),
       ],
     );
   }
@@ -366,7 +365,7 @@ class _ExpenseViewState extends State<ExpenseView> {
   Future<void> _handleDeleteExpense(Map<String, dynamic> exp) async {
     final isIncome = (exp['type'] ?? 'CHI') == 'THU';
     final label = isIncome ? 'thu phát sinh' : 'chi phí';
-    
+
     if (exp['isPurchaseDebt'] == true) {
       NotificationService.showSnackBar(
         "Không thể xóa chi phí từ đơn nhập hàng!",
@@ -374,9 +373,11 @@ class _ExpenseViewState extends State<ExpenseView> {
       );
       return;
     }
-    
+
     // Kiểm tra ngày đã chốt quỹ chưa
-    final expenseTimestamp = exp['date'] is int ? exp['date'] : DateTime.now().millisecondsSinceEpoch;
+    final expenseTimestamp = exp['date'] is int
+        ? exp['date']
+        : DateTime.now().millisecondsSinceEpoch;
     final canEdit = await AdjustmentService.canEditDirectly(expenseTimestamp);
     if (!canEdit && mounted) {
       final expenseDate = DateTime.fromMillisecondsSinceEpoch(expenseTimestamp);
@@ -386,7 +387,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       );
       return;
     }
-    
+
     final passC = TextEditingController();
     final bool? result = await showDialog<bool>(
       context: context,
@@ -448,14 +449,14 @@ class _ExpenseViewState extends State<ExpenseView> {
 
           final expenseId = exp['id'] as int?;
           final firestoreId = exp['firestoreId'] as String?;
-          
+
           // 1. Delete from local DB (by firestoreId or by id)
           if (firestoreId != null && firestoreId.isNotEmpty) {
             await db.deleteExpenseByFirestoreId(firestoreId);
           } else if (expenseId != null) {
             await db.deleteExpense(expenseId);
           }
-          
+
           // 2. Soft-delete on Firestore IMMEDIATELY (not just queue)
           // This prevents the record from being re-synced back
           if (firestoreId != null && firestoreId.isNotEmpty) {
@@ -486,11 +487,14 @@ class _ExpenseViewState extends State<ExpenseView> {
             userName: email.split('@').first.toUpperCase(),
             action: isIncome ? "XÓA THU PHÁT SINH" : "XÓA CHI PHÍ",
             type: "FINANCE",
-            desc: "Đã xóa khoản ${isIncome ? 'thu' : 'chi'} ${exp['title']} số tiền ${exp['amount']}đ",
+            desc:
+                "Đã xóa khoản ${isIncome ? 'thu' : 'chi'} ${exp['title']} số tiền ${exp['amount']}đ",
           );
 
           NotificationService.showSnackBar(
-            isIncome ? "Đã xóa khoản thu thành công" : "Đã xóa chi phí thành công",
+            isIncome
+                ? "Đã xóa khoản thu thành công"
+                : "Đã xóa chi phí thành công",
             color: AppColors.success,
           );
           _refresh();
@@ -507,10 +511,12 @@ class _ExpenseViewState extends State<ExpenseView> {
 
   void _showAddExpenseDialog() async {
     if (_isSaving) return;
-    
+
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
-    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    final canEdit = await AdjustmentService.canEditDirectly(
+      today.millisecondsSinceEpoch,
+    );
     if (!canEdit && mounted) {
       NotificationService.showSnackBar(
         '❌ Ngày hôm nay đã chốt quỹ! Không thể thêm chi phí mới.',
@@ -518,7 +524,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       );
       return;
     }
-    
+
     final formKey = GlobalKey<FormState>();
     final titleC = TextEditingController();
     final amountC = TextEditingController();
@@ -531,7 +537,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-          builder: (ctx, setS) {
+        builder: (ctx, setS) {
           titleC.addListener(() => setS(() {}));
           amountC.addListener(() => setS(() {}));
           return AlertDialog(
@@ -562,42 +568,59 @@ class _ExpenseViewState extends State<ExpenseView> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: [
-                        "CỐ ĐỊNH",
-                        "PHÁT SINH",
-                        "LƯƠNG",
-                        "MẶT BẰNG",
-                        "ĐIỆN NƯỚC",
-                        "KHÁC",
-                      ].map(
-                        (c) => ChoiceChip(
-                          label: Text(
-                            c,
-                            style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize),
-                          ),
-                          selected: category == c,
-                          onSelected: (v) => setS(() => category = c),
-                        ),
-                      ).toList(),
+                      children:
+                          [
+                                "CỐ ĐỊNH",
+                                "PHÁT SINH",
+                                "LƯƠNG",
+                                "MẶT BẰNG",
+                                "ĐIỆN NƯỚC",
+                                "KHÁC",
+                              ]
+                              .map(
+                                (c) => ChoiceChip(
+                                  label: Text(
+                                    c,
+                                    style: AppTextStyles.caption.copyWith(
+                                      fontSize: AppTextStyles.body1.fontSize,
+                                    ),
+                                  ),
+                                  selected: category == c,
+                                  onSelected: (v) => setS(() => category = c),
+                                ),
+                              )
+                              .toList(),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: titleC,
-                      decoration: const InputDecoration(labelText: "Nội dung chi *", prefixIcon: Icon(Icons.edit_note)),
+                      decoration: const InputDecoration(
+                        labelText: "Nội dung chi *",
+                        prefixIcon: Icon(Icons.edit_note),
+                      ),
                       textCapitalization: TextCapitalization.characters,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập nội dung chi' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Vui lòng nhập nội dung chi'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     CurrencyTextField(
                       controller: amountC,
                       label: "Số tiền (VNĐ) *",
                       icon: Icons.payments,
-                      validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền'),
+                      validator: (v) => MoneyUtils.validateAmount(
+                        v ?? '',
+                        min: 1,
+                        fieldName: 'Số tiền',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: noteC,
-                      decoration: const InputDecoration(labelText: "Ghi chú thêm", prefixIcon: Icon(Icons.description)),
+                      decoration: const InputDecoration(
+                        labelText: "Ghi chú thêm",
+                        prefixIcon: Icon(Icons.description),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -634,18 +657,19 @@ class _ExpenseViewState extends State<ExpenseView> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: const [
-                        {'value': 'SHOP', 'label': 'SHOP'},
-                        {'value': 'CA_NHAN', 'label': 'CÁ NHÂN'},
-                      ].map((item) {
-                        final value = item['value']!;
-                        final label = item['label']!;
-                        return ChoiceChip(
-                          label: Text(label, style: AppTextStyles.caption),
-                          selected: scope == value,
-                          onSelected: (_) => setS(() => scope = value),
-                        );
-                      }).toList(),
+                      children:
+                          const [
+                            {'value': 'SHOP', 'label': 'SHOP'},
+                            {'value': 'CA_NHAN', 'label': 'CÁ NHÂN'},
+                          ].map((item) {
+                            final value = item['value']!;
+                            final label = item['label']!;
+                            return ChoiceChip(
+                              label: Text(label, style: AppTextStyles.caption),
+                              selected: scope == value,
+                              onSelected: (_) => setS(() => scope = value),
+                            );
+                          }).toList(),
                     ),
                   ],
                 ),
@@ -666,7 +690,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                 onPressed: _isSaving
                     ? null
                     : () async {
-                        if (!(formKey.currentState?.validate() ?? false)) return;
+                        if (!(formKey.currentState?.validate() ?? false))
+                          return;
                         setS(() => _isSaving = true);
 
                         // Không nhân 1000 - user đã nhập số đầy đủ với formatter
@@ -674,36 +699,43 @@ class _ExpenseViewState extends State<ExpenseView> {
 
                         final user = FirebaseAuth.instance.currentUser;
                         final navigator = Navigator.of(ctx);
-                        
+
                         // Convert payment method string to enum
-                        final method = payMethod == 'CHUYỂN KHOẢN' 
-                            ? PaymentMethod.transfer 
+                        final method = payMethod == 'CHUYỂN KHOẢN'
+                            ? PaymentMethod.transfer
                             : PaymentMethod.cash;
                         final txRef =
-                          'expense_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${scope}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
-                            
+                            'expense_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${scope}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
+
                         navigator.pop(); // Close dialog first
-                        
+
                         // Execute payment directly without navigation
-                        final result = await PaymentIntentService.executePaymentDirect(
-                          type: category == 'ĐIỆN NƯỚC' || category == 'INTERNET' 
-                              ? PaymentIntentType.utilityExpense 
-                              : PaymentIntentType.operatingExpense,
-                          amount: amount,
-                          paymentMethod: method,
-                          description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
-                          executedBy: user?.displayName ?? user?.email ?? 'unknown',
-                          referenceId: txRef,
-                          referenceType: 'quick_expense',
-                          notes: noteC.text.trim().isEmpty ? null : noteC.text.trim(),
-                          idempotencyKey: txRef,
-                          metadata: {
-                            'category': category,
-                            'title': titleC.text.toUpperCase(),
-                            'note': noteC.text,
-                            'scope': scope,
-                          },
-                        );
+                        final result =
+                            await PaymentIntentService.executePaymentDirect(
+                              type:
+                                  category == 'ĐIỆN NƯỚC' ||
+                                      category == 'INTERNET'
+                                  ? PaymentIntentType.utilityExpense
+                                  : PaymentIntentType.operatingExpense,
+                              amount: amount,
+                              paymentMethod: method,
+                              description:
+                                  '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
+                              executedBy:
+                                  user?.displayName ?? user?.email ?? 'unknown',
+                              referenceId: txRef,
+                              referenceType: 'quick_expense',
+                              notes: noteC.text.trim().isEmpty
+                                  ? null
+                                  : noteC.text.trim(),
+                              idempotencyKey: txRef,
+                              metadata: {
+                                'category': category,
+                                'title': titleC.text.toUpperCase(),
+                                'note': noteC.text,
+                                'scope': scope,
+                              },
+                            );
 
                         if (result != null && result.success) {
                           EventBus().emit('expenses_changed');
@@ -712,7 +744,7 @@ class _ExpenseViewState extends State<ExpenseView> {
                             color: AppColors.success,
                           );
                         }
-                        
+
                         setState(() {
                           _isSaving = false;
                         });
@@ -780,34 +812,41 @@ class _ExpenseViewState extends State<ExpenseView> {
 
     final body = ResponsiveCenter(
       child: Column(
-      children: [
-        // THU/CHI toggle
-        _buildViewModeToggle(),
-        _buildFilterBar(),
-        _viewMode == 'CHI'
-            ? _buildProfessionalHeader(totalAmount, _filteredExpenses)
-            : _buildIncomeHeader(totalAmount, _filteredExpenses),
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _filteredExpenses.isEmpty
-              ? _buildEmpty()
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  itemCount: _filteredExpenses.length,
-                  itemBuilder: (ctx, i) =>
-                      _expenseProfessionalCard(_filteredExpenses[i]),
-                ),
-        ),
-      ],
-    ),
+        children: [
+          // THU/CHI toggle
+          _buildViewModeToggle(),
+          _buildFilterBar(),
+          _viewMode == 'CHI'
+              ? _buildProfessionalHeader(totalAmount, _filteredExpenses)
+              : _buildIncomeHeader(totalAmount, _filteredExpenses),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredExpenses.isEmpty
+                ? _buildEmpty()
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    itemCount: _filteredExpenses.length,
+                    itemBuilder: (ctx, i) =>
+                        _expenseProfessionalCard(_filteredExpenses[i], i),
+                  ),
+          ),
+        ],
+      ),
     );
 
     final fab = kIsWeb
         ? null
         : GradientFab(
-            onPressed: _viewMode == 'CHI' ? _showAddExpenseDialog : _showAddIncomeDialog,
-            icon: _viewMode == 'CHI' ? Icons.add_circle_outline : Icons.add_card,
+            onPressed: _viewMode == 'CHI'
+                ? _showAddExpenseDialog
+                : _showAddIncomeDialog,
+            icon: _viewMode == 'CHI'
+                ? Icons.add_circle_outline
+                : Icons.add_card,
             label: _viewMode == 'CHI' ? 'Chi phí mới' : 'Thu phát sinh',
             gradientColors: _viewMode == 'CHI'
                 ? [const Color(0xFFD32F2F), const Color(0xFFEF5350)]
@@ -818,12 +857,7 @@ class _ExpenseViewState extends State<ExpenseView> {
       return Stack(
         children: [
           body,
-          if (fab != null)
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: fab,
-            ),
+          if (fab != null) Positioned(right: 16, bottom: 16, child: fab),
         ],
       );
     }
@@ -835,14 +869,19 @@ class _ExpenseViewState extends State<ExpenseView> {
         subtitle: _viewMode == 'CHI'
             ? '${_filteredExpenses.length} khoản chi'
             : '${_filteredExpenses.length} khoản thu',
-        accentColor: _viewMode == 'CHI' ? AppBarAccents.staff : const Color(0xFF2E7D32),
+        accentColor: _viewMode == 'CHI'
+            ? AppBarAccents.staff
+            : const Color(0xFF2E7D32),
         actions: [
           IconButton(
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FastStockInView()),
             ),
-            icon: const Icon(Icons.inventory_2_outlined, color: AppBarAccents.staff),
+            icon: const Icon(
+              Icons.inventory_2_outlined,
+              color: AppBarAccents.staff,
+            ),
             tooltip: 'Nhập kho',
           ),
           Row(
@@ -869,10 +908,16 @@ class _ExpenseViewState extends State<ExpenseView> {
             ],
           ),
           IconButton(
-            icon: Icon(Icons.file_download_outlined, color: AppBarAccents.staff),
+            icon: Icon(
+              Icons.file_download_outlined,
+              color: AppBarAccents.staff,
+            ),
             tooltip: 'Xuất Excel thu chi',
             onPressed: () async {
-              final result = await ExportDateFilterDialog.show(context, title: 'Xuất thu chi');
+              final result = await ExportDateFilterDialog.show(
+                context,
+                title: 'Xuất thu chi',
+              );
               if (result == null) return;
               if (!mounted) return;
               await ExcelExportHelper.exportExpenses(
@@ -927,11 +972,19 @@ class _ExpenseViewState extends State<ExpenseView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 14, color: active ? Colors.white : Colors.grey.shade500),
+              Icon(
+                icon,
+                size: 14,
+                color: active ? Colors.white : Colors.grey.shade500,
+              ),
               const SizedBox(width: 4),
               Text(
                 mode == 'CHI' ? 'CHI PHÍ' : 'THU PHÁT SINH',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: active ? Colors.white : Colors.grey.shade500),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: active ? Colors.white : Colors.grey.shade500,
+                ),
               ),
             ],
           ),
@@ -941,10 +994,22 @@ class _ExpenseViewState extends State<ExpenseView> {
   }
 
   Widget _buildIncomeHeader(int total, List<Map<String, dynamic>> list) {
-    int phatSinh = list.where((e) => e['category'] == 'PHÁT SINH').fold(0, (sum, e) => sum + (e['amount'] as int));
-    int dichVu = list.where((e) => e['category'] == 'DỊCH VỤ').fold(0, (sum, e) => sum + (e['amount'] as int));
-    int hoanTien = list.where((e) => e['category'] == 'HOÀN TIỀN').fold(0, (sum, e) => sum + (e['amount'] as int));
-    int khac = list.where((e) => e['category'] != 'PHÁT SINH' && e['category'] != 'DỊCH VỤ' && e['category'] != 'HOÀN TIỀN')
+    int phatSinh = list
+        .where((e) => e['category'] == 'PHÁT SINH')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+    int dichVu = list
+        .where((e) => e['category'] == 'DỊCH VỤ')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+    int hoanTien = list
+        .where((e) => e['category'] == 'HOÀN TIỀN')
+        .fold(0, (sum, e) => sum + (e['amount'] as int));
+    int khac = list
+        .where(
+          (e) =>
+              e['category'] != 'PHÁT SINH' &&
+              e['category'] != 'DỊCH VỤ' &&
+              e['category'] != 'HOÀN TIỀN',
+        )
         .fold(0, (sum, e) => sum + (e['amount'] as int));
 
     final categories = <_ExpCat>[
@@ -974,18 +1039,34 @@ class _ExpenseViewState extends State<ExpenseView> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  _filterType == 'NGÀY' ? 'HÔM NAY' : _filterType == 'TUẦN' ? 'TUẦN NÀY' : 'THÁNG NÀY',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2E7D32), letterSpacing: 0.3),
+                  _filterType == 'NGÀY'
+                      ? 'HÔM NAY'
+                      : _filterType == 'TUẦN'
+                      ? 'TUẦN NÀY'
+                      : 'THÁNG NÀY',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2E7D32),
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
               const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Tổng thu phát sinh', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   Text(
-                    MoneyUtils.formatCurrency(total),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32)),
+                    'Tổng thu phát sinh',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  Text(
+                    MoneyUtils.formatCompactCurrency(total),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF2E7D32),
+                    ),
                   ),
                 ],
               ),
@@ -1000,7 +1081,8 @@ class _ExpenseViewState extends State<ExpenseView> {
             Row(
               children: [
                 SizedBox(
-                  width: 80, height: 80,
+                  width: 80,
+                  height: 80,
                   child: PieChart(
                     PieChartData(
                       sectionsSpace: 2,
@@ -1012,7 +1094,11 @@ class _ExpenseViewState extends State<ExpenseView> {
                           value: c.value.toDouble(),
                           radius: 16,
                           title: '${pct.round()}%',
-                          titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          titleStyle: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                           titlePositionPercentageOffset: 0.6,
                         );
                       }).toList(),
@@ -1024,16 +1110,40 @@ class _ExpenseViewState extends State<ExpenseView> {
                   child: Wrap(
                     spacing: 12,
                     runSpacing: 4,
-                    children: categories.map((c) => Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(width: 8, height: 8, decoration: BoxDecoration(color: c.color, borderRadius: BorderRadius.circular(2))),
-                        const SizedBox(width: 4),
-                        Text(c.label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                        const SizedBox(width: 3),
-                        Text(MoneyUtils.formatCurrency(c.value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.color)),
-                      ],
-                    )).toList(),
+                    children: categories
+                        .map(
+                          (c) => Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: c.color,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                c.label,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                MoneyUtils.formatCompactCurrency(c.value),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
               ],
@@ -1049,7 +1159,9 @@ class _ExpenseViewState extends State<ExpenseView> {
 
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
     final today = DateTime.now();
-    final canEdit = await AdjustmentService.canEditDirectly(today.millisecondsSinceEpoch);
+    final canEdit = await AdjustmentService.canEditDirectly(
+      today.millisecondsSinceEpoch,
+    );
     if (!canEdit && mounted) {
       NotificationService.showSnackBar(
         '❌ Ngày hôm nay đã chốt quỹ! Không thể thêm thu phát sinh mới.',
@@ -1101,42 +1213,59 @@ class _ExpenseViewState extends State<ExpenseView> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: [
-                        "PHÁT SINH",
-                        "DỊCH VỤ",
-                        "HOÀN TIỀN",
-                        "BÁN TÀI SẢN",
-                        "KHÁC",
-                      ].map(
-                        (c) => ChoiceChip(
-                          label: Text(
-                            c,
-                            style: AppTextStyles.caption.copyWith(fontSize: AppTextStyles.body1.fontSize),
-                          ),
-                          selected: category == c,
-                          selectedColor: const Color(0xFF66BB6A),
-                          onSelected: (v) => setS(() => category = c),
-                        ),
-                      ).toList(),
+                      children:
+                          [
+                                "PHÁT SINH",
+                                "DỊCH VỤ",
+                                "HOÀN TIỀN",
+                                "BÁN TÀI SẢN",
+                                "KHÁC",
+                              ]
+                              .map(
+                                (c) => ChoiceChip(
+                                  label: Text(
+                                    c,
+                                    style: AppTextStyles.caption.copyWith(
+                                      fontSize: AppTextStyles.body1.fontSize,
+                                    ),
+                                  ),
+                                  selected: category == c,
+                                  selectedColor: const Color(0xFF66BB6A),
+                                  onSelected: (v) => setS(() => category = c),
+                                ),
+                              )
+                              .toList(),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: titleC,
-                      decoration: const InputDecoration(labelText: "Nội dung thu *", prefixIcon: Icon(Icons.edit_note)),
+                      decoration: const InputDecoration(
+                        labelText: "Nội dung thu *",
+                        prefixIcon: Icon(Icons.edit_note),
+                      ),
                       textCapitalization: TextCapitalization.characters,
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Vui lòng nhập nội dung thu' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Vui lòng nhập nội dung thu'
+                          : null,
                     ),
                     const SizedBox(height: 12),
                     CurrencyTextField(
                       controller: amountC,
                       label: "Số tiền (VNĐ) *",
                       icon: Icons.payments,
-                      validator: (v) => MoneyUtils.validateAmount(v ?? '', min: 1, fieldName: 'Số tiền'),
+                      validator: (v) => MoneyUtils.validateAmount(
+                        v ?? '',
+                        min: 1,
+                        fieldName: 'Số tiền',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: noteC,
-                      decoration: const InputDecoration(labelText: "Ghi chú thêm", prefixIcon: Icon(Icons.description)),
+                      decoration: const InputDecoration(
+                        labelText: "Ghi chú thêm",
+                        prefixIcon: Icon(Icons.description),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -1173,18 +1302,19 @@ class _ExpenseViewState extends State<ExpenseView> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: const [
-                        {'value': 'SHOP', 'label': 'SHOP'},
-                        {'value': 'CA_NHAN', 'label': 'CÁ NHÂN'},
-                      ].map((item) {
-                        final value = item['value']!;
-                        final label = item['label']!;
-                        return ChoiceChip(
-                          label: Text(label, style: AppTextStyles.caption),
-                          selected: scope == value,
-                          onSelected: (_) => setS(() => scope = value),
-                        );
-                      }).toList(),
+                      children:
+                          const [
+                            {'value': 'SHOP', 'label': 'SHOP'},
+                            {'value': 'CA_NHAN', 'label': 'CÁ NHÂN'},
+                          ].map((item) {
+                            final value = item['value']!;
+                            final label = item['label']!;
+                            return ChoiceChip(
+                              label: Text(label, style: AppTextStyles.caption),
+                              selected: scope == value,
+                              onSelected: (_) => setS(() => scope = value),
+                            );
+                          }).toList(),
                     ),
                   ],
                 ),
@@ -1205,7 +1335,8 @@ class _ExpenseViewState extends State<ExpenseView> {
                 onPressed: _isSaving
                     ? null
                     : () async {
-                        if (!(formKey.currentState?.validate() ?? false)) return;
+                        if (!(formKey.currentState?.validate() ?? false))
+                          return;
                         setS(() => _isSaving = true);
 
                         final amount = MoneyUtils.parseCurrency(amountC.text);
@@ -1215,28 +1346,33 @@ class _ExpenseViewState extends State<ExpenseView> {
                             ? PaymentMethod.transfer
                             : PaymentMethod.cash;
                         final txRef =
-                          'income_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${scope}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
+                            'income_${DateTime.now().millisecondsSinceEpoch}_${category.trim().toUpperCase()}_${scope}_${method.code}_${amount}_${titleC.text.trim().toUpperCase()}';
 
                         navigator.pop(); // Close dialog first
 
                         // Execute payment as income (direction IN)
-                        final result = await PaymentIntentService.executePaymentDirect(
-                          type: PaymentIntentType.otherIncome,
-                          amount: amount,
-                          paymentMethod: method,
-                          description: '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
-                          executedBy: user?.displayName ?? user?.email ?? 'unknown',
-                          referenceId: txRef,
-                          referenceType: 'quick_income',
-                          notes: noteC.text.trim().isEmpty ? null : noteC.text.trim(),
-                          idempotencyKey: txRef,
-                          metadata: {
-                            'category': category,
-                            'title': titleC.text.toUpperCase(),
-                            'note': noteC.text,
-                            'scope': scope,
-                          },
-                        );
+                        final result =
+                            await PaymentIntentService.executePaymentDirect(
+                              type: PaymentIntentType.otherIncome,
+                              amount: amount,
+                              paymentMethod: method,
+                              description:
+                                  '${titleC.text.toUpperCase()}${noteC.text.isNotEmpty ? " - ${noteC.text}" : ""}',
+                              executedBy:
+                                  user?.displayName ?? user?.email ?? 'unknown',
+                              referenceId: txRef,
+                              referenceType: 'quick_income',
+                              notes: noteC.text.trim().isEmpty
+                                  ? null
+                                  : noteC.text.trim(),
+                              idempotencyKey: txRef,
+                              metadata: {
+                                'category': category,
+                                'title': titleC.text.toUpperCase(),
+                                'note': noteC.text,
+                                'scope': scope,
+                              },
+                            );
 
                         if (result != null && result.success) {
                           EventBus().emit('expenses_changed');
@@ -1428,13 +1564,27 @@ class _ExpenseViewState extends State<ExpenseView> {
 
   Widget _buildProfessionalHeader(int total, List<Map<String, dynamic>> list) {
     int coDinh = list
-        .where((e) => e['category'] == 'CỐ ĐỊNH' || e['category'] == 'LƯƠNG' || e['category'] == 'MẶT BẰNG' || e['category'] == 'ĐIỆN NƯỚC')
+        .where(
+          (e) =>
+              e['category'] == 'CỐ ĐỊNH' ||
+              e['category'] == 'LƯƠNG' ||
+              e['category'] == 'MẶT BẰNG' ||
+              e['category'] == 'ĐIỆN NƯỚC',
+        )
         .fold(0, (sum, e) => sum + (e['amount'] as int));
     int phatSinh = list
-        .where((e) => e['category'] == 'PHÁT SINH' || e['category'] == 'REPAIR_PARTS')
+        .where(
+          (e) =>
+              e['category'] == 'PHÁT SINH' || e['category'] == 'REPAIR_PARTS',
+        )
         .fold(0, (sum, e) => sum + (e['amount'] as int));
     int nhapHang = list
-        .where((e) => e['category'] == 'NHẬP HÀNG' || e['category'] == 'PURCHASE' || e['category'] == 'ĐƠN NHẬP HÀNG')
+        .where(
+          (e) =>
+              e['category'] == 'NHẬP HÀNG' ||
+              e['category'] == 'PURCHASE' ||
+              e['category'] == 'ĐƠN NHẬP HÀNG',
+        )
         .fold(0, (sum, e) => sum + (e['amount'] as int));
     int khac = list
         .where((e) => e['category'] == 'KHÁC' || e['category'] == 'Phí NH')
@@ -1468,18 +1618,34 @@ class _ExpenseViewState extends State<ExpenseView> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  _filterType == 'NGÀY' ? 'HÔM NAY' : _filterType == 'TUẦN' ? 'TUẦN NÀY' : 'THÁNG NÀY',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE53935), letterSpacing: 0.3),
+                  _filterType == 'NGÀY'
+                      ? 'HÔM NAY'
+                      : _filterType == 'TUẦN'
+                      ? 'TUẦN NÀY'
+                      : 'THÁNG NÀY',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFE53935),
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
               const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Tổng chi', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                   Text(
-                    MoneyUtils.formatCurrency(total),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFFE53935)),
+                    'Tổng chi',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
+                  Text(
+                    MoneyUtils.formatCompactCurrency(total),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFE53935),
+                    ),
                   ),
                 ],
               ),
@@ -1495,7 +1661,8 @@ class _ExpenseViewState extends State<ExpenseView> {
             Row(
               children: [
                 SizedBox(
-                  width: 80, height: 80,
+                  width: 80,
+                  height: 80,
                   child: PieChart(
                     PieChartData(
                       sectionsSpace: 2,
@@ -1507,7 +1674,11 @@ class _ExpenseViewState extends State<ExpenseView> {
                           value: c.value.toDouble(),
                           radius: 16,
                           title: '${pct.round()}%',
-                          titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          titleStyle: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                           titlePositionPercentageOffset: 0.6,
                         );
                       }).toList(),
@@ -1519,16 +1690,40 @@ class _ExpenseViewState extends State<ExpenseView> {
                   child: Wrap(
                     spacing: 12,
                     runSpacing: 4,
-                    children: categories.map((c) => Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(width: 8, height: 8, decoration: BoxDecoration(color: c.color, borderRadius: BorderRadius.circular(2))),
-                        const SizedBox(width: 4),
-                        Text(c.label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                        const SizedBox(width: 3),
-                        Text(MoneyUtils.formatCurrency(c.value), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c.color)),
-                      ],
-                    )).toList(),
+                    children: categories
+                        .map(
+                          (c) => Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: c.color,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                c.label,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                MoneyUtils.formatCompactCurrency(c.value),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: c.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
               ],
@@ -1539,45 +1734,74 @@ class _ExpenseViewState extends State<ExpenseView> {
     );
   }
 
-  Widget _expenseProfessionalCard(Map<String, dynamic> e) {
+  Widget _expenseProfessionalCard(Map<String, dynamic> e, int index) {
     final cat = (e['category'] ?? 'KHÁC').toString();
     final isIncome = (e['type'] ?? 'CHI') == 'THU';
-    final scopeLabel =
-      _normalizedScopeFromRow(e) == 'CA_NHAN' ? 'CÁ NHÂN' : 'SHOP';
+    final scopeLabel = _normalizedScopeFromRow(e) == 'CA_NHAN'
+        ? 'CÁ NHÂN'
+        : 'SHOP';
     Color color;
     IconData icon;
 
     if (isIncome) {
-      if (cat == 'PHÁT SINH') { color = const Color(0xFF43A047); icon = Icons.trending_up; }
-      else if (cat == 'DỊCH VỤ') { color = Colors.teal; icon = Icons.miscellaneous_services; }
-      else if (cat == 'HOÀN TIỀN') { color = const Color(0xFF00ACC1); icon = Icons.replay; }
-      else if (cat == 'BÁN TÀI SẢN') { color = Colors.amber.shade700; icon = Icons.sell; }
-      else { color = const Color(0xFF2E7D32); icon = Icons.attach_money; }
-    } else if (cat == 'CỐ ĐỊNH' || cat == 'LƯƠNG' || cat == 'MẶT BẰNG' || cat == 'ĐIỆN NƯỚC') {
-      color = const Color(0xFF1E88E5); icon = Icons.home_work;
+      if (cat == 'PHÁT SINH') {
+        color = const Color(0xFF43A047);
+        icon = Icons.trending_up;
+      } else if (cat == 'DỊCH VỤ') {
+        color = Colors.teal;
+        icon = Icons.miscellaneous_services;
+      } else if (cat == 'HOÀN TIỀN') {
+        color = const Color(0xFF00ACC1);
+        icon = Icons.replay;
+      } else if (cat == 'BÁN TÀI SẢN') {
+        color = Colors.amber.shade700;
+        icon = Icons.sell;
+      } else {
+        color = const Color(0xFF2E7D32);
+        icon = Icons.attach_money;
+      }
+    } else if (cat == 'CỐ ĐỊNH' ||
+        cat == 'LƯƠNG' ||
+        cat == 'MẶT BẰNG' ||
+        cat == 'ĐIỆN NƯỚC') {
+      color = const Color(0xFF1E88E5);
+      icon = Icons.home_work;
     } else if (cat == 'PHÁT SINH' || cat == 'REPAIR_PARTS') {
-      color = const Color(0xFFFB8C00); icon = Icons.build;
-    } else if (cat == 'NHẬP HÀNG' || cat == 'PURCHASE' || cat == 'ĐƠN NHẬP HÀNG') {
-      color = const Color(0xFF43A047); icon = Icons.inventory_2;
+      color = const Color(0xFFFB8C00);
+      icon = Icons.build;
+    } else if (cat == 'NHẬP HÀNG' ||
+        cat == 'PURCHASE' ||
+        cat == 'ĐƠN NHẬP HÀNG') {
+      color = const Color(0xFF43A047);
+      icon = Icons.inventory_2;
     } else if (cat == 'Phí NH') {
-      color = const Color(0xFF1E88E5); icon = Icons.account_balance;
+      color = const Color(0xFF1E88E5);
+      icon = Icons.account_balance;
     } else {
-      color = Colors.grey; icon = Icons.shopping_cart;
+      color = Colors.grey;
+      icon = Icons.shopping_cart;
     }
+
+    final cardBg = index.isEven
+        ? Color.alphaBlend(color.withOpacity(0.035), Colors.white)
+        : Colors.white;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade50),
+        border: Border.all(color: color.withOpacity(0.1)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Icon(icon, color: color, size: 16),
           ),
           const SizedBox(width: 8),
@@ -1587,27 +1811,43 @@ class _ExpenseViewState extends State<ExpenseView> {
               children: [
                 Text(
                   (e['title'] ?? 'Không tên').toString(),
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   "$scopeLabel • $cat • ${DateFormat('HH:mm dd/MM').format(DateTime.fromMillisecondsSinceEpoch(e['date']))}",
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           Text(
-            "${isIncome ? '+' : '-'}${MoneyUtils.formatCurrency(e['amount'])}",
-            style: TextStyle(color: isIncome ? const Color(0xFF2E7D32) : const Color(0xFFE53935), fontWeight: FontWeight.w700, fontSize: 14),
+            "${isIncome ? '+' : '-'}${MoneyUtils.formatCompactCurrency(e['amount'] as int)}",
+            style: TextStyle(
+              color: isIncome
+                  ? const Color(0xFF2E7D32)
+                  : const Color(0xFFE53935),
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
           ),
           if (e['isPurchaseDebt'] != true)
             SizedBox(
-              width: 24, height: 24,
+              width: 24,
+              height: 24,
               child: IconButton(
                 padding: EdgeInsets.zero,
-                icon: Icon(Icons.delete_outline, color: Colors.grey.shade400, size: 14),
+                icon: Icon(
+                  Icons.delete_outline,
+                  color: Colors.grey.shade400,
+                  size: 14,
+                ),
                 onPressed: () => _handleDeleteExpense(e),
               ),
             ),
@@ -1621,7 +1861,9 @@ class _ExpenseViewState extends State<ExpenseView> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(
-          _viewMode == 'THU' ? Icons.account_balance_wallet_outlined : Icons.money_off_rounded,
+          _viewMode == 'THU'
+              ? Icons.account_balance_wallet_outlined
+              : Icons.money_off_rounded,
           size: 80,
           color: Colors.grey[200],
         ),
@@ -1630,8 +1872,8 @@ class _ExpenseViewState extends State<ExpenseView> {
           kIsWeb
               ? "Tính năng này không khả dụng trên trình duyệt web.\nVui lòng sử dụng ứng dụng di động."
               : _viewMode == 'THU'
-                  ? "Không có khoản thu phát sinh nào trong ${_filterType.toLowerCase()} này"
-                  : "Không có chi phí nào trong ${_filterType.toLowerCase()} này",
+              ? "Không có khoản thu phát sinh nào trong ${_filterType.toLowerCase()} này"
+              : "Không có chi phí nào trong ${_filterType.toLowerCase()} này",
           style: const TextStyle(color: Colors.grey),
           textAlign: TextAlign.center,
         ),

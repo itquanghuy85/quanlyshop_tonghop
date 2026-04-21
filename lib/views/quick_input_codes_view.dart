@@ -13,6 +13,7 @@ import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../models/shop_settings_model.dart';
 import '../data/db_helper.dart';
+import '../utils/money_utils.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/gradient_fab.dart';
@@ -37,10 +38,11 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
   bool _isSyncing = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  
+
   // Multi-Industry: Shop Settings
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
   @override
   void initState() {
@@ -58,11 +60,11 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
     try {
       setState(() => _isLoading = true);
       shopId = await UserService.getCurrentShopId();
-      
+
       // Load shop settings for terminology
       final settings = await CategoryService().getShopSettings();
       if (mounted) _shopSettings = settings;
-      
+
       await _loadCodes();
     } catch (e) {
       debugPrint('Error initializing data: $e');
@@ -87,7 +89,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
         var filtered = shopId != null
             ? codes.where((code) => code.shopId == shopId).toList()
             : codes;
-        
+
         // Deduplicate by name+type (keep the one with firestoreId or most recent)
         final Map<String, QuickInputCode> uniqueMap = {};
         for (final code in filtered) {
@@ -99,21 +101,24 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
             // Keep the one that is synced, or the most recent
             if (code.firestoreId != null && existing.firestoreId == null) {
               // Delete the one without firestoreId (duplicate)
-              if (existing.id != null) await db.deleteQuickInputCode(existing.id!);
+              if (existing.id != null)
+                await db.deleteQuickInputCode(existing.id!);
               uniqueMap[key] = code;
-            } else if (existing.firestoreId != null && code.firestoreId == null) {
+            } else if (existing.firestoreId != null &&
+                code.firestoreId == null) {
               // Delete the duplicate without firestoreId
               if (code.id != null) await db.deleteQuickInputCode(code.id!);
             } else if (code.createdAt > existing.createdAt) {
               // Both have or both lack firestoreId — keep newer, delete older
-              if (existing.id != null) await db.deleteQuickInputCode(existing.id!);
+              if (existing.id != null)
+                await db.deleteQuickInputCode(existing.id!);
               uniqueMap[key] = code;
             } else {
               if (code.id != null) await db.deleteQuickInputCode(code.id!);
             }
           }
         }
-        
+
         setState(() {
           _codes = uniqueMap.values.toList();
           // Sắp xếp: active trước, rồi theo thời gian tạo mới nhất
@@ -339,9 +344,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
     // SmartStockInView không cần prefilledData, thay vào đó dùng QuickInputCode
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => SmartStockInView(quickInputCode: code),
-      ),
+      MaterialPageRoute(builder: (_) => SmartStockInView(quickInputCode: code)),
     ).then((_) => _loadCodes());
   }
 
@@ -381,7 +384,11 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
         ),
         title: const Text(
           'MÃ NHẬP NHANH',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -432,109 +439,111 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
           ),
         ],
       ),
-      body: ResponsiveCenter(child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Search bar
-                Container(
-                  color: Colors.blue.shade700,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Tìm kiếm mã nhập nhanh...',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                      prefixIcon: Icon(
-                        Icons.search,
-                        color: Colors.white.withOpacity(0.7),
-                      ),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.clear,
-                                color: Colors.white,
-                              ),
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _searchQuery = '');
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: Colors.white.withOpacity(0.2),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    onChanged: (value) =>
-                        setState(() => _searchQuery = value.toLowerCase()),
-                  ),
-                ),
-
-                // Filter chips
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  color: Colors.white,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip(
-                          label: 'Tất cả (${_codes.length})',
-                          filter: QuickInputFilter.all,
-                          color: Colors.blue,
+      body: ResponsiveCenter(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  // Search bar
+                  Container(
+                    color: Colors.blue.shade700,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Tìm kiếm mã nhập nhanh...',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
                         ),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                          label: 'Đang bật ($_activeCount)',
-                          filter: QuickInputFilter.active,
-                          color: Colors.green,
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Colors.white.withOpacity(0.7),
                         ),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                          label: 'Đang tắt ($_inactiveCount)',
-                          filter: QuickInputFilter.inactive,
-                          color: Colors.grey,
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  Icons.clear,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.2),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
                         ),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                          label: 'Chưa đồng bộ ($_unsyncedCount)',
-                          filter: QuickInputFilter.unsynced,
-                          color: Colors.orange,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
                         ),
-                      ],
+                      ),
+                      onChanged: (value) =>
+                          setState(() => _searchQuery = value.toLowerCase()),
                     ),
                   ),
-                ),
 
-                // List
-                Expanded(
-                  child: _filteredCodes.isEmpty
-                      ? _buildEmptyState()
-                      : RefreshIndicator(
-                          onRefresh: _loadCodes,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _filteredCodes.length,
-                            itemBuilder: (ctx, i) =>
-                                _buildCodeCard(_filteredCodes[i]),
+                  // Filter chips
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    color: Colors.white,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip(
+                            label: 'Tất cả (${_codes.length})',
+                            filter: QuickInputFilter.all,
+                            color: Colors.blue,
                           ),
-                        ),
-                ),
-              ],
-            )),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            label: 'Đang bật ($_activeCount)',
+                            filter: QuickInputFilter.active,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            label: 'Đang tắt ($_inactiveCount)',
+                            filter: QuickInputFilter.inactive,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            label: 'Chưa đồng bộ ($_unsyncedCount)',
+                            filter: QuickInputFilter.unsynced,
+                            color: Colors.orange,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // List
+                  Expanded(
+                    child: _filteredCodes.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: _loadCodes,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _filteredCodes.length,
+                              itemBuilder: (ctx, i) =>
+                                  _buildCodeCard(_filteredCodes[i]),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+      ),
       floatingActionButton: GradientFab.teal(
         onPressed: () => _showAddEditDialog(),
         icon: Icons.add,
@@ -643,18 +652,18 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
   Widget _buildCodeCard(QuickInputCode code) {
     final isPhone = code.type == 'DIEN_THOAI';
     final mainColor = isPhone ? Colors.blue : Colors.orange;
-    
+
     // Determine card color based on sync and active status
-    final bgColor = !code.isActive 
-        ? Colors.grey.shade100 
-        : code.isSynced 
-            ? Colors.green.shade50 
-            : Colors.orange.shade50;
-    final borderColor = !code.isActive 
-        ? Colors.grey.shade400 
-        : code.isSynced 
-            ? Colors.green.shade300 
-            : Colors.orange.shade300;
+    final bgColor = !code.isActive
+        ? Colors.grey.shade100
+        : code.isSynced
+        ? Colors.green.shade50
+        : Colors.orange.shade50;
+    final borderColor = !code.isActive
+        ? Colors.grey.shade400
+        : code.isSynced
+        ? Colors.green.shade300
+        : Colors.orange.shade300;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -697,11 +706,13 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if ((isPhone && (code.brand != null || code.model != null)) ||
+                        if ((isPhone &&
+                                (code.brand != null || code.model != null)) ||
                             (!isPhone && code.description != null))
                           Text(
                             isPhone
-                                ? '${code.brand ?? ''} ${code.model ?? ''}'.trim()
+                                ? '${code.brand ?? ''} ${code.model ?? ''}'
+                                      .trim()
                                 : code.description ?? '',
                             style: TextStyle(
                               fontSize: 13,
@@ -717,8 +728,11 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                   if (!code.isSynced)
                     Padding(
                       padding: const EdgeInsets.only(right: 4),
-                      child: Icon(Icons.cloud_off, 
-                        size: 14, color: Colors.orange.shade600),
+                      child: Icon(
+                        Icons.cloud_off,
+                        size: 14,
+                        color: Colors.orange.shade600,
+                      ),
                     ),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -740,7 +754,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                   ),
                 ],
               ),
-              
+
               // Compact info + action row
               const SizedBox(height: 6),
               Row(
@@ -748,14 +762,14 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                   // Price chips
                   if (code.cost != null && code.cost! > 0)
                     _quickCodeInfoChip(
-                      'Vốn: ${NumberFormat.compact(locale: 'vi').format(code.cost)}đ',
+                      'Vốn: ${MoneyUtils.formatCompactCurrency(code.cost!)}',
                       Colors.red.shade100,
                     ),
                   if (code.cost != null && code.cost! > 0)
                     const SizedBox(width: 4),
                   if (code.price != null && code.price! > 0)
                     _quickCodeInfoChip(
-                      'Bán: ${NumberFormat.compact(locale: 'vi').format(code.price)}đ',
+                      'Bán: ${MoneyUtils.formatCompactCurrency(code.price!)}',
                       Colors.green.shade100,
                     ),
                   const Spacer(),
@@ -795,7 +809,10 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      child: const Text('Đầy đủ', style: TextStyle(fontSize: 12)),
+                      child: const Text(
+                        'Đầy đủ',
+                        style: TextStyle(fontSize: 12),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -818,7 +835,7 @@ class _QuickInputCodesViewState extends State<QuickInputCodesView> {
       ),
     );
   }
-  
+
   Widget _quickCodeInfoChip(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -943,9 +960,11 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
   final _supplierCtrl = TextEditingController();
 
   ShopSettings? _shopSettings;
-  BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
+  BusinessTerminology get _terms =>
+      BusinessTypeHelper.instance.getTerminology(_shopSettings);
   bool get _isFashion => _shopSettings?.businessType == 'fashion';
-  bool get _isElectronics => _shopSettings?.businessType == 'electronics' || _shopSettings == null;
+  bool get _isElectronics =>
+      _shopSettings?.businessType == 'electronics' || _shopSettings == null;
 
   String _type = 'DIEN_THOAI';
   String? _paymentMethod;
@@ -996,15 +1015,17 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       _colorCtrl.text = code.color ?? '';
       // Map màu sắc về giá trị chuẩn
       _selectedColor = code.color != null && code.color!.isNotEmpty
-          ? (_colorOptions.keys.contains(code.color!.toUpperCase()) 
-              ? code.color!.toUpperCase() 
-              : ProductConstants.mapColor(code.color))
+          ? (_colorOptions.keys.contains(code.color!.toUpperCase())
+                ? code.color!.toUpperCase()
+                : ProductConstants.mapColor(code.color))
           : null;
       // Map condition về giá trị chuẩn trong conditionsShort
       if (code.condition != null && code.condition!.isNotEmpty) {
-        final mappedCondition = ProductConstants.mapConditionShort(code.condition!);
-        _conditionCtrl.text = _conditionSuggestions.contains(mappedCondition) 
-            ? mappedCondition 
+        final mappedCondition = ProductConstants.mapConditionShort(
+          code.condition!,
+        );
+        _conditionCtrl.text = _conditionSuggestions.contains(mappedCondition)
+            ? mappedCondition
             : '';
       }
       _costCtrl.text = code.cost?.toString() ?? '';
@@ -1014,7 +1035,9 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
       _supplierCtrl.text = code.supplier ?? '';
       _selectedSupplier = code.supplier;
       // Map payment method về giá trị chuẩn
-      _paymentMethod = code.paymentMethod != null && _paymentMethods.contains(code.paymentMethod)
+      _paymentMethod =
+          code.paymentMethod != null &&
+              _paymentMethods.contains(code.paymentMethod)
           ? code.paymentMethod
           : null;
     }
@@ -1297,12 +1320,15 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                                           controller: controller,
                                           focusNode: focusNode,
                                           decoration: InputDecoration(
-                                            labelText: _isFashion ? 'Size' : 'Dung lượng',
-                                            hintText: _isFashion ? 'VD: L, XL, 40' : 'VD: 256GB',
+                                            labelText: _isFashion
+                                                ? 'Size'
+                                                : 'Dung lượng',
+                                            hintText: _isFashion
+                                                ? 'VD: L, XL, 40'
+                                                : 'VD: 256GB',
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(
-                                                12,
-                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
                                             ),
                                           ),
                                         );
@@ -1391,8 +1417,11 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
 
                         // Tình trạng - Dropdown để tránh nhập sai
                         DropdownButtonFormField<String>(
-                          value: _conditionCtrl.text.isNotEmpty &&
-                                  _conditionSuggestions.contains(_conditionCtrl.text)
+                          value:
+                              _conditionCtrl.text.isNotEmpty &&
+                                  _conditionSuggestions.contains(
+                                    _conditionCtrl.text,
+                                  )
                               ? _conditionCtrl.text
                               : null,
                           decoration: InputDecoration(
@@ -1545,8 +1574,11 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
                       const SizedBox(height: 8),
                       // Nhà cung cấp - Dropdown từ danh sách NCC
                       DropdownButtonFormField<String>(
-                        value: _selectedSupplier != null &&
-                                _suppliers.any((s) => s['name'] == _selectedSupplier)
+                        value:
+                            _selectedSupplier != null &&
+                                _suppliers.any(
+                                  (s) => s['name'] == _selectedSupplier,
+                                )
                             ? _selectedSupplier
                             : null,
                         decoration: InputDecoration(
@@ -1586,7 +1618,8 @@ class _QuickInputCodeDialogState extends State<_QuickInputCodeDialog> {
 
                       // Phương thức thanh toán
                       DropdownButtonFormField<String>(
-                        value: _paymentMethod != null &&
+                        value:
+                            _paymentMethod != null &&
                                 _paymentMethods.contains(_paymentMethod)
                             ? _paymentMethod
                             : null,

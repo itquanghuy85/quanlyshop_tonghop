@@ -18,6 +18,7 @@ import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../services/category_service.dart';
 import '../data/db_helper.dart';
+import '../utils/money_utils.dart';
 import '../theme/app_text_styles.dart';
 import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
@@ -86,14 +87,14 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     WidgetsBinding.instance.addObserver(this);
     _initChat();
     _msgCtrl.addListener(_onTyping);
-    
+
     // Listen for shop changes to reinitialize chat
     _shopChangedSubscription = EventBus().on(EventBus.shopChanged, (_) async {
       debugPrint('🔄 AdvancedChatView: Shop changed, reinitializing chat...');
-      
+
       // 1. Cancel all existing subscriptions
       _cancelSubscriptions();
-      
+
       // 2. Clear current data and show loading
       if (mounted) {
         setState(() {
@@ -104,10 +105,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           _isLoading = true;
         });
       }
-      
+
       // 3. Small delay to ensure cache is updated
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       // 4. Reinitialize with new shop
       if (mounted) {
         _initChat();
@@ -127,7 +128,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     ChatService.cleanup();
     super.dispose();
   }
-  
+
   void _cancelSubscriptions() {
     _messagesSubscription?.cancel();
     _pinnedSubscription?.cancel();
@@ -281,7 +282,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           children: [
             Text(
               'Chọn biểu cảm',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: AppTextStyles.headline3.fontSize),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: AppTextStyles.headline3.fontSize,
+              ),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -484,7 +488,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         // Multi-Industry: Determine tabs based on enabled features
         final showRepair = _enableRepair;
         final tabCount = showRepair ? 2 : 1;
-        
+
         return Container(
           height: MediaQuery.of(ctx).size.height * 0.7,
           decoration: const BoxDecoration(
@@ -523,7 +527,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   tabs: [
                     if (showRepair)
                       const Tab(icon: Icon(Icons.build, size: 18), text: 'Sửa'),
-                    const Tab(icon: Icon(Icons.shopping_cart, size: 18), text: 'Bán'),
+                    const Tab(
+                      icon: Icon(Icons.shopping_cart, size: 18),
+                      text: 'Bán',
+                    ),
                   ],
                 ),
                 Expanded(
@@ -628,7 +635,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   overflow: TextOverflow.ellipsis,
                 ),
                 trailing: Text(
-                  NumberFormat.compact(locale: 'vi').format(s.totalPrice),
+                  MoneyUtils.formatCompactCurrency(s.totalPrice),
                   style: const TextStyle(
                     color: Colors.green,
                     fontWeight: FontWeight.bold,
@@ -680,7 +687,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       linkedType: 'sale',
       linkedKey: sale.firestoreId ?? 'sale_${sale.soldAt}',
       linkedSummary:
-          '${sale.customerName.isNotEmpty ? sale.customerName : 'Khách lẻ'} - ${NumberFormat.compact(locale: 'vi').format(sale.totalPrice)}đ',
+          '${sale.customerName.isNotEmpty ? sale.customerName : 'Khách lẻ'} - ${MoneyUtils.formatCompactCurrency(sale.totalPrice)}',
     );
 
     _scrollToBottom();
@@ -772,33 +779,35 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: _buildAppBar(),
-      body: ResponsiveCenter(child: Column(
-        children: [
-          // Pinned messages
-          if (_pinnedMessages.isNotEmpty) _buildPinnedSection(),
+      body: ResponsiveCenter(
+        child: Column(
+          children: [
+            // Pinned messages
+            if (_pinnedMessages.isNotEmpty) _buildPinnedSection(),
 
-          // Online users indicator
-          if (_onlineUsers.isNotEmpty) _buildOnlineIndicator(),
+            // Online users indicator
+            if (_onlineUsers.isNotEmpty) _buildOnlineIndicator(),
 
-          // Messages list
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _isSearching && _searchResults.isNotEmpty
-                ? _buildSearchResults()
-                : _buildMessagesList(),
-          ),
+            // Messages list
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _isSearching && _searchResults.isNotEmpty
+                  ? _buildSearchResults()
+                  : _buildMessagesList(),
+            ),
 
-          // Typing indicator
-          if (_typingUsers.isNotEmpty) _buildTypingIndicator(),
+            // Typing indicator
+            if (_typingUsers.isNotEmpty) _buildTypingIndicator(),
 
-          // Reply preview
-          if (_replyingTo != null) _buildReplyPreview(),
+            // Reply preview
+            if (_replyingTo != null) _buildReplyPreview(),
 
-          // Input area
-          _buildInputArea(),
-        ],
-      )),
+            // Input area
+            _buildInputArea(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -894,9 +903,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               case 'pinned':
                 _showPinnedMessages();
                 break;
-                    case 'sendPrintLink':
-                      _showSendPrintLinkDialog();
-                      break;
+              case 'sendPrintLink':
+                _showSendPrintLinkDialog();
+                break;
             }
           },
           itemBuilder: (ctx) => [
@@ -905,10 +914,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               child: Text('Đánh dấu đã đọc'),
             ),
             const PopupMenuItem(value: 'pinned', child: Text('Tin ghim')),
-                  const PopupMenuItem(
-                    value: 'sendPrintLink',
-                    child: Text('Gửi link in web'),
-                  ),
+            const PopupMenuItem(
+              value: 'sendPrintLink',
+              child: Text('Gửi link in web'),
+            ),
           ],
         ),
         const SizedBox(width: 4),
@@ -1045,7 +1054,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   const SizedBox(width: 8),
                   Text(
                     'Tin nhắn đã ghim',
-                    style: TextStyle(fontSize: AppTextStyles.headline2.fontSize, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.headline2.fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
@@ -1087,7 +1099,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           Expanded(
             child: Text(
               _onlineUsers.map((u) => u.userName).join(', '),
-              style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.green),
+              style: TextStyle(
+                fontSize: AppTextStyles.subtitle1.fontSize,
+                color: Colors.green,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1116,7 +1131,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             const SizedBox(height: 8),
             Text(
               'Hãy gửi tin nhắn đầu tiên!',
-              style: TextStyle(color: Colors.grey.shade400, fontSize: AppTextStyles.headline5.fontSize),
+              style: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: AppTextStyles.headline5.fontSize,
+              ),
             ),
           ],
         ),
@@ -1168,7 +1186,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               decoration: BoxDecoration(
                 color: Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(8),
-                border: const Border(left: BorderSide(color: Colors.blue, width: 3)),
+                border: const Border(
+                  left: BorderSide(color: Colors.blue, width: 3),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1183,7 +1203,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                   ),
                   Text(
                     message.replyToMessage!,
-                    style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: AppTextStyles.subtitle1.fontSize,
+                      color: Colors.grey,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1197,7 +1220,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             onDoubleTap: () => _showReactionPicker(message),
             child: Container(
               constraints: BoxConstraints(
-                maxWidth: (MediaQuery.sizeOf(context).width * 0.75).clamp(0, 480),
+                maxWidth: (MediaQuery.sizeOf(context).width * 0.75).clamp(
+                  0,
+                  480,
+                ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
@@ -1426,7 +1452,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                           ),
                           child: Text(
                             '${e.key} ${e.value.length}',
-                            style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize),
+                            style: TextStyle(
+                              fontSize: AppTextStyles.subtitle1.fontSize,
+                            ),
                           ),
                         ),
                       ),
@@ -1450,7 +1478,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
         ),
         child: Text(
           message.message,
-          style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
+          style: TextStyle(
+            fontSize: AppTextStyles.subtitle1.fontSize,
+            color: Colors.grey,
+          ),
         ),
       ),
     );
@@ -1476,7 +1507,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     var cursor = 0;
     for (final m in matches) {
       if (m.start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, m.start), style: baseStyle));
+        spans.add(
+          TextSpan(text: text.substring(cursor, m.start), style: baseStyle),
+        );
       }
       final urlText = text.substring(m.start, m.end);
       spans.add(
@@ -1516,7 +1549,8 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   Future<void> _showSendPrintLinkDialog() async {
     final prefs = await SharedPreferences.getInstance();
-    final existingBridgeUrl = (prefs.getString('web_print_bridge_url') ?? '').trim();
+    final existingBridgeUrl = (prefs.getString('web_print_bridge_url') ?? '')
+        .trim();
 
     String defaultBridgeIp = '192.168.1.10';
     try {
@@ -1573,13 +1607,18 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               }
 
               final bridgeEndpoint = 'http://$bridgeIp:$bridgePort/print';
-              final token = (prefs.getString('web_print_bridge_token') ?? '').trim();
+              final token = (prefs.getString('web_print_bridge_token') ?? '')
+                  .trim();
 
               final query = <String, String>{'bridgeUrl': bridgeEndpoint};
               if (token.isNotEmpty) {
                 query['bridgeToken'] = token;
               }
-              final link = Uri.https('quanlyshop.web.app', '/', query).toString();
+              final link = Uri.https(
+                'quanlyshop.web.app',
+                '/',
+                query,
+              ).toString();
 
               await prefs.setString('web_print_bridge_url', bridgeEndpoint);
 
@@ -1680,7 +1719,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                 ),
                 Text(
                   _replyingTo!.message,
-                  style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: AppTextStyles.subtitle1.fontSize,
+                    color: Colors.grey,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1836,7 +1878,10 @@ class _ImageViewerDialogState extends State<_ImageViewerDialog> {
             if (widget.imageUrls.length > 1)
               Text(
                 '${_currentIndex + 1}/${widget.imageUrls.length}',
-                style: TextStyle(fontSize: AppTextStyles.subtitle1.fontSize, color: Colors.white70),
+                style: TextStyle(
+                  fontSize: AppTextStyles.subtitle1.fontSize,
+                  color: Colors.white70,
+                ),
               ),
           ],
         ),
