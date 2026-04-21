@@ -649,6 +649,19 @@ class _DebtViewState extends State<DebtView>
     return DebtSummaryService.isActiveDebt(d);
   }
 
+  int _toInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value == null) return 0;
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  int _remainingDebt(Map<String, dynamic> debt) {
+    final total = _toInt(debt['totalAmount']);
+    final paid = _toInt(debt['paidAmount']);
+    return (total - paid).clamp(0, total);
+  }
+
   Widget _buildDebtList(String type) {
     List<Map<String, dynamic>> list;
     if (type == 'OTHER') {
@@ -677,6 +690,12 @@ class _DebtViewState extends State<DebtView>
           .where((d) => d['type'] == type && _isActiveDebt(d))
           .toList();
     }
+
+    list.sort((a, b) {
+      final remainCmp = _remainingDebt(b).compareTo(_remainingDebt(a));
+      if (remainCmp != 0) return remainCmp;
+      return _toInt(b['createdAt']).compareTo(_toInt(a['createdAt']));
+    });
 
     if (list.isEmpty) {
       return Center(
@@ -709,19 +728,26 @@ class _DebtViewState extends State<DebtView>
           .where((d) => d['type'] == 'OTHER_SHOP_OWES')
           .toList();
 
-      int totalReceivable = receivableDebts.fold(0, (sum, d) {
-        final int total = d['totalAmount'] as int;
-        final int paid = d['paidAmount'] as int? ?? 0;
-        final int remain = (total - paid).clamp(0, total);
-        return sum + remain;
+      receivableDebts.sort((a, b) {
+        final remainCmp = _remainingDebt(b).compareTo(_remainingDebt(a));
+        if (remainCmp != 0) return remainCmp;
+        return _toInt(b['createdAt']).compareTo(_toInt(a['createdAt']));
+      });
+      payableDebts.sort((a, b) {
+        final remainCmp = _remainingDebt(b).compareTo(_remainingDebt(a));
+        if (remainCmp != 0) return remainCmp;
+        return _toInt(b['createdAt']).compareTo(_toInt(a['createdAt']));
       });
 
-      int totalPayable = payableDebts.fold(0, (sum, d) {
-        final int total = d['totalAmount'] as int;
-        final int paid = d['paidAmount'] as int? ?? 0;
-        final int remain = (total - paid).clamp(0, total);
-        return sum + remain;
-      });
+      int totalReceivable = receivableDebts.fold(
+        0,
+        (sum, d) => sum + _remainingDebt(d),
+      );
+
+      int totalPayable = payableDebts.fold(
+        0,
+        (sum, d) => sum + _remainingDebt(d),
+      );
 
       return Column(
         children: [
@@ -837,12 +863,7 @@ class _DebtViewState extends State<DebtView>
       );
     }
 
-    int totalRemain = list.fold(0, (sum, d) {
-      final int total = d['totalAmount'] as int;
-      final int paid = d['paidAmount'] as int? ?? 0;
-      final int remain = (total - paid).clamp(0, total);
-      return sum + remain;
-    });
+    int totalRemain = list.fold(0, (sum, d) => sum + _remainingDebt(d));
 
     return Column(
       children: [
@@ -914,10 +935,10 @@ class _DebtViewState extends State<DebtView>
   Widget _partnerDebtCard(Map<String, dynamic> partner, int index) {
     final name = partner['name'] ?? 'Đối tác $index';
     final phone = partner['phone'] ?? '';
-    final totalRepairs = partner['totalRepairs'] ?? 0;
-    final totalCost = partner['totalCost'] as int? ?? 0;
-    final totalPaid = partner['totalPaid'] as int? ?? 0;
-    final remainingDebt = partner['remainingDebt'] as int? ?? 0;
+    final totalRepairs = _toInt(partner['totalRepairs']);
+    final totalCost = _toInt(partner['totalCost']);
+    final totalPaid = _toInt(partner['totalPaid']);
+    final remainingDebt = _toInt(partner['remainingDebt']);
     final note = partner['note']?.toString() ?? '';
     final source = partner['source'] ?? 'repairs';
     final isAltRow = index.isEven;
@@ -1220,16 +1241,21 @@ class _DebtViewState extends State<DebtView>
   }
 
   Widget _debtCard(Map<String, dynamic> d, [int? index]) {
-    final int total = d['totalAmount'];
-    final int paid = d['paidAmount'] ?? 0;
+    final int total = _toInt(d['totalAmount']);
+    final int paid = _toInt(d['paidAmount']);
     final int remain = (total - paid).clamp(0, total);
-    final createdAt = d['createdAt'] as int? ?? 0;
-    final date = DateFormat(
-      'dd/MM/yyyy',
-    ).format(DateTime.fromMillisecondsSinceEpoch(createdAt));
-    final time = DateFormat(
-      'HH:mm',
-    ).format(DateTime.fromMillisecondsSinceEpoch(createdAt));
+    final createdAt = _toInt(d['createdAt']);
+    final hasCreatedAt = createdAt > 0;
+    final date = hasCreatedAt
+        ? DateFormat(
+            'dd/MM/yyyy',
+          ).format(DateTime.fromMillisecondsSinceEpoch(createdAt))
+        : '--/--/----';
+    final time = hasCreatedAt
+        ? DateFormat(
+            'HH:mm',
+          ).format(DateTime.fromMillisecondsSinceEpoch(createdAt))
+        : '--:--';
     final personName = (d['personName'] ?? 'N/A').toString();
     final phone = d['phone']?.toString() ?? '';
     final note = d['note']?.toString() ?? '';
@@ -1246,9 +1272,11 @@ class _DebtViewState extends State<DebtView>
         : Colors.blue.shade200;
 
     // Calculate days since creation for urgency
-    final daysSince = DateTime.now()
-        .difference(DateTime.fromMillisecondsSinceEpoch(createdAt))
-        .inDays;
+    final daysSince = hasCreatedAt
+        ? DateTime.now()
+              .difference(DateTime.fromMillisecondsSinceEpoch(createdAt))
+              .inDays
+        : 0;
     final isUrgent = daysSince > 30;
     final isVeryUrgent = daysSince > 60;
     final isAltRow = (index ?? 0).isEven;
@@ -1553,28 +1581,6 @@ class _DebtViewState extends State<DebtView>
       ),
     );
   }
-
-  Widget _miniValue(String l, int v, Color c) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        l,
-        style: const TextStyle(
-          fontSize: AppTextStyles.overlineSize,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey,
-        ),
-      ),
-      Text(
-        MoneyUtils.formatCompactCurrency(v),
-        style: TextStyle(
-          fontSize: AppTextStyles.subtitle1.fontSize,
-          fontWeight: FontWeight.bold,
-          color: c,
-        ),
-      ),
-    ],
-  );
 
   void _createOtherDebt() async {
     // Kiểm tra ngày hôm nay đã chốt quỹ chưa
@@ -2100,106 +2106,214 @@ class _DebtViewState extends State<DebtView>
     Color iconColor, [
     int? index,
   ]) {
-    final int total = d['totalAmount'];
-    final int paid = d['paidAmount'] ?? 0;
+    final int total = _toInt(d['totalAmount']);
+    final int paid = _toInt(d['paidAmount']);
     final int remain = (total - paid).clamp(0, total);
-    final date = DateFormat(
-      'dd/MM/yyyy',
-    ).format(DateTime.fromMillisecondsSinceEpoch(d['createdAt']));
+    final int createdAt = _toInt(d['createdAt']);
+    final bool hasCreatedAt = createdAt > 0;
+    final String date = hasCreatedAt
+        ? DateFormat(
+            'dd/MM/yyyy',
+          ).format(DateTime.fromMillisecondsSinceEpoch(createdAt))
+        : '--/--/----';
+    final String time = hasCreatedAt
+        ? DateFormat(
+            'HH:mm',
+          ).format(DateTime.fromMillisecondsSinceEpoch(createdAt))
+        : '--:--';
+    final String personName = (d['personName'] ?? 'N/A').toString();
+    final String phone = d['phone']?.toString() ?? '';
+    final String note = d['note']?.toString() ?? '';
+    final bool isReceivable = icon == Icons.arrow_downward;
     final isAltRow = (index ?? 0).isEven;
 
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 6),
-      decoration: BoxDecoration(
-        color: isAltRow
-            ? Color.alphaBlend(iconColor.withOpacity(0.04), Colors.white)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: iconColor.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10),
-        ],
+      color: isAltRow
+          ? Color.alphaBlend(iconColor.withOpacity(0.04), Colors.white)
+          : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: iconColor.withOpacity(0.12)),
       ),
-      child: ListTile(
+      child: InkWell(
         onTap: () => _showDebtHistory(d),
-        contentPadding: const EdgeInsets.all(12),
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (index != null) ...[
-              Container(
-                width: 24,
-                height: 24,
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Center(
-                  child: Text(
-                    '$index',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: iconColor,
-                      fontSize: AppTextStyles.caption.fontSize,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (index != null) ...[
+                    Container(
+                      width: 26,
+                      height: 26,
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: iconColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$index',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: iconColor,
+                            fontSize: AppTextStyles.caption.fontSize,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: iconColor, size: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          personName.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: AppTextStyles.headline5.fontSize,
+                          ),
+                        ),
+                        if (phone.isNotEmpty)
+                          Text(
+                            '📞 $phone',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.caption.fontSize,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        date,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.caption.fontSize,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: AppTextStyles.overlineSize,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (note.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  note,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: AppTextStyles.caption.fontSize,
+                    color: Colors.grey.shade700,
+                  ),
                 ),
+              ],
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Tổng nợ',
+                      amount: total,
+                      valueColor: Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Đã trả',
+                      amount: paid,
+                      valueColor: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _amountPill(
+                      label: 'Còn nợ',
+                      amount: remain,
+                      valueColor: Colors.white,
+                      bgColor: iconColor,
+                      labelColor: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _showDebtHistory(d),
+                    icon: const Icon(Icons.history, size: 16),
+                    label: Text(
+                      'Lịch sử',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _payDebt(d),
+                    icon: Icon(
+                      isReceivable ? Icons.call_received : Icons.call_made,
+                      size: 16,
+                    ),
+                    label: Text(
+                      isReceivable ? 'Thu nợ' : 'Trả nợ',
+                      style: TextStyle(
+                        fontSize: AppTextStyles.subtitle1.fontSize,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: iconColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
               ),
             ],
-            CircleAvatar(
-              backgroundColor: iconColor.withAlpha(25),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-          ],
+          ),
         ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                (d['personName'] ?? 'N/A').toString().toUpperCase(),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: AppTextStyles.headline5.fontSize,
-                ),
-              ),
-            ),
-            Text(
-              date,
-              style: TextStyle(
-                fontSize: AppTextStyles.caption.fontSize,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (d['phone'] != null)
-              Text(
-                "SĐT: ${d['phone']}",
-                style: TextStyle(
-                  fontSize: AppTextStyles.caption.fontSize,
-                  color: Colors.blueGrey,
-                ),
-              ),
-            Text(
-              "Nội dung: ${d['note'] ?? ''}",
-              style: TextStyle(fontSize: AppTextStyles.caption.fontSize),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _miniValue("ĐÃ TRẢ", paid, Colors.green),
-                _miniValue("CÒN NỢ", remain, iconColor),
-              ],
-            ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       ),
     );
   }

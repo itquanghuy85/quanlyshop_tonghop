@@ -38,9 +38,11 @@ class MoneyUtils {
         : 3;
 
     final raw = value.toStringAsFixed(decimals);
-    final cleaned = raw
-        .replaceFirst(RegExp(r'([.]0+)$'), '')
-        .replaceFirst(RegExp(r'(\.\d*[1-9])0+$'), r'$1');
+    var cleaned = raw.replaceFirst(RegExp(r'([.]0+)$'), '');
+    cleaned = cleaned.replaceFirstMapped(
+      RegExp(r'(\.\d*[1-9])0+$'),
+      (m) => m.group(1) ?? '',
+    );
 
     final parts = cleaned.split('.');
     final intPart = parts.first;

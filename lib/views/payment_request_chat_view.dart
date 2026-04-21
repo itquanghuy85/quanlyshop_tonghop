@@ -1675,15 +1675,28 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
       _dateRange = 'all';
       _searchQuery = '';
       _searchCtrl.clear();
-      _isLoading = true;
+      _isLoading = false;
     });
 
     try {
-      final created = await PaymentRequestService.getById(requestId);
+      PaymentRequest? created;
+      for (final waitMs in const [0, 120, 320, 640]) {
+        if (waitMs > 0) {
+          await Future.delayed(Duration(milliseconds: waitMs));
+        }
+        created = await PaymentRequestService.getById(requestId);
+        if (created != null) break;
+      }
+
       if (!mounted) return;
       if (created != null) {
+        final createdReq = created;
         setState(() {
-          _requests = [created, ..._requests.where((r) => r.id != created.id)];
+          _requests = [
+            createdReq,
+            ..._requests.where((r) => r.id != createdReq.id),
+          ];
+          _isLoading = false;
         });
       }
     } catch (_) {
