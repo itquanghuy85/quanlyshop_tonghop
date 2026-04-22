@@ -605,10 +605,10 @@ class SyncService {
 
   static String _normalizeLegacyShopName(String? rawName) {
     final name = (rawName ?? '').trim();
-    if (name.isEmpty) return 'QUAN LY SHOP';
+    if (name.isEmpty) return 'Quản Lý Shop';
     final lower = name.toLowerCase();
     if (lower == 'shop new' || lower == 'shop_new' || lower == 'shopnew') {
-      return 'QUAN LY SHOP';
+      return 'Quản Lý Shop';
     }
     return name;
   }

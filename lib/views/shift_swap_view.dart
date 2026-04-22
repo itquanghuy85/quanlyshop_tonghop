@@ -19,7 +19,7 @@ class ShiftSwapView extends StatefulWidget {
 }
 
 class _ShiftSwapViewState extends State<ShiftSwapView>
-    with SingleTickerProviderStateMixin {
+  with TickerProviderStateMixin {
   static const List<String> _shifts = [
     'Ca sáng (08:00-12:00)',
     'Ca chiều (13:00-17:00)',
@@ -65,13 +65,33 @@ class _ShiftSwapViewState extends State<ShiftSwapView>
           role == 'manager';
 
       if (!mounted) return;
-      setState(() {
-        _loadingRole = false;
-        _canReview = canReview;
-        _currentUid = user.uid;
-        _tabController.dispose();
-        _tabController = TabController(length: canReview ? 2 : 1, vsync: this);
-      });
+      final targetLength = canReview ? 2 : 1;
+
+      if (_tabController.length != targetLength) {
+        final oldController = _tabController;
+        final nextController = TabController(
+          length: targetLength,
+          initialIndex: oldController.index.clamp(0, targetLength - 1),
+          vsync: this,
+        );
+
+        setState(() {
+          _loadingRole = false;
+          _canReview = canReview;
+          _currentUid = user.uid;
+          _tabController = nextController;
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          oldController.dispose();
+        });
+      } else {
+        setState(() {
+          _loadingRole = false;
+          _canReview = canReview;
+          _currentUid = user.uid;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

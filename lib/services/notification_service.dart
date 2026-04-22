@@ -1652,10 +1652,15 @@ class NotificationService {
     }
   }
 
-  static void showSnackBar(String message, {Color color = Colors.blueAccent}) {
+  static void showSnackBar(
+    String message, {
+    Color color = Colors.blueAccent,
+    Duration duration = const Duration(seconds: 4),
+  }) {
     messengerKey.currentState?.hideCurrentSnackBar();
     messengerKey.currentState?.showSnackBar(
       SnackBar(
+        duration: duration,
         content: Text(
           message,
           style: const TextStyle(fontWeight: FontWeight.bold),

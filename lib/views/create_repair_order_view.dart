@@ -727,6 +727,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       // Upload images in background after navigation
       if (imagesToUpload.isNotEmpty && r.id != null && r.firestoreId != null) {
+        NotificationService.showSnackBar(
+          'Đơn đã lưu. Đang tải ảnh lên hệ thống, vui lòng không thoát ứng dụng.',
+          color: Colors.blue,
+          duration: const Duration(seconds: 7),
+        );
         BackgroundUploadService.uploadRepairImages(
           localRepairId: r.id!,
           firestoreId: r.firestoreId!,
@@ -765,6 +770,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
 
       // Upload images in background after navigation
       if (imagesToUpload.isNotEmpty && r.id != null && r.firestoreId != null) {
+        NotificationService.showSnackBar(
+          'Đang tải ảnh lên hệ thống, vui lòng không thoát ứng dụng.',
+          color: Colors.blue,
+          duration: const Duration(seconds: 7),
+        );
         BackgroundUploadService.uploadRepairImages(
           localRepairId: r.id!,
           firestoreId: r.firestoreId!,

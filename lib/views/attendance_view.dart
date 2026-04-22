@@ -362,6 +362,12 @@ class _AttendanceViewState extends State<AttendanceView>
         color: Colors.green,
       );
 
+      NotificationService.showSnackBar(
+        "Ảnh chấm công đang tải lên hệ thống, vui lòng không thoát ứng dụng.",
+        color: Colors.blue,
+        duration: const Duration(seconds: 7),
+      );
+
       // Upload photo to cloud in background
       BackgroundUploadService.uploadAttendancePhoto(
         firestoreId: firestoreId,

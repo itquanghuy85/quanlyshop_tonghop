@@ -44,7 +44,7 @@ class CurrentShopService {
     if (name.isEmpty) return '';
     final lower = name.toLowerCase();
     if (lower == 'shop new' || lower == 'shop_new' || lower == 'shopnew') {
-      return 'QUAN LY SHOP';
+      return 'Quản Lý Shop';
     }
     return name;
   }

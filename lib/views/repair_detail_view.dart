@@ -426,7 +426,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         rawShopName.toLowerCase() == 'shop new' ||
             rawShopName.toLowerCase() == 'shop_new' ||
             rawShopName.toLowerCase() == 'shopnew'
-        ? 'QUAN LY SHOP'
+      ? 'Quản Lý Shop'
         : (rawShopName.isNotEmpty ? rawShopName : loc.defaultShopName);
     if (!mounted) return;
     setState(() {

@@ -455,6 +455,11 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
 
       // Upload logo if selected
       if (_selectedLogo != null) {
+        NotificationService.showSnackBar(
+          'Đang tải logo lên hệ thống, vui lòng không thoát ứng dụng.',
+          color: Colors.blue,
+          duration: const Duration(seconds: 7),
+        );
         final urls = await StorageService.uploadMultipleImages([
           _selectedLogo!.path,
         ], 'shop_logos');

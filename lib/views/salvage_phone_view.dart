@@ -867,6 +867,12 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
                             final List<String> allUrls = [
                               ...existingImageUrls,
                             ];
+                            if (newImages.isNotEmpty) {
+                              _showSnack(
+                                'Đang tải ảnh lên hệ thống, vui lòng không thoát ứng dụng.',
+                                duration: const Duration(seconds: 7),
+                              );
+                            }
                             for (final img in newImages) {
                               final url =
                                   await StorageService.uploadXFileAndGetUrl(
@@ -1325,10 +1331,10 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
   }
 
   // === UTILS ===
-  void _showSnack(String msg) {
+  void _showSnack(String msg, {Duration duration = const Duration(seconds: 2)}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+      SnackBar(content: Text(msg), duration: duration),
     );
   }
 }

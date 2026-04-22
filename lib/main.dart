@@ -298,7 +298,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Quan Ly Shop',
+      title: 'Quản Lý Shop',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: NotificationService.messengerKey,
       theme: AppTheme.lightTheme,

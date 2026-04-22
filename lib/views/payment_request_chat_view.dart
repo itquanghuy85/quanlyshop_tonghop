@@ -1621,6 +1621,13 @@ class _PaymentRequestChatViewState extends State<PaymentRequestChatView> {
 
     setState(() => _isSendingImage = true);
     try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          duration: Duration(seconds: 7),
+          content: Text('Đang tải ảnh minh chứng lên hệ thống, vui lòng không thoát ứng dụng.'),
+          backgroundColor: Colors.blue,
+        ),
+      );
       final urls = await PaymentRequestService.uploadImages(
         _selectedReqForImage!.id!,
         files,
