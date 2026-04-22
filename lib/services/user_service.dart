@@ -319,12 +319,7 @@ class UserService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return '';
 
-    // 1. Thử lấy từ Firebase Auth displayName
-    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
-      return user.displayName!.trim();
-    }
-
-    // 2. Lấy từ Firestore (kiểm tra cả displayName và name, bỏ qua chuỗi rỗng)
+    // 1. Ưu tiên Firestore profile vì đây là nguồn thường được cập nhật trong app.
     try {
       final info = await getUserInfo(user.uid);
       final displayName = (info['displayName'] ?? '').toString().trim();
@@ -335,7 +330,12 @@ class UserService {
       debugPrint('getCurrentUserName error: $e');
     }
 
-    // 3. Fallback: capitalize phần trước @ của email
+    // 2. Fallback sang Firebase Auth displayName.
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      return user.displayName!.trim();
+    }
+
+    // 3. Fallback cuối: capitalize phần trước @ của email.
     if (user.email != null && user.email!.isNotEmpty) {
       final prefix = user.email!.split('@').first;
       if (prefix.isNotEmpty) {

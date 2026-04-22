@@ -13,6 +13,7 @@ import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
 import '../models/repair_model.dart';
@@ -37,6 +38,7 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/storage_service.dart';
+import '../services/encryption_service.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
@@ -67,6 +69,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   bool _hasPermission = false;
   bool _canViewCostPrice = false;
   List<RepairPartner> _partners = [];
+  String? _lastModifiedBy;
+  int? _lastModifiedAt;
 
   // Shop settings for dynamic terminology (reserved for future multi-industry use)
   // ignore: unused_field
@@ -86,11 +90,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     _loadShopInfo();
     _loadPartners();
     _bindRepairEvents();
+    unawaited(_loadLastModifierInfo());
+    unawaited(_refreshRepairFromCloud(reason: 'open'));
   }
 
   /// Lắng nghe EventBus để tải lại đơn từ local DB khi SyncService nhận dữ liệu mới.
   void _bindRepairEvents() {
     _repairEventSub = EventBus().stream.listen((event) {
+      if (event == 'app_resumed') {
+        unawaited(_refreshRepairFromCloud(reason: 'app_resumed'));
+        return;
+      }
+
       if (event == 'repairs_changed' || event == 'parts_changed') {
         debugPrint(
           '🔧 [RepairDetailView] Nhận event "$event" → debounce reload từ local DB',
@@ -116,10 +127,199 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           '✅ [RepairDetailView] Reload từ local DB: ${updated.customerName} (status ${updated.status})',
         );
         setState(() => r = updated);
+        unawaited(_loadLastModifierInfo());
       }
     } catch (e) {
       debugPrint('⚠️ [RepairDetailView] _reloadRepairFromDb lỗi: $e');
     }
+  }
+
+  Future<void> _refreshRepairFromCloud({String reason = 'manual'}) async {
+    final targetId = (r.firestoreId ?? '').trim();
+    if (targetId.isEmpty) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('repairs')
+          .doc(targetId)
+          .get(const GetOptions(source: Source.server));
+
+      if (!snapshot.exists) return;
+
+      final rawData = Map<String, dynamic>.from(snapshot.data() ?? {});
+      final data = EncryptionService.decryptMap(rawData);
+      if (data['deleted'] == true) return;
+
+      SyncService.convertTimestampFieldsPublic(data);
+      data['firestoreId'] = targetId;
+      data['isSynced'] = 1;
+
+      final latest = Repair.fromMap(data);
+      await db.upsertRepair(latest);
+
+      if (!mounted || _isUpdating) return;
+      setState(() => r = latest);
+      unawaited(_loadLastModifierInfo());
+
+      debugPrint(
+        '☁️ [RepairDetailView] Refresh cloud ($reason): status=${latest.status}',
+      );
+    } catch (e) {
+      debugPrint('⚠️ [RepairDetailView] _refreshRepairFromCloud lỗi ($reason): $e');
+    }
+  }
+
+  String _normalizeActionText(String rawAction) {
+    return rawAction.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  bool _isWalkInRepair(Repair repair) {
+    if (repair.isWalkIn) return true;
+
+    bool looksWalkIn(String? raw) {
+      final value = _normalizeActionText(raw ?? '');
+      if (value.isEmpty) return false;
+      return value.contains('KHÁCH VÃNG LAI') ||
+          value.contains('KHACH VANG LAI') ||
+          value.contains('KHÁCH LẺ') ||
+          value.contains('KHACH LE') ||
+          value.contains('WALK IN') ||
+          value == 'VÃNG LAI' ||
+          value == 'VANG LAI';
+    }
+
+    return looksWalkIn(repair.customerName) || looksWalkIn(repair.walkInName);
+  }
+
+  Future<String> _resolveCurrentStaffName({String fallback = 'NV'}) async {
+    try {
+      final name = (await UserService.getCurrentUserName()).trim();
+      if (name.isNotEmpty) return name;
+    } catch (_) {}
+
+    final email = (FirebaseAuth.instance.currentUser?.email ?? '').trim();
+    if (email.isNotEmpty && email.contains('@')) {
+      final prefix = email.split('@').first.trim();
+      if (prefix.isNotEmpty) {
+        return prefix[0].toUpperCase() + prefix.substring(1);
+      }
+    }
+
+    return fallback;
+  }
+
+  bool _isDeliveryRequestAction(String rawAction) {
+    final action = _normalizeActionText(rawAction);
+    if (action.isEmpty) return false;
+
+    final localizedAction = _normalizeActionText(loc.actionRequestDeliveryApproval);
+    return action == localizedAction ||
+        action == 'YÊU CẦU DUYỆT GIAO' ||
+        action == 'REQUEST DELIVERY APPROVAL';
+  }
+
+  Future<int?> _findDeliveryRequestedAt() async {
+    final targetId = (r.firestoreId ?? '').trim();
+    if (targetId.isEmpty) return null;
+
+    try {
+      final dbConn = await db.database;
+      final rows = await dbConn.query(
+        'audit_logs',
+        columns: ['action', 'createdAt'],
+        where: 'targetType = ? AND targetId = ?',
+        whereArgs: ['REPAIR', targetId],
+        orderBy: 'createdAt DESC',
+        limit: 40,
+      );
+
+      for (final row in rows) {
+        final action = row['action']?.toString() ?? '';
+        if (!_isDeliveryRequestAction(action)) continue;
+
+        final createdAt = _parseTimestamp(row['createdAt']);
+        if (createdAt > 0) return createdAt;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [RepairDetailView] _findDeliveryRequestedAt lỗi: $e');
+    }
+
+    return null;
+  }
+
+  Future<void> _loadLastModifierInfo() async {
+    final targetId = (r.firestoreId ?? '').trim();
+    if (targetId.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _lastModifiedBy = null;
+        _lastModifiedAt = null;
+      });
+      return;
+    }
+
+    try {
+      final dbConn = await db.database;
+      final rows = await dbConn.query(
+        'audit_logs',
+        columns: ['userName', 'action', 'createdAt'],
+        where: 'targetType = ? AND targetId = ?',
+        whereArgs: ['REPAIR', targetId],
+        orderBy: 'createdAt DESC',
+        limit: 30,
+      );
+
+      Map<String, dynamic>? modifierRow;
+      for (final row in rows) {
+        final action = row['action']?.toString() ?? '';
+        if (_isRepairEditAction(action)) {
+          modifierRow = row;
+          break;
+        }
+      }
+
+      String? modifiedBy;
+      int? modifiedAt;
+
+      if (modifierRow != null) {
+        final userName = modifierRow['userName']?.toString();
+        final label = _staffLabel(userName);
+        if (label != '---') {
+          modifiedBy = label;
+        }
+
+        final parsedAt = _parseTimestamp(modifierRow['createdAt']);
+        if (parsedAt > 0) {
+          modifiedAt = parsedAt;
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _lastModifiedBy = modifiedBy;
+        _lastModifiedAt = modifiedAt;
+      });
+    } catch (e) {
+      debugPrint('⚠️ [RepairDetailView] _loadLastModifierInfo lỗi: $e');
+    }
+  }
+
+  bool _isRepairEditAction(String rawAction) {
+    final action = _normalizeActionText(rawAction);
+    if (action.isEmpty) return false;
+
+    final localizedEditAction = _normalizeActionText(loc.editRepairAction);
+    return action == localizedEditAction ||
+      action == 'SỬA ĐƠN SỬA' ||
+      action == 'CHỈNH SỬA THÔNG TIN ĐƠN SỬA' ||
+      action == 'EDIT REPAIR';
+  }
+
+  int _parseTimestamp(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? 0;
+    return 0;
   }
 
   @override
@@ -264,6 +464,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       NotificationService.showSnackBar(transitionError, color: AppColors.error);
       return;
     }
+
+    final currentStaffName = await _resolveCurrentStaffName(fallback: 'NV');
 
     final repairsBefore = await db.getAllRepairs();
     debugPrint('Repairs count before update: ${repairsBefore.length}');
@@ -498,7 +700,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       r.finishedAt = DateTime.now().millisecondsSinceEpoch;
       // Ghi nhận người sửa xong = user hiện tại
       final user = FirebaseAuth.instance.currentUser;
-      r.repairedBy = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+      r.repairedBy = currentStaffName;
       r.repairedByUid = user?.uid;
       // Không tự động set pendingDeliveryApproval = true
       // Để user chủ động bấm nút "GIAO MÁY" sau khi sửa xong
@@ -547,7 +749,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (newStatus != 4) {
         try {
           final user = FirebaseAuth.instance.currentUser;
-          final userName = user?.email?.split('@').first.toUpperCase() ?? "NV";
+          final userName = currentStaffName;
           final key = r.firestoreId ?? "repair_${r.createdAt}";
           final summary = loc.repairOrderShare(
             r.customerName,
@@ -644,7 +846,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (_isUpdating) return; // Guard chống double-tap
     // Kiểm tra thông tin khách hàng trước khi giao máy
     // Khách vãng lai (isWalkIn) được phép giao mà không cần thông tin đầy đủ
-    if (!r.isWalkIn && (r.phone.isEmpty || r.customerName.isEmpty)) {
+    if (!_isWalkInRepair(r) &&
+        (r.phone.trim().isEmpty || r.customerName.trim().isEmpty)) {
       final shouldEdit = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -783,23 +986,22 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (confirm != true) return;
 
     final user = FirebaseAuth.instance.currentUser;
-    final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
+    final userName = await _resolveCurrentStaffName(fallback: 'NV');
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     r.warranty = selectedWarranty;
     r.paymentMethod = payMethod;
-    r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+    r.lastCaredAt = nowMs;
     r.isSynced = false;
 
     setState(() {
       // Nếu đơn chưa ở status 3 (Sửa xong), chuyển lên status 3 trước
       if (r.status < 3) {
         r.status = 3;
-        r.finishedAt = DateTime.now().millisecondsSinceEpoch;
+        r.finishedAt = nowMs;
         // Ghi nhận người sửa xong
-        final currentUser = FirebaseAuth.instance.currentUser;
-        r.repairedBy =
-            currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
-        r.repairedByUid = currentUser?.uid;
+        r.repairedBy = userName;
+        r.repairedByUid = user?.uid;
       }
       // Người gửi yêu cầu giao được xem là người giao thực tế.
       r.deliveredBy = userName;
@@ -882,7 +1084,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (_isUpdating) return; // Guard chống double-tap
     // Kiểm tra thông tin khách hàng trước khi giao máy
     // Khách vãng lai (isWalkIn) được phép giao mà không cần thông tin đầy đủ
-    if (!r.isWalkIn && (r.phone.isEmpty || r.customerName.isEmpty)) {
+    if (!_isWalkInRepair(r) &&
+        (r.phone.trim().isEmpty || r.customerName.trim().isEmpty)) {
       final shouldEdit = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -1011,18 +1214,24 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     // Cho phép quản lý/chủ shop chỉnh lại bảo hành trước khi duyệt
     r.warranty = selectedWarranty;
 
-    r.deliveredAt = DateTime.now().millisecondsSinceEpoch;
-    r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
-    r.isSynced = false;
-
     final user = FirebaseAuth.instance.currentUser;
-    final userName = user?.email?.split('@').first.toUpperCase() ?? "QL";
+    final userName = await _resolveCurrentStaffName(fallback: 'QL');
+    final approverName = userName;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final requestedDeliveryAt = await _findDeliveryRequestedAt();
+
+    r.deliveredAt = requestedDeliveryAt ?? nowMs;
+    r.lastCaredAt = nowMs;
+    r.isSynced = false;
 
     // Giữ người giao do nhân viên đã gửi yêu cầu; chỉ fallback về người duyệt nếu chưa có.
     if ((r.deliveredBy ?? '').trim().isEmpty) {
       r.deliveredBy = userName;
       r.deliveredByUid = user?.uid;
     }
+    final deliveredByName = (r.deliveredBy ?? '').trim().isNotEmpty
+        ? (r.deliveredBy ?? '').trim()
+        : approverName;
 
     setState(() {
       r.status = 4; // Đã giao
@@ -1147,10 +1356,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // Push notification khi giao máy (status 4)
       try {
+        final deliveredClock = DateFormat(
+          'HH\'H\'mm',
+        ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!));
         await NotificationService.sendCloudNotification(
-          title: '🚀 ĐÃ GIAO MÁY',
+          title: '🚀 $deliveredByName ĐÃ GIAO MÁY LÚC $deliveredClock',
           body:
-              '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
+              '👷 $deliveredByName • ⏰ $deliveredClock\n✅ Duyệt: $approverName\n👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
           type: 'new_order',
           data: {'targetType': 'repair', 'targetId': key, 'repairId': key},
         );
@@ -1204,7 +1416,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.email?.split('@').first.toUpperCase() ?? "QL";
+      final userName = await _resolveCurrentStaffName(fallback: 'QL');
 
       await db.logAction(
         userId: user?.uid ?? "0",
@@ -1238,9 +1450,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // Ghi nhật ký sửa đơn
       final user = FirebaseAuth.instance.currentUser;
+      final userName = await _resolveCurrentStaffName(fallback: 'NV');
       await db.logAction(
         userId: user?.uid ?? '0',
-        userName: user?.email?.split('@').first.toUpperCase() ?? 'NV',
+        userName: userName,
         action: loc.editRepairAction,
         type: 'REPAIR',
         targetId: r.firestoreId,
@@ -2751,21 +2964,35 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       const SizedBox(height: 6),
                       // Info rows - hiển thị trực tiếp, không ẩn trong dropdown
                       _compactInfoRow(loc.deviceIssueLabel, r.issue),
-                      // Staff inline: Nhận • Sửa • Giao
-                      _compactStaffRow(r),
+                      _compactInfoRow(
+                        'Nhận',
+                        _formatStageActorWithTime(
+                          actorRaw: r.createdBy,
+                          timestamp: r.createdAt,
+                        ),
+                      ),
+                      _compactInfoRow(
+                        'Sửa',
+                        _formatStageActorWithTime(
+                          actorRaw: r.repairedBy,
+                          timestamp: _repairStageTimestamp(r),
+                        ),
+                      ),
+                      _compactInfoRow(
+                        'Giao',
+                        _formatStageActorWithTime(
+                          actorRaw: r.deliveredBy,
+                          timestamp: r.deliveredAt,
+                        ),
+                      ),
+                      if (_hasModifierInfo)
+                        _compactInfoRow('Sửa đổi', _formatModifierInfo()),
                       if (r.accessories.isNotEmpty)
                         _compactInfoRow("PK", r.accessories),
                       if (r.warranty.isNotEmpty)
                         _compactInfoRow(loc.warranty, r.warranty),
                       if (r.notes != null && r.notes!.isNotEmpty)
                         _compactInfoRow(loc.note, r.notes!),
-                      if (r.deliveredAt != null)
-                        _compactInfoRow(
-                          loc.deliveryLabel,
-                          DateFormat('dd/MM/yyyy HH:mm').format(
-                            DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!),
-                          ),
-                        ),
 
                       // Hình ảnh
                       if (_displayableImages(r.receiveImages).isNotEmpty) ...[
@@ -3032,61 +3259,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
   }
 
-  /// Hiển thị nhận • sửa • giao trên một dòng
-  Widget _compactStaffRow(Repair rep) {
-    final receiver = _staffLabel(rep.createdBy);
-    final repairer = _staffLabel(rep.repairedBy);
-    final deliverer = _staffLabel(rep.deliveredBy);
-    final spans = <InlineSpan>[];
-
-    void addPart(String label, String value) {
-      if (value == '---') return;
-      final color = _staffStageColor(label);
-      if (spans.isNotEmpty) {
-        spans.add(
-          TextSpan(
-            text: '  •  ',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.onSurface.withOpacity(0.45),
-            ),
-          ),
-        );
-      }
-      spans.add(
-        TextSpan(
-          text: '$label: ',
-          style: AppTextStyles.caption.copyWith(
-            color: color.withOpacity(0.9),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
-      spans.add(
-        TextSpan(
-          text: value,
-          style: AppTextStyles.caption.copyWith(
-            color: color,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
-    }
-
-    addPart('Nhận', receiver);
-    addPart('Sửa', repairer);
-    addPart('Giao', deliverer);
-
-    if (spans.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: RichText(
-        text: TextSpan(children: spans),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-  }
-
   Color _staffStageColor(String stage) {
     switch (stage.toLowerCase()) {
       case 'nhận':
@@ -3112,6 +3284,41 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       valueColor: isUnknown ? AppColors.onSurface.withOpacity(0.55) : color,
       valueWeight: FontWeight.w700,
     );
+  }
+
+  int? _repairStageTimestamp(Repair rep) {
+    if ((rep.finishedAt ?? 0) > 0) return rep.finishedAt;
+    if ((rep.startedAt ?? 0) > 0) return rep.startedAt;
+    return null;
+  }
+
+  String _formatStageActorWithTime({
+    required String? actorRaw,
+    required int? timestamp,
+  }) {
+    final actor = _staffLabel(actorRaw);
+    final timeAndDay = _formatTimeAndDay(timestamp);
+
+    if (actor == '---' && timeAndDay == '---') return '---';
+    if (actor == '---') return timeAndDay;
+    if (timeAndDay == '---') return actor;
+    return '$actor  $timeAndDay';
+  }
+
+  String _formatTimeAndDay(int? timestamp) {
+    if (timestamp == null || timestamp <= 0) return '---';
+    final dt = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final time = DateFormat('HH:mm').format(dt);
+    final day = DateFormat('dd/MM/yyyy').format(dt);
+    return '$time - $day';
+  }
+
+  bool get _hasModifierInfo =>
+      _lastModifiedBy != null && (_lastModifiedAt ?? 0) > 0;
+
+  String _formatModifierInfo() {
+    if (!_hasModifierInfo) return '---';
+    return '${_lastModifiedBy!}  ${_formatTimeAndDay(_lastModifiedAt)}';
   }
 
   Widget _buildStatusCard() {
@@ -3526,9 +3733,28 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         _infoRow(loc.customerLabel, r.customerName),
         _phoneRow(loc.phoneNumberLabel, r.phone),
         _infoRow(loc.deviceIssueLabel, r.issue),
-        _staffInfoRow('Nhận', _staffLabel(r.createdBy)),
-        _staffInfoRow('Sửa', _staffLabel(r.repairedBy)),
-        _staffInfoRow('Giao', _staffLabel(r.deliveredBy)),
+        _staffInfoRow(
+          'Nhận',
+          _formatStageActorWithTime(
+            actorRaw: r.createdBy,
+            timestamp: r.createdAt,
+          ),
+        ),
+        _staffInfoRow(
+          'Sửa',
+          _formatStageActorWithTime(
+            actorRaw: r.repairedBy,
+            timestamp: _repairStageTimestamp(r),
+          ),
+        ),
+        _staffInfoRow(
+          'Giao',
+          _formatStageActorWithTime(
+            actorRaw: r.deliveredBy,
+            timestamp: r.deliveredAt,
+          ),
+        ),
+        if (_hasModifierInfo) _infoRow('Sửa đổi', _formatModifierInfo()),
         _infoRow(
           loc.accessoriesLabel,
           r.accessories.isEmpty ? loc.noAccessories : r.accessories,
@@ -3536,13 +3762,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         _infoRow(loc.warranty, r.warranty.isEmpty ? loc.noneYet : r.warranty),
         if (r.notes != null && r.notes!.isNotEmpty)
           _infoRow(loc.note, r.notes!),
-        if (r.deliveredAt != null)
-          _infoRow(
-            loc.deliveryDate,
-            DateFormat(
-              'dd/MM/yyyy HH:mm',
-            ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)),
-          ),
       ],
     );
   }
@@ -4586,9 +4805,28 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           _infoRow(loc.customerLabel, r.customerName),
           _phoneRow(loc.phoneNumberLabel, r.phone),
           _infoRow(loc.deviceIssueLabel, r.issue),
-          _staffInfoRow('Nhận', _staffLabel(r.createdBy)),
-          _staffInfoRow('Sửa', _staffLabel(r.repairedBy)),
-          _staffInfoRow('Giao', _staffLabel(r.deliveredBy)),
+          _staffInfoRow(
+            'Nhận',
+            _formatStageActorWithTime(
+              actorRaw: r.createdBy,
+              timestamp: r.createdAt,
+            ),
+          ),
+          _staffInfoRow(
+            'Sửa',
+            _formatStageActorWithTime(
+              actorRaw: r.repairedBy,
+              timestamp: _repairStageTimestamp(r),
+            ),
+          ),
+          _staffInfoRow(
+            'Giao',
+            _formatStageActorWithTime(
+              actorRaw: r.deliveredBy,
+              timestamp: r.deliveredAt,
+            ),
+          ),
+          if (_hasModifierInfo) _infoRow('Sửa đổi', _formatModifierInfo()),
           _infoRow(
             loc.accessoriesLabel,
             r.accessories.isEmpty ? loc.noAccessories : r.accessories,
@@ -4596,13 +4834,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           _infoRow(loc.warranty, r.warranty.isEmpty ? loc.noneYet : r.warranty),
           if (r.notes != null && r.notes!.isNotEmpty)
             _infoRow(loc.note, r.notes!),
-          if (r.deliveredAt != null)
-            _infoRow(
-              loc.deliveryDate,
-              DateFormat(
-                'dd/MM/yyyy HH:mm',
-              ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!)),
-            ),
         ],
       ),
     );
@@ -4756,7 +4987,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     )
                   : const Icon(Icons.verified, color: Colors.white, size: 14),
               label: const Text(
-                'DUYỆT',
+                'Y/C DUYỆT',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -4850,7 +5081,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     )
                   : const Icon(Icons.send, color: Colors.white, size: 14),
               label: const Text(
-                'DUYỆT',
+                'Y/C DUYỆT',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,

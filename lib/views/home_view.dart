@@ -228,6 +228,13 @@ class _HomeViewState extends State<HomeView>
           _debouncedLoadStats();
           _debouncedLoadDebtOverview();
         }
+
+        if ((event == 'users_changed' || event == 'user_profile_changed') &&
+            mounted) {
+          debugPrint('HomeView: User profile changed, reloading greeting info');
+          unawaited(_loadUserAndShopInfo());
+        }
+
         // Handle shop change event - reload everything
         if (event == EventBus.shopChanged && mounted) {
           debugPrint('HomeView: Shop changed, reloading all data');
@@ -439,6 +446,7 @@ class _HomeViewState extends State<HomeView>
   bool _notificationWorking = false; // Trạng thái thông báo
   String _userName = ''; // Tên hiển thị của người dùng
   String _shopName = ''; // Tên cửa hàng
+  String _runtimeRole = '';
 
   // Modular Dashboard Config
   List<DashboardCardConfig> _dashboardConfigs = [];
@@ -473,6 +481,11 @@ class _HomeViewState extends State<HomeView>
   final bool _isSuperAdmin = UserService.isCurrentUserSuperAdmin();
   bool get hasFullAccess =>
       _isSuperAdmin || widget.role == 'owner' || widget.role == 'admin';
+  String get _effectiveRole {
+    final runtimeRole = _runtimeRole.trim().toLowerCase();
+    if (runtimeRole.isNotEmpty) return runtimeRole;
+    return widget.role.trim().toLowerCase();
+  }
 
   void _initializeTabConfigs() {
     final loc = AppLocalizations.of(context)!;
@@ -1291,6 +1304,7 @@ class _HomeViewState extends State<HomeView>
       if (pauseDuration.inSeconds >= 2) {
         // Genuine background resume — do full refresh
         unawaited(_updatePermissions(forceRefresh: true));
+        unawaited(_loadUserAndShopInfo());
         _syncNow(silent: true);
         _debouncedLoadStats();
         _debouncedLoadDebtOverview();
@@ -1432,6 +1446,23 @@ class _HomeViewState extends State<HomeView>
         return;
       }
 
+      String resolvedRole = _effectiveRole;
+      try {
+        final userInfo = await UserService.getUserInfo(user.uid);
+        final firestoreRole =
+            (userInfo['role'] ?? '').toString().trim().toLowerCase();
+        if (firestoreRole.isNotEmpty) {
+          resolvedRole = firestoreRole;
+        } else {
+          final fastRole = (await UserService.getRoleFast()).trim().toLowerCase();
+          if (fastRole.isNotEmpty) {
+            resolvedRole = fastRole;
+          }
+        }
+      } catch (roleError) {
+        debugPrint('_loadUserAndShopInfo: role fetch error=$roleError');
+      }
+
       // ====== TỐI ƯU: Load từ cache trước, hiện UI ngay ======
       final prefs = await SharedPreferences.getInstance();
       final cachedUserName = prefs.getString('cached_userName_${user.uid}');
@@ -1458,7 +1489,7 @@ class _HomeViewState extends State<HomeView>
         }
       }
 
-      // Lấy tên hiển thị qua UserService (Auth displayName -> Firestore -> email fallback)
+      // Lấy tên hiển thị qua UserService (ưu tiên Firestore profile -> Auth -> email fallback)
       // Reload Auth trước để đảm bảo displayName mới nhất (quan trọng cho tài khoản mới đăng ký)
       debugPrint('_loadUserAndShopInfo: Reloading user auth profile...');
       try {
@@ -1486,6 +1517,7 @@ class _HomeViewState extends State<HomeView>
       if (displayName.isNotEmpty && mounted) {
         setState(() {
           _userName = displayName;
+          _runtimeRole = resolvedRole;
         });
         await prefs.setString('cached_userName_${user.uid}', displayName);
         debugPrint(
@@ -1580,9 +1612,10 @@ class _HomeViewState extends State<HomeView>
         setState(() {
           if (displayName.isNotEmpty) _userName = displayName;
           _shopName = shopName;
+          _runtimeRole = resolvedRole;
         });
         debugPrint(
-          '_loadUserAndShopInfo: FINAL setState - userName=$_userName, shopName=$_shopName',
+          '_loadUserAndShopInfo: FINAL setState - userName=$_userName, shopName=$_shopName, role=$_runtimeRole',
         );
       }
 
@@ -3140,14 +3173,18 @@ class _HomeViewState extends State<HomeView>
       roleText = loc.adminRole;
       roleColor = Colors.blue;
       roleIcon = Icons.admin_panel_settings;
-    } else if (widget.role == 'owner') {
+    } else if (_effectiveRole == 'owner') {
       roleText = loc.ownerRole;
       roleColor = Colors.orange;
       roleIcon = Icons.store;
-    } else if (widget.role == 'admin') {
+    } else if (_effectiveRole == 'admin' || _effectiveRole == 'manager') {
       roleText = loc.managerRole;
       roleColor = Colors.blue;
       roleIcon = Icons.manage_accounts;
+    } else if (_effectiveRole == 'technician') {
+      roleText = loc.technicianRole;
+      roleColor = Colors.teal;
+      roleIcon = Icons.build;
     } else {
       roleText = loc.employeeRole;
       roleColor = Colors.green;
@@ -7795,7 +7832,7 @@ class _HomeViewState extends State<HomeView>
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    _getRoleLabel(widget.role),
+                    _getRoleLabel(_effectiveRole),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 11,
