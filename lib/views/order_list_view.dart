@@ -100,6 +100,14 @@ class OrderListViewState extends State<OrderListView> {
     return b.createdAt.compareTo(a.createdAt); // Mới nhất trước
   }
 
+  int _displayedChargePrice(Repair repair) {
+    final requested = repair.requestedDeliveryPrice;
+    if (repair.pendingDeliveryApproval && requested != null) {
+      return requested;
+    }
+    return repair.price;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -161,7 +169,9 @@ class OrderListViewState extends State<OrderListView> {
     super.dispose();
   }
 
-  Future<void> _startRealtimeRepairsListener({bool forceRestart = false}) async {
+  Future<void> _startRealtimeRepairsListener({
+    bool forceRestart = false,
+  }) async {
     final shopId = (await UserService.getCurrentShopId())?.trim();
     if (!mounted) return;
 
@@ -202,47 +212,75 @@ class OrderListViewState extends State<OrderListView> {
       );
     }
 
-    _repairRealtimeSubscription = FirestoreService.watchRepairsByShop(
-      shopId,
-      useIndexedQuery: !_useRealtimeIndexFallback,
-    ).listen(
-      (snapshot) {
-        unawaited(_handleRealtimeSnapshot(snapshot));
-      },
-      onError: (error) {
-        debugPrint('❌ [OrderListView] Realtime listener lỗi: $error');
+    _repairRealtimeSubscription =
+        FirestoreService.watchRepairsByShop(
+          shopId,
+          useIndexedQuery: !_useRealtimeIndexFallback,
+        ).listen(
+          (snapshot) {
+            unawaited(_handleRealtimeSnapshot(snapshot));
+          },
+          onError: (error) {
+            debugPrint('❌ [OrderListView] Realtime listener lỗi: $error');
 
-        final errorText = error.toString().toLowerCase();
-        final isMissingIndex =
-            (error is FirebaseException && error.code == 'failed-precondition') ||
-            errorText.contains('requires an index');
+            final errorText = error.toString().toLowerCase();
+            final isMissingIndex =
+                (error is FirebaseException &&
+                    error.code == 'failed-precondition') ||
+                errorText.contains('requires an index');
 
-        if (isMissingIndex && !_useRealtimeIndexFallback) {
-          debugPrint(
-            '⚠️ [OrderListView] Thiếu index cho query realtime, chuyển sang fallback không orderBy(updatedAt)',
-          );
-          _useRealtimeIndexFallback = true;
-          unawaited(_startRealtimeRepairsListener(forceRestart: true));
-          return;
-        }
+            if (isMissingIndex && !_useRealtimeIndexFallback) {
+              debugPrint(
+                '⚠️ [OrderListView] Thiếu index cho query realtime, chuyển sang fallback không orderBy(updatedAt)',
+              );
+              _useRealtimeIndexFallback = true;
+              unawaited(_startRealtimeRepairsListener(forceRestart: true));
+              return;
+            }
 
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-          _isRealtimeConnected = false;
-        });
+            if (!mounted) return;
+            setState(() {
+              _isLoading = false;
+              _isRealtimeConnected = false;
+            });
 
-        unawaited(_showPendingLocalRepairsWhileWaitingRealtime());
-      },
-    );
+            unawaited(_showPendingLocalRepairsWhileWaitingRealtime());
+          },
+        );
 
     unawaited(_showPendingLocalRepairsWhileWaitingRealtime());
   }
 
-  Repair? _parseRepairDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+  int _parseTimestampSafe(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? 0;
+    return 0;
+  }
+
+  int _extractCloudRepairTimeMs(Map<String, dynamic> cloudData) {
+    final updatedAt = _parseTimestampSafe(cloudData['updatedAt']);
+    if (updatedAt > 0) return updatedAt;
+
+    final lastCaredAt = _parseTimestampSafe(cloudData['lastCaredAt']);
+    if (lastCaredAt > 0) return lastCaredAt;
+
+    final deliveredAt = _parseTimestampSafe(cloudData['deliveredAt']);
+    if (deliveredAt > 0) return deliveredAt;
+
+    final finishedAt = _parseTimestampSafe(cloudData['finishedAt']);
+    if (finishedAt > 0) return finishedAt;
+
+    return _parseTimestampSafe(cloudData['createdAt']);
+  }
+
+  Map<String, dynamic>? _decodeRepairDocPayload(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     try {
       final data = doc.data();
       if (data == null) return null;
+
       final raw = Map<String, dynamic>.from(data);
       final decrypted = EncryptionService.decryptMap(raw);
       if (decrypted['deleted'] == true) return null;
@@ -250,12 +288,48 @@ class OrderListViewState extends State<OrderListView> {
       SyncService.convertTimestampFieldsPublic(decrypted);
       decrypted['firestoreId'] = doc.id;
       decrypted['isSynced'] = 1;
-
-      return Repair.fromMap(decrypted);
+      return decrypted;
     } catch (e) {
-      debugPrint('⚠️ [OrderListView] Parse repair ${doc.id} lỗi: $e');
+      debugPrint('⚠️ [OrderListView] Decode repair ${doc.id} lỗi: $e');
       return null;
     }
+  }
+
+  Repair? _parseRepairDoc(Map<String, dynamic> payload, String docId) {
+    try {
+      return Repair.fromMap(payload);
+    } catch (e) {
+      debugPrint('⚠️ [OrderListView] Parse repair $docId lỗi: $e');
+      return null;
+    }
+  }
+
+  Future<Repair?> _preferUnsyncedLocalRepair(
+    String firestoreId,
+    Map<String, dynamic> cloudData,
+  ) async {
+    final localRepair = await db.getRepairByFirestoreId(firestoreId);
+    if (localRepair == null || localRepair.isSynced) {
+      return null;
+    }
+
+    final localTime = localRepair.lastCaredAt ?? localRepair.createdAt;
+    final cloudTime = _extractCloudRepairTimeMs(cloudData);
+
+    // Nếu cloud không rõ ràng mới hơn local, giữ local unsynced để tránh mất
+    // dữ liệu tài chính vừa sửa (price/cost bị bật về 0 từ cloud stale).
+    const toleranceMs = 5000;
+    final cloudClearlyNewer =
+        cloudTime > 0 && cloudTime > localTime + toleranceMs;
+
+    if (!cloudClearlyNewer) {
+      debugPrint(
+        '🛡️ [OrderListView] Keep local unsynced repair $firestoreId (local: $localTime, cloud: $cloudTime)',
+      );
+      return localRepair;
+    }
+
+    return null;
   }
 
   Future<bool> _mergePendingLocalRepairsIntoCache() async {
@@ -330,8 +404,22 @@ class OrderListViewState extends State<OrderListView> {
         snapshot.docChanges.length == snapshot.docs.length) {
       _repairsByFirestoreId.clear();
       for (final doc in snapshot.docs) {
-        final repair = _parseRepairDoc(doc);
+        final payload = _decodeRepairDocPayload(doc);
+        if (payload == null) continue;
+
+        final preferredLocal = await _preferUnsyncedLocalRepair(
+          doc.id,
+          payload,
+        );
+        if (preferredLocal != null) {
+          _repairsByFirestoreId[doc.id] = preferredLocal;
+          hasChanges = true;
+          continue;
+        }
+
+        final repair = _parseRepairDoc(payload, doc.id);
         if (repair == null) continue;
+
         _repairsByFirestoreId[doc.id] = repair;
         upsertFutures.add(db.upsertRepair(repair));
       }
@@ -346,13 +434,23 @@ class OrderListViewState extends State<OrderListView> {
           continue;
         }
 
-        final repair = _parseRepairDoc(change.doc);
-        if (repair == null) {
+        final payload = _decodeRepairDocPayload(change.doc);
+        if (payload == null) {
           if (_repairsByFirestoreId.remove(id) != null) {
             hasChanges = true;
           }
           continue;
         }
+
+        final preferredLocal = await _preferUnsyncedLocalRepair(id, payload);
+        if (preferredLocal != null) {
+          _repairsByFirestoreId[id] = preferredLocal;
+          hasChanges = true;
+          continue;
+        }
+
+        final repair = _parseRepairDoc(payload, id);
+        if (repair == null) continue;
 
         _repairsByFirestoreId[id] = repair;
         upsertFutures.add(db.upsertRepair(repair));
@@ -399,7 +497,10 @@ class OrderListViewState extends State<OrderListView> {
         : filtered
               .where(
                 (r) =>
-                    VietnameseUtils.containsVietnamese(r.customerName, keyword) ||
+                    VietnameseUtils.containsVietnamese(
+                      r.customerName,
+                      keyword,
+                    ) ||
                     r.phone.contains(keyword) ||
                     VietnameseUtils.containsVietnamese(r.model, keyword) ||
                     VietnameseUtils.containsVietnamese(r.issue, keyword) ||
@@ -856,6 +957,8 @@ class OrderListViewState extends State<OrderListView> {
   void _confirmDelete(Repair r) {
     if (!canDelete) return;
 
+    final displayPrice = _displayedChargePrice(r);
+
     // === KIỂM TRA ĐIỀU KIỆN XÓA ===
     // 1. Chỉ xóa đơn chưa giao (status < 4)
     if (r.status >= 4) {
@@ -869,7 +972,7 @@ class OrderListViewState extends State<OrderListView> {
     }
 
     // 2. Cảnh báo nếu đơn đã có giá (có số liệu kế toán)
-    final hasAccountingData = r.price > 0 || r.cost > 0;
+    final hasAccountingData = displayPrice > 0 || r.cost > 0;
     final hasPartsUsed = r.partsUsed.isNotEmpty;
 
     final passCtrl = TextEditingController();
@@ -935,11 +1038,11 @@ class OrderListViewState extends State<OrderListView> {
                       child: Text(
                         _canViewCostPrice
                             ? loc.orderHasAccounting(
-                                _formatMoney(r.price),
+                                _formatMoney(displayPrice),
                                 _formatMoney(r.cost),
                               )
                             : loc.orderHasAccounting(
-                                _formatMoney(r.price),
+                                _formatMoney(displayPrice),
                                 '***',
                               ),
                         style: const TextStyle(fontSize: 14),
@@ -1370,7 +1473,10 @@ class OrderListViewState extends State<OrderListView> {
     final List<String> images = _collectRepairImages(r);
     final String firstImage = _pickBestPreviewImage(images);
     final int displayCost = r.totalCost;
-    final int displayProfit = r.price - displayCost;
+    final int displayPrice = _displayedChargePrice(r);
+    final int displayProfit = displayPrice - displayCost;
+    final bool hasRequestedCharge =
+      r.pendingDeliveryApproval && r.requestedDeliveryPrice != null;
 
     // Determine card color based on status
     Color bgColor;
@@ -1697,9 +1803,11 @@ class OrderListViewState extends State<OrderListView> {
                         maxLines: 2,
                       ),
                     // Giá thu khách (chỉ hiện khi có giá > 0)
-                    if (r.price > 0)
+                    if (displayPrice > 0)
                       _repairInfoChip(
-                        '💰 ${MoneyUtils.formatCompactCurrency(r.price)}đ',
+                        hasRequestedCharge
+                            ? '💰 YC ${MoneyUtils.formatCompactCurrency(displayPrice)}đ'
+                            : '💰 ${MoneyUtils.formatCompactCurrency(displayPrice)}đ',
                         Colors.green.shade100,
                         textColor: Colors.green.shade800,
                         fontWeight: FontWeight.w600,
@@ -1712,7 +1820,7 @@ class OrderListViewState extends State<OrderListView> {
                         textColor: Colors.blue.shade700,
                         fontWeight: FontWeight.w600,
                       ),
-                    if (_canViewCostPrice && r.price > 0 && displayCost > 0)
+                    if (_canViewCostPrice && displayPrice > 0 && displayCost > 0)
                       _repairInfoChip(
                         displayProfit >= 0
                             ? '📈 Lãi ${MoneyUtils.formatCompactCurrency(displayProfit)}đ'
@@ -1854,13 +1962,13 @@ class OrderListViewState extends State<OrderListView> {
 
   Widget _buildListInsightBar() {
     final modeLabel = _isRealtimeConnected
-      ? (_useRealtimeIndexFallback
-            ? 'Realtime Firestore (fallback no-index)'
-            : 'Realtime Firestore • 50 đơn mới nhất')
-      : 'Đang kết nối realtime...';
+        ? (_useRealtimeIndexFallback
+              ? 'Realtime Firestore (fallback no-index)'
+              : 'Realtime Firestore • 50 đơn mới nhất')
+        : 'Đang kết nối realtime...';
     final statusLabel = _isRealtimeConnected
-      ? 'Đồng bộ tức thì giữa thiết bị'
-      : 'Chưa nhận snapshot server';
+        ? 'Đồng bộ tức thì giữa thiết bị'
+        : 'Chưa nhận snapshot server';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

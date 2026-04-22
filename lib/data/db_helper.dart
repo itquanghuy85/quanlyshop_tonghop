@@ -165,22 +165,49 @@ class DBHelper {
     }
   }
 
-  Future<void> _ensureUniqueIndexExists({
-    required DatabaseExecutor executor,
-    required String indexName,
-    required String table,
-    required String column,
-    required String logScope,
-  }) async {
-    try {
-      await executor.execute(
-        'CREATE UNIQUE INDEX IF NOT EXISTS $indexName ON $table($column)',
-      );
-    } catch (e) {
-      debugPrint('$logScope error ($indexName): $e');
-    }
-  }
+  // 🔥 FIX: tách riêng function này
+Future<void> _forceFixMissingColumns(Database db) async {
+  await _ensureColumnExists(
+    executor: db,
+    table: 'repairs',
+    column: 'requestedDeliveryPrice',
+    definition: 'INTEGER',
+    logScope: 'FORCE FIX',
+  );
 
+  await _ensureColumnExists(
+    executor: db,
+    table: 'repairs',
+    column: 'pendingDeliveryApproval',
+    definition: 'INTEGER DEFAULT 0',
+    logScope: 'FORCE FIX',
+  );
+
+  await _ensureColumnExists(
+    executor: db,
+    table: 'repairs',
+    column: 'costRecordedAmount',
+    definition: 'INTEGER DEFAULT 0',
+    logScope: 'FORCE FIX',
+  );
+}
+
+// 🔥 FIX: function này phải riêng, không lồng
+Future<void> _ensureUniqueIndexExists({
+  required DatabaseExecutor executor,
+  required String indexName,
+  required String table,
+  required String column,
+  required String logScope,
+}) async {
+  try {
+    await executor.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS $indexName ON $table($column)',
+    );
+  } catch (e) {
+    debugPrint('$logScope error ($indexName): $e');
+  }
+}
   Future<void> _ensurePaymentIntentsSchema([DatabaseExecutor? executor]) async {
     final dbExecutor = executor ?? await database;
 
@@ -349,38 +376,42 @@ class DBHelper {
   }
 
   Future<Database> _initDB() async {
-    _ensureDatabaseFactoryInitialized();
-    String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
-    return await openDatabase(
-      path,
-      version: 95,
-      onConfigure: (db) async {
+  _ensureDatabaseFactoryInitialized();
+  String path = join(await getDatabasesPath(), 'repair_shop_v22.db');
+
+  final db = await openDatabase(
+    path,
+    version: 96,
+    onConfigure: (db) async {
+      try {
+        await db.rawQuery('PRAGMA foreign_keys = ON');
+      } catch (e) {
+        debugPrint('DB onConfigure foreign_keys error: $e');
+      }
+
+      if (!kIsWeb) {
         try {
-          await db.rawQuery('PRAGMA foreign_keys = ON');
+          await db.rawQuery('PRAGMA journal_mode = WAL');
         } catch (e) {
-          debugPrint('DB onConfigure foreign_keys error: $e');
-        }
-        if (!kIsWeb) {
-          try {
-            await db.rawQuery('PRAGMA journal_mode = WAL');
-          } catch (e) {
-            debugPrint('DB onConfigure journal_mode error: $e');
-          }
-          try {
-            await db.rawQuery('PRAGMA synchronous = NORMAL');
-          } catch (e) {
-            debugPrint('DB onConfigure synchronous error: $e');
-          }
+          debugPrint('DB onConfigure journal_mode error: $e');
         }
         try {
-          await db.rawQuery('PRAGMA busy_timeout = 5000');
+          await db.rawQuery('PRAGMA synchronous = NORMAL');
         } catch (e) {
-          debugPrint('DB onConfigure busy_timeout error: $e');
+          debugPrint('DB onConfigure synchronous error: $e');
         }
-      },
+      }
+
+      try {
+        await db.rawQuery('PRAGMA busy_timeout = 5000');
+      } catch (e) {
+        debugPrint('DB onConfigure busy_timeout error: $e');
+      }
+    },
+
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, requestedDeliveryPrice INTEGER, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
@@ -1690,6 +1721,16 @@ class DBHelper {
             column: 'createdAt',
             definition: 'INTEGER',
             logScope: 'DB upgrade v95',
+          );
+        }
+        if (oldV < 96) {
+          // v96: Lưu giá yêu cầu thu riêng cho luồng giao máy chờ duyệt.
+          await _ensureColumnExists(
+            executor: db,
+            table: 'repairs',
+            column: 'requestedDeliveryPrice',
+            definition: 'INTEGER',
+            logScope: 'DB upgrade v96',
           );
         }
         if (oldV < 26) {
@@ -3241,6 +3282,12 @@ class DBHelper {
             );
             debugPrint('DB onOpen: added deliveredByUid to repairs');
           }
+          if (!colNames.contains('requestedDeliveryPrice')) {
+            await db.execute(
+              'ALTER TABLE repairs ADD COLUMN requestedDeliveryPrice INTEGER',
+            );
+            debugPrint('DB onOpen: added requestedDeliveryPrice to repairs');
+          }
         } catch (e) {
           debugPrint('DB onOpen check error (repairs columns): $e');
         }
@@ -3715,6 +3762,8 @@ class DBHelper {
         }
       },
     );
+    await _forceFixMissingColumns(db);
+return db;
   }
 
   // --- HÀM HỖ TRỢ CHUNG ---

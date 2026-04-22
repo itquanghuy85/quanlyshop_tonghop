@@ -145,7 +145,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       final isPartialSnapshot = _isPartialRepairSnapshot(data);
       final latest = Repair.fromMap(data);
-      final safeLatest = await _mergeSnapshotWithLocalIfPartial(data, latest);
+      var safeLatest = await _mergeSnapshotWithLocalIfPartial(data, latest);
+      safeLatest = await _protectLocalUnsyncedRepairFromStaleCloud(
+        data,
+        safeLatest,
+      );
 
       // Khi đang xử lý thao tác cập nhật và snapshot cloud chỉ là patch trạng thái,
       // bỏ qua để tránh ghi đè đơn local thành giá 0/thiếu dữ liệu.
@@ -206,7 +210,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         data.containsKey('price') ||
         data.containsKey('cost') ||
         data.containsKey('totalCost') ||
-        data.containsKey('services');
+      data.containsKey('services') ||
+      data.containsKey('requestedDeliveryPrice');
     final hasCreatedAt = _parseTimestamp(data['createdAt']) > 0;
 
     return !hasIdentity && !hasFinancial && !hasCreatedAt;
@@ -233,6 +238,81 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     return localRepair.copyWith(
       status: cloudRepair.status,
       pendingDeliveryApproval: cloudRepair.pendingDeliveryApproval,
+      requestedDeliveryPrice: cloudRepair.requestedDeliveryPrice != null
+          ? cloudRepair.requestedDeliveryPrice
+          : localRepair.requestedDeliveryPrice,
+      lastCaredAt: cloudRepair.lastCaredAt ?? localRepair.lastCaredAt,
+      finishedAt: cloudRepair.finishedAt ?? localRepair.finishedAt,
+      deliveredAt: cloudRepair.deliveredAt ?? localRepair.deliveredAt,
+      repairedBy: (cloudRepair.repairedBy ?? '').trim().isNotEmpty
+          ? cloudRepair.repairedBy
+          : localRepair.repairedBy,
+      repairedByUid: (cloudRepair.repairedByUid ?? '').trim().isNotEmpty
+          ? cloudRepair.repairedByUid
+          : localRepair.repairedByUid,
+      deliveredBy: (cloudRepair.deliveredBy ?? '').trim().isNotEmpty
+          ? cloudRepair.deliveredBy
+          : localRepair.deliveredBy,
+      deliveredByUid: (cloudRepair.deliveredByUid ?? '').trim().isNotEmpty
+          ? cloudRepair.deliveredByUid
+          : localRepair.deliveredByUid,
+      paymentMethod: cloudRepair.paymentMethod.trim().isNotEmpty
+          ? cloudRepair.paymentMethod
+          : localRepair.paymentMethod,
+    );
+  }
+
+  int _extractCloudRepairTimeMs(Map<String, dynamic> cloudData) {
+    final updatedAt = _parseTimestamp(cloudData['updatedAt']);
+    if (updatedAt > 0) return updatedAt;
+
+    final lastCaredAt = _parseTimestamp(cloudData['lastCaredAt']);
+    if (lastCaredAt > 0) return lastCaredAt;
+
+    final deliveredAt = _parseTimestamp(cloudData['deliveredAt']);
+    if (deliveredAt > 0) return deliveredAt;
+
+    final finishedAt = _parseTimestamp(cloudData['finishedAt']);
+    if (finishedAt > 0) return finishedAt;
+
+    return _parseTimestamp(cloudData['createdAt']);
+  }
+
+  Future<Repair> _protectLocalUnsyncedRepairFromStaleCloud(
+    Map<String, dynamic> cloudData,
+    Repair cloudRepair,
+  ) async {
+    final firestoreId = (cloudRepair.firestoreId ?? '').trim();
+    if (firestoreId.isEmpty) {
+      return cloudRepair;
+    }
+
+    final localRepair = await db.getRepairByFirestoreId(firestoreId);
+    if (localRepair == null || localRepair.isSynced) {
+      return cloudRepair;
+    }
+
+    final localTime = localRepair.lastCaredAt ?? localRepair.createdAt;
+    final cloudTime = _extractCloudRepairTimeMs(cloudData);
+
+    // Cloud chỉ được phép ghi đè khi thật sự mới hơn local unsynced.
+    const toleranceMs = 5000;
+    final cloudClearlyNewer =
+        cloudTime > 0 && cloudTime > localTime + toleranceMs;
+    if (cloudClearlyNewer) {
+      return cloudRepair;
+    }
+
+    debugPrint(
+      '🛡️ [RepairDetailView] Keep local unsynced repair $firestoreId (local: $localTime, cloud: $cloudTime)',
+    );
+
+    return localRepair.copyWith(
+      status: cloudRepair.status,
+      pendingDeliveryApproval: cloudRepair.pendingDeliveryApproval,
+      requestedDeliveryPrice: cloudRepair.requestedDeliveryPrice != null
+          ? cloudRepair.requestedDeliveryPrice
+          : localRepair.requestedDeliveryPrice,
       lastCaredAt: cloudRepair.lastCaredAt ?? localRepair.lastCaredAt,
       finishedAt: cloudRepair.finishedAt ?? localRepair.finishedAt,
       deliveredAt: cloudRepair.deliveredAt ?? localRepair.deliveredAt,
@@ -427,16 +507,34 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     return db.getRepairByFirestoreId(firestoreId);
   }
 
+  int _displayedChargePrice(Repair repair) {
+    final requested = repair.requestedDeliveryPrice;
+    if (repair.pendingDeliveryApproval && requested != null) {
+      return requested;
+    }
+    return repair.price;
+  }
+
+  String _displayedPriceLabel(Repair repair) {
+    final requested = repair.requestedDeliveryPrice;
+    if (repair.pendingDeliveryApproval && requested != null) {
+      return 'Giá yêu cầu';
+    }
+    return loc.priceLabel;
+  }
+
   bool _hasFinancialImpact(Repair? previous, Repair current) {
     if (previous == null) {
       return current.price != 0 ||
           current.cost != 0 ||
+          (current.requestedDeliveryPrice ?? 0) != 0 ||
           current.paymentMethod.trim().isNotEmpty ||
           current.status == 4;
     }
 
     return previous.price != current.price ||
         previous.cost != current.cost ||
+        previous.requestedDeliveryPrice != current.requestedDeliveryPrice ||
         previous.paymentMethod != current.paymentMethod ||
         previous.costRecordedInFund != current.costRecordedInFund ||
         previous.costPaymentMethod != current.costPaymentMethod ||
@@ -473,6 +571,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     String? deliveredBy,
     String? deliveredByUid,
     String? paymentMethod,
+    int? requestedDeliveryPrice,
+    bool includeRequestedDeliveryPrice = false,
   }) async {
     final targetId = (r.firestoreId ?? '').trim();
     if (targetId.isEmpty) return;
@@ -508,6 +608,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     }
     if ((paymentMethod ?? '').trim().isNotEmpty) {
       payload['paymentMethod'] = paymentMethod!.trim();
+    }
+    if (includeRequestedDeliveryPrice) {
+      payload['requestedDeliveryPrice'] = requestedDeliveryPrice;
     }
 
     final docSnapshot = await FirestoreService.getRepairDoc(targetId);
@@ -1146,7 +1249,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     ];
     final formKey = GlobalKey<FormState>();
     final priceCtrl = TextEditingController(
-      text: CurrencyTextField.formatDisplay(r.price),
+      text: CurrencyTextField.formatDisplay(_displayedChargePrice(r)),
     );
 
     final confirm = await showDialog<bool>(
@@ -1279,7 +1382,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final userName = await _resolveCurrentStaffName(fallback: 'NV');
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
-    r.price = parsedPrice;
+    r.requestedDeliveryPrice = parsedPrice;
     r.warranty = selectedWarranty;
     r.paymentMethod = payMethod;
     r.lastCaredAt = nowMs;
@@ -1317,6 +1420,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           deliveredBy: r.deliveredBy,
           deliveredByUid: r.deliveredByUid,
           paymentMethod: r.paymentMethod,
+          requestedDeliveryPrice: r.requestedDeliveryPrice,
+          includeRequestedDeliveryPrice: true,
         );
       } catch (e) {
         debugPrint(
@@ -1348,7 +1453,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       await NotificationService.sendCloudNotification(
         title: '📋 YÊU CẦU DUYỆT GIAO MÁY',
         body:
-            '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ\n👷 $userName',
+            '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(parsedPrice)}đ (giá yêu cầu)\n👷 $userName',
         type: 'approval_needed',
         data: {'targetType': 'repair', 'targetId': key, 'repairId': key},
       );
@@ -1367,7 +1472,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         message: loc.chatRequestDeliveryApproval(
           r.model,
           r.customerName,
-          MoneyUtils.formatCurrency(r.price),
+          MoneyUtils.formatCurrency(parsedPrice),
         ),
         senderId: user?.uid ?? 'guest',
         senderName: userName,
@@ -1380,7 +1485,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         loc.sentDeliveryApprovalRequest,
         color: Colors.deepOrange,
       );
-      _emitRepairChanged(financialImpact: true);
+      _emitRepairChanged(financialImpact: false);
       // Trở về danh sách đơn sửa sau khi gửi yêu cầu giao
       if (mounted) Navigator.pop(context, true);
       return;
@@ -1430,9 +1535,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       '6 THÁNG',
       '12 THÁNG',
     ];
+    final requestedPriceForApproval = _displayedChargePrice(r);
     final formKey = GlobalKey<FormState>();
     final priceCtrl = TextEditingController(
-      text: CurrencyTextField.formatDisplay(r.price),
+      text: CurrencyTextField.formatDisplay(requestedPriceForApproval),
     );
     final costCtrl = TextEditingController(
       text: CurrencyTextField.formatDisplay(r.cost),
@@ -1468,9 +1574,17 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         Text(dialogLoc.deviceInfo(r.model)),
                         Text(
                           dialogLoc.priceInfo(
-                            MoneyUtils.formatCurrency(r.price),
+                            MoneyUtils.formatCurrency(requestedPriceForApproval),
                           ),
                         ),
+                        if (r.requestedDeliveryPrice != null)
+                          Text(
+                            'Giá hiện tại trong sổ: ${MoneyUtils.formatCurrency(r.price)}',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontSize: 12,
+                            ),
+                          ),
                         Text(dialogLoc.paymentInfo(r.paymentMethod)),
                       ],
                     ),
@@ -1564,6 +1678,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     // Cho phép quản lý/chủ shop chỉnh lại bảo hành trước khi duyệt
     r.price = MoneyUtils.parseCurrency(priceCtrl.text);
     r.cost = MoneyUtils.parseCurrency(costCtrl.text);
+    r.requestedDeliveryPrice = null;
     r.warranty = selectedWarranty;
     final debtImpact = r.paymentMethod == "CÔNG NỢ";
 
@@ -1660,6 +1775,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           deliveredBy: r.deliveredBy,
           deliveredByUid: r.deliveredByUid,
           paymentMethod: r.paymentMethod,
+          requestedDeliveryPrice: null,
+          includeRequestedDeliveryPrice: true,
         );
       } catch (e) {
         debugPrint(
@@ -1758,6 +1875,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   /// Từ chối duyệt giao - reset pendingDeliveryApproval
   Future<void> _rejectDeliveryApproval() async {
     r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
+    r.requestedDeliveryPrice = null;
     r.isSynced = false;
 
     setState(() {
@@ -1780,6 +1898,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           deliveredBy: r.deliveredBy,
           deliveredByUid: r.deliveredByUid,
           paymentMethod: r.paymentMethod,
+          requestedDeliveryPrice: null,
+          includeRequestedDeliveryPrice: true,
         );
       } catch (e) {
         debugPrint('⚠️ [RepairDetailView] Push reject realtime lỗi: $e');
@@ -2988,6 +3108,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
     }
 
+    final displayPrice = _displayedChargePrice(r);
+    final displayProfit = displayPrice - r.cost;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -3140,7 +3263,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                   ),
                                   decoration: BoxDecoration(
                                     color:
-                                        ((r.price - r.cost) >= 0
+                                        (displayProfit >= 0
                                                 ? AppColors.success
                                                 : AppColors.error)
                                             .withOpacity(0.1),
@@ -3153,16 +3276,16 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                       Text(
                                         loc.profitLabel,
                                         style: AppTextStyles.overline.copyWith(
-                                          color: (r.price - r.cost) >= 0
+                                          color: displayProfit >= 0
                                               ? AppColors.success
                                               : AppColors.error,
                                         ),
                                       ),
                                       Text(
-                                        "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                                        "${MoneyUtils.formatCurrency(displayProfit)} đ",
                                         style: AppTextStyles.body2.copyWith(
                                           fontWeight: FontWeight.bold,
-                                          color: (r.price - r.cost) >= 0
+                                          color: displayProfit >= 0
                                               ? AppColors.success
                                               : AppColors.error,
                                         ),
@@ -3175,8 +3298,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               const SizedBox(width: 8),
                             if (_canViewRevenue)
                               _miniFinCompact(
-                                loc.priceLabel,
-                                r.price,
+                                _displayedPriceLabel(r),
+                                displayPrice,
                                 AppColors.primary,
                               ),
                             if (_canViewRevenue && _canViewCostPrice)
@@ -3189,6 +3312,20 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                           ],
                         ),
+                        if (r.pendingDeliveryApproval &&
+                            r.requestedDeliveryPrice != null) ...[
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Đang chờ duyệt giá yêu cầu: ${MoneyUtils.formatCurrency(displayPrice)} đ',
+                              style: AppTextStyles.overline.copyWith(
+                                color: Colors.deepOrange.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                         // Indicator: cost recorded in fund
                         if (_canViewCostPrice &&
                             r.costRecordedInFund &&
@@ -3561,6 +3698,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              if (r.pendingDeliveryApproval &&
+                  r.requestedDeliveryPrice != null)
+                Text(
+                  'Giá yêu cầu: ${MoneyUtils.formatCurrency(r.requestedDeliveryPrice ?? 0)} đ',
+                  style: AppTextStyles.overline.copyWith(
+                    color: Colors.deepOrange.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
             ],
           ),
         ),
@@ -3898,6 +4044,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildFinancialContent() {
+    final displayPrice = _displayedChargePrice(r);
+    final displayProfit = displayPrice - r.cost;
+
     return Column(
       children: [
         if (_canViewCostPrice)
@@ -3911,9 +4060,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 ),
               ),
               Text(
-                "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                "${MoneyUtils.formatCurrency(displayProfit)} đ",
                 style: AppTextStyles.headline5.copyWith(
-                  color: (r.price - r.cost) >= 0
+                  color: displayProfit >= 0
                       ? AppColors.success
                       : AppColors.error,
                 ),
@@ -3923,11 +4072,25 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         const Divider(height: 25),
         Row(
           children: [
-            _miniFin(loc.priceLabel, r.price, AppColors.primary),
+            _miniFin(_displayedPriceLabel(r), displayPrice, AppColors.primary),
             if (_canViewCostPrice)
               _miniFin(loc.costLabel, r.cost, AppColors.warning),
           ],
         ),
+        if (r.pendingDeliveryApproval && r.requestedDeliveryPrice != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Đang chờ duyệt giá yêu cầu: ${MoneyUtils.formatCurrency(displayPrice)} đ',
+                style: AppTextStyles.overline.copyWith(
+                  color: Colors.deepOrange.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 10),
         // Hiển thị phụ tùng đã dùng
         if (r.partsUsed.isNotEmpty) ...[
@@ -4213,6 +4376,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Widget _buildFinancialSummary() {
+    final displayPrice = _displayedChargePrice(r);
+    final displayProfit = displayPrice - r.cost;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -4232,9 +4398,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   ),
                 ),
                 Text(
-                  "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                  "${MoneyUtils.formatCurrency(displayProfit)} đ",
                   style: AppTextStyles.headline5.copyWith(
-                    color: (r.price - r.cost) >= 0
+                    color: displayProfit >= 0
                         ? AppColors.success
                         : AppColors.error,
                   ),
@@ -4244,11 +4410,29 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           const Divider(height: 25),
           Row(
             children: [
-              _miniFin(loc.priceLabel, r.price, AppColors.primary),
+              _miniFin(
+                _displayedPriceLabel(r),
+                displayPrice,
+                AppColors.primary,
+              ),
               if (_canViewCostPrice)
                 _miniFin(loc.costLabel, r.cost, AppColors.warning),
             ],
           ),
+          if (r.pendingDeliveryApproval && r.requestedDeliveryPrice != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Đang chờ duyệt giá yêu cầu: ${MoneyUtils.formatCurrency(displayPrice)} đ',
+                  style: AppTextStyles.overline.copyWith(
+                    color: Colors.deepOrange.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 10),
           // Hiển thị phụ tùng đã dùng
           if (r.partsUsed.isNotEmpty) ...[
@@ -5702,6 +5886,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _shareToZalo() async {
+    final sharePrice = _displayedChargePrice(r);
     final String content = loc.shareRepairReceipt(
       _shopName,
       r.model.toUpperCase(),
@@ -5709,7 +5894,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       r.phone,
       r.issue,
       r.warranty,
-      '${MoneyUtils.formatCurrency(r.price)} đ',
+      '${MoneyUtils.formatCurrency(sharePrice)} đ',
     );
     await Share.share(content);
   }

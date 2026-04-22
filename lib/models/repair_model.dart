@@ -163,6 +163,10 @@ class Repair {
   // Chờ duyệt giao máy (status 3 + pendingDeliveryApproval = true)
   bool pendingDeliveryApproval;
 
+  // Giá thu đề xuất khi nhân viên gửi yêu cầu duyệt giao.
+  // Chỉ mang tính tham chiếu, giá chốt cuối cùng vẫn nằm ở `price`.
+  int? requestedDeliveryPrice;
+
   // Chi phí vốn đã ghi vào sổ quỹ
   bool costRecordedInFund;
   String? costPaymentMethod; // TIỀN MẶT or CHUYỂN KHOẢN
@@ -263,6 +267,7 @@ class Repair {
     this.services = const [],
     this.notes,
     this.pendingDeliveryApproval = false,
+    this.requestedDeliveryPrice,
     this.costRecordedInFund = false,
     this.costPaymentMethod,
     this.costRecordedAt,
@@ -286,6 +291,10 @@ class Repair {
     final normalizedStatus = _normalizeRepairStatus(status);
     final normalizedPendingDeliveryApproval =
         normalizedStatus == 3 && pendingDeliveryApproval;
+    final normalizedRequestedDeliveryPrice =
+        normalizedPendingDeliveryApproval && requestedDeliveryPrice != null
+        ? requestedDeliveryPrice
+        : null;
     final normalizedDeliveredAt = normalizedStatus == 4
         ? (deliveredAt ?? lastCaredAt ?? finishedAt ?? createdAt)
         : deliveredAt;
@@ -329,6 +338,7 @@ class Repair {
       'services': jsonEncode(services.map((s) => s.toMap()).toList()),
       'notes': notes,
       'pendingDeliveryApproval': normalizedPendingDeliveryApproval ? 1 : 0,
+      'requestedDeliveryPrice': normalizedRequestedDeliveryPrice,
       'costRecordedInFund': costRecordedInFund ? 1 : 0,
       'costPaymentMethod': costPaymentMethod,
       'costRecordedAt': costRecordedAt,
@@ -341,6 +351,9 @@ class Repair {
     final parsedCost = _parseIntSafe(map['cost']);
     final parsedTotalCost = _parseIntSafe(map['totalCost']);
     final fallbackServicesCost = services.fold<int>(0, (sum, s) => sum + s.cost);
+    final hasRequestedDeliveryPrice =
+      map.containsKey('requestedDeliveryPrice') &&
+      map['requestedDeliveryPrice'] != null;
     final normalizedCost = parsedCost > 0
         ? parsedCost
         : (parsedTotalCost > 0 ? parsedTotalCost : fallbackServicesCost);
@@ -392,6 +405,9 @@ class Repair {
       services: services,
       notes: map['notes'],
       pendingDeliveryApproval: _parseBoolSafe(map['pendingDeliveryApproval']),
+      requestedDeliveryPrice: hasRequestedDeliveryPrice
+          ? _parseIntSafe(map['requestedDeliveryPrice'])
+          : null,
       costRecordedInFund: _parseBoolSafe(map['costRecordedInFund']),
       costPaymentMethod: map['costPaymentMethod'],
       costRecordedAt: _parseIntSafe(map['costRecordedAt']) > 0
@@ -440,6 +456,7 @@ class Repair {
     List<RepairService>? services,
     String? notes,
     bool? pendingDeliveryApproval,
+    int? requestedDeliveryPrice,
     bool? costRecordedInFund,
     String? costPaymentMethod,
     int? costRecordedAt,
@@ -485,6 +502,8 @@ class Repair {
       notes: notes ?? this.notes,
       pendingDeliveryApproval:
           pendingDeliveryApproval ?? this.pendingDeliveryApproval,
+        requestedDeliveryPrice:
+          requestedDeliveryPrice ?? this.requestedDeliveryPrice,
       costRecordedInFund:
           costRecordedInFund ?? this.costRecordedInFund,
       costPaymentMethod:
