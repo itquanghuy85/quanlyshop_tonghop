@@ -312,7 +312,7 @@ class RecentActivityService {
       return directMap[upper]!;
     }
 
-    return _humanizeActionCode(action);
+    return _humanizeActionLabel(action);
   }
 
   static String _auditSubtitle(Map<String, dynamic> row) {
@@ -328,7 +328,7 @@ class RecentActivityService {
     final parts = <String>[];
     if (userName.isNotEmpty) parts.add('Bởi $userName');
     if (targetType.isNotEmpty) {
-      final typeLabel = _humanizeActionCode(targetType);
+      final typeLabel = _humanizeActionLabel(targetType);
       if (targetId.isNotEmpty) {
         parts.add('$typeLabel #$targetId');
       } else {
@@ -338,6 +338,41 @@ class RecentActivityService {
 
     if (parts.isNotEmpty) return parts.join(' • ');
     return 'Chi tiết nhật ký hệ thống';
+  }
+
+  static String _humanizeActionLabel(String input) {
+    final normalized = _normalizeHumanText(input);
+    if (normalized.isEmpty) return 'Nhật ký hệ thống';
+
+    // Preserve human-readable Vietnamese action strings as-is.
+    if (!_looksLikeTechnicalCode(normalized)) {
+      return normalized;
+    }
+
+    // Keep Vietnamese accents even when legacy data used underscores.
+    if (normalized.contains('_') && RegExp(r'[^\x00-\x7F]').hasMatch(normalized)) {
+      return normalized.replaceAll('_', ' ');
+    }
+
+    return _humanizeActionCode(normalized);
+  }
+
+  static String _normalizeHumanText(String input) {
+    return input.trim().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  static bool _looksLikeTechnicalCode(String value) {
+    final raw = value.trim();
+    if (raw.isEmpty) return false;
+    if (_looksTechnical(raw)) return true;
+    if (raw.contains('_')) return true;
+
+    final asciiOnly = RegExp(r'^[A-Za-z0-9 ]+$').hasMatch(raw);
+    if (!asciiOnly) return false;
+
+    final letters = raw.replaceAll(RegExp(r'[^A-Za-z]'), '');
+    if (letters.isEmpty) return false;
+    return letters == letters.toUpperCase();
   }
 
   static String _humanizeActionCode(String input) {

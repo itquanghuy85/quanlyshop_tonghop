@@ -20,6 +20,13 @@ class FirestoreService {
   static int _expenseFetchCount = 0;
   static int _attendanceFetchCount = 0;
 
+  static String _formatNotifyClock([DateTime? dt]) {
+    final t = dt ?? DateTime.now();
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    return '${hh}H$mm';
+  }
+
   static bool _isRefreshEvent(String event) {
     return event == EventBus.dataRefresh ||
         event == EventBus.shopChanged ||
@@ -308,9 +315,16 @@ class FirestoreService {
       debugPrint('✅ addSale: success docId=$docId');
       EventBus().emit('sales_changed');
 
+      final sellerName = s.sellerName.trim().isNotEmpty
+          ? s.sellerName.trim().toUpperCase()
+          : 'NV';
+      final soldClock = _formatNotifyClock(
+        DateTime.fromMillisecondsSinceEpoch(s.soldAt),
+      );
+
       _notifyAll(
-        "🎉 BÁN HÀNG THÀNH CÔNG",
-        "${s.sellerName} vừa bán ${s.productNames} cho ${s.customerName}",
+        "🎉 $sellerName ĐÃ BÁN LÚC $soldClock",
+        "${s.productNames} • KH: ${s.customerName}",
         type: 'sale',
         id: docRef.id,
         summary: "${s.customerName} - ${s.productNames}",

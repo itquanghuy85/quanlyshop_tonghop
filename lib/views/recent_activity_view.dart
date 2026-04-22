@@ -63,9 +63,16 @@ class _RecentActivityViewState extends State<RecentActivityView> {
         sourceFilter: _sourceFilter,
         window: _window,
       );
+      final visibleItems = data.items
+          .where((item) => item.source != RecentActivitySource.sync)
+          .toList();
+      final sanitized = RecentActivitySnapshot(
+        generatedAt: data.generatedAt,
+        items: visibleItems,
+      );
       if (!mounted) return;
       setState(() {
-        _snapshot = data;
+        _snapshot = sanitized;
         _isLoading = false;
       });
     } catch (e) {
@@ -125,10 +132,6 @@ class _RecentActivityViewState extends State<RecentActivityView> {
                     DropdownMenuItem(
                       value: RecentActivitySource.financial,
                       child: Text('Tài chính'),
-                    ),
-                    DropdownMenuItem(
-                      value: RecentActivitySource.sync,
-                      child: Text('Đồng bộ dữ liệu'),
                     ),
                     DropdownMenuItem(
                       value: RecentActivitySource.audit,
@@ -239,7 +242,6 @@ class _RecentActivityViewState extends State<RecentActivityView> {
         children: [
           _summaryTag('Tổng', snapshot.totalCount, Colors.blue),
           _summaryTag('Tài chính', snapshot.financialCount, Colors.green),
-          _summaryTag('Đồng bộ', snapshot.syncCount, Colors.orange),
           _summaryTag('Hệ thống', snapshot.auditCount, Colors.indigo),
           Text(
             'Cập nhật: $generatedAt',
