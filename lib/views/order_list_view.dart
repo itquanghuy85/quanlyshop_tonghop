@@ -193,9 +193,14 @@ class OrderListViewState extends State<OrderListView> {
         .where('shopId', isEqualTo: shopId);
 
     if (!_useRealtimeIndexFallback) {
-      query = query.orderBy('updatedAt', descending: true);
+      query = query.orderBy('updatedAt', descending: true).limit(50);
+    } else {
+      // Fallback mode: avoid limit so newly-created orders are not missed.
+      // We sort/filter on client side after snapshot is received.
+      debugPrint(
+        'ℹ️ [OrderListView] Realtime fallback mode active (no orderBy/limit) due missing index',
+      );
     }
-    query = query.limit(50);
 
     _repairRealtimeSubscription = query.snapshots().listen(
       (snapshot) {
@@ -251,8 +256,8 @@ class OrderListViewState extends State<OrderListView> {
   }
 
   Future<bool> _mergePendingLocalRepairsIntoCache() async {
-    final currentUid = FirebaseAuth.instance.currentUser?.uid;
-    if (currentUid == null || currentUid.trim().isEmpty) {
+    final shopId = (await UserService.getCurrentShopId())?.trim();
+    if (shopId == null || shopId.isEmpty) {
       return false;
     }
 
@@ -264,9 +269,8 @@ class OrderListViewState extends State<OrderListView> {
 
       final rows = await dbConn.query(
         'repairs',
-        where:
-            'isSynced = 0 AND deleted = 0 AND createdByUid = ? AND createdAt >= ?',
-        whereArgs: [currentUid, recentThreshold],
+        where: 'isSynced = 0 AND deleted = 0 AND createdAt >= ?',
+        whereArgs: [recentThreshold],
         orderBy: 'createdAt DESC',
         limit: 150,
       );
@@ -1368,6 +1372,8 @@ class OrderListViewState extends State<OrderListView> {
   Widget _buildRepairCard(Repair r, int index) {
     final List<String> images = _collectRepairImages(r);
     final String firstImage = _pickBestPreviewImage(images);
+    final int displayCost = r.totalCost;
+    final int displayProfit = r.price - displayCost;
 
     // Determine card color based on status
     Color bgColor;
@@ -1702,22 +1708,22 @@ class OrderListViewState extends State<OrderListView> {
                         fontWeight: FontWeight.w600,
                       ),
                     // Giá vốn + Lợi nhuận (chỉ hiện với người có quyền)
-                    if (_canViewCostPrice && r.cost > 0)
+                    if (_canViewCostPrice && displayCost > 0)
                       _repairInfoChip(
-                        '🏷 Vốn ${MoneyUtils.formatCompactCurrency(r.cost)}đ',
+                        '🏷 Vốn ${MoneyUtils.formatCompactCurrency(displayCost)}đ',
                         Colors.blue.shade50,
                         textColor: Colors.blue.shade700,
                         fontWeight: FontWeight.w600,
                       ),
-                    if (_canViewCostPrice && r.price > 0 && r.cost > 0)
+                    if (_canViewCostPrice && r.price > 0 && displayCost > 0)
                       _repairInfoChip(
-                        (r.price - r.cost) >= 0
-                            ? '📈 Lãi ${MoneyUtils.formatCompactCurrency(r.price - r.cost)}đ'
-                            : '📉 Lỗ ${MoneyUtils.formatCompactCurrency((r.price - r.cost).abs())}đ',
-                        (r.price - r.cost) >= 0
+                        displayProfit >= 0
+                            ? '📈 Lãi ${MoneyUtils.formatCompactCurrency(displayProfit)}đ'
+                            : '📉 Lỗ ${MoneyUtils.formatCompactCurrency(displayProfit.abs())}đ',
+                        displayProfit >= 0
                             ? Colors.green.shade50
                             : Colors.red.shade50,
-                        textColor: (r.price - r.cost) >= 0
+                        textColor: displayProfit >= 0
                             ? Colors.green.shade700
                             : Colors.red.shade700,
                         fontWeight: FontWeight.w600,
@@ -1851,7 +1857,9 @@ class OrderListViewState extends State<OrderListView> {
 
   Widget _buildListInsightBar() {
     final modeLabel = _isRealtimeConnected
-      ? 'Realtime Firestore • 50 đơn mới nhất'
+      ? (_useRealtimeIndexFallback
+            ? 'Realtime Firestore (fallback no-index)'
+            : 'Realtime Firestore • 50 đơn mới nhất')
       : 'Đang kết nối realtime...';
     final statusLabel = _isRealtimeConnected
       ? 'Đồng bộ tức thì giữa thiết bị'
