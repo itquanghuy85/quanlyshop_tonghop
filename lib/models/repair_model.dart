@@ -8,8 +8,21 @@ int _parseIntSafe(dynamic value) {
   if (value is double) return value < 0 ? 0 : value.toInt();
   if (value is num) return value < 0 ? 0 : value.toInt();
   if (value is String) {
-    final parsed = int.tryParse(value) ?? double.tryParse(value)?.toInt();
-    return (parsed != null && parsed >= 0) ? parsed : 0;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return 0;
+
+    final parsedDirect =
+        int.tryParse(trimmed) ?? double.tryParse(trimmed)?.toInt();
+    if (parsedDirect != null) {
+      return parsedDirect >= 0 ? parsedDirect : 0;
+    }
+
+    // Handle common formatted money strings such as "50.000đ".
+    final normalized = trimmed.replaceAll(RegExp(r'[^0-9-]'), '');
+    final parsedNormalized = int.tryParse(normalized);
+    return (parsedNormalized != null && parsedNormalized >= 0)
+        ? parsedNormalized
+        : 0;
   }
   return 0;
 }
@@ -67,6 +80,39 @@ int _normalizeRepairStatus(dynamic value) {
   }
 
   return 1;
+}
+
+List<RepairService> _parseRepairServices(dynamic rawValue) {
+  if (rawValue == null) return const [];
+
+  List<dynamic> items;
+  if (rawValue is String) {
+    final trimmed = rawValue.trim();
+    if (trimmed.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is! List) return const [];
+      items = decoded;
+    } catch (_) {
+      return const [];
+    }
+  } else if (rawValue is List) {
+    items = rawValue;
+  } else {
+    return const [];
+  }
+
+  final services = <RepairService>[];
+  for (final item in items) {
+    if (item is Map<String, dynamic>) {
+      services.add(RepairService.fromMap(item));
+      continue;
+    }
+    if (item is Map) {
+      services.add(RepairService.fromMap(Map<String, dynamic>.from(item)));
+    }
+  }
+  return services;
 }
 
 class Repair {
@@ -291,6 +337,14 @@ class Repair {
   }
 
   factory Repair.fromMap(Map<String, dynamic> map) {
+    final services = _parseRepairServices(map['services']);
+    final parsedCost = _parseIntSafe(map['cost']);
+    final parsedTotalCost = _parseIntSafe(map['totalCost']);
+    final fallbackServicesCost = services.fold<int>(0, (sum, s) => sum + s.cost);
+    final normalizedCost = parsedCost > 0
+        ? parsedCost
+        : (parsedTotalCost > 0 ? parsedTotalCost : fallbackServicesCost);
+
     return Repair(
       id: map['id'],
       firestoreId: map['firestoreId'],
@@ -307,18 +361,18 @@ class Repair {
       deliveredImage: map['deliveredImage'],
       warranty: map['warranty'] ?? "Không bảo hành",
       partsUsed: map['partsUsed'] ?? "",
-        status: _normalizeRepairStatus(map['status']),
+      status: _normalizeRepairStatus(map['status']),
       price: _parseIntSafe(map['price']),
-      cost: _parseIntSafe(map['cost']),
+      cost: normalizedCost,
       paymentMethod: map['paymentMethod'] ?? "TIỀN MẶT",
-        createdAt: _parseIntSafe(map['createdAt']),
-        startedAt: _parseIntSafe(map['startedAt']) > 0
+      createdAt: _parseIntSafe(map['createdAt']),
+      startedAt: _parseIntSafe(map['startedAt']) > 0
           ? _parseIntSafe(map['startedAt'])
           : null,
-        finishedAt: _parseIntSafe(map['finishedAt']) > 0
+      finishedAt: _parseIntSafe(map['finishedAt']) > 0
           ? _parseIntSafe(map['finishedAt'])
           : null,
-        deliveredAt: _parseIntSafe(map['deliveredAt']) > 0
+      deliveredAt: _parseIntSafe(map['deliveredAt']) > 0
           ? _parseIntSafe(map['deliveredAt'])
           : null,
       createdBy: map['createdBy'],
@@ -327,26 +381,22 @@ class Repair {
       repairedByUid: map['repairedByUid'],
       deliveredBy: map['deliveredBy'],
       deliveredByUid: map['deliveredByUid'],
-        lastCaredAt: _parseIntSafe(map['lastCaredAt']) > 0
+      lastCaredAt: _parseIntSafe(map['lastCaredAt']) > 0
           ? _parseIntSafe(map['lastCaredAt'])
           : null,
-        isSynced: _parseBoolSafe(map['isSynced']),
-        deleted: _parseBoolSafe(map['deleted']),
+      isSynced: _parseBoolSafe(map['isSynced']),
+      deleted: _parseBoolSafe(map['deleted']),
       color: map['color'],
       imei: map['imei'],
       condition: map['condition'],
-      services: map['services'] != null
-          ? (jsonDecode(map['services']) as List)
-                .map((s) => RepairService.fromMap(s))
-                .toList()
-          : [],
+      services: services,
       notes: map['notes'],
-            pendingDeliveryApproval: _parseBoolSafe(map['pendingDeliveryApproval']),
-            costRecordedInFund: _parseBoolSafe(map['costRecordedInFund']),
+      pendingDeliveryApproval: _parseBoolSafe(map['pendingDeliveryApproval']),
+      costRecordedInFund: _parseBoolSafe(map['costRecordedInFund']),
       costPaymentMethod: map['costPaymentMethod'],
-            costRecordedAt: _parseIntSafe(map['costRecordedAt']) > 0
-              ? _parseIntSafe(map['costRecordedAt'])
-              : null,
+      costRecordedAt: _parseIntSafe(map['costRecordedAt']) > 0
+          ? _parseIntSafe(map['costRecordedAt'])
+          : null,
       costRecordedAmount: _parseIntSafe(map['costRecordedAmount']),
     );
   }

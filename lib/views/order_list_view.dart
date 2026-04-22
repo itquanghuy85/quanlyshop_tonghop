@@ -223,8 +223,12 @@ class OrderListViewState extends State<OrderListView> {
           _isLoading = false;
           _isRealtimeConnected = false;
         });
+
+        unawaited(_showPendingLocalRepairsWhileWaitingRealtime());
       },
     );
+
+    unawaited(_showPendingLocalRepairsWhileWaitingRealtime());
   }
 
   Repair? _parseRepairDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -244,6 +248,61 @@ class OrderListViewState extends State<OrderListView> {
       debugPrint('⚠️ [OrderListView] Parse repair ${doc.id} lỗi: $e');
       return null;
     }
+  }
+
+  Future<bool> _mergePendingLocalRepairsIntoCache() async {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null || currentUid.trim().isEmpty) {
+      return false;
+    }
+
+    try {
+      final dbConn = await db.database;
+      final recentThreshold = DateTime.now()
+          .subtract(const Duration(days: 30))
+          .millisecondsSinceEpoch;
+
+      final rows = await dbConn.query(
+        'repairs',
+        where:
+            'isSynced = 0 AND deleted = 0 AND createdByUid = ? AND createdAt >= ?',
+        whereArgs: [currentUid, recentThreshold],
+        orderBy: 'createdAt DESC',
+        limit: 150,
+      );
+
+      var hasChanges = false;
+      for (final row in rows) {
+        final localRepair = Repair.fromMap(Map<String, dynamic>.from(row));
+        final localFirestoreId = (localRepair.firestoreId ?? '').trim();
+        if (localFirestoreId.isEmpty) continue;
+
+        final existing = _repairsByFirestoreId[localFirestoreId];
+        if (existing == null) {
+          _repairsByFirestoreId[localFirestoreId] = localRepair;
+          hasChanges = true;
+          continue;
+        }
+
+        final localStamp = localRepair.lastCaredAt ?? localRepair.createdAt;
+        final existingStamp = existing.lastCaredAt ?? existing.createdAt;
+        if (localStamp > existingStamp && !localRepair.isSynced) {
+          _repairsByFirestoreId[localFirestoreId] = localRepair;
+          hasChanges = true;
+        }
+      }
+
+      return hasChanges;
+    } catch (e) {
+      debugPrint('⚠️ [OrderListView] Merge pending local repairs lỗi: $e');
+      return false;
+    }
+  }
+
+  Future<void> _showPendingLocalRepairsWhileWaitingRealtime() async {
+    final hasChanges = await _mergePendingLocalRepairsIntoCache();
+    if (!hasChanges || !mounted) return;
+    _rebuildDisplayedRepairs(markLoaded: true);
   }
 
   Future<void> _handleRealtimeSnapshot(
@@ -298,9 +357,11 @@ class OrderListViewState extends State<OrderListView> {
       await Future.wait(upsertFutures);
     }
 
+    final mergedPendingLocal = await _mergePendingLocalRepairsIntoCache();
+
     if (!mounted) return;
 
-    if (hasChanges) {
+    if (hasChanges || mergedPendingLocal) {
       _rebuildDisplayedRepairs(markLoaded: true);
     } else if (_isLoading || !_isRealtimeConnected) {
       setState(() {

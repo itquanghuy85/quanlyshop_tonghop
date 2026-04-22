@@ -69,6 +69,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   bool _hasPermission = false;
   bool _canViewRevenue = false;
   bool _canViewCostPrice = false;
+  bool _canEditRepairOrder = false;
+  bool _canEditRepairFinancial = false;
   List<RepairPartner> _partners = [];
   String? _lastModifiedBy;
   int? _lastModifiedAt;
@@ -408,6 +410,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Future<void> _checkPermission() async {
     final perms = await UserService.getCurrentUserPermissions();
+    final role = await UserService.getRoleFast();
+    final isManagerLike =
+        role == 'admin' || role == 'owner' || role == 'manager';
     final canViewCostPrice = perms['allowViewCostPrice'] == true;
     final canViewRevenue =
         perms['allowViewRevenue'] == true || canViewCostPrice;
@@ -416,7 +421,27 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       _hasPermission = perms['allowViewRepairs'] ?? false;
       _canViewRevenue = canViewRevenue;
       _canViewCostPrice = canViewCostPrice;
+      _canEditRepairOrder = isManagerLike;
+      _canEditRepairFinancial = isManagerLike && canViewRevenue;
     });
+  }
+
+  bool _ensureCanEditRepairOrder() {
+    if (_canEditRepairOrder) return true;
+    NotificationService.showSnackBar(
+      'Nhân viên không có quyền sửa đơn sửa.',
+      color: Colors.orange,
+    );
+    return false;
+  }
+
+  bool _ensureCanEditRepairFinancial() {
+    if (_canEditRepairFinancial) return true;
+    NotificationService.showSnackBar(
+      'Nhân viên không có quyền sửa tài chính đơn sửa.',
+      color: Colors.orange,
+    );
+    return false;
   }
 
   Future<void> _loadShopInfo() async {
@@ -526,7 +551,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     // Nếu đơn đang chờ duyệt (pendingDeliveryApproval = true), phải duyệt trước
     if (newStatus == 4) {
       final currentRole = await UserService.getRoleFast();
-      final isManagerOrOwner = currentRole == 'admin' || currentRole == 'owner';
+      final isManagerOrOwner =
+          currentRole == 'admin' ||
+          currentRole == 'owner' ||
+          currentRole == 'manager';
       debugPrint(
         'Giao máy check: role=$currentRole, isManager=$isManagerOrOwner, pending=${r.pendingDeliveryApproval}',
       );
@@ -1558,6 +1586,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _saveData() async {
+    if (!_ensureCanEditRepairOrder()) return;
     setState(() => _isUpdating = true);
     HapticFeedback.mediumImpact();
     try {
@@ -1670,6 +1699,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   /// LƯU Ý: Mỗi lần chọn và xác nhận sẽ THÊM vào đơn và TRỪ KHO ngay lập tức
   /// [skipWarning] = true khi gọi từ flow đổi PT (đã xác nhận ở bước trước)
   Future<void> _selectPartsFromInventory({bool skipWarning = false}) async {
+    if (!_ensureCanEditRepairOrder()) return;
     // Hiển thị cảnh báo nếu đã có phụ tùng
     if (!skipWarning && r.partsUsed.isNotEmpty) {
       final proceed = await showDialog<bool>(
@@ -1969,6 +1999,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Xóa phụ tùng khỏi đơn sửa chữa và trả lại kho
   Future<void> _removePartFromRepair() async {
+    if (!_ensureCanEditRepairOrder()) return;
     if (r.partsUsed.isEmpty) {
       NotificationService.showSnackBar(
         'Đơn sửa chữa chưa có phụ tùng nào.',
@@ -2151,6 +2182,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Đổi phụ tùng: xóa linh kiện cũ (trả kho) → chọn linh kiện mới thay thế
   Future<void> _swapPartInRepair() async {
+    if (!_ensureCanEditRepairOrder()) return;
     if (r.partsUsed.isEmpty) {
       NotificationService.showSnackBar(
         'Đơn sửa chữa chưa có phụ tùng nào để đổi.',
@@ -2309,6 +2341,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _editFinancials() async {
+    if (!_ensureCanEditRepairFinancial()) {
+      return;
+    }
+
     if (!_canViewAnyFinancial) {
       NotificationService.showSnackBar(
         'Bạn không có quyền xem/chỉnh sửa tài chính',
@@ -2388,7 +2424,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
     if (result == true) {
       final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
-      final parsedCost = MoneyUtils.parseCurrency(costC.text);
+      final parsedCost = _canViewCostPrice
+          ? MoneyUtils.parseCurrency(costC.text)
+          : r.cost;
       final oldCost = r.cost;
       final wasFundRecorded = r.costRecordedInFund;
 
@@ -2487,6 +2525,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Cho phép KTV ghi chú cho đơn sửa (vd: kt thay ic hay sàng main ...)
   Future<void> _editTechnicianNotes() async {
+    if (!_ensureCanEditRepairOrder()) return;
     final notesC = TextEditingController(text: r.notes ?? '');
     final result = await showDialog<bool>(
       context: context,
@@ -2548,6 +2587,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _editBasicInfo() async {
+    if (!_ensureCanEditRepairOrder()) return;
     if (r.status == 4) return; // Đã giao thì khóa chỉnh sửa
 
     final formKey = GlobalKey<FormState>();
@@ -2820,17 +2860,18 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                             ),
                             const Spacer(),
-                            TextButton.icon(
-                              onPressed: _editFinancials,
-                              icon: const Icon(Icons.edit, size: 14),
-                              label: Text(loc.editButton),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
+                            if (_canEditRepairFinancial)
+                              TextButton.icon(
+                                onPressed: _editFinancials,
+                                icon: const Icon(Icons.edit, size: 14),
+                                label: Text(loc.editButton),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
                                 ),
-                                visualDensity: VisualDensity.compact,
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 6),
@@ -2942,7 +2983,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         ),
                       ],
                       // Quick actions
-                      if (r.status < 4) ...[
+                      if (r.status < 4 && _canEditRepairOrder) ...[
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 4,
@@ -3002,7 +3043,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                             ),
                           ),
                           const Spacer(),
-                          if (r.status != 4)
+                          if (r.status != 4 && _canEditRepairOrder)
                             TextButton.icon(
                               onPressed: _showAddServiceDialog,
                               icon: const Icon(Icons.add, size: 14),
@@ -3081,7 +3122,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                             ),
                           ),
-                          if (r.status < 4)
+                          if (r.status < 4 && _canEditRepairOrder)
                             IconButton(
                               onPressed: _editBasicInfo,
                               icon: const Icon(Icons.edit, size: 16),
@@ -3368,7 +3409,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 color: AppColors.warning,
               ),
             ),
-          if (r.status != 4)
+          if (r.status != 4 && _canEditRepairOrder)
             IconButton(
               icon: const Icon(Icons.edit, size: 14, color: Colors.grey),
               onPressed: () => _showAddServiceDialog(s, index),
@@ -4226,6 +4267,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   void _showAddServiceDialog([RepairService? editService, int? editIndex]) {
+    if (!_ensureCanEditRepairOrder()) return;
     final formKey = GlobalKey<FormState>();
     final serviceCtrl = TextEditingController(
       text: editService?.serviceName ?? '',
@@ -4735,6 +4777,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _saveService(RepairService service, int? editIndex) async {
+    if (!_ensureCanEditRepairOrder()) return;
     setState(() => _isUpdating = true);
     try {
       final newServices = List<RepairService>.from(r.services);
@@ -4809,6 +4852,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _deleteService(int index) async {
+    if (!_ensureCanEditRepairOrder()) return;
     setState(() => _isUpdating = true);
     try {
       final newServices = List<RepairService>.from(r.services);
@@ -5089,7 +5133,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       future: UserService.getRoleFast(),
       builder: (context, snapshot) {
         final role = snapshot.data ?? 'user';
-        final isManager = role == 'admin' || role == 'owner';
+        final isManager =
+            role == 'admin' || role == 'owner' || role == 'manager';
 
         Widget? statusButton;
         if (r.status < 3) {
@@ -5244,29 +5289,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                   Expanded(child: statusButton),
                   const SizedBox(width: 4),
                 ],
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _isUpdating ? null : _saveData,
-                    icon: _isUpdating
-                        ? const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_rounded, size: 14),
-                    label: const Text('LƯU', style: compactLabelStyle),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 2,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                if (_canEditRepairOrder) ...[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isUpdating ? null : _saveData,
+                      icon: _isUpdating
+                          ? const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_rounded, size: 14),
+                      label: const Text('LƯU', style: compactLabelStyle),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
+                  const SizedBox(width: 4),
+                ],
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _isPrinting ? null : _printReceipt,
