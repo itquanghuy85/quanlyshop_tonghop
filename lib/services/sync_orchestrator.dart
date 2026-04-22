@@ -284,9 +284,9 @@ class SyncOrchestrator {
 
     final folderSuffix =
         (data['createdAt'] ?? DateTime.now().millisecondsSinceEpoch).toString();
-    final uploadedUrls = await StorageService.uploadMultipleImages(
-      localPaths,
-      'repairs/$folderSuffix',
+    final uploadedUrls = await _withCloudWriteTimeout(
+      StorageService.uploadMultipleImages(localPaths, 'repairs/$folderSuffix'),
+      'upload_repair_images',
     );
 
     if (uploadedUrls.length < localPaths.length) {
@@ -300,12 +300,42 @@ class SyncOrchestrator {
 
   // Max retry before marking as failed
   static const int maxRetries = 3;
+  static const Duration _cloudWriteTimeout = Duration(seconds: 25);
+  static const Duration _cloudWriteLogCooldown = Duration(seconds: 15);
+  static DateTime? _lastCloudWriteTimeoutLogAt;
 
   static bool _isPermanentSyncError(String error) {
     final normalized = error.toLowerCase();
     return normalized.contains('permission-denied') ||
         normalized.contains('permission_denied') ||
         normalized.contains('missing or insufficient permissions');
+  }
+
+  static bool _shouldLogCloudWriteTimeout() {
+    final now = DateTime.now();
+    if (_lastCloudWriteTimeoutLogAt == null ||
+        now.difference(_lastCloudWriteTimeoutLogAt!) >=
+            _cloudWriteLogCooldown) {
+      _lastCloudWriteTimeoutLogAt = now;
+      return true;
+    }
+    return false;
+  }
+
+  Future<T> _withCloudWriteTimeout<T>(
+    Future<T> future,
+    String context,
+  ) async {
+    try {
+      return await future.timeout(_cloudWriteTimeout);
+    } on TimeoutException {
+      if (_shouldLogCloudWriteTimeout()) {
+        debugPrint(
+          '⏱️ Sync write timeout in $context after ${_cloudWriteTimeout.inSeconds}s',
+        );
+      }
+      throw Exception('Cloud write timeout: $context');
+    }
   }
 
   /// Khởi tạo orchestrator
@@ -626,17 +656,20 @@ class SyncOrchestrator {
     if (existingFirestoreId != null && existingFirestoreId.isNotEmpty) {
       // Set document với ID đã có sẵn
       data.remove('firestoreId'); // Không lưu field này, dùng document ID
-      await _firestore
-          .collection(collection)
-          .doc(existingFirestoreId)
-          .set(data);
+      await _withCloudWriteTimeout(
+        _firestore.collection(collection).doc(existingFirestoreId).set(data),
+        'create_$collection/$existingFirestoreId',
+      );
       debugPrint(
         '🔄 SyncOrchestrator: Created doc with existing ID: $existingFirestoreId',
       );
       return existingFirestoreId;
     } else {
       // Fallback: auto-generate ID nếu không có
-      final docRef = await _firestore.collection(collection).add(data);
+      final docRef = await _withCloudWriteTimeout(
+        _firestore.collection(collection).add(data),
+        'create_$collection',
+      );
       debugPrint(
         '🔄 SyncOrchestrator: Created doc with auto-generated ID: ${docRef.id}',
       );
@@ -681,10 +714,13 @@ class SyncOrchestrator {
     data.remove('isSynced');
     data.remove('firestoreId');
 
-    await _firestore
-        .collection(collection)
-        .doc(item.firestoreId)
-        .set(data, SetOptions(merge: true));
+    await _withCloudWriteTimeout(
+      _firestore
+          .collection(collection)
+          .doc(item.firestoreId)
+          .set(data, SetOptions(merge: true)),
+      'update_$collection/${item.firestoreId}',
+    );
   }
 
   /// Handle delete operation
@@ -700,10 +736,13 @@ class SyncOrchestrator {
     }
 
     // Soft delete
-    await _firestore
-        .collection(collection)
-        .doc(item.firestoreId)
-        .update(FirestoreWriteHelper.softDeletePayload());
+    await _withCloudWriteTimeout(
+      _firestore
+          .collection(collection)
+          .doc(item.firestoreId)
+          .update(FirestoreWriteHelper.softDeletePayload()),
+      'delete_$collection/${item.firestoreId}',
+    );
   }
 
   /// Mark item as failed

@@ -11,11 +11,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class EncryptionService {
   static const String _masterSecret = 'HuLuCa_Shop_2024_Secure_Key_@!#';
   static const String _enabledKey = 'encryption_enabled';
+  static const Duration _decryptLogCooldown = Duration(seconds: 30);
+  static final RegExp _base64Pattern = RegExp(r'^[A-Za-z0-9+/=]+$');
 
   static encrypt_lib.Encrypter? _encrypter;
   static encrypt_lib.IV? _iv;
   static bool _initialized = false;
   static bool _enabled = true;
+  static DateTime? _lastDecryptErrorLogAt;
 
   /// Các trường cần mã hóa (dữ liệu nhạy cảm)
   static const List<String> sensitiveFields = [
@@ -91,6 +94,27 @@ class EncryptionService {
     return value.startsWith('ENC:') || value.startsWith('ENC2:');
   }
 
+  static bool _looksEncryptedPayload(String value) {
+    if (!_looksEncryptedString(value)) return false;
+    final payload = value.startsWith('ENC2:')
+        ? value.substring(5)
+        : value.substring(4);
+    if (payload.isEmpty || payload.length < 8 || payload.length % 4 != 0) {
+      return false;
+    }
+    return _base64Pattern.hasMatch(payload);
+  }
+
+  static bool _shouldLogDecryptError() {
+    final now = DateTime.now();
+    if (_lastDecryptErrorLogAt == null ||
+        now.difference(_lastDecryptErrorLogAt!) >= _decryptLogCooldown) {
+      _lastDecryptErrorLogAt = now;
+      return true;
+    }
+    return false;
+  }
+
   /// Mã hóa một chuỗi
   static String encrypt(String plainText) {
     if (!isEnabled || _encrypter == null || _iv == null) {
@@ -120,12 +144,18 @@ class EncryptionService {
       return encryptedText; // Dữ liệu chưa được mã hóa
     }
 
+    if (!_looksEncryptedPayload(encryptedText)) {
+      return encryptedText;
+    }
+
     try {
       final base64Text = encryptedText.substring(isEncV2 ? 5 : 4);
       final encrypted = encrypt_lib.Encrypted.fromBase64(base64Text);
       return _encrypter!.decrypt(encrypted, iv: _iv);
     } catch (e) {
-      debugPrint('Decryption error: $e');
+      if (_shouldLogDecryptError()) {
+        debugPrint('Decryption error: $e');
+      }
       return encryptedText; // Trả về nguyên bản nếu lỗi
     }
   }
@@ -155,34 +185,41 @@ class EncryptionService {
   static Map<String, dynamic> decryptMap(Map<String, dynamic> data) {
     if (_encrypter == null || _iv == null) return data;
 
-    // Cho phép giải mã cả dữ liệu cũ thiếu marker nhưng vẫn có giá trị ENC/ENC2.
-    final hasEncryptedMarker = data['_encrypted'] == true;
-    final hasEncryptedValue = sensitiveFields.any((field) {
-      final value = data[field];
-      return value is String &&
-          value.isNotEmpty &&
-          _looksEncryptedString(value);
-    });
-
-    if (!hasEncryptedMarker && !hasEncryptedValue) {
-      return data; // Data chưa được mã hóa
-    }
-
-    final decrypted = Map<String, dynamic>.from(data);
-    decrypted.remove('_encrypted'); // Xóa marker
-
-    for (final field in sensitiveFields) {
-      if (decrypted.containsKey(field) && decrypted[field] != null) {
-        final value = decrypted[field];
-        if (value is String &&
+    try {
+      // Cho phép giải mã cả dữ liệu cũ thiếu marker nhưng vẫn có giá trị ENC/ENC2.
+      final hasEncryptedMarker = data['_encrypted'] == true;
+      final hasEncryptedValue = sensitiveFields.any((field) {
+        final value = data[field];
+        return value is String &&
             value.isNotEmpty &&
-            _looksEncryptedString(value)) {
-          decrypted[field] = decrypt(value);
+            _looksEncryptedString(value);
+      });
+
+      if (!hasEncryptedMarker && !hasEncryptedValue) {
+        return data; // Data chưa được mã hóa
+      }
+
+      final decrypted = Map<String, dynamic>.from(data);
+      decrypted.remove('_encrypted'); // Xóa marker
+
+      for (final field in sensitiveFields) {
+        if (decrypted.containsKey(field) && decrypted[field] != null) {
+          final value = decrypted[field];
+          if (value is String &&
+              value.isNotEmpty &&
+              _looksEncryptedString(value)) {
+            decrypted[field] = decrypt(value);
+          }
         }
       }
-    }
 
-    return decrypted;
+      return decrypted;
+    } catch (e) {
+      if (_shouldLogDecryptError()) {
+        debugPrint('decryptMap fallback to raw data: $e');
+      }
+      return data;
+    }
   }
 
   /// Mã hóa List<Map> data

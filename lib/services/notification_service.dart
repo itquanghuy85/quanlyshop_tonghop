@@ -34,6 +34,7 @@ class NotificationService {
   static StreamSubscription? _notificationSubscription;
   // Track processed notification IDs to avoid showing same one twice
   static final Set<String> _processedNotificationIds = {};
+  static const int _maxProcessedNotificationIds = 200;
   static Future<void> Function(Map<String, dynamic>)? _navigationHandler;
   static Map<String, dynamic>? _queuedNavigationData;
 
@@ -679,6 +680,19 @@ class NotificationService {
   static void _handleForegroundMessage(RemoteMessage message) {
     debugPrint('Foreground message received: ${message.notification?.title}');
     final data = Map<String, dynamic>.from(message.data);
+    final notificationId = (data['notificationId'] ?? data['id'] ?? '')
+        .toString()
+        .trim();
+
+    if (notificationId.isNotEmpty) {
+      if (_processedNotificationIds.contains(notificationId)) {
+        debugPrint(
+          'Skipping duplicate foreground notification: $notificationId',
+        );
+        return;
+      }
+      _markNotificationProcessed(notificationId);
+    }
 
     _isNotificationForCurrentContext(data).then((canDisplay) {
       if (!canDisplay) {
@@ -706,6 +720,20 @@ class NotificationService {
         }
       });
     });
+  }
+
+  static void _markNotificationProcessed(String notificationId) {
+    if (notificationId.isEmpty) return;
+
+    _processedNotificationIds.add(notificationId);
+    if (_processedNotificationIds.length > _maxProcessedNotificationIds) {
+      final overflow =
+          _processedNotificationIds.length - _maxProcessedNotificationIds;
+      final staleIds = _processedNotificationIds.take(overflow).toList();
+      for (final staleId in staleIds) {
+        _processedNotificationIds.remove(staleId);
+      }
+    }
   }
 
   static void _handleMessageOpenedApp(RemoteMessage message) {
@@ -931,13 +959,7 @@ class NotificationService {
                   debugPrint('Skipping already processed notification: $docId');
                   continue;
                 }
-                _processedNotificationIds.add(docId);
-                // Limit memory: keep only last 100 processed IDs
-                if (_processedNotificationIds.length > 100) {
-                  _processedNotificationIds.remove(
-                    _processedNotificationIds.first,
-                  );
-                }
+                _markNotificationProcessed(docId);
                 debugPrint(
                   'New notification: ${data['title']} from ${data['senderId']} (current user: ${user.uid})',
                 );
@@ -1006,16 +1028,22 @@ class NotificationService {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return;
 
+      final docRef = _db.collection('shop_notifications').doc();
+      final notificationId = docRef.id;
+      final payloadData = <String, dynamic>{...?data};
+      payloadData['notificationId'] = notificationId;
+
       final notificationData = {
+        'notificationId': notificationId,
         'shopId': shopId,
         'title': title,
         'body': body,
         'type': type,
-        'data': data ?? {},
-        if (data != null && data['targetType'] != null)
-          'targetType': data['targetType'],
-        if (data != null && data['targetId'] != null)
-          'targetId': data['targetId'],
+        'data': payloadData,
+        if (payloadData['targetType'] != null)
+          'targetType': payloadData['targetType'],
+        if (payloadData['targetId'] != null)
+          'targetId': payloadData['targetId'],
         'senderId': user?.uid,
         'senderName': user?.email?.split('@').first.toUpperCase() ?? "NV",
         'createdAt': FieldValue.serverTimestamp(),
@@ -1023,7 +1051,7 @@ class NotificationService {
       };
 
       debugPrint('Creating shop notification: $notificationData');
-      await _db.collection('shop_notifications').add(notificationData);
+      await docRef.set(notificationData);
       debugPrint('Shop notification created successfully');
 
       // Send FCM push notification

@@ -40,6 +40,12 @@ import 'widgets/loading_intro_screen.dart'; // Loading intro animation
 final Completer<void> _firebaseBootstrapCompleter = Completer<void>();
 bool _appCheckActivated = false;
 bool _appCheckSkipLogged = false;
+bool _appCheckActivationAttempted = false;
+DateTime? _lastAppCheckErrorLogAt;
+
+const Duration _appCheckLogCooldown = Duration(seconds: 30);
+const Duration _appCheckActivateTimeout = Duration(seconds: 8);
+const Duration _appCheckTokenTimeout = Duration(seconds: 5);
 
 const bool _disableFirebaseAppCheck = bool.fromEnvironment(
   'DISABLE_FIREBASE_APP_CHECK',
@@ -65,6 +71,15 @@ const bool _deprecatedLegacyDataMode = bool.fromEnvironment(
 
 Future<void> get firebaseBootstrapReady => _firebaseBootstrapCompleter.future;
 
+void _logAppCheckWarning(String message) {
+  final now = DateTime.now();
+  if (_lastAppCheckErrorLogAt == null ||
+      now.difference(_lastAppCheckErrorLogAt!) >= _appCheckLogCooldown) {
+    _lastAppCheckErrorLogAt = now;
+    debugPrint(message);
+  }
+}
+
 void _markFirebaseBootstrapReady() {
   if (!_firebaseBootstrapCompleter.isCompleted) {
     _firebaseBootstrapCompleter.complete();
@@ -72,12 +87,13 @@ void _markFirebaseBootstrapReady() {
 }
 
 Future<void> _activateFirebaseAppCheck() async {
-  if (kIsWeb || _appCheckActivated) return;
+  if (kIsWeb || _appCheckActivated || _appCheckActivationAttempted) return;
+  _appCheckActivationAttempted = true;
 
   final shouldSkipForIOS = !kIsWeb && Platform.isIOS && _disableIosAppCheck;
   if (_disableFirebaseAppCheck || shouldSkipForIOS) {
     if (!_appCheckSkipLogged) {
-      final reason = _disableFirebaseAppCheck
+      const reason = _disableFirebaseAppCheck
           ? 'DISABLE_FIREBASE_APP_CHECK=true'
           : 'DISABLE_IOS_APP_CHECK=true';
       debugPrint('ℹ️ Firebase App Check activation skipped ($reason)');
@@ -94,7 +110,7 @@ Future<void> _activateFirebaseAppCheck() async {
       appleProvider: kDebugMode
           ? AppleProvider.debug
         : AppleProvider.appAttestWithDeviceCheckFallback,
-    );
+    ).timeout(_appCheckActivateTimeout);
     _appCheckActivated = true;
 
     debugPrint(
@@ -104,18 +120,20 @@ Future<void> _activateFirebaseAppCheck() async {
     // Trong debug cần lấy token để đăng ký vào App Check console cho thiết bị test.
     if (kDebugMode) {
       try {
-        final token = await FirebaseAppCheck.instance.getToken(true);
+        final token = await FirebaseAppCheck.instance
+            .getToken(true)
+            .timeout(_appCheckTokenTimeout);
         if (token != null && token.isNotEmpty) {
           debugPrint('🧪 APP_CHECK_DEBUG_TOKEN: $token');
         } else {
           debugPrint('⚠️ App Check token empty in debug mode');
         }
       } catch (e) {
-        debugPrint('⚠️ Could not fetch App Check debug token: $e');
+        _logAppCheckWarning('⚠️ Could not fetch App Check debug token: $e');
       }
     }
   } catch (e) {
-    debugPrint('⚠️ Firebase App Check activation failed: $e');
+    _logAppCheckWarning('⚠️ Firebase App Check activation failed: $e');
   }
 }
 

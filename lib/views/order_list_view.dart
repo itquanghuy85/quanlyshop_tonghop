@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_write_helper.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_text_styles.dart';
@@ -17,6 +16,8 @@ import '../services/category_service.dart';
 import '../services/business_type_helper.dart';
 import '../services/storage_service.dart';
 import '../services/user_service.dart';
+import '../services/encryption_service.dart';
+import '../services/sync_service.dart';
 import '../utils/vietnamese_utils.dart';
 import '../utils/money_utils.dart';
 import '../widgets/gradient_fab.dart';
@@ -49,19 +50,19 @@ class OrderListView extends StatefulWidget {
 
 class OrderListViewState extends State<OrderListView> {
   final db = DBHelper();
-  final ScrollController _scrollController = ScrollController();
-  StreamSubscription? _eventSubscription;
-  Timer? _repairRefreshDebounce;
+  StreamSubscription<String>? _eventSubscription;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _repairRealtimeSubscription;
+  final Map<String, Repair> _repairsByFirestoreId = <String, Repair>{};
+  String? _listeningShopId;
+  bool _receivedServerSnapshot = false;
+  bool _isRealtimeConnected = false;
+  bool _useRealtimeIndexFallback = false;
 
   AppLocalizations get loc => AppLocalizations.of(context)!;
 
   List<Repair> _displayedRepairs = [];
-  List<Repair> _allLoadedRepairs = []; // Cache for filtering
   bool _isLoading = true;
-  bool _isLoadingMore = false;
-  bool _hasMore = true;
-  int _currentOffset = 0;
-  static const int _pageSize = 30;
   String _currentSearch = "";
 
   // Shop settings for dynamic terminology
@@ -81,15 +82,6 @@ class OrderListViewState extends State<OrderListView> {
   bool _canViewCostPrice = false;
 
   bool get canDelete => _canDelete;
-
-  /// Check if we need full data (for filtering)
-  bool get _needsFullData =>
-      _currentSearch.isNotEmpty ||
-      _timeFilter != 'all' ||
-      _statusFilters.isNotEmpty ||
-      _filterPendingApproval ||
-      widget.todayOnly ||
-      (widget.statusFilter?.isNotEmpty ?? false);
 
   // Ưu tiên: Tiếp nhận -> Đang sửa -> Đã xong -> Chờ duyệt giao -> Giao máy
   int _compareRepairs(Repair a, Repair b) {
@@ -113,24 +105,13 @@ class OrderListViewState extends State<OrderListView> {
     super.initState();
     _loadShopSettings();
     _loadDeletePermission();
-    _loadInitialData();
+    unawaited(_startRealtimeRepairsListener(forceRestart: true));
 
-    // Setup scroll listener for lazy loading
-    _scrollController.addListener(_onScroll);
-
-    // Listen for repairs_changed events to refresh list
+    // Chỉ rebind listener khi đổi shop hoặc refresh dữ liệu tổng.
     _eventSubscription = EventBus().stream.listen((event) {
-      if ((event == 'repairs_changed' ||
-              event == EventBus.shopChanged ||
-              event == EventBus.dataRefresh) &&
+      if ((event == EventBus.shopChanged || event == EventBus.dataRefresh) &&
           mounted) {
-        debugPrint(
-          '🔧 [OrderListView] Nhận event "$event" → debounce refresh local DB',
-        );
-        _repairRefreshDebounce?.cancel();
-        _repairRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
-          if (mounted) _loadInitialData();
-        });
+        unawaited(_startRealtimeRepairsListener(forceRestart: true));
       }
     });
   }
@@ -169,39 +150,163 @@ class OrderListViewState extends State<OrderListView> {
 
   @override
   void dispose() {
+    _repairRealtimeSubscription?.cancel();
     _eventSubscription?.cancel();
-    _repairRefreshDebounce?.cancel();
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 300) {
-      _loadMoreIfNeeded();
+  Future<void> _startRealtimeRepairsListener({bool forceRestart = false}) async {
+    final shopId = (await UserService.getCurrentShopId())?.trim();
+    if (!mounted) return;
+
+    if (shopId == null || shopId.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _isRealtimeConnected = false;
+        _listeningShopId = null;
+        _repairsByFirestoreId.clear();
+        _displayedRepairs = [];
+      });
+      return;
+    }
+
+    if (!forceRestart &&
+        _repairRealtimeSubscription != null &&
+        _listeningShopId == shopId) {
+      return;
+    }
+
+    await _repairRealtimeSubscription?.cancel();
+    _repairRealtimeSubscription = null;
+    _receivedServerSnapshot = false;
+    _listeningShopId = shopId;
+
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _isRealtimeConnected = false;
+      });
+    }
+
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('repairs')
+        .where('shopId', isEqualTo: shopId);
+
+    if (!_useRealtimeIndexFallback) {
+      query = query.orderBy('updatedAt', descending: true);
+    }
+    query = query.limit(50);
+
+    _repairRealtimeSubscription = query.snapshots().listen(
+      (snapshot) {
+        unawaited(_handleRealtimeSnapshot(snapshot));
+      },
+      onError: (error) {
+        debugPrint('❌ [OrderListView] Realtime listener lỗi: $error');
+
+        final errorText = error.toString().toLowerCase();
+        final isMissingIndex =
+            (error is FirebaseException && error.code == 'failed-precondition') ||
+            errorText.contains('requires an index');
+
+        if (isMissingIndex && !_useRealtimeIndexFallback) {
+          debugPrint(
+            '⚠️ [OrderListView] Thiếu index cho query realtime, chuyển sang fallback không orderBy(updatedAt)',
+          );
+          _useRealtimeIndexFallback = true;
+          unawaited(_startRealtimeRepairsListener(forceRestart: true));
+          return;
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _isRealtimeConnected = false;
+        });
+      },
+    );
+  }
+
+  Repair? _parseRepairDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    try {
+      final data = doc.data();
+      if (data == null) return null;
+      final raw = Map<String, dynamic>.from(data);
+      final decrypted = EncryptionService.decryptMap(raw);
+      if (decrypted['deleted'] == true) return null;
+
+      SyncService.convertTimestampFieldsPublic(decrypted);
+      decrypted['firestoreId'] = doc.id;
+      decrypted['isSynced'] = 1;
+
+      return Repair.fromMap(decrypted);
+    } catch (e) {
+      debugPrint('⚠️ [OrderListView] Parse repair ${doc.id} lỗi: $e');
+      return null;
     }
   }
 
-  Future<void> _loadMoreIfNeeded() async {
-    if (_isLoadingMore || !_hasMore || _needsFullData) return;
+  Future<void> _handleRealtimeSnapshot(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) async {
+    if (snapshot.metadata.isFromCache && _receivedServerSnapshot) {
+      return;
+    }
 
-    setState(() => _isLoadingMore = true);
+    if (!snapshot.metadata.isFromCache) {
+      _receivedServerSnapshot = true;
+    }
 
-    try {
-      final newData = await db.getRepairsPaged(_pageSize, _currentOffset);
-      if (!mounted) return;
+    var hasChanges = false;
+    final upsertFutures = <Future<void>>[];
+
+    if (_repairsByFirestoreId.isEmpty &&
+        snapshot.docChanges.length == snapshot.docs.length) {
+      _repairsByFirestoreId.clear();
+      for (final doc in snapshot.docs) {
+        final repair = _parseRepairDoc(doc);
+        if (repair == null) continue;
+        _repairsByFirestoreId[doc.id] = repair;
+        upsertFutures.add(db.upsertRepair(repair));
+      }
+      hasChanges = true;
+    } else {
+      for (final change in snapshot.docChanges) {
+        final id = change.doc.id;
+        if (change.type == DocumentChangeType.removed) {
+          if (_repairsByFirestoreId.remove(id) != null) {
+            hasChanges = true;
+          }
+          continue;
+        }
+
+        final repair = _parseRepairDoc(change.doc);
+        if (repair == null) {
+          if (_repairsByFirestoreId.remove(id) != null) {
+            hasChanges = true;
+          }
+          continue;
+        }
+
+        _repairsByFirestoreId[id] = repair;
+        upsertFutures.add(db.upsertRepair(repair));
+        hasChanges = true;
+      }
+    }
+
+    if (upsertFutures.isNotEmpty) {
+      await Future.wait(upsertFutures);
+    }
+
+    if (!mounted) return;
+
+    if (hasChanges) {
+      _rebuildDisplayedRepairs(markLoaded: true);
+    } else if (_isLoading || !_isRealtimeConnected) {
       setState(() {
-        _allLoadedRepairs.addAll(newData);
-        _displayedRepairs = List<Repair>.from(_allLoadedRepairs)
-          ..sort(_compareRepairs);
-        _currentOffset += _pageSize;
-        _isLoadingMore = false;
-        _hasMore = newData.length >= _pageSize;
+        _isLoading = false;
+        _isRealtimeConnected = true;
       });
-    } catch (e) {
-      debugPrint('OrderListView: Error loading more: $e');
-      if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
@@ -216,73 +321,48 @@ class OrderListViewState extends State<OrderListView> {
     }
   }
 
-  Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = true;
-      _currentOffset = 0;
-      _allLoadedRepairs = [];
-      _hasMore = true;
-      _isLoadingMore = false;
-    });
+  void _rebuildDisplayedRepairs({bool markLoaded = false}) {
+    final all = _repairsByFirestoreId.values.toList()..sort(_compareRepairs);
+    final filtered = _applyFilters(all);
+    final keyword = _currentSearch.trim();
 
-    if (_needsFullData) {
-      final all = await db.getAllRepairs();
-      if (!mounted) return;
-
-      final filtered = _applyFilters(all)..sort(_compareRepairs);
-      setState(() {
-        _allLoadedRepairs = filtered;
-        _displayedRepairs = List<Repair>.from(filtered);
-        _currentOffset = filtered.length;
-        _isLoading = false;
-        _hasMore = false;
-      });
-      return;
-    }
-
-    final firstPage = await db.getRepairsPaged(_pageSize, 0);
-    if (!mounted) return;
-
-    final sorted = List<Repair>.from(firstPage)..sort(_compareRepairs);
-    setState(() {
-      _allLoadedRepairs = sorted;
-      _displayedRepairs = sorted;
-      _currentOffset = _pageSize;
-      _isLoading = false;
-      _hasMore = firstPage.length >= _pageSize;
-    });
-  }
-
-  void _onSearch(String val) async {
-    setState(() => _currentSearch = val);
-
-    if (_allLoadedRepairs.isEmpty) {
-      _allLoadedRepairs = await db.getAllRepairs();
-    }
-
-    final filtered = _applyFilters(_allLoadedRepairs);
-    final searched = val.isEmpty
+    final searched = keyword.isEmpty
         ? filtered
         : filtered
               .where(
                 (r) =>
-                    VietnameseUtils.containsVietnamese(r.customerName, val) ||
-                    r.phone.contains(val) ||
-                    VietnameseUtils.containsVietnamese(r.model, val) ||
-                    VietnameseUtils.containsVietnamese(r.issue, val) ||
+                    VietnameseUtils.containsVietnamese(r.customerName, keyword) ||
+                    r.phone.contains(keyword) ||
+                    VietnameseUtils.containsVietnamese(r.model, keyword) ||
+                    VietnameseUtils.containsVietnamese(r.issue, keyword) ||
                     (r.notes != null &&
-                        VietnameseUtils.containsVietnamese(r.notes!, val)),
+                        VietnameseUtils.containsVietnamese(r.notes!, keyword)),
               )
               .toList();
 
-    searched.sort(_compareRepairs);
+    if (!mounted) return;
 
-    if (mounted) {
-      setState(() {
-        _displayedRepairs = searched;
-        _hasMore = false;
-      });
+    setState(() {
+      _displayedRepairs = searched;
+      if (markLoaded || _isLoading || !_isRealtimeConnected) {
+        _isLoading = false;
+        _isRealtimeConnected = true;
+      }
+    });
+  }
+
+  void _removeRepairFromRealtimeCache(String? firestoreId) {
+    final id = (firestoreId ?? '').trim();
+    if (id.isEmpty) return;
+    final removed = _repairsByFirestoreId.remove(id);
+    if (removed != null) {
+      _rebuildDisplayedRepairs();
     }
+  }
+
+  void _onSearch(String val) {
+    _currentSearch = val;
+    _rebuildDisplayedRepairs();
   }
 
   List<Repair> _applyFilters(List<Repair> list) {
@@ -966,7 +1046,7 @@ class OrderListViewState extends State<OrderListView> {
       );
 
       navigator.pop();
-      _loadInitialData();
+      _removeRepairFromRealtimeCache(repairFirestoreId);
       messenger.showSnackBar(
         SnackBar(
           content: Text(
@@ -1096,11 +1176,6 @@ class OrderListViewState extends State<OrderListView> {
               ],
             ),
           IconButton(
-            onPressed: _loadInitialData,
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-            tooltip: 'Làm mới',
-          ),
-          IconButton(
             icon: const Icon(Icons.file_download_outlined, color: Colors.white),
             tooltip: 'Xuất Excel đơn sửa',
             onPressed: () async {
@@ -1187,42 +1262,25 @@ class OrderListViewState extends State<OrderListView> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : RefreshIndicator(
-                      onRefresh: _loadInitialData,
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount:
-                            _displayedRepairs.length +
-                            (_isLoadingMore ? 1 : 0) +
-                            (!_hasMore && _displayedRepairs.isNotEmpty ? 1 : 0),
-                        itemBuilder: (ctx, i) {
-                          if (i < _displayedRepairs.length) {
-                            return _buildRepairCard(
-                              _displayedRepairs[i],
-                              i + 1,
-                            );
-                          }
-                          if (_isLoadingMore) {
-                            return const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
-                          // End of list indicator
-                          return Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Center(
-                              child: Text(
-                                loc.displayedRepairs(_displayedRepairs.length),
-                                style: AppTextStyles.caption.copyWith(
-                                  color: Colors.grey[600],
-                                ),
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _displayedRepairs.length + 1,
+                      itemBuilder: (ctx, i) {
+                        if (i < _displayedRepairs.length) {
+                          return _buildRepairCard(_displayedRepairs[i], i + 1);
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Center(
+                            child: Text(
+                              loc.displayedRepairs(_displayedRepairs.length),
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.grey[600],
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
             ),
           ],
@@ -1236,7 +1294,9 @@ class OrderListViewState extends State<OrderListView> {
               builder: (_) => CreateRepairOrderView(role: widget.role),
             ),
           );
-          if (res == true) _loadInitialData();
+          if (res == true) {
+            _rebuildDisplayedRepairs();
+          }
         },
         icon: Icons.phone_android,
         label: 'Nhận ${_terms.productLabel.toLowerCase()}',
@@ -1315,7 +1375,9 @@ class OrderListViewState extends State<OrderListView> {
               context,
               MaterialPageRoute(builder: (_) => RepairDetailView(repair: r)),
             );
-            if (res == true) _loadInitialData();
+            if (res == true) {
+              _rebuildDisplayedRepairs();
+            }
           },
           onLongPress: () {
             if (!canDelete) {
@@ -1727,12 +1789,12 @@ class OrderListViewState extends State<OrderListView> {
   }
 
   Widget _buildListInsightBar() {
-    final modeLabel = _needsFullData
-        ? 'Đang lọc: tải toàn bộ dữ liệu'
-        : 'Tải cuộn $_pageSize đơn/lần';
-    final statusLabel = (!_needsFullData && _hasMore)
-        ? 'Còn dữ liệu để tải thêm'
-        : 'Đã tải hết dữ liệu hiện có';
+    final modeLabel = _isRealtimeConnected
+      ? 'Realtime Firestore • 50 đơn mới nhất'
+      : 'Đang kết nối realtime...';
+    final statusLabel = _isRealtimeConnected
+      ? 'Đồng bộ tức thì giữa thiết bị'
+      : 'Chưa nhận snapshot server';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -1762,9 +1824,9 @@ class OrderListViewState extends State<OrderListView> {
             statusLabel,
             style: TextStyle(
               fontSize: 10,
-              color: (!_needsFullData && _hasMore)
-                  ? Colors.orange.shade700
-                  : Colors.green.shade700,
+              color: _isRealtimeConnected
+                  ? Colors.green.shade700
+                  : Colors.orange.shade700,
               fontWeight: FontWeight.w700,
             ),
           ),

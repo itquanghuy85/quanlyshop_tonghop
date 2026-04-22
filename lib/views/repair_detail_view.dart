@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
@@ -34,6 +33,7 @@ import '../services/notification_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_service.dart';
 import '../services/firestore_service.dart';
+import '../services/firestore_write_helper.dart';
 import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/financial_activity_service.dart';
@@ -67,6 +67,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   String _shopAddr = "";
   String _shopPhone = "";
   bool _hasPermission = false;
+  bool _canViewRevenue = false;
   bool _canViewCostPrice = false;
   List<RepairPartner> _partners = [];
   String? _lastModifiedBy;
@@ -76,10 +77,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   // ignore: unused_field
   ShopSettings? _shopSettings;
 
-  StreamSubscription<String>? _repairEventSub;
-  Timer? _repairReloadDebounce;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>?
+  _repairDocSubscription;
+  bool _hasReceivedServerDocSnapshot = false;
 
   AppLocalizations get loc => AppLocalizations.of(context)!;
+
+  bool get _canViewAnyFinancial => _canViewRevenue || _canViewCostPrice;
 
   @override
   void initState() {
@@ -89,69 +93,56 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     _checkPermission();
     _loadShopInfo();
     _loadPartners();
-    _bindRepairEvents();
+    unawaited(_startRepairRealtimeListener(forceRestart: true));
     unawaited(_loadLastModifierInfo());
-    unawaited(_refreshRepairFromCloud(reason: 'open'));
   }
 
-  /// Lắng nghe EventBus để tải lại đơn từ local DB khi SyncService nhận dữ liệu mới.
-  void _bindRepairEvents() {
-    _repairEventSub = EventBus().stream.listen((event) {
-      if (event == 'app_resumed') {
-        unawaited(_refreshRepairFromCloud(reason: 'app_resumed'));
-        return;
-      }
-
-      if (event == 'repairs_changed' || event == 'parts_changed') {
-        debugPrint(
-          '🔧 [RepairDetailView] Nhận event "$event" → debounce reload từ local DB',
-        );
-        _repairReloadDebounce?.cancel();
-        _repairReloadDebounce = Timer(const Duration(milliseconds: 400), () {
-          if (mounted) _reloadRepairFromDb();
-        });
-      }
-    });
-  }
-
-  /// Tải lại dữ liệu đơn sửa từ local DB.
-  /// Chỉ cập nhật nếu đơn không đang trong quá trình sửa (_isUpdating).
-  Future<void> _reloadRepairFromDb() async {
-    if (_isUpdating) return; // Tránh ghi đè khi user đang thao tác
-    final fid = r.firestoreId;
-    if (fid == null) return;
-    try {
-      final updated = await db.getRepairByFirestoreId(fid);
-      if (updated != null && mounted) {
-        debugPrint(
-          '✅ [RepairDetailView] Reload từ local DB: ${updated.customerName} (status ${updated.status})',
-        );
-        setState(() => r = updated);
-        unawaited(_loadLastModifierInfo());
-      }
-    } catch (e) {
-      debugPrint('⚠️ [RepairDetailView] _reloadRepairFromDb lỗi: $e');
-    }
-  }
-
-  Future<void> _refreshRepairFromCloud({String reason = 'manual'}) async {
+  Future<void> _startRepairRealtimeListener({bool forceRestart = false}) async {
     final targetId = (r.firestoreId ?? '').trim();
     if (targetId.isEmpty) return;
 
+    if (!forceRestart && _repairDocSubscription != null) {
+      return;
+    }
+
+    await _repairDocSubscription?.cancel();
+    _repairDocSubscription = null;
+    _hasReceivedServerDocSnapshot = false;
+
+    _repairDocSubscription = FirebaseFirestore.instance
+        .collection('repairs')
+        .doc(targetId)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            unawaited(_applyRepairDocSnapshot(snapshot));
+          },
+          onError: (error) {
+            debugPrint('❌ [RepairDetailView] Realtime doc listener lỗi: $error');
+          },
+        );
+  }
+
+  Future<void> _applyRepairDocSnapshot(
+    DocumentSnapshot<Map<String, dynamic>> snapshot,
+  ) async {
+    if (!snapshot.exists) return;
+
+    if (snapshot.metadata.isFromCache && _hasReceivedServerDocSnapshot) {
+      return;
+    }
+
+    if (!snapshot.metadata.isFromCache) {
+      _hasReceivedServerDocSnapshot = true;
+    }
+
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('repairs')
-          .doc(targetId)
-          .get(const GetOptions(source: Source.server));
-
-      if (!snapshot.exists) return;
-
       final rawData = Map<String, dynamic>.from(snapshot.data() ?? {});
       final data = EncryptionService.decryptMap(rawData);
       if (data['deleted'] == true) return;
 
       SyncService.convertTimestampFieldsPublic(data);
-      data['firestoreId'] = targetId;
+      data['firestoreId'] = snapshot.id;
       data['isSynced'] = 1;
 
       final latest = Repair.fromMap(data);
@@ -160,12 +151,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (!mounted || _isUpdating) return;
       setState(() => r = latest);
       unawaited(_loadLastModifierInfo());
-
-      debugPrint(
-        '☁️ [RepairDetailView] Refresh cloud ($reason): status=${latest.status}',
-      );
     } catch (e) {
-      debugPrint('⚠️ [RepairDetailView] _refreshRepairFromCloud lỗi ($reason): $e');
+      debugPrint('⚠️ [RepairDetailView] _applyRepairDocSnapshot lỗi: $e');
     }
   }
 
@@ -322,10 +309,71 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     return 0;
   }
 
+  String _statusFlowFor(int status, {required bool pendingApproval}) {
+    if (status <= 1) return 'received';
+    if (status == 2) return 'repairing';
+    if (status == 3) {
+      return pendingApproval ? 'pending_approval' : 'approved';
+    }
+    return 'delivered';
+  }
+
+  Future<void> _pushRepairStatusToCloud({
+    required int status,
+    required bool pendingApproval,
+    int? finishedAt,
+    int? deliveredAt,
+    String? repairedBy,
+    String? repairedByUid,
+    String? deliveredBy,
+    String? deliveredByUid,
+    String? paymentMethod,
+  }) async {
+    final targetId = (r.firestoreId ?? '').trim();
+    if (targetId.isEmpty) return;
+
+    final payload = <String, dynamic>{
+      'status': status,
+      'statusFlow': _statusFlowFor(status, pendingApproval: pendingApproval),
+      'pendingDeliveryApproval': pendingApproval,
+      'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
+    };
+
+    final lastCaredAt = r.lastCaredAt;
+    if (lastCaredAt != null && lastCaredAt > 0) {
+      payload['lastCaredAt'] = lastCaredAt;
+    }
+    if (finishedAt != null && finishedAt > 0) {
+      payload['finishedAt'] = finishedAt;
+    }
+    if (deliveredAt != null && deliveredAt > 0) {
+      payload['deliveredAt'] = deliveredAt;
+    }
+    if ((repairedBy ?? '').trim().isNotEmpty) {
+      payload['repairedBy'] = repairedBy!.trim();
+    }
+    if ((repairedByUid ?? '').trim().isNotEmpty) {
+      payload['repairedByUid'] = repairedByUid!.trim();
+    }
+    if ((deliveredBy ?? '').trim().isNotEmpty) {
+      payload['deliveredBy'] = deliveredBy!.trim();
+    }
+    if ((deliveredByUid ?? '').trim().isNotEmpty) {
+      payload['deliveredByUid'] = deliveredByUid!.trim();
+    }
+    if ((paymentMethod ?? '').trim().isNotEmpty) {
+      payload['paymentMethod'] = paymentMethod!.trim();
+    }
+
+    await FirebaseFirestore.instance
+        .collection('repairs')
+        .doc(targetId)
+        .set(payload, SetOptions(merge: true));
+  }
+
   @override
   void dispose() {
-    _repairEventSub?.cancel();
-    _repairReloadDebounce?.cancel();
+    _repairDocSubscription?.cancel();
     super.dispose();
   }
 
@@ -360,10 +408,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   Future<void> _checkPermission() async {
     final perms = await UserService.getCurrentUserPermissions();
+    final canViewCostPrice = perms['allowViewCostPrice'] == true;
+    final canViewRevenue =
+        perms['allowViewRevenue'] == true || canViewCostPrice;
     if (!mounted) return;
     setState(() {
       _hasPermission = perms['allowViewRepairs'] ?? false;
-      _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+      _canViewRevenue = canViewRevenue;
+      _canViewCostPrice = canViewCostPrice;
     });
   }
 
@@ -720,6 +772,22 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       );
       await db.upsertRepair(r);
 
+      try {
+        await _pushRepairStatusToCloud(
+          status: r.status,
+          pendingApproval: r.pendingDeliveryApproval,
+          finishedAt: r.finishedAt,
+          deliveredAt: r.deliveredAt,
+          repairedBy: r.repairedBy,
+          repairedByUid: r.repairedByUid,
+          deliveredBy: r.deliveredBy,
+          deliveredByUid: r.deliveredByUid,
+          paymentMethod: r.paymentMethod,
+        );
+      } catch (e) {
+        debugPrint('⚠️ [RepairDetailView] Push status realtime lỗi: $e');
+      }
+
       // Queue sync repair to cloud via SyncOrchestrator
       if (r.id != null) {
         await SyncOrchestrator().enqueue(
@@ -1006,12 +1074,30 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       // Người gửi yêu cầu giao được xem là người giao thực tế.
       r.deliveredBy = userName;
       r.deliveredByUid = user?.uid;
+      // Dùng thời điểm gửi yêu cầu duyệt làm mốc thời gian giao hiển thị.
+      r.deliveredAt = nowMs;
       r.pendingDeliveryApproval = true; // Đánh dấu chờ duyệt
       _isUpdating = true;
     });
 
     try {
       await db.upsertRepair(r);
+
+      try {
+        await _pushRepairStatusToCloud(
+          status: r.status,
+          pendingApproval: r.pendingDeliveryApproval,
+          finishedAt: r.finishedAt,
+          deliveredAt: r.deliveredAt,
+          repairedBy: r.repairedBy,
+          repairedByUid: r.repairedByUid,
+          deliveredBy: r.deliveredBy,
+          deliveredByUid: r.deliveredByUid,
+          paymentMethod: r.paymentMethod,
+        );
+      } catch (e) {
+        debugPrint('⚠️ [RepairDetailView] Push pending approval realtime lỗi: $e');
+      }
 
       if (r.id != null) {
         await SyncOrchestrator().enqueue(
@@ -1035,7 +1121,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // Gửi notification cho quản lý
       await NotificationService.sendCloudNotification(
-        title: '📋 ${loc.notifRequestDeliveryApproval}',
+        title: '📋 YÊU CẦU DUYỆT GIAO MÁY',
         body:
             '👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ\n👷 $userName',
         type: 'approval_needed',
@@ -1296,6 +1382,22 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       await db.upsertRepair(r);
 
+      try {
+        await _pushRepairStatusToCloud(
+          status: r.status,
+          pendingApproval: r.pendingDeliveryApproval,
+          finishedAt: r.finishedAt,
+          deliveredAt: r.deliveredAt,
+          repairedBy: r.repairedBy,
+          repairedByUid: r.repairedByUid,
+          deliveredBy: r.deliveredBy,
+          deliveredByUid: r.deliveredByUid,
+          paymentMethod: r.paymentMethod,
+        );
+      } catch (e) {
+        debugPrint('⚠️ [RepairDetailView] Push approved delivery realtime lỗi: $e');
+      }
+
       if (r.id != null) {
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.repair,
@@ -1360,9 +1462,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'HH\'H\'mm',
         ).format(DateTime.fromMillisecondsSinceEpoch(r.deliveredAt!));
         await NotificationService.sendCloudNotification(
-          title: '🚀 $deliveredByName ĐÃ GIAO MÁY LÚC $deliveredClock',
+          title: '✅ ĐÃ DUYỆT GIAO MÁY • $deliveredClock',
           body:
-              '👷 $deliveredByName • ⏰ $deliveredClock\n✅ Duyệt: $approverName\n👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
+              '👷 Giao: $deliveredByName • ⏰ $deliveredClock\n✅ Duyệt: $approverName\n👤 ${r.customerName} • 📱 ${r.model}\n💰 ${MoneyUtils.formatCurrency(r.price)}đ',
           type: 'new_order',
           data: {'targetType': 'repair', 'targetId': key, 'repairId': key},
         );
@@ -1397,6 +1499,23 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     try {
       await db.upsertRepair(r);
+
+      try {
+        await _pushRepairStatusToCloud(
+          status: r.status,
+          pendingApproval: r.pendingDeliveryApproval,
+          finishedAt: r.finishedAt,
+          deliveredAt: r.deliveredAt,
+          repairedBy: r.repairedBy,
+          repairedByUid: r.repairedByUid,
+          deliveredBy: r.deliveredBy,
+          deliveredByUid: r.deliveredByUid,
+          paymentMethod: r.paymentMethod,
+        );
+      } catch (e) {
+        debugPrint('⚠️ [RepairDetailView] Push reject realtime lỗi: $e');
+      }
+
       if (r.id != null) {
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.repair,
@@ -2190,6 +2309,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _editFinancials() async {
+    if (!_canViewAnyFinancial) {
+      NotificationService.showSnackBar(
+        'Bạn không có quyền xem/chỉnh sửa tài chính',
+        color: Colors.orange,
+      );
+      return;
+    }
+
     // Lock editing when repair is delivered (status 4)
     if (r.status == 4) {
       NotificationService.showSnackBar(
@@ -2676,107 +2803,120 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Header tài chính
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.account_balance_wallet,
-                            size: 18,
-                            color: Colors.green.shade700,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            loc.financeTitleUpper,
-                            style: AppTextStyles.caption.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700,
-                            ),
-                          ),
-                          const Spacer(),
-                          TextButton.icon(
-                            onPressed: _editFinancials,
-                            icon: const Icon(Icons.edit, size: 14),
-                            label: Text(loc.editButton),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          if (_canViewCostPrice)
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      ((r.price - r.cost) >= 0
-                                              ? AppColors.success
-                                              : AppColors.error)
-                                          .withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      loc.profitLabel,
-                                      style: AppTextStyles.overline.copyWith(
-                                        color: (r.price - r.cost) >= 0
-                                            ? AppColors.success
-                                            : AppColors.error,
-                                      ),
-                                    ),
-                                    Text(
-                                      "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
-                                      style: AppTextStyles.body2.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: (r.price - r.cost) >= 0
-                                            ? AppColors.success
-                                            : AppColors.error,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          if (_canViewCostPrice) const SizedBox(width: 8),
-                          _miniFinCompact("THU", r.price, AppColors.primary),
-                          if (_canViewCostPrice) ...[
-                            const SizedBox(width: 8),
-                            _miniFinCompact("VỐN", r.cost, AppColors.warning),
-                          ],
-                        ],
-                      ),
-                      // Indicator: cost recorded in fund
-                      if (_canViewCostPrice &&
-                          r.costRecordedInFund &&
-                          r.cost > 0) ...[
-                        const SizedBox(height: 4),
+                      if (_canViewAnyFinancial) ...[
                         Row(
                           children: [
                             Icon(
-                              Icons.check_circle,
-                              size: 12,
-                              color: Colors.green.shade600,
+                              Icons.account_balance_wallet,
+                              size: 18,
+                              color: Colors.green.shade700,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 8),
                             Text(
-                              'Đã ghi sổ quỹ (${r.costPaymentMethod ?? ""})',
-                              style: AppTextStyles.overline.copyWith(
-                                color: Colors.green.shade600,
-                                fontWeight: FontWeight.w500,
+                              loc.financeTitleUpper,
+                              style: AppTextStyles.caption.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                            const Spacer(),
+                            TextButton.icon(
+                              onPressed: _editFinancials,
+                              icon: const Icon(Icons.edit, size: 14),
+                              label: Text(loc.editButton),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                visualDensity: VisualDensity.compact,
                               ),
                             ),
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            if (_canViewCostPrice)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        ((r.price - r.cost) >= 0
+                                                ? AppColors.success
+                                                : AppColors.error)
+                                            .withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        loc.profitLabel,
+                                        style: AppTextStyles.overline.copyWith(
+                                          color: (r.price - r.cost) >= 0
+                                              ? AppColors.success
+                                              : AppColors.error,
+                                        ),
+                                      ),
+                                      Text(
+                                        "${MoneyUtils.formatCurrency(r.price - r.cost)} đ",
+                                        style: AppTextStyles.body2.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: (r.price - r.cost) >= 0
+                                              ? AppColors.success
+                                              : AppColors.error,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            if (_canViewCostPrice && _canViewRevenue)
+                              const SizedBox(width: 8),
+                            if (_canViewRevenue)
+                              _miniFinCompact(
+                                loc.priceLabel,
+                                r.price,
+                                AppColors.primary,
+                              ),
+                            if (_canViewRevenue && _canViewCostPrice)
+                              const SizedBox(width: 8),
+                            if (_canViewCostPrice)
+                              _miniFinCompact(
+                                loc.costLabel,
+                                r.cost,
+                                AppColors.warning,
+                              ),
+                          ],
+                        ),
+                        // Indicator: cost recorded in fund
+                        if (_canViewCostPrice &&
+                            r.costRecordedInFund &&
+                            r.cost > 0) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                size: 12,
+                                color: Colors.green.shade600,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Đã ghi sổ quỹ (${r.costPaymentMethod ?? ""})',
+                                style: AppTextStyles.overline.copyWith(
+                                  color: Colors.green.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                       // Phụ tùng
                       if (r.partsUsed.isNotEmpty) ...[
@@ -2900,13 +3040,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              Text(
-                                "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ",
-                                style: AppTextStyles.body2.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.warning,
+                              if (_canViewAnyFinancial)
+                                Text(
+                                  "${MoneyUtils.formatCurrency(r.services.fold(0, (sum, s) => sum + s.cost))} đ",
+                                  style: AppTextStyles.body2.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.warning,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -2982,7 +3123,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         'Giao',
                         _formatStageActorWithTime(
                           actorRaw: r.deliveredBy,
-                          timestamp: r.deliveredAt,
+                          timestamp: _deliveryStageTimestamp(r),
                         ),
                       ),
                       if (_hasModifierInfo)
@@ -3219,13 +3360,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ],
             ),
           ),
-          Text(
-            "${MoneyUtils.formatCurrency(s.cost)} đ",
-            style: AppTextStyles.caption.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.warning,
+          if (_canViewAnyFinancial)
+            Text(
+              "${MoneyUtils.formatCurrency(s.cost)} đ",
+              style: AppTextStyles.caption.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.warning,
+              ),
             ),
-          ),
           if (r.status != 4)
             IconButton(
               icon: const Icon(Icons.edit, size: 14, color: Colors.grey),
@@ -3289,6 +3431,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   int? _repairStageTimestamp(Repair rep) {
     if ((rep.finishedAt ?? 0) > 0) return rep.finishedAt;
     if ((rep.startedAt ?? 0) > 0) return rep.startedAt;
+    return null;
+  }
+
+  int? _deliveryStageTimestamp(Repair rep) {
+    if ((rep.deliveredAt ?? 0) > 0) return rep.deliveredAt;
+    if ((rep.deliveredBy ?? '').trim().isEmpty) return null;
+
+    if ((rep.lastCaredAt ?? 0) > 0) return rep.lastCaredAt;
+    if ((rep.finishedAt ?? 0) > 0) return rep.finishedAt;
     return null;
   }
 
@@ -3751,7 +3902,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           'Giao',
           _formatStageActorWithTime(
             actorRaw: r.deliveredBy,
-            timestamp: r.deliveredAt,
+            timestamp: _deliveryStageTimestamp(r),
           ),
         ),
         if (_hasModifierInfo) _infoRow('Sửa đổi', _formatModifierInfo()),
@@ -4823,7 +4974,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             'Giao',
             _formatStageActorWithTime(
               actorRaw: r.deliveredBy,
-              timestamp: r.deliveredAt,
+              timestamp: _deliveryStageTimestamp(r),
             ),
           ),
           if (_hasModifierInfo) _infoRow('Sửa đổi', _formatModifierInfo()),
@@ -4987,7 +5138,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     )
                   : const Icon(Icons.verified, color: Colors.white, size: 14),
               label: const Text(
-                'Y/C DUYỆT',
+                'DUYỆT',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -5005,31 +5156,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ),
             );
           } else {
-            statusButton = ElevatedButton.icon(
-              onPressed: null,
-              icon: const Icon(
-                Icons.hourglass_top,
-                color: Colors.white,
-                size: 14,
-              ),
-              label: const Text(
-                'CHỜ',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 10,
-                  height: 1,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange.shade600,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            );
+            // Nhân viên đã gửi yêu cầu duyệt thì ẩn nút đổi trạng thái.
+            statusButton = null;
           }
         } else if (r.status == 3) {
           if (isManager) {

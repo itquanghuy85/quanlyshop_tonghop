@@ -167,6 +167,9 @@ class SyncService {
   static const _syncAllToCloudCooldown = Duration(seconds: 12);
   static const int _collectionPollLimit = 20;
   static const Duration _collectionRefreshCooldown = Duration(seconds: 5);
+  static const Duration _cloudReadTimeout = Duration(seconds: 20);
+  static const Duration _cloudReadLogCooldown = Duration(seconds: 15);
+  static DateTime? _lastCloudReadTimeoutLogAt;
 
   /// Key prefix for storing last sync timestamps per collection in SharedPreferences
   static const _lastSyncPrefix = 'lastSync_';
@@ -215,6 +218,35 @@ class SyncService {
     debugPrint(
       '[SYNC][FETCH] collection=$collection count=$next reason=$reason limit=$_collectionPollLimit',
     );
+  }
+
+  static bool _shouldLogCloudReadTimeout() {
+    final now = DateTime.now();
+    if (_lastCloudReadTimeoutLogAt == null ||
+        now.difference(_lastCloudReadTimeoutLogAt!) >=
+            _cloudReadLogCooldown) {
+      _lastCloudReadTimeoutLogAt = now;
+      return true;
+    }
+    return false;
+  }
+
+  static Future<QuerySnapshot<Map<String, dynamic>>> _getQueryWithTimeout({
+    required Query<Map<String, dynamic>> query,
+    required String context,
+    int? limit,
+  }) async {
+    final effectiveQuery = limit != null ? query.limit(limit) : query;
+    try {
+      return await effectiveQuery.get().timeout(_cloudReadTimeout);
+    } on TimeoutException {
+      if (_shouldLogCloudReadTimeout()) {
+        debugPrint(
+          '⏱️ Cloud read timeout in $context after ${_cloudReadTimeout.inSeconds}s',
+        );
+      }
+      rethrow;
+    }
   }
 
   /// Trigger one-shot cloud fetch for active collections.
@@ -2055,7 +2087,11 @@ class SyncService {
                 );
               }
 
-              final snapshot = await query.limit(_collectionPollLimit).get();
+              final snapshot = await _getQueryWithTimeout(
+                query: query,
+                context: 'product_categories_poll',
+                limit: _collectionPollLimit,
+              );
               if (snapshot.docs.isEmpty) return;
 
               final db = DBHelper();
@@ -2314,7 +2350,11 @@ class SyncService {
           }
         }
 
-        final snapshot = await query.limit(_collectionPollLimit).get();
+        final snapshot = await _getQueryWithTimeout(
+          query: query,
+          context: 'poll_$collection',
+          limit: _collectionPollLimit,
+        );
         if (snapshot.docs.isEmpty) {
           return;
         }
@@ -3393,10 +3433,13 @@ class SyncService {
         );
         if (suppliers.isNotEmpty) {
           // Query existing Firestore suppliers for this shop to avoid duplicates
-          final existingSnapshot = await _db
+          final supplierQuery = _db
               .collection('suppliers')
-              .where('shopId', isEqualTo: shopId)
-              .get();
+              .where('shopId', isEqualTo: shopId);
+          final existingSnapshot = await _getQueryWithTimeout(
+            query: supplierQuery,
+            context: 'syncAllToCloud_suppliers_dedupe',
+          );
           final Map<String, String> existingByName = {};
           for (var doc in existingSnapshot.docs) {
             final data = doc.data();
@@ -4106,7 +4149,10 @@ class SyncService {
             debugPrint("Downloading collection: $col (full sync)...");
           }
 
-          final snap = await query.get();
+          final snap = await _getQueryWithTimeout(
+            query: query,
+            context: 'downloadAllFromCloud_$col',
+          );
           debugPrint("  -> Found ${snap.docs.length} documents in $col");
 
           int successCount = 0;
@@ -4338,7 +4384,7 @@ class SyncService {
       final dbHelper = DBHelper();
 
       // Query customers từ Firestore
-      Query query = _db.collection('customers');
+      Query<Map<String, dynamic>> query = _db.collection('customers');
       if (!isSuperAdmin && shopId != null) {
         query = query.where('shopId', isEqualTo: shopId);
       }
@@ -4350,7 +4396,10 @@ class SyncService {
         debugPrint("syncCustomersFromCloud: Không thể refresh token: $e");
       }
 
-      final querySnapshot = await query.get();
+      final querySnapshot = await _getQueryWithTimeout(
+        query: query,
+        context: 'syncCustomersFromCloud',
+      );
       debugPrint(
         "syncCustomersFromCloud: Tìm thấy ${querySnapshot.docs.length} customers từ cloud",
       );
@@ -4358,7 +4407,7 @@ class SyncService {
       // Upsert từng customer vào local DB
       for (var doc in querySnapshot.docs) {
         try {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
           _convertTimestampFields(data);
           data['firestoreId'] = doc.id;
           data['isSynced'] = 1; // Đánh dấu đã sync
