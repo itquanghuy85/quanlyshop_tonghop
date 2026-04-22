@@ -965,7 +965,7 @@ class SyncService {
           // Chỉ emit EventBus — HomeView + các view khác đã listen EventBus
           // (bỏ onDataChanged() để tránh double-hit reload)
           debugPrint('✅ [SyncService] Sync xong repairs → emit repairs_changed');
-          EventBus().emit('repairs_changed');
+          EventBus().emit(EventBus.repairsChanged);
         },
       );
 

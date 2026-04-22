@@ -708,7 +708,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       HapticFeedback.mediumImpact();
 
       // Notify other views about the new repair
-      EventBus().emit('repairs_changed');
+      EventBus().emit(EventBus.repairsChanged);
 
       debugPrint('🔧 _onlySave: Navigating to OrderListView...');
       if (mounted) {

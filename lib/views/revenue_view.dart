@@ -86,11 +86,12 @@ class _RevenueViewState extends State<RevenueView>
       if (!mounted || !_dataLoaded) return;
       // Chỉ reload khi có events liên quan đến finance
       if (event == 'sales_changed' ||
-          event == 'repairs_changed' ||
+          event == EventBus.repairsChanged ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
           event == 'cash_closings_changed' ||
-          event == 'supplier_import_history_changed') {
+          event == 'supplier_import_history_changed' ||
+          event == EventBus.financialChanged) {
         debugPrint('📊 [RevenueView] Nhận event "$event" → debounce reload');
         _debouncedReload();
       }

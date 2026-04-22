@@ -218,11 +218,11 @@ class _HomeViewState extends State<HomeView>
                 event == 'repair_partners_changed' ||
                 event == 'repair_partner_payments_changed' ||
                 event == 'sales_changed' ||
-                event == 'repairs_changed' ||
+                event == EventBus.repairsChanged ||
                 event == 'expenses_changed' ||
                 event == 'products_changed' ||
                 event == 'sales_returns_changed' ||
-                event == 'financial_activity_changed') &&
+                event == EventBus.financialChanged) &&
             mounted) {
           debugPrint('HomeView: Loading stats for event: $event');
           _debouncedLoadStats();

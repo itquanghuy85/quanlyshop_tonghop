@@ -131,12 +131,13 @@ class _FinancialReportViewState extends State<FinancialReportView>
     // Subscribe to data change events for real-time sync (debounced)
     _eventSubscription = EventBus().stream.listen((event) {
       if (event == 'sales_changed' ||
-          event == 'repairs_changed' ||
+          event == EventBus.repairsChanged ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
           event == 'debt_payments_changed' ||
           event == 'sales_returns_changed' ||
           event == 'payment_requests_changed' ||
+          event == EventBus.financialChanged ||
           event == EventBus.shopChanged) {
         debugPrint(
           '📊 [FinancialReportView] Nhận event "$event" → debounce tải lại báo cáo',

@@ -64,27 +64,64 @@ class RepairPartnerService {
 
   // Repair Partner CRUD
   Future<List<RepairPartner>> getRepairPartners() async {
-    final shopId = await UserService.getCurrentShopId();
+    final shopId = (await UserService.getCurrentShopId())?.trim();
     final data = await db.getRepairPartners();
-    return data
-        .where((p) => p['shopId'] == shopId && p['deleted'] != 1 && p['deleted'] != true)
-        .map((p) => RepairPartner.fromMap(p))
-        .toList();
+
+    final activeRows = data.where((row) {
+      final deleted = row['deleted'];
+      if (deleted == 1 || deleted == true) return false;
+      final active = row['active'];
+      return active == null || active == 1 || active == true;
+    }).toList();
+
+    List<Map<String, dynamic>> rowsToUse;
+
+    if (shopId == null || shopId.isEmpty) {
+      rowsToUse = activeRows;
+    } else {
+      rowsToUse = activeRows.where((row) {
+        final rowShopId = (row['shopId'] ?? '').toString().trim();
+        return rowShopId == shopId;
+      }).toList();
+
+      // Backward-compat: dữ liệu cũ có thể thiếu shopId.
+      // Nếu chưa có bản ghi theo shop hiện tại, dùng bản thiếu shopId và backfill lại.
+      if (rowsToUse.isEmpty) {
+        final legacyRows = activeRows.where((row) {
+          final rowShopId = (row['shopId'] ?? '').toString().trim();
+          return rowShopId.isEmpty;
+        }).toList();
+
+        if (legacyRows.isNotEmpty) {
+          final localDb = await db.database;
+          for (final row in legacyRows) {
+            final rowId = row['id'] as int?;
+            if (rowId == null) continue;
+            await localDb.update(
+              'repair_partners',
+              {'shopId': shopId},
+              where: 'id = ?',
+              whereArgs: [rowId],
+            );
+            row['shopId'] = shopId;
+          }
+          rowsToUse = legacyRows;
+        }
+      }
+    }
+
+    final partners = rowsToUse.map((row) => RepairPartner.fromMap(row)).toList();
+    partners.sort((a, b) => a.name.compareTo(b.name));
+    return partners;
   }
 
   /// Get repair partner by ID
   Future<RepairPartner?> getRepairPartnerById(int partnerId) async {
-    final shopId = await UserService.getCurrentShopId();
-    final data = await db.getRepairPartners();
-    final partnerData = data.where((p) => 
-        p['id'] == partnerId && 
-        p['shopId'] == shopId && 
-        p['deleted'] != 1 && 
-        p['deleted'] != true
-    ).firstOrNull;
-    
-    if (partnerData != null) {
-      return RepairPartner.fromMap(partnerData);
+    final partners = await getRepairPartners();
+    for (final partner in partners) {
+      if (partner.id == partnerId) {
+        return partner;
+      }
     }
     return null;
   }

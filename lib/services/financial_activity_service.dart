@@ -45,7 +45,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint('📝 FinancialActivity: Logged SALE - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logSale error: $e');
@@ -81,7 +81,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint('📝 FinancialActivity: Logged EXPENSE - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logExpense error: $e');
@@ -117,7 +117,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint('📝 FinancialActivity: Logged PURCHASE - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logPurchase error: $e');
@@ -153,7 +153,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint(
         '📝 FinancialActivity: Logged DEBT_COLLECT - ${activity.title}',
       );
@@ -191,7 +191,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint('📝 FinancialActivity: Logged SETTLEMENT - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logSettlement error: $e');
@@ -225,7 +225,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint('📝 FinancialActivity: Logged DEBT_PAY - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logSupplierPayment error: $e');
@@ -261,7 +261,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint('📝 FinancialActivity: Logged REPAIR - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logRepair error: $e');
@@ -307,7 +307,7 @@ class FinancialActivityService {
       );
 
       await _db.upsertFinancialActivity(activity.toMap());
-      EventBus().emit('financial_activity_changed');
+      EventBus().emitFinancialChanged();
       debugPrint('📝 FinancialActivity: Logged CUSTOM - ${activity.title}');
     } catch (e) {
       debugPrint('❌ FinancialActivity logCustomActivity error: $e');
@@ -319,7 +319,7 @@ class FinancialActivityService {
     try {
       final deleted = await _db.deleteOldFinancialActivities(daysOld);
       if (deleted > 0) {
-        EventBus().emit('financial_activity_changed');
+        EventBus().emitFinancialChanged();
       }
       debugPrint('🗑️ FinancialActivity: Cleaned $deleted old logs');
       return deleted;

@@ -111,18 +111,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     _repairDocSubscription = null;
     _hasReceivedServerDocSnapshot = false;
 
-    _repairDocSubscription = FirebaseFirestore.instance
-        .collection('repairs')
-        .doc(targetId)
-        .snapshots()
-        .listen(
-          (snapshot) {
-            unawaited(_applyRepairDocSnapshot(snapshot));
-          },
-          onError: (error) {
-            debugPrint('❌ [RepairDetailView] Realtime doc listener lỗi: $error');
-          },
-        );
+    _repairDocSubscription = FirestoreService.watchRepairDoc(targetId).listen(
+      (snapshot) {
+        unawaited(_applyRepairDocSnapshot(snapshot));
+      },
+      onError: (error) {
+        debugPrint('❌ [RepairDetailView] Realtime doc listener lỗi: $error');
+      },
+    );
   }
 
   Future<void> _applyRepairDocSnapshot(
@@ -147,15 +143,115 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       data['firestoreId'] = snapshot.id;
       data['isSynced'] = 1;
 
+      final isPartialSnapshot = _isPartialRepairSnapshot(data);
       final latest = Repair.fromMap(data);
-      await db.upsertRepair(latest);
+      final safeLatest = await _mergeSnapshotWithLocalIfPartial(data, latest);
+
+      // Khi đang xử lý thao tác cập nhật và snapshot cloud chỉ là patch trạng thái,
+      // bỏ qua để tránh ghi đè đơn local thành giá 0/thiếu dữ liệu.
+      if (_isUpdating && isPartialSnapshot) {
+        debugPrint(
+          'ℹ️ [RepairDetailView] Skip partial realtime snapshot while updating: ${snapshot.id}',
+        );
+        return;
+      }
+
+      final recoveredLocalData =
+          isPartialSnapshot &&
+          (safeLatest.price > 0 ||
+              safeLatest.cost > 0 ||
+              safeLatest.services.isNotEmpty ||
+              safeLatest.customerName.trim().isNotEmpty ||
+              safeLatest.model.trim().isNotEmpty);
+
+      if (recoveredLocalData) {
+        // Snapshot cloud bị thiếu dữ liệu, giữ bản local đầy đủ và ép sync ngược.
+        safeLatest.isSynced = false;
+      }
+
+      await db.upsertRepair(safeLatest);
+
+      if (recoveredLocalData && safeLatest.id != null) {
+        try {
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.repair,
+            entityId: safeLatest.id!,
+            firestoreId: safeLatest.firestoreId,
+            operation: SyncOperation.update,
+            data: safeLatest.toMap(),
+          );
+          // ignore: unawaited_futures
+          unawaited(SyncOrchestrator().syncAll());
+        } catch (e) {
+          debugPrint(
+            '⚠️ [RepairDetailView] enqueue heal partial repair snapshot lỗi: $e',
+          );
+        }
+      }
 
       if (!mounted || _isUpdating) return;
-      setState(() => r = latest);
+      setState(() => r = safeLatest);
       unawaited(_loadLastModifierInfo());
     } catch (e) {
       debugPrint('⚠️ [RepairDetailView] _applyRepairDocSnapshot lỗi: $e');
     }
+  }
+
+  bool _isPartialRepairSnapshot(Map<String, dynamic> data) {
+    final hasIdentity =
+        (data['customerName']?.toString().trim().isNotEmpty ?? false) ||
+        (data['model']?.toString().trim().isNotEmpty ?? false) ||
+        (data['phone']?.toString().trim().isNotEmpty ?? false);
+    final hasFinancial =
+        data.containsKey('price') ||
+        data.containsKey('cost') ||
+        data.containsKey('totalCost') ||
+        data.containsKey('services');
+    final hasCreatedAt = _parseTimestamp(data['createdAt']) > 0;
+
+    return !hasIdentity && !hasFinancial && !hasCreatedAt;
+  }
+
+  Future<Repair> _mergeSnapshotWithLocalIfPartial(
+    Map<String, dynamic> cloudData,
+    Repair cloudRepair,
+  ) async {
+    if (!_isPartialRepairSnapshot(cloudData)) {
+      return cloudRepair;
+    }
+
+    final firestoreId = (cloudRepair.firestoreId ?? '').trim();
+    if (firestoreId.isEmpty) {
+      return cloudRepair;
+    }
+
+    final localRepair = await db.getRepairByFirestoreId(firestoreId);
+    if (localRepair == null) {
+      return cloudRepair;
+    }
+
+    return localRepair.copyWith(
+      status: cloudRepair.status,
+      pendingDeliveryApproval: cloudRepair.pendingDeliveryApproval,
+      lastCaredAt: cloudRepair.lastCaredAt ?? localRepair.lastCaredAt,
+      finishedAt: cloudRepair.finishedAt ?? localRepair.finishedAt,
+      deliveredAt: cloudRepair.deliveredAt ?? localRepair.deliveredAt,
+      repairedBy: (cloudRepair.repairedBy ?? '').trim().isNotEmpty
+          ? cloudRepair.repairedBy
+          : localRepair.repairedBy,
+      repairedByUid: (cloudRepair.repairedByUid ?? '').trim().isNotEmpty
+          ? cloudRepair.repairedByUid
+          : localRepair.repairedByUid,
+      deliveredBy: (cloudRepair.deliveredBy ?? '').trim().isNotEmpty
+          ? cloudRepair.deliveredBy
+          : localRepair.deliveredBy,
+      deliveredByUid: (cloudRepair.deliveredByUid ?? '').trim().isNotEmpty
+          ? cloudRepair.deliveredByUid
+          : localRepair.deliveredByUid,
+      paymentMethod: cloudRepair.paymentMethod.trim().isNotEmpty
+          ? cloudRepair.paymentMethod
+          : localRepair.paymentMethod,
+    );
   }
 
   String _normalizeActionText(String rawAction) {
@@ -201,7 +297,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final action = _normalizeActionText(rawAction);
     if (action.isEmpty) return false;
 
-    final localizedAction = _normalizeActionText(loc.actionRequestDeliveryApproval);
+    final localizedAction = _normalizeActionText(
+      loc.actionRequestDeliveryApproval,
+    );
     return action == localizedAction ||
         action == 'YÊU CẦU DUYỆT GIAO' ||
         action == 'REQUEST DELIVERY APPROVAL';
@@ -299,9 +397,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     final localizedEditAction = _normalizeActionText(loc.editRepairAction);
     return action == localizedEditAction ||
-      action == 'SỬA ĐƠN SỬA' ||
-      action == 'CHỈNH SỬA THÔNG TIN ĐƠN SỬA' ||
-      action == 'EDIT REPAIR';
+        action == 'SỬA ĐƠN SỬA' ||
+        action == 'CHỈNH SỬA THÔNG TIN ĐƠN SỬA' ||
+        action == 'EDIT REPAIR';
   }
 
   int _parseTimestamp(dynamic value) {
@@ -318,6 +416,51 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       return pendingApproval ? 'pending_approval' : 'approved';
     }
     return 'delivered';
+  }
+
+  Future<Repair?> _loadPersistedRepairSnapshot() async {
+    if (r.id != null) {
+      return db.getRepairById(r.id!);
+    }
+    final firestoreId = (r.firestoreId ?? '').trim();
+    if (firestoreId.isEmpty) return null;
+    return db.getRepairByFirestoreId(firestoreId);
+  }
+
+  bool _hasFinancialImpact(Repair? previous, Repair current) {
+    if (previous == null) {
+      return current.price != 0 ||
+          current.cost != 0 ||
+          current.paymentMethod.trim().isNotEmpty ||
+          current.status == 4;
+    }
+
+    return previous.price != current.price ||
+        previous.cost != current.cost ||
+        previous.paymentMethod != current.paymentMethod ||
+        previous.costRecordedInFund != current.costRecordedInFund ||
+        previous.costPaymentMethod != current.costPaymentMethod ||
+        previous.costRecordedAmount != current.costRecordedAmount ||
+        previous.status != current.status ||
+        previous.pendingDeliveryApproval != current.pendingDeliveryApproval;
+  }
+
+  void _emitRepairChanged({
+    bool financialImpact = false,
+    bool includeDebts = false,
+    bool includeServiceChanges = false,
+  }) {
+    final eventBus = EventBus();
+    eventBus.emit(EventBus.repairsChanged);
+    if (financialImpact) {
+      eventBus.emit(EventBus.financialChanged);
+    }
+    if (includeDebts) {
+      eventBus.emit('debts_changed');
+    }
+    if (includeServiceChanges) {
+      eventBus.emit('repair_services_changed');
+    }
   }
 
   Future<void> _pushRepairStatusToCloud({
@@ -367,10 +510,29 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       payload['paymentMethod'] = paymentMethod!.trim();
     }
 
-    await FirebaseFirestore.instance
-        .collection('repairs')
-        .doc(targetId)
-        .set(payload, SetOptions(merge: true));
+    final docSnapshot = await FirestoreService.getRepairDoc(targetId);
+    if (!docSnapshot.exists) {
+      // Nếu doc chưa tồn tại trên cloud mà chỉ set patch status,
+      // Firestore sẽ tạo doc thiếu trường và làm local bị ghi đè về 0 khi listener chạy.
+      // Bootstrap full payload trước để tránh mất price/cost/customer/model.
+      final bootstrap = Map<String, dynamic>.from(r.toMap());
+      bootstrap['firestoreId'] = targetId;
+      bootstrap['updatedAt'] = FirestoreWriteHelper.serverUpdatedAt();
+      final shopId = (await UserService.getCurrentShopId())?.trim();
+      if (shopId != null && shopId.isNotEmpty) {
+        bootstrap['shopId'] = shopId;
+      }
+      bootstrap.addAll(payload);
+
+      final encryptedBootstrap = EncryptionService.encryptMap(bootstrap);
+      await FirestoreService.upsertRepairPatchByFirestoreId(
+        targetId,
+        encryptedBootstrap,
+      );
+      return;
+    }
+
+    await FirestoreService.upsertRepairPatchByFirestoreId(targetId, payload);
   }
 
   @override
@@ -391,21 +553,25 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _loadPartners() async {
-    final partnerService = RepairPartnerService();
-    final partners = await partnerService.getRepairPartners();
-    if (!mounted) return;
-    setState(() {
-      _partners = partners;
-      // Resolve partnerName cho các dịch vụ đã có partnerId
-      for (final s in r.services) {
-        if (s.partnerId != null && s.partnerName == null) {
-          final match = partners.where((p) => p.id == s.partnerId);
-          if (match.isNotEmpty) {
-            s.partnerName = match.first.name;
+    try {
+      final partnerService = RepairPartnerService();
+      final partners = await partnerService.getRepairPartners();
+      if (!mounted) return;
+      setState(() {
+        _partners = partners;
+        // Resolve partnerName cho các dịch vụ đã có partnerId
+        for (final s in r.services) {
+          if (s.partnerId != null && s.partnerName == null) {
+            final match = partners.where((p) => p.id == s.partnerId);
+            if (match.isNotEmpty) {
+              s.partnerName = match.first.name;
+            }
           }
         }
-      }
-    });
+      });
+    } catch (e) {
+      debugPrint('⚠️ [RepairDetailView] _loadPartners lỗi: $e');
+    }
   }
 
   Future<void> _checkPermission() async {
@@ -451,7 +617,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         rawShopName.toLowerCase() == 'shop new' ||
             rawShopName.toLowerCase() == 'shop_new' ||
             rawShopName.toLowerCase() == 'shopnew'
-      ? 'Quản Lý Shop'
+        ? 'Quản Lý Shop'
         : (rawShopName.isNotEmpty ? rawShopName : loc.defaultShopName);
     if (!mounted) return;
     setState(() {
@@ -839,7 +1005,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         loc.statusUpdated(_getStatusText(newStatus)),
         color: AppColors.success,
       );
-      EventBus().emit('repairs_changed');
+      _emitRepairChanged();
 
       // GỬI PUSH NOTIFICATION khi thay đổi trạng thái (trừ status 4 đã xử lý riêng)
       if (newStatus != 4) {
@@ -978,85 +1144,107 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       '6 tháng',
       '12 tháng',
     ];
+    final formKey = GlobalKey<FormState>();
+    final priceCtrl = TextEditingController(
+      text: CurrencyTextField.formatDisplay(r.price),
+    );
 
     final confirm = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) {
         final dialogLoc = AppLocalizations.of(ctx)!;
         return StatefulBuilder(
           builder: (ctx, setS) => AlertDialog(
             title: Text(dialogLoc.sendApprovalRequest),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.orange.shade700),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          dialogLoc.orderWillBeSentForApproval,
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.orange.shade700,
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            dialogLoc.orderWillBeSentForApproval,
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.orange.shade700,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  dialogLoc.selectWarrantyPeriod,
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
+                  const SizedBox(height: 16),
+                  CurrencyTextField(
+                    controller: priceCtrl,
+                    label: dialogLoc.chargeCustomerVnd,
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 0,
+                      fieldName: dialogLoc.chargeCustomerLabel,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: warrantyOptions
-                      .map(
-                        (opt) => ChoiceChip(
-                          label: Text(opt, style: AppTextStyles.caption),
-                          selected: selectedWarranty == opt,
-                          onSelected: (v) => setS(() => selectedWarranty = opt),
-                          selectedColor: AppColors.primary.withOpacity(0.2),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  dialogLoc.selectPaymentMethod,
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
+                  const SizedBox(height: 12),
+                  Text(
+                    dialogLoc.selectWarrantyPeriod,
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [dialogLoc.cash, dialogLoc.transfer, dialogLoc.debt]
-                      .map(
-                        (m) => ChoiceChip(
-                          label: Text(m, style: AppTextStyles.caption),
-                          selected: payMethod == m,
-                          onSelected: (v) => setS(() => payMethod = m),
-                          selectedColor: AppColors.secondary.withOpacity(0.2),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: warrantyOptions
+                        .map(
+                          (opt) => ChoiceChip(
+                            label: Text(opt, style: AppTextStyles.caption),
+                            selected: selectedWarranty == opt,
+                            onSelected: (v) =>
+                                setS(() => selectedWarranty = opt),
+                            selectedColor: AppColors.primary.withOpacity(0.2),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    dialogLoc.selectPaymentMethod,
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children:
+                        [dialogLoc.cash, dialogLoc.transfer, dialogLoc.debt]
+                            .map(
+                              (m) => ChoiceChip(
+                                label: Text(m, style: AppTextStyles.caption),
+                                selected: payMethod == m,
+                                onSelected: (v) => setS(() => payMethod = m),
+                                selectedColor: AppColors.secondary.withOpacity(
+                                  0.2,
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -1064,7 +1252,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 child: Text(dialogLoc.cancel),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () {
+                  if (!(formKey.currentState?.validate() ?? false)) {
+                    return;
+                  }
+                  Navigator.pop(ctx, true);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepOrange,
                 ),
@@ -1080,11 +1273,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
 
     if (confirm != true) return;
+    final parsedPrice = MoneyUtils.parseCurrency(priceCtrl.text);
 
     final user = FirebaseAuth.instance.currentUser;
     final userName = await _resolveCurrentStaffName(fallback: 'NV');
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
+    r.price = parsedPrice;
     r.warranty = selectedWarranty;
     r.paymentMethod = payMethod;
     r.lastCaredAt = nowMs;
@@ -1124,7 +1319,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           paymentMethod: r.paymentMethod,
         );
       } catch (e) {
-        debugPrint('⚠️ [RepairDetailView] Push pending approval realtime lỗi: $e');
+        debugPrint(
+          '⚠️ [RepairDetailView] Push pending approval realtime lỗi: $e',
+        );
       }
 
       if (r.id != null) {
@@ -1183,7 +1380,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         loc.sentDeliveryApprovalRequest,
         color: Colors.deepOrange,
       );
-      EventBus().emit('repairs_changed');
+      _emitRepairChanged(financialImpact: true);
       // Trở về danh sách đơn sửa sau khi gửi yêu cầu giao
       if (mounted) Navigator.pop(context, true);
       return;
@@ -1233,67 +1430,101 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       '6 THÁNG',
       '12 THÁNG',
     ];
+    final formKey = GlobalKey<FormState>();
+    final priceCtrl = TextEditingController(
+      text: CurrencyTextField.formatDisplay(r.price),
+    );
+    final costCtrl = TextEditingController(
+      text: CurrencyTextField.formatDisplay(r.cost),
+    );
 
     final confirm = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) {
         final dialogLoc = AppLocalizations.of(ctx)!;
         return StatefulBuilder(
           builder: (ctx, setS) => AlertDialog(
             title: Text(dialogLoc.approveDelivery),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        dialogLoc.customerInfo(r.customerName),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(dialogLoc.deviceInfo(r.model)),
-                      Text(
-                        dialogLoc.priceInfo(MoneyUtils.formatCurrency(r.price)),
-                      ),
-                      Text(dialogLoc.paymentInfo(r.paymentMethod)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  dialogLoc.selectWarrantyNote,
-                  style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: warrantyOptions
-                      .map(
-                        (opt) => ChoiceChip(
-                          label: Text(opt, style: AppTextStyles.caption),
-                          selected: selectedWarranty == opt,
-                          onSelected: (_) => setS(() => selectedWarranty = opt),
-                          selectedColor: AppColors.primary.withOpacity(0.2),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dialogLoc.customerInfo(r.customerName),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  dialogLoc.confirmApproveDelivery,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ],
+                        Text(dialogLoc.deviceInfo(r.model)),
+                        Text(
+                          dialogLoc.priceInfo(
+                            MoneyUtils.formatCurrency(r.price),
+                          ),
+                        ),
+                        Text(dialogLoc.paymentInfo(r.paymentMethod)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  CurrencyTextField(
+                    controller: priceCtrl,
+                    label: dialogLoc.chargeCustomerVnd,
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 0,
+                      fieldName: dialogLoc.chargeCustomerLabel,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  CurrencyTextField(
+                    controller: costCtrl,
+                    label: dialogLoc.partsCostVnd,
+                    validator: (v) => MoneyUtils.validateAmount(
+                      v ?? '',
+                      min: 0,
+                      fieldName: dialogLoc.partsCost,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    dialogLoc.selectWarrantyNote,
+                    style: AppTextStyles.caption.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: warrantyOptions
+                        .map(
+                          (opt) => ChoiceChip(
+                            label: Text(opt, style: AppTextStyles.caption),
+                            selected: selectedWarranty == opt,
+                            onSelected: (_) =>
+                                setS(() => selectedWarranty = opt),
+                            selectedColor: AppColors.primary.withOpacity(0.2),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    dialogLoc.confirmApproveDelivery,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -1310,7 +1541,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 child: Text(dialogLoc.reject),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
+                onPressed: () {
+                  if (!(formKey.currentState?.validate() ?? false)) {
+                    return;
+                  }
+                  Navigator.pop(ctx, true);
+                },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 child: Text(
                   dialogLoc.approve,
@@ -1326,7 +1562,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (confirm != true) return;
 
     // Cho phép quản lý/chủ shop chỉnh lại bảo hành trước khi duyệt
+    r.price = MoneyUtils.parseCurrency(priceCtrl.text);
+    r.cost = MoneyUtils.parseCurrency(costCtrl.text);
     r.warranty = selectedWarranty;
+    final debtImpact = r.paymentMethod == "CÔNG NỢ";
 
     final user = FirebaseAuth.instance.currentUser;
     final userName = await _resolveCurrentStaffName(fallback: 'QL');
@@ -1423,7 +1662,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           paymentMethod: r.paymentMethod,
         );
       } catch (e) {
-        debugPrint('⚠️ [RepairDetailView] Push approved delivery realtime lỗi: $e');
+        debugPrint(
+          '⚠️ [RepairDetailView] Push approved delivery realtime lỗi: $e',
+        );
       }
 
       if (r.id != null) {
@@ -1504,7 +1745,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         loc.approvedAndCompletedDelivery,
         color: Colors.green,
       );
-      EventBus().emit('repairs_changed');
+      _emitRepairChanged(financialImpact: true, includeDebts: debtImpact);
       // Trở về danh sách đơn sửa sau khi duyệt giao
       if (mounted) Navigator.pop(context, true);
       return;
@@ -1578,7 +1819,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         loc.rejectedBackToRepairDone,
         color: Colors.red,
       );
-      EventBus().emit('repairs_changed');
+      _emitRepairChanged();
     } catch (e) {
       debugPrint('Error rejecting delivery: $e');
     }
@@ -1590,6 +1831,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     setState(() => _isUpdating = true);
     HapticFeedback.mediumImpact();
     try {
+      final previousSnapshot = await _loadPersistedRepairSnapshot();
+      final financialImpact = _hasFinancialImpact(previousSnapshot, r);
+      var debtChanged = false;
+
       // Update lastCaredAt for conflict resolution during sync
       r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
       r.isSynced = false; // Mark as needing sync
@@ -1641,6 +1886,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
               ? 'ACTIVE'
               : 'PAID';
           await db.updateDebt(linkedDebt);
+          debtChanged = true;
 
           // Queue sync debt to cloud via SyncOrchestrator
           final debtId = linkedDebt['id'] as int?;
@@ -1661,7 +1907,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         loc.savedOrderChanges,
         color: AppColors.success,
       );
-      EventBus().emit('repairs_changed');
+      _emitRepairChanged(
+        financialImpact: financialImpact || debtChanged,
+        includeDebts: debtChanged,
+      );
     } catch (e) {
       NotificationService.showSnackBar(
         loc.errorSaving(e.toString()),
@@ -1688,11 +1937,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   /// Lối tắt vào Đối Tác Sửa Chữa
-  void _navigateToRepairPartners() {
-    Navigator.push(
+  Future<void> _navigateToRepairPartners() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const RepairPartnerView()),
     );
+    if (!mounted) return;
+    await _loadPartners();
   }
 
   /// Dialog chọn phụ tùng từ kho và tự động trừ kho
@@ -1871,6 +2122,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         );
 
         setState(() {});
+        _emitRepairChanged(financialImpact: true);
         return;
       }
 
@@ -1945,6 +2197,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           // Công nợ đã ghi nhận ở bảng debts - không cần PaymentIntent
           debugPrint('✅ Parts debt recorded: $debtFId');
           EventBus().emit('debts_changed');
+          EventBus().emit(EventBus.financialChanged);
         } catch (e) {
           debugPrint('❌ Error creating parts debt: $e');
         }
@@ -2175,7 +2428,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       'Đã xóa $removedPart${restored ? " và trả lại kho" : ""}',
       color: Colors.green,
     );
-    EventBus().emit('repairs_changed');
+    _emitRepairChanged(financialImpact: true);
 
     if (mounted) setState(() {});
   }
@@ -2330,6 +2583,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
 
     if (mounted) setState(() {});
+    _emitRepairChanged(financialImpact: true);
 
     // Bước 3: Tự động mở dialog chọn phụ tùng mới (bỏ qua cảnh báo)
     if (!mounted) return;
@@ -2449,7 +2703,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         });
       }
 
-      _saveData();
+      await _saveData();
     }
   }
 
@@ -4266,8 +4520,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
   }
 
-  void _showAddServiceDialog([RepairService? editService, int? editIndex]) {
+  Future<void> _showAddServiceDialog([
+    RepairService? editService,
+    int? editIndex,
+  ]) async {
     if (!_ensureCanEditRepairOrder()) return;
+    await _loadPartners();
+    if (!mounted) return;
+
     final formKey = GlobalKey<FormState>();
     final serviceCtrl = TextEditingController(
       text: editService?.serviceName ?? '',
@@ -4277,22 +4537,27 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           ? MoneyUtils.formatCurrency(editService.cost)
           : '',
     );
-    RepairPartner? selectedPartner =
-        editService != null && editService.partnerId != null
-        ? _partners.firstWhere(
-            (p) => p.id == editService.partnerId,
-            orElse: () => _partners.first,
-          )
-        : null;
+    final availablePartners = List<RepairPartner>.from(_partners);
+
+    RepairPartner? selectedPartner;
     if (editService != null &&
-        selectedPartner == _partners.firstOrNull &&
-        editService.partnerId == null) {
-      selectedPartner = null;
+        editService.partnerId != null &&
+        availablePartners.isNotEmpty) {
+      for (final partner in availablePartners) {
+        if (partner.id == editService.partnerId) {
+          selectedPartner = partner;
+          break;
+        }
+      }
     }
 
     // Phương thức thanh toán cho đối tác
     String? selectedPaymentMethod = editService?.paymentMethod;
     final paymentMethods = ['TIỀN MẶT', 'CHUYỂN KHOẢN', 'CÔNG NỢ'];
+    if (selectedPaymentMethod != null &&
+        !paymentMethods.contains(selectedPaymentMethod)) {
+      selectedPaymentMethod = null;
+    }
 
     showDialog(
       context: context,
@@ -4348,23 +4613,60 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    if (_partners.isNotEmpty)
+                    if (availablePartners.isNotEmpty)
                       DropdownButtonFormField<RepairPartner?>(
                         decoration: InputDecoration(
                           labelText: dialogLoc.partnerOptional2,
                         ),
+                        key: ValueKey(selectedPartner?.id),
                         initialValue: selectedPartner,
                         items: [
                           DropdownMenuItem(
                             value: null,
                             child: Text(dialogLoc.noPartnerOption),
                           ),
-                          ..._partners.map(
+                          ...availablePartners.map(
                             (p) =>
                                 DropdownMenuItem(value: p, child: Text(p.name)),
                           ),
                         ],
-                        onChanged: (p) => setS(() => selectedPartner = p),
+                        onChanged: (p) => setS(() {
+                          selectedPartner = p;
+                          if (p == null) {
+                            selectedPaymentMethod = null;
+                          }
+                        }),
+                      ),
+                    if (availablePartners.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Chưa có đối tác sửa chữa để chọn.',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.orange.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await _navigateToRepairPartners();
+                              },
+                              icon: const Icon(Icons.group, size: 16),
+                              label: Text(dialogLoc.viewRepairPartners),
+                            ),
+                          ],
+                        ),
                       ),
                     // Phương thức thanh toán (chỉ hiện khi có đối tác)
                     if (selectedPartner != null) ...[
@@ -4771,6 +5073,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         );
       }
       EventBus().emit('debts_changed');
+      EventBus().emit(EventBus.financialChanged);
     } catch (e) {
       debugPrint('❌ Error creating partner debt: $e');
     }
@@ -4827,7 +5130,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         editIndex != null ? loc.serviceUpdated : loc.serviceAdded,
         color: AppColors.success,
       );
-      EventBus().emit('repair_services_changed');
+      _emitRepairChanged(
+        financialImpact: true,
+        includeDebts: true,
+        includeServiceChanges: true,
+      );
       // FIX: Enqueue repair sync after saving service
       if (r.id != null) {
         await SyncOrchestrator().enqueue(
@@ -4882,7 +5189,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         loc.serviceDeleted,
         color: AppColors.warning,
       );
-      EventBus().emit('repair_services_changed');
+      _emitRepairChanged(
+        financialImpact: true,
+        includeDebts: true,
+        includeServiceChanges: true,
+      );
     } catch (e) {
       NotificationService.showSnackBar(
         '${loc.error}: $e',

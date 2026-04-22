@@ -30,9 +30,10 @@ class _RecentActivityViewState extends State<RecentActivityView> {
     super.initState();
     _load();
     _eventSub = EventBus().stream.listen((event) {
-      if (event == 'repairs_changed' ||
+      if (event == EventBus.repairsChanged ||
           event == 'sales_changed' ||
           event == 'expenses_changed' ||
+          event == EventBus.financialChanged ||
           event == EventBus.shopChanged) {
         debugPrint(
           '📋 [RecentActivityView] Nhận event "$event" → debounce reload',

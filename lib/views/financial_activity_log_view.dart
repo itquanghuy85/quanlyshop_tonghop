@@ -49,11 +49,11 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
 
   void _setupEventSubscription() {
     _eventSub = EventBus().stream.listen((event) {
-      if (event == 'financial_activity_changed' ||
+      if (event == EventBus.financialChanged ||
           event == 'sales_changed' ||
           event == 'sales_returns_changed' ||
           event == 'payment_requests_changed' ||
-          event == 'repairs_changed' ||
+          event == EventBus.repairsChanged ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
           event == 'debt_payments_changed' ||

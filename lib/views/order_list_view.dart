@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/firestore_write_helper.dart';
 import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_text_styles.dart';
@@ -18,6 +17,7 @@ import '../services/storage_service.dart';
 import '../services/user_service.dart';
 import '../services/encryption_service.dart';
 import '../services/sync_service.dart';
+import '../services/firestore_service.dart';
 import '../utils/vietnamese_utils.dart';
 import '../utils/money_utils.dart';
 import '../widgets/gradient_fab.dart';
@@ -109,9 +109,15 @@ class OrderListViewState extends State<OrderListView> {
 
     // Chỉ rebind listener khi đổi shop hoặc refresh dữ liệu tổng.
     _eventSubscription = EventBus().stream.listen((event) {
-      if ((event == EventBus.shopChanged || event == EventBus.dataRefresh) &&
-          mounted) {
+      if (!mounted) return;
+
+      if (event == EventBus.shopChanged || event == EventBus.dataRefresh) {
         unawaited(_startRealtimeRepairsListener(forceRestart: true));
+        return;
+      }
+
+      if (event == EventBus.repairsChanged) {
+        unawaited(_showPendingLocalRepairsWhileWaitingRealtime());
       }
     });
   }
@@ -188,13 +194,7 @@ class OrderListViewState extends State<OrderListView> {
       });
     }
 
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collection('repairs')
-        .where('shopId', isEqualTo: shopId);
-
-    if (!_useRealtimeIndexFallback) {
-      query = query.orderBy('updatedAt', descending: true).limit(50);
-    } else {
+    if (_useRealtimeIndexFallback) {
       // Fallback mode: avoid limit so newly-created orders are not missed.
       // We sort/filter on client side after snapshot is received.
       debugPrint(
@@ -202,7 +202,10 @@ class OrderListViewState extends State<OrderListView> {
       );
     }
 
-    _repairRealtimeSubscription = query.snapshots().listen(
+    _repairRealtimeSubscription = FirestoreService.watchRepairsByShop(
+      shopId,
+      useIndexedQuery: !_useRealtimeIndexFallback,
+    ).listen(
       (snapshot) {
         unawaited(_handleRealtimeSnapshot(snapshot));
       },
@@ -1066,13 +1069,7 @@ class OrderListViewState extends State<OrderListView> {
       // Nếu có firestoreId, xóa trực tiếp trên Firestore trước
       if (repairFirestoreId != null && repairFirestoreId.isNotEmpty) {
         try {
-          await FirebaseFirestore.instance
-              .collection('repairs')
-              .doc(repairFirestoreId)
-              .update({
-                'deleted': true,
-                'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
-              });
+          await FirestoreService.deleteRepair(repairFirestoreId);
         } catch (e) {
           debugPrint('❌ Failed to soft delete on Firestore: $e');
         }

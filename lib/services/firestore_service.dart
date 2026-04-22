@@ -36,6 +36,46 @@ class FirestoreService {
         event == 'attendance_changed';
   }
 
+  static DocumentReference<Map<String, dynamic>> repairDocRef(
+    String firestoreId,
+  ) {
+    return _db.collection('repairs').doc(firestoreId);
+  }
+
+  static Stream<DocumentSnapshot<Map<String, dynamic>>> watchRepairDoc(
+    String firestoreId,
+  ) {
+    return repairDocRef(firestoreId).snapshots();
+  }
+
+  static Stream<QuerySnapshot<Map<String, dynamic>>> watchRepairsByShop(
+    String shopId, {
+    required bool useIndexedQuery,
+  }) {
+    Query<Map<String, dynamic>> query = _db
+        .collection('repairs')
+        .where('shopId', isEqualTo: shopId);
+
+    if (useIndexedQuery) {
+      query = query.orderBy('updatedAt', descending: true).limit(50);
+    }
+
+    return query.snapshots();
+  }
+
+  static Future<DocumentSnapshot<Map<String, dynamic>>> getRepairDoc(
+    String firestoreId,
+  ) {
+    return repairDocRef(firestoreId).get();
+  }
+
+  static Future<void> upsertRepairPatchByFirestoreId(
+    String firestoreId,
+    Map<String, dynamic> payload,
+  ) {
+    return repairDocRef(firestoreId).set(payload, SetOptions(merge: true));
+  }
+
   // --- THÔNG BÁO HỆ THỐNG ---
   static Future<void> _notifyAll(
     String title,

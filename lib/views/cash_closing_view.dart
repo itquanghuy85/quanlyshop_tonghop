@@ -161,7 +161,7 @@ class _CashClosingViewState extends State<CashClosingView>
     // → sử dụng EventBus thay vì tạo duplicate Firestore listeners
     _eventBusSub = EventBus().stream.listen((event) {
       if (event == 'sales_changed' ||
-          event == 'repairs_changed' ||
+          event == EventBus.repairsChanged ||
           event == 'expenses_changed' ||
           event == 'debts_changed' ||
           event == 'cash_closings_changed' ||
@@ -169,6 +169,7 @@ class _CashClosingViewState extends State<CashClosingView>
           event == 'payment_requests_changed' ||
           event == 'repair_partner_payments_changed' ||
           event == 'debt_payments_changed' ||
+          event == EventBus.financialChanged ||
           event == EventBus.shopChanged) {
         debugPrint(
           '💰 [CashClosingView] Nhận event "$event" → debounce reload local DB',

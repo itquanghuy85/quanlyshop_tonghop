@@ -1,1634 +1,796 @@
-# HULUCA Shop Manager — Complete Technical Documentation
+# TÀI LIỆU TỔNG HỢP TOÀN BỘ DỰ ÁN QUANLYSHOP
 
-> **App Name:** HULUCA Shop Manager (`quanlyshop`)
-> **Package:** `com.huluca.shop`
-> **Version:** 10.1.0+172
-> **Flutter SDK:** >=3.10.0 <4.0.0
-> **Firebase Project:** huyaka-1809
-> **Region:** asia-southeast1
+Tài liệu này được viết để người mới có thể đọc một lần và nắm toàn bộ hệ thống mà không cần mở từng file mã nguồn.
+
+Phiên bản tài liệu: 2026-04-22
 
 ---
 
-## Table of Contents
+## 1. Mục tiêu tài liệu
 
-1. [Project Overview](#1-project-overview)
-2. [Architecture & Patterns](#2-architecture--patterns)
-3. [Entry Point — main.dart](#3-entry-point--maindart)
-4. [Data Models (31 files)](#4-data-models-31-files)
-5. [Services Layer (43 files, 65 classes)](#5-services-layer-43-files-65-classes)
-6. [Views Layer (80+ files)](#6-views-layer-80-files)
-7. [Widgets (28 files)](#7-widgets-28-files)
-8. [Theme System](#8-theme-system)
-9. [Constants](#9-constants)
-10. [Utilities (12 files)](#10-utilities-12-files)
-11. [Controllers](#11-controllers)
-12. [Core Infrastructure](#12-core-infrastructure)
-13. [Localization (i18n)](#13-localization-i18n)
-14. [Local Database — SQLite](#14-local-database--sqlite)
-15. [Firestore Rules](#15-firestore-rules)
-16. [Firestore Indexes](#16-firestore-indexes)
-17. [Cloud Functions](#17-cloud-functions)
-18. [Firebase Configuration](#18-firebase-configuration)
-19. [Dependencies](#19-dependencies)
-20. [Multi-Industry Support](#20-multi-industry-support)
-21. [Security & Encryption](#21-security--encryption)
-22. [Sync Architecture](#22-sync-architecture)
-23. [Navigation & Routing](#23-navigation--routing)
-24. [Permission System](#24-permission-system)
-25. [Payment System](#25-payment-system)
+- Cung cấp bản đồ tổng thể dự án từ nghiệp vụ đến kỹ thuật.
+- Mô tả đầy đủ luồng dữ liệu, kiến trúc offline-first, bảo mật, phân quyền.
+- Tóm tắt các module chính, dịch vụ cốt lõi, cách build/test/deploy.
+- Trở thành tài liệu bàn giao kỹ thuật và vận hành.
 
 ---
 
-## 1. Project Overview
+## 2. Thông tin nhận diện hệ thống
 
-HULUCA Shop Manager is a **multi-tenant, offline-first, multi-industry** shop management application built with Flutter and Firebase. It manages:
+### 2.1. Ứng dụng
 
-- **Repair orders** — phone/electronics repair tracking with a 4-step status workflow
-- **Sales & inventory** — POS, stock management, IMEI tracking, purchase orders
-- **Financial management** — expenses, debts, cash closing, comprehensive financial reports
-- **HR** — attendance, salary calculation with tiered commissions, insurance, PIT tax
-- **Customer & supplier management** — CRM with spend/repair history
-- **Real-time team chat** — text, image, file, reactions, mentions, read receipts
-- **Thermal/Bluetooth/WiFi printer support** — receipts, labels, salary slips
-- **QR code scanning** — IMEI extraction, product lookup
-- **Multi-shop** support — single owner can manage multiple shops
+- Tên project: quanlyshop
+- Mô tả: Phần mềm quản lý tiệm sửa chữa mua bán điện thoại chuyên nghiệp
+- Phiên bản hiện tại: 1.0.3+513
+- Nền tảng Flutter SDK: >=3.10.0 <4.0.0
 
-### Key Architectural Decisions
+### 2.2. Định danh app
 
-| Decision | Implementation |
-|----------|---------------|
-| Multi-tenant isolation | `shopId` on every document, enforced in Firestore rules via Custom Claims |
-| Offline-first | SQLite (`sqflite`) as primary data store, Firestore as cloud sync target |
-| Role-based access | Custom Claims (`role`, `shopId`, `isSuperAdmin`) synced via Cloud Functions |
-| Data encryption | AES-256-CBC encryption of sensitive fields before cloud upload |
-| Conflict resolution | `updatedAt` timestamp comparison + `isSynced` flag; local changes always preserved |
-| Soft deletes | `deleted: true` flag in Firestore; local DB marks deleted but retains records |
-| Multi-industry | `businessType` field (electronics/food/fashion/general) with per-type feature flags |
+- Android namespace/applicationId: com.huluca.shopmanager
+- iOS bundleId trong Firebase options: com.huluca.shop
+
+### 2.3. Firebase
+
+- Firebase project: huyaka-1809
+- Region Cloud Functions: asia-southeast1
+- Các platform đã cấu hình trong firebase_options.dart: android, ios, macos, web
+- Windows/Linux trong firebase_options.dart: chưa cấu hình FirebaseOptions (ném UnsupportedError)
 
 ---
 
-## 2. Architecture & Patterns
+## 3. Bức tranh nghiệp vụ
 
-```
-+--------------------------------------------------+
-|                    UI Layer                        |
-|  lib/views/     lib/widgets/    lib/theme/         |
-+--------------------------------------------------+
-|                 Service Layer                      |
-|  lib/services/  (43 files, 65 classes)             |
-|  - FirestoreService (cloud CRUD)                   |
-|  - SyncService (real-time sync)                    |
-|  - UserService (auth, roles, permissions)          |
-|  - PaymentIntentService (unified payments)         |
-|  - NotificationService (FCM + local)               |
-|  - EncryptionService (AES-256)                     |
-|  - SyncOrchestrator (offline queue)                |
-|  - ... and 36 more                                 |
-+--------------------------------------------------+
-|                Data Layer                          |
-|  lib/data/db_helper.dart  (SQLite - 7024 lines)    |
-|  lib/models/              (31 model files)         |
-+--------------------------------------------------+
-|             Infrastructure                         |
-|  Firebase Auth   -> Custom Claims                  |
-|  Firestore       -> Cloud data + Rules             |
-|  Cloud Functions -> 17 functions                   |
-|  Firebase Storage -> Images/files                  |
-|  Firebase Messaging -> FCM push                    |
-+--------------------------------------------------+
-```
+Ứng dụng là hệ thống quản trị cửa hàng theo mô hình đa tenant (multi-shop), tập trung vào 5 nhóm nghiệp vụ lớn:
 
-### Core Design Patterns
+1. Sửa chữa: nhận máy, theo dõi trạng thái kỹ thuật, dịch vụ sửa, giao máy, duyệt giao.
+2. Bán hàng và kho: bán lẻ, trả hàng, nhập hàng, kiểm kho, quản lý tồn kho, mã nhanh.
+3. Tài chính: doanh thu, chi phí, công nợ, thanh toán, chốt quỹ, phân tích tài chính ngày.
+4. Nhân sự: chấm công, ca làm, đổi ca, lương và cấu hình lương theo vai trò.
+5. Vận hành: chat nội bộ, thông báo đẩy, in ấn tem hóa đơn, báo cáo, audit log.
 
-1. **Service-First Access** — All Firebase/DB operations go through service classes. Widgets never access Firebase SDK directly.
-2. **Singleton Services** — `SyncOrchestrator`, `ClaimsService`, `CurrentShopService`, `EventBus` use singleton pattern.
-3. **Static Services** — `FirestoreService`, `UserService`, `SyncService`, `NotificationService` use static methods.
-4. **EventBus Pattern** — `EventBus` (broadcast `StreamController`) emits named events (`debts_changed`, `sales_changed`, `repairs_changed`, `expenses_changed`, `products_changed`, `shopChanged`) for cross-widget communication.
-5. **Upsert Pattern** — Both SQLite and Firestore use `SetOptions(merge: true)` / `INSERT OR REPLACE` for idempotent writes.
-6. **PaymentBlocker Pattern** — `PaymentBlocker.block()` throws `PaymentBlockedError` when code tries to bypass `PaymentIntentService` for payments.
+Ngoài nghiệp vụ điện thoại, hệ thống có nền tảng mở rộng đa ngành (food/fashion/general/electronics) qua shop settings, category, variants, expiry.
 
 ---
 
-## 3. Entry Point — main.dart
+## 4. Công nghệ và stack
 
-**File:** `lib/main.dart` (552 lines)
+### 4.1. Frontend và local data
 
-### Bootstrap Flow
+- Flutter (Dart)
+- SQLite local với sqflite
+- sqflite_common_ffi_web cho web
+- SharedPreferences cho cache nhẹ
 
-```
-main()
-+-- Platform check (iOS vs Android)
-|   +-- iOS: Show splash first, init Firebase in postFrameCallback
-|   +-- Android: Init Firebase, runApp, defer notifications/connectivity
-+-- Universal: runZonedGuarded for global error handling
-+-- MyApp (StatefulWidget)
-|   +-- Locale management via SharedPreferences
-|   +-- MaterialApp with AppTheme.lightTheme
-|   +-- initialRoute -> SplashView
-+-- AuthGate (StatefulWidget)
-    +-- StreamBuilder on FirebaseAuth.authStateChanges
-    +-- user == null -> LoginView
-    +-- user != null -> FutureBuilder(_getRoleAfterSync)
-        +-- _getRoleAfterSync:
-            +-- UserService.syncUserInfo(uid, email)
-            +-- CurrentShopService.init()
-            +-- Check super admin (admin@huluca.com)
-            +-- UserService.ensureShopId()
-            +-- Background: downloadAllFromCloud()
-            +-- Background: SyncOrchestrator.init() + syncAll()
-            +-- Background: CashClosingNotifier.check()
-            +-- Background: PaymentIntentService.initialize()
-            +-- Background: SyncHealthCheck.runFullCheck()
-            +-- Auto-clear local DB when shop/user changes
-            +-- Route:
-                +-- Super admin -> ShopSelectorView
-                +-- Regular user -> HomeView(role)
-```
+### 4.2. Firebase backend
 
-### Key Behaviors
+- Firebase Auth
+- Cloud Firestore
+- Firebase Storage
+- Cloud Functions (Node 20)
+- Firebase Messaging + Local Notifications
+- Firebase App Check
 
-- **Global error handler**: `runZonedGuarded` catches uncaught errors, logs via `debugPrint`
-- **iOS deferred init**: Prevents white screen by showing splash before Firebase init
-- **Shop change detection**: Compares stored `lastShopId` with current; clears SQLite if different
-- **User change detection**: Compares stored `lastUserId`; clears SQLite if different user
-- **Claims sync**: `ClaimsService().refreshMyClaims()` called during auth to ensure token has correct shopId/role
+### 4.3. Tích hợp khác
+
+- In ấn nhiệt/Bluetooth/WiFi
+- QR/Barcode scanner
+- PDF/printing/share
+- Social auth: Google Sign-In, Sign in with Apple
 
 ---
 
-## 4. Data Models (31 files)
+## 5. Cấu trúc dự án (đọc nhanh theo thư mục)
 
-All models in `lib/models/` with `toMap()` / `fromMap()` / `copyWith()` serialization.
+### 5.1. Root workspace
 
-### 4.1 Core Business Models
+- lib/: toàn bộ mã app Flutter
+- functions/: Cloud Functions
+- DOCS/: tài liệu release/vận hành/bàn giao
+- test/: test logic và test nghiệp vụ
+- android, ios, web, windows, macos, linux: host platform
+- firebase.json, firestore.rules, firestore.indexes.json, storage.rules: cấu hình backend
 
-#### Repair (`repair_model.dart`, 264 lines)
+### 5.2. Cấu trúc trong lib
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | int? | SQLite auto-increment |
-| firestoreId | String? | Firestore document ID |
-| customerName | String | Customer name |
-| phone | String | Phone number |
-| isWalkIn | bool | Walk-in customer flag |
-| model | String | Device model |
-| issue | String | Problem description |
-| accessories | String | Accessories list |
-| status | int | 1=Nhan (Received), 2=Dang sua (Repairing), 3=Xong (Done), 4=Da giao (Delivered) |
-| price | int | Repair price charged |
-| cost | int | Repair cost |
-| paymentMethod | String | cash/transfer/debt |
-| services | List\<RepairService\> | Individual repair services |
-| pendingDeliveryApproval | bool | Needs manager approval for delivery |
-| color | String | Device color |
-| imei | String | Device IMEI |
-| condition | String | Device condition on receipt |
-| notes | String | Internal notes |
-| createdBy | String | Staff who created |
-| createdAt | int | Epoch milliseconds |
-| startedAt | int? | Repair start time |
-| finishedAt | int? | Repair finish time |
-| deliveredAt | int? | Delivery time |
-| lastCaredAt | int? | Last status update time |
-| deleted | bool | Soft delete flag |
-| isSynced | bool | Local sync status |
-| shopId | String? | Multi-tenant isolation |
+- main.dart: bootstrap app, auth gate, init sync/notifications
+- models/: 38 file model dữ liệu
+- services/: 67 service nghiệp vụ/tích hợp
+- views/: 96 màn hình (bao gồm subfolder food/fashion/hr/onboarding)
+- widgets/: widget tái sử dụng
+- data/db_helper.dart: SQLite schema + CRUD local + migration
+- theme/: AppTheme/AppColors/AppTextStyles
+- constants/: hằng số nghiệp vụ/tài chính
+- core/: utility lõi
+- utils/: helper chung
+- l10n/: localization ARB và generated localizations
 
-#### Product (`product_model.dart`, 296 lines)
+### 5.3. Điểm đặc biệt
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | int? | SQLite auto-increment |
-| firestoreId | String? | Firestore doc ID |
-| shopId | String? | Multi-tenant |
-| name | String | Product name |
-| brand | String | Brand name |
-| model | String | Product model |
-| imei | String? | Serial/IMEI |
-| cost | int | Cost price |
-| price | int | Sale price |
-| condition | String | New/Used/Grade A-D |
-| status | int | 1=Available, 0=Sold/Deleted |
-| type | String | DIEN_THOAI / LINH_KIEN / PHU_KIEN |
-| quantity | int | Stock quantity |
-| color | String | Color |
-| capacity | String | Storage capacity |
-| size | String? | Physical size (fashion) |
-| isPending | bool | In staging warehouse |
-| pendingSupplier | String? | Supplier for staging |
-| categoryId | String? | Category reference |
-| unit | String? | Unit of measure |
-| expiryDate | int? | Expiry date (food industry) |
-| batchNumber | String? | Batch number (food industry) |
-| variantParentId | String? | Parent product for variants (fashion) |
-| customData | Map? | Extensible fields |
-
-**Type normalization**: `_normalizeType()` converts Vietnamese text to ASCII constants (`dien thoai` -> `DIEN_THOAI`, `linh kien` -> `LINH_KIEN`, `phu kien` -> `PHU_KIEN`).
-
-#### SaleOrder (`sale_order_model.dart`, 205 lines)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| customerName | String | Customer |
-| phone | String | Phone |
-| isWalkIn | bool | Walk-in flag |
-| productNames | String | Sold product names |
-| productImeis | String | Sold product IMEIs |
-| totalPrice | int | Total sale price |
-| totalCost | int | Total cost |
-| discount | int | Discount amount |
-| paymentMethod | String | Payment method |
-| isInstallment | bool | Bank installment flag |
-| downPayment | int | Down payment (installment) |
-| loanAmount | int | Bank 1 loan |
-| bankName | String | Bank 1 name |
-| loanAmount2 | int | Bank 2 loan |
-| bankName2 | String | Bank 2 name |
-| settlementPlannedAt | int? | Expected settlement date |
-| settlementReceivedAt | int? | Actual settlement received |
-| settlementAmount | int | Settlement amount |
-| settlementFee | int | Settlement fee |
-| settlementNote | String | Settlement note |
-| settlementCode | String | Settlement reference code |
-| cashAmount | int | Cash portion |
-| transferAmount | int | Transfer portion |
-
-**Computed:** `finalPrice = totalPrice - discount`, `remainingDebt`, `isPaid`
-
-#### Customer (`customer_model.dart`)
-Fields: name, phone, email, address, totalSpent, totalRepairs, totalRepairCost, shopId, deleted.
-
-#### Expense (`expense_model.dart`)
-Fields: title, amount, category, date, paymentMethod, type (`'CHI'` = expense / `'THU'` = income).
-
-#### Debt (`debt_model.dart`)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| personName | String | Person name |
-| phone | String | Phone |
-| totalAmount | int | Total debt |
-| paidAmount | int | Paid so far |
-| type | String | CUSTOMER_OWES / SHOP_OWES / OTHER_CUSTOMER_OWES / OTHER_SHOP_OWES / OWE / OWED |
-| status | String | ACTIVE / PAID / CANCELLED |
-| linkedId | String? | Linked sale/repair ID |
-
-### 4.2 HR Models
-
-#### Attendance (`attendance_model.dart`)
-Fields: userId, email, name, dateKey (yyyy-MM-dd), checkInAt, checkOutAt, overtimeOn, status (pending/approved/rejected), isLate, isEarlyLeave, location, workSchedule.
-
-#### EmployeeSalarySettings (`employee_salary_model.dart`)
-- Base: baseSalary, dailyRate, salaryType (monthly/daily/hourly)
-- Commissions: saleCommType (percent/fixed_per_order/tiered), repairCommType
-- Tiered: 3 tiers with thresholds and rates
-- Allowances: transport, meal, phone, other
-- Targets: monthlyTarget, targetBonusPercent, overtimeRate
-
-#### SalaryBreakdown (`salary_breakdown_model.dart`)
-Comprehensive calculation: workDays, baseAmount, commissions (sales + repairs), allowances, deductions (late/early/absence), insurance (BHXH/BHYT/BHTN), PIT tax, customAdjustments -> netSalary.
-
-#### ShopDeductionSettings (`shop_deduction_settings_model.dart`)
-Late/early leave/absence deduction rates, PIT settings, social/health/unemployment insurance rates.
-
-### 4.3 Financial Models
-
-#### PaymentIntent (`payment_intent_model.dart`)
-- **Status**: pending -> completed / cancelled / failed
-- **Types** (17): supplierPayment, customerDebtPayment, repairPayment, salePayment, expensePayment, salaryPayment, repairPartnerPayment, supplierDebtPayment, refund, inventoryPurchase, cashAdjustment, transferBetweenAccounts, otherIncome, otherExpense, settlementPayment, debtCollection, staffAdvance
-- **Direction**: income / expense
-
-#### FinancialActivity (`financial_activity_model.dart`)
-Activity types: SALE, PURCHASE, EXPENSE, DEBT_COLLECT, DEBT_PAY, SETTLEMENT, REFUND, ADJUSTMENT. Direction: IN/OUT. Tracks balanceAfterCash/Bank.
-
-### 4.4 Supply Chain Models
-
-#### Supplier (`supplier_model.dart`)
-Fields: name, phone, email, address, note, active, favorite, shopId.
-
-#### PurchaseOrder (`purchase_order_model.dart`)
-Fields: orderCode, supplierId, supplierName, items (List\<PurchaseItem\>), totalAmount, status, notes.
-
-#### StockEntry (`stock_entry_model.dart`)
-Status: draft/confirmed/cancelled. Type: quick/staging. Items with full product info.
-
-### 4.5 Communication Models
-
-#### ChatMessage (`chat_message_model.dart`)
-Advanced chat: messageType (text/image/file/system/linked_order), reply support, reactions, read receipts, mentions, pinned messages, priority levels.
-
-### 4.6 Configuration Models
-
-#### ShopSettings (`shop_settings_model.dart`)
-```dart
-businessType: electronics | food | fashion | general
-enableRepair: bool     // Repair module
-enableExpiry: bool     // Expiry tracking (food)
-enableVariants: bool   // Size/color variants (fashion)
-enableSerial: bool     // IMEI/serial tracking
-enableWarranty: bool   // Warranty tracking
-enableBatch: bool      // Batch numbers (food)
-defaultUnit: String    // Default measurement unit
-expiryWarningDays: int // Days before expiry warning
-lowStockWarning: int   // Low stock threshold
-```
-Factory constructors: `ShopSettings.electronics()`, `.food()`, `.fashion()`, `.general()`
-
-#### ProductCategory (`product_category_model.dart`)
-Tree structure with parentId, per-category feature flags: trackExpiry, trackSerial, hasVariants, hasWarranty, customFields map.
-
-#### ProductVariant (`product_variant_model.dart`)
-Fields: productId, sku, size, color, colorCode, material, style, costPrice, salePrice, quantity, barcode.
-
-### 4.7 Other Models
-
-| Model | File | Purpose |
-|-------|------|---------|
-| RepairService | repair_service_model.dart | Individual service within a repair |
-| RepairPartner | repair_partner_model.dart | External repair partner/vendor |
-| RepairPartnerPayment | repair_partner_payment_model.dart | Payments to repair partners |
-| SupplierPayment | supplier_payment_model.dart | Payments to suppliers |
-| QuickInputCode | quick_input_code_model.dart | Barcode/QR quick input codes |
-| InventoryCheck | inventory_check_model.dart | Stock-take records |
-| InventoryZone | inventory_zone_model.dart | Physical inventory zones |
-| LabelTemplate | label_template_model.dart | Printer label templates |
-| PartnerRepairHistory | partner_repair_history_model.dart | Repair history with partners |
-| SupplierImportHistory | supplier_import_history_model.dart | Import batch history |
-| SupplierProductPrices | supplier_product_prices_model.dart | Supplier price tracking |
-| PrinterType | printer_types.dart | Enum: bluetooth/wifi/usb |
+- README.md hiện là placeholder mặc định Flutter, không phản ánh hệ thống thật.
+- Nguồn sự thật kiến trúc nên dựa vào file này + code thật trong lib và functions.
 
 ---
 
-## 5. Services Layer (43 files, 65 classes)
+## 6. Bootstrap và lifecycle app (main.dart)
 
-All services in `lib/services/`. Most use static methods with `FirebaseFirestore.instance` and `DBHelper()`.
+main.dart dài khoảng 972 dòng, là trung tâm khởi động toàn hệ thống.
 
-### 5.1 Core Services
+### 6.1. Luồng khởi động tổng quát
 
-#### FirestoreService (`firestore_service.dart`, 1941 lines)
+1. WidgetsFlutterBinding.ensureInitialized
+2. preserve splash
+3. initializeDateFormatting vi_VN
+4. enforce Firebase-only mode (bỏ qua flag backend cũ)
+5. Khởi tạo Firebase + App Check (khác nhau giữa iOS và Android/Web)
+6. Đăng ký background handler cho Firebase Messaging
+7. Khởi tạo NotificationService và ConnectivityService
+8. runApp(MyApp)
 
-Central Firestore CRUD. All methods are `static`. Key patterns:
-- Every write adds `shopId` from `UserService.getCurrentShopId()`
-- Sensitive data encrypted via `EncryptionService.encryptMap(data)` before upload
-- Money amounts validated via `MoneyValidationService.validateAmount()` before writes
-- Uses `SetOptions(merge: true)` for all upserts
-- Soft deletes: `update({'deleted': true, 'updatedAt': serverTimestamp()})`
-- System notifications via `_notifyAll()` -> FCM push + system chat message
+### 6.2. Tách nhánh iOS vs Android/Web
 
-**Methods by Category:**
+- iOS: chạy UI sớm để tránh cảm giác treo, init Firebase defer nền.
+- Android/Web: init Firebase trước rồi chạy app.
 
-| Category | Methods |
-|----------|---------|
-| Purchase Orders | `addPurchaseOrder()`, `_updateInventoryFromPurchaseOrder()` (weighted avg cost) |
-| Repairs | `addRepair()`, `upsertRepair()`, `deleteRepair()` |
-| Sales | `addSale()`, `updateSaleCloud()`, `deleteSale()` |
-| Products | `addProduct()`, `updateProductCloud()`, `deleteProduct()` |
-| Chat | `sendChat()`, `chatStream()` |
-| Audit | `addAuditLogCloud()` |
-| Debts | `addDebtCloud()`, `addDebtPaymentCloud()`, `executeDebtPaymentTransaction()` |
-| Expenses | `addExpenseCloud()`, `updateExpenseCloud()`, `deleteExpenseCloud()`, `getExpenseStream()` |
-| Attendance | `addAttendance()`, `updateAttendanceCloud()`, `deleteAttendance()`, `getAttendanceStream()` |
-| Cash Closing | `upsertCashClosingCloud()`, `getCashClosingFromCloud()`, `getCashClosingStream()` |
-| Shop Reset | `resetEntireShopData()` — batch-deletes 17 collections (400 docs/batch) |
-| Customers | `addCustomer()`, `updateCustomer()`, `deleteCustomer()`, `deleteCustomerById()` |
-| Suppliers | `addSupplier()`, `updateSupplier()`, `deleteSupplier()` |
-| Quick Input | `addQuickInputCode()`, `updateQuickInputCode()`, `deleteQuickInputCode()`, `getQuickInputCodesForShop()` |
-| Notifications | `createNotification()`, `getUserNotifications()`, `markNotificationAsRead()`, `getUnreadCount()` |
-| Repair Partners | `addRepairPartner()`, `updateRepairPartner()`, `deleteRepairPartnerByFirestoreId()` |
-| Partner History | `addPartnerRepairHistory()` |
-| Supplier History | `addSupplierImportHistory()`, `addSupplierProductPrices()` |
-| Salary Settings | `getEmployeeSalarySettings()`, `getEmployeeSalarySettingByStaffId()`, `saveEmployeeSalarySettings()`, `deleteEmployeeSalarySettings()`, `getShopDefaultSalarySettings()`, `saveShopDefaultSalarySettings()`, `getStaffByShopId()` |
-| Deductions | `getShopDeductionSettings()`, `saveShopDeductionSettings()` |
-| Custom Adjustments | `getCustomSalaryAdjustments()`, `getAllCustomSalaryAdjustments()`, `addCustomSalaryAdjustment()`, `updateCustomSalaryAdjustment()`, `deleteCustomSalaryAdjustment()` |
+### 6.3. AuthGate là cổng vào thực tế
 
-**Firestore Transactions (race-condition fixes):**
-1. **`executeDebtPaymentTransaction()`** — Atomic read-validate-update debt + create payment record. Prevents race conditions with concurrent debt payments.
-2. **`executeSaleTransaction()`** — Atomic stock check + stock deduction + sale creation + optional debt creation. Detects `OUT_OF_STOCK` and `SHOP_MISMATCH`. Prevents overselling with concurrent sales.
+AuthGate xử lý:
 
-**Purchase order inventory update (`_updateInventoryFromPurchaseOrder`):**
-- Auto-updates product quantity with weighted average cost calculation
-- Creates new products if they don't exist
+- Theo dõi authStateChanges
+- Super admin route sang ShopSelectorView
+- User thường route sang HomeView(role)
+- Restore auth cache từ SharedPreferences
+- Đồng bộ thông tin user/shop và claims
+- Khởi tạo SyncOrchestrator, CashClosingNotifier, PaymentIntentService nền
+- Clear local data khi đổi shop hoặc đổi user
+- Purge dữ liệu ngoài shop hiện tại để chống lộ chéo tenant
+
+### 6.4. Notification deep-link
+
+AuthGate đăng ký navigation handler để mở nhanh:
+
+- RepairDetailView từ targetType=repair
+- SaleDetailView từ targetType=sale
 
 ---
 
-#### UserService (`user_service.dart`, 1223 lines)
+## 7. Kiến trúc ứng dụng theo lớp
 
-Authentication, role management, permissions. All methods `static`.
+Hệ thống theo mô hình service-first, mọi nghiệp vụ đi qua service thay vì gọi Firebase trực tiếp từ UI.
 
-**Key state:**
-```dart
-static String? _cachedShopId;
-static String? _cachedUid;
-static String? _adminSelectedShopId;
-static bool? _cachedCanViewCostPrice;
-```
+1. UI layer: views + widgets
+2. Service layer: business logic, sync, auth, notification, storage, payment
+3. Data layer local: DBHelper + models
+4. Cloud layer: Firestore + Functions + Storage + FCM
 
-**Authentication:**
-- `_isSuperAdmin(user)` -> checks `email == 'admin@huluca.com'`
-- `isCurrentUserSuperAdmin()` -> current user check
-- `isCurrentUserAdmin()` -> checks super admin OR role owner/manager
-- `getCurrentUserName()` -> displayName fallback chain: Auth -> Firestore -> email prefix
+### 7.1. Pattern quan trọng
 
-**ShopId Management:**
-- `getCurrentShopId()` -> Cache -> Super admin selected -> Firestore user doc
-- `getShopIdSync()` -> Synchronous cache access
-- `ensureShopId(maxRetries: 5)` -> Retries with 1s delay
-- `isShopIdReady()` -> Quick check
-- `updateCachedShopId()` -> External cache update
-- `getShopIdFast()` -> From Custom Claims (no Firestore read)
-
-**Role System (hierarchy):**
-```
-superAdmin (admin@huluca.com)  ->  all access
-          |
-        owner  ->  full shop access
-          |
-       manager  ->  business access, limited finance
-          |
-    employee / technician  ->  basic operations
-          |
-         user  ->  minimal access (default)
-```
-
-- `getUserRole(uid)` -> Claims first -> Firestore fallback
-- `getRoleFast()` -> Claims only
-
-**User Sync:**
-- `syncUserInfo(uid, email)` -> Creates shop if new user -> Sets user data -> Triggers claims refresh -> Waits for claims sync (up to 8 retries for new shops)
-
-**Invite System:**
-- `createInviteCode(shopId)` -> 8-char code, 7-day expiry
-- `getInvite(code)` -> Validates existence, expiry, used status
-- `useInviteCode(code, uid)` -> Assigns user to shop
-
-**Validation:**
-- `validateName(name, loc)` -> Non-empty
-- `validatePhone(phone, loc)` -> 9-12 cleaned digits
-- `validateIMEI(imei, loc)` -> 4-5 digits (internal code) or 15 digits (standard IMEI)
-- `validateModel(model, loc)` -> 2-50 chars
+- Service-first access
+- Singleton service ở các điểm điều phối (SyncOrchestrator, ClaimsService, EventBus)
+- Upsert/merge-first thay vì overwrite
+- Soft delete bằng cờ deleted
+- Multi-tenant bằng shopId xuyên suốt
 
 ---
 
-#### SyncService (`sync_service.dart`, 3007 lines)
+## 8. Mô hình dữ liệu cốt lõi
 
-Real-time Firestore -> SQLite sync with conflict resolution.
+### 8.1. Repair (đơn sửa)
 
-**Initialization:**
-```dart
-static Future<void> initRealTimeSync(VoidCallback onDataChanged)
-```
-1. Cancels existing subscriptions
-2. Gets shopId, verifies Custom Claims match
-3. Auto-cleanup orphan records (`cleanupOrphanRepairParts`, `forceMarkRepairPartsSynced`)
-4. Subscribes to 12+ Firestore collections:
-   - repairs, sales, products, expenses, debts, debt_payments, users, attendance, customers, suppliers, quick_input_codes, repair_partners, partner_repair_history, supplier_payments, repair_partner_payments, cash_closings, purchase_orders, stock_entries, etc.
+Trạng thái chuẩn:
 
-**Conflict Resolution (`_shouldAcceptCloudData`):**
-- Local record doesn't exist -> **accept cloud**
-- Local `isSynced == true` -> **accept cloud** (no pending local changes)
-- Local `isSynced == false` -> **REJECT cloud** (preserve local changes) + enqueue local for push via SyncOrchestrator
-- This prevents race conditions where cloud echoes overwrite local edits
+- 1: nhận
+- 2: đang sửa
+- 3: đã xong
+- 4: đã giao
 
-**Key Methods:**
-- `initRealTimeSync(callback)` -> Subscribe to all collections with shop filtering
-- `downloadAllFromCloud()` -> Full download (batches of 50 to avoid blocking)
-- `syncAllToCloud()` -> Push all unsynced local data
-- `syncRepairData()` -> Targeted repair sync
-- `syncPaymentRelatedData()` -> Targeted payment sync
-- `syncCustomersFromCloud()` -> Customer sync
-- `cancelAllSubscriptions()` -> Cleanup
-- `forceReinitializeSync()` -> Cancel + reinit
-- `_subscribeToCollection()` -> Generic subscription helper with error handling and auto-resubscribe
+Điểm quan trọng:
 
-**Event emission:** After each batch sync, emits `EventBus` events (`repairs_changed`, `sales_changed`, `debts_changed`, etc.) to trigger UI updates.
+- pendingDeliveryApproval dùng cho trạng thái 3 cần duyệt giao.
+- totalCost canonical ưu tiên cost; fallback servicesCost nếu cost=0.
+- Có normalize status từ nhiều dạng dữ liệu cũ (string/int).
+- Hỗ trợ services chi tiết theo RepairService (đối tác, phương thức thanh toán).
 
----
+### 8.2. SaleOrder (đơn bán)
 
-#### SyncOrchestrator (`sync_orchestrator.dart`, 916 lines)
+- Quản lý giá, vốn, giảm giá, góp, phương thức thanh toán hỗn hợp.
+- Có field phục vụ đối soát bank installment.
 
-Offline-first sync queue (local -> cloud). Singleton pattern.
+### 8.3. Product
 
-**Entity Types (19):**
-```dart
-enum SyncEntityType {
-  repair, sale, product, expense, debt, customer, supplier,
-  attendance, repairPart, quickInputCode, debtPayment,
-  supplierPayment, partnerPayment, repairPartner, auditLog,
-  cashClosing, adjustmentEntry, purchaseOrder, supplierImportHistory
-}
-```
+- Hỗ trợ type chuẩn hóa (DIEN_THOAI, LINH_KIEN, PHU_KIEN)
+- Hỗ trợ mở rộng size, unit, expiryDate, variantParentId, customData cho đa ngành.
 
-**Features:**
-- Queue stored in SQLite `sync_queue` table
-- Auto-sync when network restored (listens to `Connectivity`)
-- Max 3 retries before marking as failed
-- Stream-based UI updates for pending count and sync status
-- Deduplication in queue (same entity+operation replaces older entry)
+### 8.4. Nhóm model khác
+
+- Customer, Supplier, Expense, Debt
+- Attendance, LeaveRequest, SalaryBreakdown
+- PaymentIntent, PaymentRequest
+- RepairPartner, RepairPartnerPayment, PartnerRepairHistory
+- StockEntry, ImportOrder, SalesReturn, SalvagePhone
 
 ---
 
-#### NotificationService (`notification_service.dart`, 1226 lines)
+## 9. SQLite local (offline-first)
 
-FCM + local notifications.
+DBHelper là trung tâm local data, khoảng 9072 dòng.
 
-**Features:**
-- Rate limiting: max 3 notifications per 10 seconds
-- FCM token management with 6-hour refresh interval
-- 5 notification channels: `new_order`, `payment`, `inventory`, `staff`, `system`
-- Background message handling (`handleBackgroundMessage`)
-- Permission management for Android 13+
-- Per-type toggle via SharedPreferences
-- `listenToNotifications()` -> Firestore real-time listener for shop notifications
-- `sendCloudNotification()` -> Cloud Function call for FCM multicast
-- `showSnackBar()` -> In-app notification via `ScaffoldMessenger`
+### 9.1. File và version
 
----
+- DB file: repair_shop_v22.db
+- openDatabase version: 95
 
-#### ClaimsService (`claims_service.dart`, 244 lines)
+### 9.2. Mục tiêu của local DB
 
-Custom Claims management. Singleton pattern.
+- Cho phép app chạy mượt khi mạng chập chờn/offline
+- Là nguồn dữ liệu hiển thị chính trên thiết bị
+- Đồng bộ 2 chiều với Firestore qua SyncService + SyncOrchestrator
 
-**Claims Structure (in JWT):**
-```json
-{
-  "role": "owner|manager|employee|technician|user",
-  "shopId": "shop_document_id",
-  "isSuperAdmin": true
-}
-```
+### 9.3. Bảng dữ liệu chính (rút gọn)
 
-**Methods:**
-- `batchSyncAllClaims()` -> Super admin only, calls Cloud Function to sync all users
-- `syncUserClaims(uid)` -> Sync specific user via `syncUserClaimsV2` Cloud Function
-- `refreshMyClaims()` -> Self-refresh via `refreshMyClaimsV2` + force token refresh
-- `getMyClaims()` -> View current claims + sync status
-- `getClaimsFromToken(forceRefresh)` -> Read from ID token (local, fast, cached 5 min)
-- `getRoleFromClaims()`, `getShopIdFromClaims()`, `isSuperAdmin()`, `isOwner()` — quick helpers
+- repairs
+- products
+- sales
+- customers
+- suppliers
+- expenses
+- debts
+- attendance
+- leave_requests
+- audit_logs
+- supplier_payments
+- repair_partner_payments
+- cash_closings
+- payroll_settings
+- payroll_locks
+- employee_salary_settings
+- purchase_orders
+- work_schedules
+- debt_payments
+- quick_input_codes
+- supplier_product_prices
+- supplier_import_history
+- repair_partners
+- partner_repair_history
+- repair_parts
+- sync_queue
+- sales_returns
+- sales_return_items
+- financial_activity_log
+- shop_settings
+- product_categories
+- product_variants
+- salvage_phones
+- import_orders
+- import_order_items
+- adjustment_entries
+- payment_intents
+- payment_requests
 
----
+### 9.4. Cơ chế cờ chuẩn
 
-#### CurrentShopService (`current_shop_service.dart`, 352 lines)
-
-Multi-shop support for owners. Singleton pattern.
-
-**Features:**
-- Persists active shop to SharedPreferences
-- `getActiveShopId()` -> Priority: super admin selected > owner's active > user profile
-- `hasMultipleShops()` -> Check if owner has multiple shops
-- `getOwnedShops()` -> Query by `ownerUid`
-- `switchShop(newShopId)` -> Validates ownership -> clears SQLite -> updates UserService cache -> reinitializes EncryptionService + CategoryService + SyncService
-- Backward compatible for single-shop users
-
----
-
-### 5.2 Financial Services
-
-#### PaymentIntentService (`payment_intent_service.dart`, 852 lines)
-
-**Central payment gateway.** All payments MUST go through this service.
-
-- Manages PaymentIntent lifecycle: `create -> execute -> complete/cancel/fail`
-- Persists intents to SQLite `payment_intents` table
-- In-memory cache + SQLite backing store
-- History limited to last 100 completed/cancelled intents
-- Validates via `MoneyValidationService` before execution
-- Executes via `MoneyTransactionService`
-- Clears cache on shop change
-
-#### MoneyValidationService
-Validates monetary amounts, sale totals, debt payments. Throws `MoneyValidationException` on invalid operations. Called automatically by `FirestoreService` before every financial write.
-
-#### MoneyTransactionService
-Executes actual financial transactions after validation. Records transactions as `FinancialActivity` entries.
-
-#### AdjustmentService
-Cash/inventory adjustment entries with `AdjustmentResult`.
-
-#### FinancialActivityService
-Logs all financial activities (sales, purchases, expenses, debt collections, settlements). Provides audit trail for all money movements.
-
-#### CashClosingNotifier
-Checks and alerts for uncompleted daily cash closings. Triggered during app startup.
+- firestoreId: liên kết bản ghi cloud
+- isSynced: trạng thái đồng bộ
+- deleted: soft-delete marker
+- updatedAt/createdAt: base cho conflict resolution
 
 ---
 
-### 5.3 HR Services
+## 10. Đồng bộ dữ liệu (Sync)
 
-#### SalaryCalculationService
-Comprehensive salary calculation:
-- `baseSalary` (monthly/daily/hourly depending on salaryType)
-- `+ commissions` (sales: fixed/percent/tiered; repairs: fixed/percent/tiered)
-- `+ allowances` (transport, meal, phone, other)
-- `- deductions` (late arrivals, early leaves, absences)
-- `- insurance` (BHXH 8%, BHYT 1.5%, BHTN 1%)
-- `- PIT` (personal income tax)
-- `+ customAdjustments` (bonuses/penalties)
-- `= netSalary`
+Đây là phần quan trọng nhất của hệ thống vì app dùng chiến lược offline-first.
 
-#### SalarySlipPdfService
-Generates PDF salary slips for printing. Uses `pdf` package.
+### 10.1. SyncService (cloud -> local)
 
----
+Vai trò:
 
-### 5.4 Printer Services
+- Lắng nghe realtime collection theo quyền user
+- Poll/refresh có kiểm soát cooldown
+- Chuẩn hóa dữ liệu trước khi upsert local
+- Phát event bus để UI refresh
 
-| Service | Purpose |
-|---------|---------|
-| BluetoothPrinterService | Bluetooth thermal printer via `print_bluetooth_thermal` |
-| WifiPrinterService | WiFi/network printer via `esc_pos_printer` |
-| ThermalPrinterService | Generic thermal printer abstraction |
-| UnifiedPrinterService | Unified API across all printer types + label printing |
-| LabelSettingsService | Shop-specific label template configuration |
+Thông số kỹ thuật hiện tại:
 
----
+- cloud read timeout: 20 giây
+- cooldown log timeout read: 15 giây
+- refresh collection cooldown: 5 giây
+- poll limit mặc định: 20
 
-### 5.5 Sync & Data Services
+### 10.2. SyncOrchestrator (local -> cloud)
 
-| Service | Purpose |
-|---------|---------|
-| SyncHealthCheck | Validates sync integrity: local vs cloud record counts, detects orphans |
-| ConnectivityService | Network status monitoring via `connectivity_plus` |
-| DataMigrationService | Database migration helpers, orphan data detection |
-| StorageService | Firebase Storage for image uploads |
-| ShopDeletionService | Safe shop deletion with cascade |
-| AuditService | Audit log service |
-| LoggingService | Structured logging |
+Vai trò:
 
----
+- Quản lý queue sync_queue cho create/update/delete
+- Retry theo retryCount
+- Upload ảnh và fallback folder theo Storage rules
+- Chuẩn hóa payload nghiệp vụ (ví dụ repair status)
 
-### 5.6 Business Domain Services
+Thông số kỹ thuật:
 
-| Service | Purpose |
-|---------|---------|
-| CustomerService | Customer CRUD + stats (totalSpent, totalRepairs) |
-| SupplierService | Supplier CRUD |
-| SupplierPaymentService | Supplier payment tracking |
-| RepairPartnerService | External repair partner management |
-| RepairPartnerPaymentService | Partner payment tracking |
-| StockEntryService | Stock entry management (quick/staging) |
-| CategoryService | Product category tree management |
-| VariantService | Product variant management (fashion) with `VariantWarningCounts`, `CommonSizes`, `CommonColors` |
-| ExpiryAlertService | Expiry date alerts (food) with `ExpiryStats`, `BatchInfo` |
-| BusinessTypeHelper | Multi-industry terminology + feature flags with `BusinessTerminology` |
-| ChatService | Advanced chat with reactions, replies, read receipts |
-| FirstTimeGuideService | Onboarding guide for new users with `GuideStep` |
+- cloud write timeout: 25 giây
+- cooldown log timeout write: 15 giây
+- max retry mặc định: 3
+
+### 10.3. Bảo vệ dữ liệu trong conflict
+
+Các lớp bảo vệ đã có trong code:
+
+- chuẩn hóa status repair về phạm vi 1..4
+- giữ pendingDeliveryApproval nhất quán với status
+- tránh ghi đè local bởi snapshot partial từ cloud
+- bootstrap full payload khi patch status lên doc cloud chưa tồn tại
 
 ---
 
-### 5.7 Security Services
+## 11. Phân quyền và multi-tenant
 
-#### EncryptionService (`encryption_service.dart`, 187 lines)
+### 11.1. Vai trò
 
-AES-256-CBC encryption for cloud data.
+- super admin
+- owner
+- manager
+- employee
+- technician
+- user (fallback)
 
-**Key derivation:** `SHA256(shopId + masterSecret)` -> 32-byte key
-**IV:** `MD5('IV_' + shopId)` -> 16-byte IV
+### 11.2. Super admin
 
-**Encrypted fields (23):** customerName, phone, address, email, notes, issue, imei, productImeis, sellerName, personName, bankName, description, accessories, warranty, and more.
+- Nhận diện bằng email admin@huluca.com
+- Có thể chọn shop để xem dữ liệu toàn cục
+- Bỏ qua filter shopId khi cần quản trị hệ thống
 
-**Format:** Encrypted values prefixed with `ENC:` marker for detection. Decryption auto-detects encrypted values.
+### 11.3. Permission flags chính
 
-**Methods:**
-- `init(shopId)` -> Derive key from shopId
-- `encrypt(plainText)` -> Returns `ENC:base64`
-- `decrypt(cipherText)` -> Strips prefix, decodes
-- `encryptMap(data)` -> Encrypts all sensitive fields in a map
-- `decryptMap(data)` -> Decrypts all sensitive fields in a map
-- `isEnabled` / `setEnabled(bool)` -> Toggle via SharedPreferences
+- allowViewSales
+- allowViewRepairs
+- allowViewInventory
+- allowViewParts
+- allowViewSuppliers
+- allowViewCustomers
+- allowViewPurchaseOrders
+- allowCreatePurchaseOrders
+- allowViewWarranty
+- allowViewChat
+- allowViewAttendance
+- allowViewPrinter
+- allowViewRevenue
+- allowViewExpenses
+- allowViewDebts
+- allowViewCostPrice
+- allowViewSettings
+- allowManageStaff
+- shopAppLocked
+- shopAdminFinanceLocked
 
----
+### 11.4. shopId là trục cô lập dữ liệu
 
-#### EventBus (`event_bus.dart`)
-
-Simple broadcast event bus using `StreamController<String>.broadcast()`.
-
-```dart
-EventBus().emit('repairs_changed');
-EventBus().stream.listen((event) { ... });
-
-// Standard events:
-'shop_changed', 'repairs_changed', 'sales_changed',
-'debts_changed', 'expenses_changed', 'products_changed'
-```
-
----
-
-### 5.8 Complete Service Catalog (65 classes across 43 files)
-
-| File | Classes |
-|------|---------|
-| firestore_service.dart | FirestoreService |
-| user_service.dart | UserService |
-| sync_service.dart | SyncService |
-| sync_orchestrator.dart | SyncOrchestrator, SyncQueueItem, SyncResult |
-| notification_service.dart | NotificationService |
-| claims_service.dart | ClaimsService |
-| current_shop_service.dart | CurrentShopService |
-| payment_intent_service.dart | PaymentIntentService, PaymentExecutionResult |
-| money_transaction_service.dart | MoneyTransactionService |
-| money_validation_service.dart | MoneyValidationService, MoneyValidationException, MoneyValidationResult |
-| adjustment_service.dart | AdjustmentService, AdjustmentResult |
-| financial_activity_service.dart | FinancialActivityService |
-| encryption_service.dart | EncryptionService |
-| event_bus.dart | EventBus |
-| connectivity_service.dart | ConnectivityService |
-| sync_health_check.dart | SyncHealthCheck, SyncCheckResult, SyncHealthReport |
-| customer_service.dart | CustomerService |
-| supplier_service.dart | SupplierService |
-| supplier_payment_service.dart | SupplierPaymentService |
-| repair_partner_service.dart | RepairPartnerService |
-| repair_partner_payment_service.dart | RepairPartnerPaymentService |
-| stock_entry_service.dart | StockEntryService |
-| category_service.dart | CategoryService |
-| variant_service.dart | VariantService, VariantWarningCounts, CommonSizes, CommonColors |
-| expiry_alert_service.dart | ExpiryAlertService, ExpiryStats, BatchInfo |
-| business_type_helper.dart | BusinessTypeHelper, BusinessTerminology |
-| chat_service.dart | ChatService |
-| salary_calculation_service.dart | SalaryCalculationService |
-| salary_slip_pdf_service.dart | SalarySlipPdfService |
-| cash_closing_notifier.dart | CashClosingNotifier |
-| bluetooth_printer_service.dart | BluetoothPrinterService |
-| wifi_printer_service.dart | WifiPrinterService |
-| thermal_printer_service.dart | ThermalPrinterService |
-| unified_printer_service.dart | UnifiedPrinterService |
-| label_settings_service.dart | LabelSettingsService, ShopLabelSettings |
-| storage_service.dart | StorageService |
-| data_migration_service.dart | DataMigrationService, OrphanDataInfo |
-| shop_deletion_service.dart | ShopDeletionService, ShopDeletionResult |
-| audit_service.dart | AuditService |
-| logging_service.dart | LoggingService |
-| first_time_guide_service.dart | FirstTimeGuideService, GuideStep |
-| sale_product_validation.dart | SaleProductValidation |
+- Query cloud luôn gắn shopId (trừ super admin).
+- Query local scoped theo shopId.
+- Khi đổi user/shop: clear local + purge dữ liệu ngoài shop.
 
 ---
 
-## 6. Views Layer (80+ files)
+## 12. Bảo mật dữ liệu
 
-All views in `lib/views/`. Main screen is `HomeView` with bottom navigation.
+### 12.1. Firestore Rules
 
-### 6.1 Core Views
+- rules_version = 2
+- File rules có khoảng 1180 dòng
+- Header rules ghi version 5.0 ngày 2026-01-10
+- Ưu tiên user document cho role/shopId để tránh claims stale
+- Claims vẫn là fallback
 
-| View | File | Description |
-|------|------|-------------|
-| SplashView | splash_view.dart | Loading/splash screen |
-| LoginView | login_view.dart | Firebase Auth login |
-| HomeView | home_view.dart (6470 lines) | Main dashboard with bottom navigation |
-| ShopSelectorView | shop_selector_view.dart | Super admin shop picker |
-| SuperAdminView | super_admin_view.dart | Super admin dashboard |
-| UserGuideView | user_guide_view.dart | In-app user guide |
-| AboutDeveloperView | about_developer_view.dart | About screen |
+Nhóm collection được quản lý theo domain:
 
-### 6.2 HomeView Bottom Navigation Tabs
+- AUTH: users, shops, invites
+- BUSINESS: repairs, sales, products, customers
+- FINANCE: expenses, debts, debt_payments, cash_closings, adjustment_entries
+- SUPPLIER: suppliers, supplier_payments, purchase_orders
+- PARTNER: repair_partners, repair_partner_payments
+- HR: attendance, leave_requests, shift_swap_requests, work_schedules
+- CHAT: chats, chat_messages
+- NOTIFY: notifications, shop_notifications
+- SYSTEM: audit_logs, quick_input_codes, repair_parts
 
-HomeView uses dynamic bottom navigation based on permissions and business type:
+### 12.2. Storage Rules
 
-| Tab | Condition | Content |
-|-----|-----------|---------|
-| Home | Always visible | Dashboard with stats |
-| Sales | `allowViewSales` | SaleListView |
-| Repairs | `allowViewRepairs` AND electronics only | OrderListView |
-| Inventory | `allowViewInventory` | InventoryView |
-| Expiry | Food shops + `allowViewInventory` | ExpiryManagementView |
-| Variants | Fashion shops + `allowViewInventory` | VariantManagementView |
-| Staff | `allowManageStaff` | Staff management tabs |
-| Finance | `allowViewRevenue` | Financial dashboard |
-| Settings | Always (unless admin-locked) | App settings |
+Nguyên tắc:
 
-**Dashboard Stats:**
-- totalPendingRepair, todaySaleCount, todayRepairDone
-- revenueToday, todayNewRepairs, todayExpense
-- totalDebtRemain, expiringWarranties, unreadChatCount
+- Yêu cầu authenticated user
+- Với folder shop-scoped, bắt buộc shopId path khớp claim hoặc super admin
+- Chỉ cho upload image/*
+- Giới hạn kích thước tối đa 10MB/file
+- Mặc định chặn toàn bộ path không khai báo
 
-**Auto-sync timer:** Every 60 seconds
-**EventBus listener:** Reacts to debts_changed, sales_changed, repairs_changed, expenses_changed, products_changed, shopChanged
+### 12.3. Mã hóa dữ liệu (EncryptionService)
 
-### 6.3 Business Views
+- AES-256-CBC
+- Key derive từ shopId + master secret
+- Đánh dấu payload mã hóa bằng _encrypted=true
+- decryptMap hỗ trợ cả dữ liệu cũ không có marker nhưng có chuỗi ENC/ENC2
+- Có cooldown log lỗi decrypt để tránh spam log
 
-| View | Purpose |
-|------|---------|
-| CreateRepairOrderView | New repair order form with IMEI scan |
-| CreateSaleView | POS / new sale form |
-| OrderListView | Repair orders list with filtering |
-| SaleListView | Sales list with search and filters |
-| InventoryView | Product inventory with categories |
-| FastInventoryInputView | Quick stock entry with barcode scanning |
-| FastInventoryCheckView | Stock-take with zone tracking |
-| SmartStockInView | Smart stock-in with supplier selection |
-| PendingStockListView | Staging warehouse items |
-| SupplierListView | Supplier management |
-| SupplierDetailView | Supplier detail + payment history |
-| CustomerManagementView | Customer CRM |
-| WarrantyView | Warranty tracking |
-| QuickInputCodesView | Barcode/QR codes setup |
-| QRScanView | QR code scanner |
-
-### 6.4 Financial Views
-
-| View | Purpose |
-|------|---------|
-| RevenueView | Revenue dashboard |
-| ExpenseView | Expense management |
-| DebtView | Debt management |
-| CashClosingView | Daily cash closing |
-| FinancialReportView | Comprehensive financial reports |
-| FinancialActivityLogView | Activity log |
-| BankInstallmentReportView | Bank installment tracking |
-
-### 6.5 HR Views
-
-| View | Purpose |
-|------|---------|
-| StaffListView | Staff management |
-| StaffPerformanceView | Performance metrics |
-| AttendanceView | Employee attendance (self-service) |
-| AttendanceManagementView | Attendance admin for managers |
-| WorkScheduleSettingsView | Work schedule configuration |
-| HRSalarySettingsView | Salary settings per employee |
-| PayrollView | Payroll review and processing |
-
-### 6.6 Settings & Communication
-
-| View | Purpose |
-|------|---------|
-| ShopSettingsView | Shop configuration |
-| SettingsView | General app settings |
-| PrinterSettingsView | Printer setup |
-| NotificationsView | Notification center |
-| NotificationSettingsView | Notification preferences |
-| AdvancedChatView | Team chat with rich features |
-| GlobalSearchView | Cross-entity search |
-
-### 6.7 Industry-Specific Views
-
-| Subdirectory | Views |
-|-------------|-------|
-| `views/food/` | ExpiryManagementView |
-| `views/fashion/` | VariantManagementView |
-| `views/hr/` | AddCustomAdjustmentDialog, ShopDeductionSettingsView |
-| `views/onboarding/` | BusinessTypeWizard |
+Trường nhạy cảm được mã hóa gồm: customerName, phone, address, email, notes, issue, imei, productImeis, bankName, description, accessories, warranty, ...
 
 ---
 
-## 7. Widgets (28 files)
+## 13. Payment architecture
 
-Reusable UI components in `lib/widgets/`.
+PaymentIntentService là trung tâm thanh toán thống nhất.
 
-| Widget | Purpose |
-|--------|---------|
-| CustomAppBar | Gradient app bar with Zalo Blue theme |
-| CurrencyTextField | Currency input field with formatting |
-| DebouncedSearchField | Search with debounce timer |
-| DynamicFormBuilder | Dynamic form generation |
-| GlobalSearchBar | Cross-entity search bar |
-| GradientFab | Gradient floating action button with animation |
-| LoadingIntroScreen | Onboarding intro screen |
-| NotificationBadge | Badge with unread count |
-| PerpetualCalendar | Calendar widget |
-| SyncStatusWidget | Sync status display |
-| SimpleSyncIndicator | Compact sync indicator |
-| UnifiedSyncButton | Sync button + SyncCenterSheet |
-| ValidatedTextField | Text field with validation |
-| VariantSelector | Product variant picker (fashion) |
-| VariantBadge | Variant display badge |
-| VariantQuickSelect | Quick variant selector |
-| VariantSelectionDialog | Full variant selection dialog |
-| VariantStockWidget | Variant stock display |
-| ShopSwitcherWidget | Multi-shop switcher |
-| CurrentShopIndicator | Current shop display |
-| SectionCard | Card container |
-| SimpleCard | Basic card |
-| InfoRow | Key-value info row |
-| StatusBadge | Status display badge |
-| CompactActionButton | Small action button |
-| SafeStreamBuilder | Error-safe StreamBuilder wrapper |
-| PrinterSelectionDialog | Printer picker dialog |
-| PendingSyncIndicator | Pending sync count indicator |
-| SyncStatusDialog | Sync status dialog |
-| SyncActionButton | One-tap sync button |
-| PendingStockWidget | Staging warehouse widget |
-| IMEIScanResultDialog | IMEI scan result display |
+Nguyên tắc:
+
+- Tạo intent trước khi thực thi thanh toán
+- Mỗi intent chỉ được execute một lần
+- Validate qua MoneyValidationService
+- Ghi nhận giao dịch qua MoneyTransactionService
+- Persist vào DB local (payment_intents) và sync cloud
+
+Các trạng thái chính:
+
+- pending
+- completed
+- cancelled
+- failed
+
+Từ góc độ kiến trúc, đây là lớp bắt buộc để tránh nghiệp vụ tự trừ/thu tiền rải rác ở nhiều module.
 
 ---
 
-## 8. Theme System
+## 14. Chat và thông báo
 
-All in `lib/theme/`.
+### 14.1. ChatService
 
-### AppColors (`app_colors.dart`)
-```dart
-primary       = Color(0xFF4D8EE9)  // Blue
-primaryDark   = Color(0xFF0068FF)  // Zalo Blue
-secondary     = Color(0xFFFF9800)  // Orange
-background    = Color(0xFFF8FAFF)  // Light blue-white
-surface       = Colors.white
-onSurface     = Color(0xFF1A1A2E)  // Dark navy
-error         = Color(0xFFE53935)  // Red
-success       = Color(0xFF43A047)  // Green
-warning       = Color(0xFFFF9800)  // Orange
-info          = Color(0xFF1E88E5)  // Blue
-```
+Hỗ trợ:
 
-Status colors: active (green), inactive (grey), pending (orange), completed (blue), cancelled (red).
+- text message
+- linked message (gắn với đơn sửa/đơn bán)
+- image message (upload Firebase Storage)
+- reaction, edit, soft delete, pin, read receipts
+- typing indicator, online presence
 
-### AppTextStyles (`app_text_styles.dart`)
-- Font: Roboto
-- Compact sizing: h1=22, h2=18, h3=16, h4=14, body1=11, body2=10, caption=10, overline=9
-- All styles include color from AppColors
+### 14.2. NotificationService
 
-### AppButtonStyles (`app_button_styles.dart`)
-- `buttonHeight = 48`, `borderRadius = 8`
-- Styles: elevated, outlined, text, danger, success, small, large
+Hỗ trợ:
 
-### AppTheme (`app_theme.dart`, 278 lines)
-Complete `lightTheme` with:
-- Zalo Blue gradient AppBar (`toolbarHeight: 44`)
-- Custom bottom navigation, tab bar, card, input decoration
-- Dialog, snackbar, chip, FAB themes
-- Consistent color application from AppColors
+- local notifications
+- Firebase Messaging foreground/background
+- push cloud notification
+- rate limit: tối đa 3 thông báo trong 10 giây
+- kiểm tra và làm mới FCM token định kỳ
+- deep-link sang màn hình mục tiêu qua payload
+
+Kênh thông báo Android:
+
+- new_order_channel
+- payment_channel
+- inventory_channel
+- staff_channel
+- system_channel
 
 ---
 
-## 9. Constants
+## 15. In ấn và phần cứng
 
-### FinancialConstants (`financial_constants.dart`, 449 lines)
-```dart
-enum PaymentMethod { cash, transfer, debt, installment, mixed, bank }
-enum MoneySourceType { // 11 types
-  cashRegister, bankAccount, momo, zalopay, shoppeepay,
-  vnpay, creditCard, otherEwallet, otherSource, tempHold, customerDeposit
-}
-enum MoneyDirection { income, expense, transfer }
-```
+Hệ thống hỗ trợ nhiều ngữ cảnh in:
 
-### ProductConstants (`product_constants.dart`, 419 lines)
-- Colors: 16 standard colors (Den, Trang, Do, Xanh, etc.)
-- Brands: 10 (Apple, Samsung, Xiaomi, OPPO, etc.)
-- Capacities: 6 (32GB - 1TB)
-- Conditions: 7 (Moi 100%, 99%, 98%, 97%, 95%, Likenew, Da su dung)
-- Payment methods: 3 (Tien mat, Chuyen khoan, Tra gop)
-- Units: 18 (cai, chiec, kg, lit, hop, goi, etc.) — multi-industry
-- Clothing sizes: XS, S, M, L, XL, XXL, XXXL, FREE
+- hóa đơn bán hàng
+- phiếu sửa chữa
+- tem nhãn
+- phiếu lương
 
-### PartnerConstants (`partner_constants.dart`)
-Payment methods and status constants for repair partners.
+Nhóm service liên quan:
+
+- unified_printer_service
+- thermal_printer_service
+- bluetooth_printer_service
+- wifi_printer_service
+- web_print_bridge_service
+- label_settings_service
+
+Ngoài ra có scanner QR/IMEI và các màn hình thiết kế template in.
 
 ---
 
-## 10. Utilities (12 files)
+## 16. Social authentication
 
-All in `lib/utils/`.
+SocialAuthService xử lý:
 
-| Utility | Class | Purpose |
-|---------|-------|---------|
-| app_info.dart | AppInfo | App version and build info |
-| app_logger.dart | AppLogger | Structured logging |
-| debouncer.dart | Debouncer | Action debouncing |
-| imei_extractor.dart | IMEIExtractor, IMEIExtractResult | Extract IMEI from complex QR codes |
-| money_input_formatter.dart | MoneyInputFormatter | Currency input formatting (TextInputFormatter) |
-| money_utils.dart | MoneyUtils | Money formatting utilities |
-| qr_parser.dart | QRParser | QR code content parsing |
-| qr_router.dart | QRRouter | Route to appropriate view based on QR content |
-| repair_status_validator.dart | RepairStatusValidator | Validates repair status transitions (enforces 1->2->3->4 flow) |
-| sku_generator.dart | SKUGenerator | Auto-generate SKU codes |
-| ui_constants.dart | UIConstants | UI dimension constants |
-| vietnamese_utils.dart | VietnameseUtils | Vietnamese text utilities (diacritics, normalization) |
+- Google sign-in và link account
+- Apple sign-in và link account
+- Cơ chế account-exists-with-different-credential để tránh tạo UID mới
+- Mục tiêu: bảo toàn dữ liệu user cũ khi thêm provider mới
 
 ---
 
-## 11. Controllers
+## 17. Cloud Functions (functions/index.js)
 
-### FastInventoryInputController (`controllers/fast_inventory_input_controller.dart`)
-Controller for the fast inventory input feature — manages barcode scanning + quick stock entry workflow.
+File functions/index.js khoảng 1437 dòng, Node 20.
 
----
+Các function export chính hiện có:
 
-## 12. Core Infrastructure
+1. syncUserClaims
+2. refreshMyClaims
+3. updateUserRole
+4. addUserToShop
+5. updateUserProfileSecure
+6. updateShopProfileSecure
+7. removeUserFromShop
+8. getUserClaims
+9. notifyNewRepair
+10. notifyNewChat
+11. notifyStatusChange
+12. createStaffAccount
+13. cleanupDeletedRepairs
+14. sendShopNotification
+15. batchSyncAllClaims
+16. syncUserClaimsV2
+17. refreshMyClaimsV2
+18. getMyClaimsV2
+19. cleanupFCMTokens
+20. deleteUserData
 
-Files in `lib/core/`.
+Vai trò backend trọng tâm:
 
-### AppConfig (`core/app_config.dart`)
-```dart
-class AppConfig {
-  // Build mode
-  static bool get isDebug => ...
-  static bool get isRelease => ...
-
-  // Sync config
-  static const syncIntervalSeconds = 60;
-  static const syncBatchSize = 50;
-
-  // Cache config
-  static const cacheExpiryMinutes = 30;
-
-  // DB config
-  static const dbVersion = 80;
-  static const dbName = 'repair_shop_v22.db';
-
-  // Pagination
-  static const defaultPageSize = 20;
-}
-
-class EnvConfig {
-  static const appName = 'HULUCA Shop Manager';
-  static const packageName = 'com.huluca.shop';
-}
-```
-
-### PaymentBlocker (`core/payment_blocker.dart`)
-```dart
-class PaymentBlockedError implements Exception { ... }
-
-class PaymentBlocker {
-  static void block() {
-    throw PaymentBlockedError(
-      'Direct payment bypassed! Use PaymentIntentService.'
-    );
-  }
-}
-```
-
-### MoneyUtils (`core/utils/money_utils.dart`)
-Currency formatting utilities (core-level, separate from `lib/utils/money_utils.dart`).
+- Đồng bộ custom claims role/shopId/isSuperAdmin
+- Các thao tác bảo mật bắt buộc qua callable (khi client không đủ quyền trực tiếp)
+- Trigger thông báo hệ thống
+- Dọn dẹp dữ liệu định kỳ
 
 ---
 
-## 13. Localization (i18n)
+## 18. Firestore indexes
 
-### Configuration
-```yaml
-# pubspec.yaml
-flutter:
-  generate: true
-```
+- File: firestore.indexes.json
+- Số composite index hiện có: 52
+- Bao phủ các collection chính: payment_requests, repairs, sales, products, expenses, attendance, cash_closings, stock_entries, quick_input_codes, debt_payments, supplier_payments, repair_partner_payments, ...
 
-### Files
-| File | Lines | Purpose |
-|------|-------|---------|
-| app_vi.arb | ~2405 | Vietnamese translations (template) |
-| app_en.arb | ~2594 | English translations |
-| app_localizations.dart | Generated | Localization class |
-| app_localizations_vi.dart | Generated | Vietnamese implementation |
-| app_localizations_en.dart | Generated | English implementation |
+Lưu ý vận hành:
 
-### Key Categories (~2400+ keys)
-- **App-wide:** appName, homeTab, salesTab, repairsTab, inventoryTab, staffTab, financeTab, settingsTab
-- **Business:** customerName, phone, address, price, cost, discount, totalPrice, quantity
-- **Repair:** repairStatus, received, repairing, done, delivered
-- **Sales:** saleOrder, soldBy, paymentMethod, installment
-- **Finance:** revenue, expense, debt, cashClosing, profit
-- **HR:** attendance, salary, checkIn, checkOut, workSchedule
-- **Validation:** nameRequired, phoneLengthInvalid, imeiDigitsOnly
-- **Multi-industry:** variants, expiry, batchNumber, unit
+- Một số query có fallback mode khi thiếu index (đặc biệt ở màn hình danh sách đơn sửa).
+- Nên tạo đầy đủ index theo log Firestore để tránh degraded mode.
 
 ---
 
-## 14. Local Database — SQLite
+## 19. Localization và ngôn ngữ
 
-### Configuration
-- **File:** `lib/data/db_helper.dart` (7024 lines)
-- **DB Name:** `repair_shop_v22.db`
-- **Version:** 80
-- **Pattern:** Singleton with `DBHelper()`
-
-### Tables (30+)
-
-| Table | Key Fields | Purpose |
-|-------|-----------|---------|
-| repairs | firestoreId, shopId, customerName, phone, status, price, cost, isSynced | Repair orders |
-| products | firestoreId, shopId, name, imei, cost, price, quantity, type, status, isSynced | Product inventory |
-| sales | firestoreId, shopId, customerName, totalPrice, totalCost, soldAt, isSynced | Sale orders |
-| customers | firestoreId, shopId, name, phone, totalSpent, totalRepairs | Customer records |
-| suppliers | firestoreId, shopId, name, phone, active, favorite | Supplier records |
-| expenses | firestoreId, shopId, title, amount, category, date, type | Expenses/income |
-| debts | firestoreId, shopId, personName, totalAmount, paidAmount, type, status | Debt records |
-| attendance | firestoreId, shopId, userId, dateKey, checkInAt, checkOutAt, status | Attendance |
-| audit_logs | firestoreId, shopId, userId, action, entityType, entityId | Audit trail |
-| inventory_checks | firestoreId, shopId, checkDate, totalCounted | Stock-take records |
-| supplier_payments | firestoreId, shopId, supplierId, amount, paymentDate | Supplier payments |
-| repair_partner_payments | firestoreId, shopId, partnerId, amount | Partner payments |
-| cash_closings | firestoreId, shopId, dateKey, openingCash, closingCash | Daily cash closing |
-| employee_salary_settings | shopId, staffId, baseSalary, salaryType | Salary config |
-| purchase_orders | firestoreId, shopId, orderCode, supplierId, totalAmount | Purchase orders |
-| work_schedules | firestoreId, shopId, userId, dayOfWeek, startTime, endTime | Work schedules |
-| debt_payments | firestoreId, shopId, debtId, amount, paidAt | Debt payment records |
-| quick_input_codes | firestoreId, shopId, name, code, isActive | Quick input codes |
-| supplier_product_prices | firestoreId, shopId, supplierId, productName | Supplier prices |
-| supplier_import_history | firestoreId, shopId, supplierId, importDate | Import history |
-| repair_partners | firestoreId, shopId, name, phone, active | Repair partners |
-| partner_repair_history | firestoreId, shopId, partnerId, repairId | Partner history |
-| repair_parts | firestoreId, shopId, repairId, partName, cost | Repair parts |
-| sync_queue | entityType, entityId, operation, status, retryCount | Offline sync queue |
-| sales_returns | firestoreId, shopId, saleId, returnDate | Sale returns |
-| sales_return_items | returnId, productId, quantity, reason | Return items |
-| financial_activity_log | firestoreId, shopId, activityType, amount, direction | Financial log |
-| shop_settings | shopId, businessType, enableRepair, enableExpiry | Shop config |
-| product_categories | firestoreId, shopId, name, parentId | Category tree |
-| product_variants | firestoreId, shopId, productId, sku, size, color | Product variants |
-| payment_intents | id, shopId, type, status, amount, direction | Payment intents |
-| payroll_locks | shopId, month, year, lockedAt | Payroll lock |
-
-### Key Patterns
-
-1. **Upsert by firestoreId:** Most tables use `firestoreId` as unique key for cloud sync
-2. **isSynced flag:** Tracks whether local record has been pushed to cloud (false = pending local changes)
-3. **Soft deletes:** `deleted` column instead of physical deletion
-4. **Type normalization:** `_typeWhereClause` handles Vietnamese <-> ASCII type compatibility
-5. **Shop isolation:** `_getCurrentShopId()` and `_ensureValidShopId()` helpers
-
-### Migration Path (v18 -> v80)
-Extensive `onUpgrade` with `ALTER TABLE` migrations adding columns for:
-- Multi-industry fields (categoryId, unit, expiryDate, batchNumber, variantParentId)
-- Payment improvements (cashAmount, transferAmount, settlement fields)
-- HR additions (overtimeOn, isLate, isEarlyLeave, workSchedule)
-- Sync improvements (sync_queue table, isSynced on all tables)
-- Financial activity log
-- Product variants and categories
+- ARB source: app_vi.arb, app_en.arb
+- Generated: app_localizations.dart, app_localizations_vi.dart, app_localizations_en.dart
+- Supported locales: en, vi
+- UI mặc định thiên về tiếng Việt
 
 ---
 
-## 15. Firestore Rules
+## 20. Đa ngành (multi-industry)
 
-**File:** `firestore.rules` (1081 lines)
+Nền tảng hiện đã có:
 
-### Structure (12 sections)
+- businessType trong shop settings
+- module food (expiry management)
+- module fashion (variant management)
+- category/variant/expiry trong data model và DB schema
 
-1. **Core Functions** (lines 1-60)
-2. **Auth & User Management** (users, shops, invites)
-3. **Core Business** (repairs, sales, products, variants, stock_entries, customers)
-4. **Finance** (expenses, debts, debt_payments, cash_closings, adjustment_entries, payment_intents)
-5. **Suppliers** (suppliers, supplier_payments, purchase_orders, supplier_import_history, supplier_product_prices)
-6. **Repair Partners** (repair_partners, repair_partner_payments, partner_repair_history)
-7. **HR & Attendance** (attendance, work_schedules)
-8. **Chat & Messaging** (chats, chat_messages, chat_online, chat_typing)
-9. **Notifications** (notifications, shop_notifications)
-10. **System Data** (audit_logs **IMMUTABLE**, quick_input_codes, repair_parts, financial_activities, supplier_debts)
-11. **HR & Salary Settings** (shop_deduction_settings, employee_salary_settings, shop_salary_defaults + subcollections)
-12. **Catch-All Deny**
+Lưu ý trạng thái tài liệu:
 
-### Core Helper Functions
-```javascript
-function isAuth() { return request.auth != null; }
-function isSuperAdmin() { return request.auth.token.isSuperAdmin == true; }
-function myShopId() { return request.auth.token.shopId; }
-function belongsTo(data) { return data.shopId == myShopId(); }
-function docInMyShop() { return belongsTo(resource.data); }
-function newDocInMyShop() { return belongsTo(request.resource.data); }
-function myRole() { return request.auth.token.role; }
-function isOwner() { return myRole() == 'owner'; }
-function isManager() { return myRole() == 'manager'; }
-function isStaff() { return isOwner() || isManager()
-                    || myRole() == 'employee' || myRole() == 'technician'; }
-```
-
-### Protected Fields
-- **Users:** can never set `isAdmin`, `isSuperAdmin`, `balance`
-- **Shops:** only owner can update, `ownerUid` protected after creation
-- **Audit logs:** **IMMUTABLE** (create only, no update/delete)
-
-### Access Patterns
-- **Super admin:** Full access to everything
-- **Owner:** Full access within their shop
-- **Manager:** CRUD within shop, cannot change roles
-- **Employee/Technician:** Read + create within shop, limited updates
-- All non-super-admin operations filtered by `shopId` in Custom Claims
+- Có tham chiếu nội bộ đến file DOCS/MULTI_INDUSTRY_EXPANSION_GUIDE.md trong hướng dẫn AI.
+- Ở workspace hiện tại không thấy file này trong thư mục DOCS.
+- Khi bàn giao, nên bổ sung lại file guide này hoặc cập nhật đường dẫn tham chiếu tương ứng.
 
 ---
 
-## 16. Firestore Indexes
+## 21. Danh sách service trọng yếu (đọc để nắm lõi)
 
-**File:** `firestore.indexes.json` — 15 composite indexes
-
-| Collection | Fields | Purpose |
-|-----------|--------|---------|
-| chats | shopId + createdAt (desc) | Shop chat feed |
-| shop_notifications | shopId + createdAt (desc) | Shop notifications |
-| repairs | shopId + createdAt (desc) | Shop repairs list |
-| products | shopId + status + createdAt (desc) | Active products |
-| sales | shopId + soldAt (desc) | Sales feed |
-| sales | shopId + deleted + soldAt (desc) | Non-deleted sales |
-| expenses | shopId + date (desc) | Expenses feed |
-| customers | shopId + deleted + name (asc) | Customer list |
-| debts | shopId + status + createdAt (desc) | Active debts |
-| debts | shopId + deleted + createdAt (desc) | Non-deleted debts |
-| suppliers | shopId + active (desc) + name (asc) | Active suppliers |
-| suppliers | shopId + deleted + active (desc) + name (asc) | Non-deleted suppliers |
-| cash_closings | shopId + dateKey (desc) | Cash closing history |
-| stock_entries | shopId + status + createdAt (desc) | Stock entries |
-| stock_entries | shopId + type + createdAt (desc) | Stock by type |
+1. user_service.dart: auth profile, role, permission, shop cache
+2. firestore_service.dart: CRUD cloud chính
+3. sync_service.dart: realtime cloud -> local
+4. sync_orchestrator.dart: queue local -> cloud
+5. db_helper.dart: schema + query local
+6. payment_intent_service.dart: payment center
+7. notification_service.dart: FCM + local notification
+8. encryption_service.dart: encrypt/decrypt field nhạy cảm
+9. claims_service.dart: custom claims lifecycle
+10. storage_service.dart: upload/download ảnh với fallback rules-aware
+11. category_service.dart + business_type_helper.dart: bật/tắt module đa ngành
+12. salary_calculation_service.dart: engine tính lương
 
 ---
 
-## 17. Cloud Functions
+## 22. Danh sách màn hình quan trọng theo nghiệp vụ
 
-**File:** `functions/index.js` (1244 lines)
-**Runtime:** Node.js, Firebase Functions v2
-**Region:** asia-southeast1
+### 22.1. Nền tảng
 
-### Functions
+- splash_view
+- login_view
+- home_view
+- shop_selector_view
+- settings_view
 
-| Function | Trigger | Purpose |
-|----------|---------|---------|
-| `syncUserClaims` | onDocumentWritten(`users/{userId}`) | Auto-sync Custom Claims when user doc changes |
-| `refreshMyClaims` | onCall | User self-refreshes their claims |
-| `updateUserRole` | onCall | Change user role (with hierarchy enforcement) |
-| `addUserToShop` | onCall | Assign user to shop with role |
-| `removeUserFromShop` | onCall | Remove user from shop |
-| `getUserClaims` | onCall | Debug: view user's current claims |
-| `notifyNewRepair` | onDocumentCreated(`repairs/{id}`) | FCM push for new repairs |
-| `notifyNewChat` | onDocumentCreated(`chats/{id}`) | FCM multicast to shop members |
-| `notifyStatusChange` | onDocumentUpdated(`repairs/{id}`) | FCM for repair status changes |
-| `createStaffAccount` | onCall | Create Firebase Auth user + Firestore doc with permissions |
-| `cleanupDeletedRepairs` | onSchedule (every 24h) | Opt-in cleanup of soft-deleted repairs |
-| `sendShopNotification` | onCall | Role-based FCM push to shop members |
-| `batchSyncAllClaims` | onCall (super admin, 9min timeout) | Batch sync all user claims |
-| `syncUserClaimsV2` | onCall | Sync single user claims (v2) |
-| `refreshMyClaimsV2` | onCall | Self-refresh claims (v2) |
-| `getMyClaimsV2` | onCall | View current claims with sync status |
-| `cleanupFCMTokens` | onSchedule (weekly Sun 3AM) | Remove old/duplicate FCM tokens |
+### 22.2. Sửa chữa
 
-### Claims Sync Logic
-```
-syncUserClaims trigger:
-1. Read user doc (role, shopId, email)
-2. Check super admin email (admin@huluca.com)
-3. Set Custom Claims: { role, shopId, isSuperAdmin }
-4. Update user doc: { claimsSyncedAt: serverTimestamp }
-```
+- create_repair_order_view
+- order_list_view
+- repair_detail_view
+- repair_partner_view
+- parts_inventory_view
+- warranty_view
 
-### FCM Token Management
-- Tokens stored per-user in Firestore with metadata
-- Weekly cleanup removes tokens >30 days old
-- Deduplication on token refresh
+### 22.3. Bán hàng và kho
 
----
+- create_sale_view
+- sale_list_view
+- sale_detail_view
+- inventory_view
+- smart_stock_in_view
+- import_history_view
+- quick_input_codes_view
 
-## 18. Firebase Configuration
+### 22.4. Tài chính
 
-**File:** `lib/firebase_options.dart`
+- revenue_view
+- expense_view
+- debt_view
+- financial_report_view
+- cash_closing_view
+- bank_installment_report_view
 
-```dart
-// Android only configured — see firebase_options.dart
-// API keys and project IDs are in firebase_options.dart (not committed to docs)
-```
+### 22.5. Nhân sự
 
-**Android config:** `android/app/google-services.json`
+- attendance_view
+- attendance_management_view
+- staff_list_view
+- staff_performance_view
+- hr_salary_settings_view
+- work_schedule_settings_view
 
----
+### 22.6. Hỗ trợ vận hành
 
-## 19. Dependencies
-
-### Core Firebase
-```yaml
-firebase_core: ^3.15.2
-firebase_auth: ^5.3.0
-cloud_firestore: ^5.3.0
-cloud_functions: ^5.3.0
-firebase_messaging: ^15.1.0
-firebase_storage: ^12.4.10
-```
-
-### Local Database
-```yaml
-sqflite: ^2.3.0
-shared_preferences: ^2.2.2
-```
-
-### UI & Charts
-```yaml
-fl_chart: ^0.65.0
-intl: ^0.19.0
-introduction_screen: ^3.1.12
-flutter_slidable: ^3.0.1
-```
-
-### Printing
-```yaml
-print_bluetooth_thermal: ^1.1.1
-esc_pos_printer: ^4.1.0
-pdf: ^3.10.7
-printing: ^5.11.1
-```
-
-### QR & Scanning
-```yaml
-qr_flutter: ^4.1.0
-mobile_scanner: ^5.1.1
-```
-
-### Connectivity & Platform
-```yaml
-connectivity_plus: ^6.0.3
-geolocator: ^13.0.2
-permission_handler: ^11.3.1
-package_info_plus: ^8.0.0
-url_launcher: ^6.2.4
-share_plus: ^9.0.0
-```
-
-### Data & Security
-```yaml
-encrypt: ^5.0.3
-crypto: ^3.0.3
-excel: ^4.0.2
-file_picker: ^8.0.0+1
-```
-
-### Media
-```yaml
-image_picker: ^1.0.7
-flutter_image_compress: ^2.2.0
-gal: ^2.3.0
-flutter_keyboard_visibility: ^6.0.0
-```
-
-### Bluetooth
-```yaml
-flutter_blue_plus: ^1.32.4
-```
-
-### Notifications
-```yaml
-flutter_local_notifications: ^17.1.2
-```
+- advanced_chat_view
+- notifications_view
+- audit_log_view
+- daily_activity_report_view
+- firebase_rw_stats_view
+- firestore_connectivity_test_view
 
 ---
 
-## 20. Multi-Industry Support
+## 23. Event bus và cập nhật UI
 
-### Business Types
-```dart
-enum: electronics | food | fashion | general
-```
+EventBus được dùng để đồng bộ trạng thái giữa nhiều màn hình không phụ thuộc trực tiếp.
 
-### Feature Flags per Business Type
+Một số event điển hình:
 
-| Feature | Electronics | Food | Fashion | General |
-|---------|------------|------|---------|---------|
-| enableRepair | Yes | No | No | No |
-| enableSerial (IMEI) | Yes | No | No | No |
-| enableWarranty | Yes | No | No | No |
-| enableExpiry | No | Yes | No | No |
-| enableBatch | No | Yes | No | No |
-| enableVariants | No | No | Yes | No |
+- repairs_changed
+- sales_changed
+- expenses_changed
+- products_changed
+- debts_changed
+- debt_payments_changed
+- supplier_payments_changed
+- repair_partner_payments_changed
+- users_changed
+- shopChanged
+- dataRefresh
 
-### BusinessTypeHelper + BusinessTerminology
-Dynamic UI terminology that changes based on business type. E.g., product names and labels adapt to the industry context.
-
-### Industry-Specific Views
-- **Food:** `views/food/expiry_management_view.dart` — Expiry tracking, batch management
-- **Fashion:** `views/fashion/variant_management_view.dart` — Size/color variant management
-- **Onboarding:** `views/onboarding/business_type_wizard.dart` — New shop business type selection
+HomeView đăng ký listener cho phần lớn event để tự load lại thống kê.
 
 ---
 
-## 21. Security & Encryption
+## 24. Chất lượng mã nguồn và kiểm thử
 
-### Security Layers
+### 24.1. Analyzer
 
-1. **Firebase Auth** — Email/password authentication
-2. **Custom Claims** — role, shopId, isSuperAdmin in JWT token
-3. **Firestore Rules** — 1081 lines of server-side access control
-4. **AES-256-CBC Encryption** — Client-side encryption of sensitive fields before cloud upload
-5. **PaymentBlocker** — Prevents bypassing unified payment flow
-6. **MoneyValidationService** — Validates all monetary operations
-7. **Audit Logs** — Immutable audit trail (create-only in Firestore rules)
+- Sử dụng flutter_lints
+- include từ package:flutter_lints/flutter.yaml
 
-### Super Admin Protection
-- Hardcoded email: `admin@huluca.com`
-- Identified in: UserService, Firestore Rules, Cloud Functions
-- Has: Full access, shop management, batch claim sync
+### 24.2. Test
 
-### Encryption Details
-- Algorithm: AES-256-CBC
-- Key: SHA256(shopId + masterSecret) = 32 bytes
-- IV: MD5('IV_' + shopId) = 16 bytes
-- Marker: `ENC:` prefix on encrypted values
-- 23 sensitive fields encrypted before cloud storage
-- Auto-detect on decryption (handles mixed encrypted/plain data)
+- Thư mục test có nhiều nhóm test nghiệp vụ: tài chính, đồng bộ, model, QR, đa ngành, salary
+- Có test scenario dạng markdown cho mô tả use case
+- Đây là lớp bảo vệ regression quan trọng trước release
 
 ---
 
-## 22. Sync Architecture
+## 25. Build, chạy và deploy
 
-### Data Flow
+### 25.1. App Flutter
 
-```
-+-----------+     +----------------+     +-----------+
-|  SQLite   | <-> | SyncService    | <-> | Firestore |
-| (offline) |     | SyncOrchest.   |     |  (cloud)  |
-+-----------+     +----------------+     +-----------+
-     |                   |                     |
-  DBHelper          EventBus             Cloud Functions
-  (7024 lines)      (broadcast)          (17 functions)
-```
+- Cài dependencies: flutter pub get
+- Chạy debug: flutter run
+- Build APK release: flutter build apk --release
+- Chạy test: flutter test
+- Analyze: flutter analyze
 
-### Sync Strategies
+### 25.2. Firebase
 
-1. **Real-time Cloud -> Local** (`SyncService.initRealTimeSync`)
-   - Firestore `snapshots()` listeners on 12+ collections
-   - Conflict resolution via `_shouldAcceptCloudData()`
-   - EventBus notifications for UI refresh
+- Deploy functions: cd functions && npm install && firebase deploy --only functions
+- Deploy rules/indexes/hosting theo firebase.json
 
-2. **Queue-based Local -> Cloud** (`SyncOrchestrator`)
-   - SQLite `sync_queue` table
-   - Auto-sync on network restore
-   - Max 3 retries, then mark failed
-   - Deduplication
+### 25.3. Android build config
 
-3. **Bulk Download** (`SyncService.downloadAllFromCloud`)
-   - Full collection download in batches of 50
-   - Yields to main thread between batches (`Future.delayed(Duration.zero)`)
-   - Used on first login or shop switch
-
-4. **Health Check** (`SyncHealthCheck.runFullCheck`)
-   - Compares local vs cloud record counts
-   - Detects orphan records
-   - Auto-fix capability
-
-### Conflict Resolution Rules
-1. Local record doesn't exist -> Accept cloud data
-2. Local `isSynced == true` -> Accept cloud data (no pending changes)
-3. Local `isSynced == false` -> **REJECT cloud data**, enqueue local for push
-4. This prevents echo-back from cloud overwriting local edits
+- compileSdk: 36
+- targetSdk: 36
+- Java/Kotlin target: 17
+- Release bật minify + shrinkResources
 
 ---
 
-## 23. Navigation & Routing
+## 26. Vận hành và troubleshooting
 
-### App Entry
-```
-SplashView -> AuthGate:
-  +-- No user -> LoginView
-  +-- Authenticated:
-      +-- Super admin -> ShopSelectorView
-      +-- Regular user -> HomeView(role)
-```
+### 26.1. Nhóm lỗi thường gặp trong log
 
-### HomeView Navigation
-- **Bottom Nav:** 6-9 tabs based on permissions and business type
-- **Each tab contains:** Embedded views or navigates via `Navigator.push`
-- **Drawer:** Settings, language, developer info
-- **FAB:** Quick actions (new sale, new repair)
+1. App Check chưa cài provider hoặc token placeholder
+2. Firestore permission-denied do role/claims/shop mismatch
+3. Storage 403 permission denied do sai path hoặc claim shopId
+4. Thiếu Firestore index cho query phức hợp
+5. Snapshot partial gây ghi đè dữ liệu nếu không merge đúng
 
-### Key Navigation Targets from HomeView
-```
-HomeView
-+-- OrderListView (repairs)
-+-- SaleListView (sales)
-+-- CreateRepairOrderView
-+-- CreateSaleView
-+-- InventoryView
-+-- FastInventoryInputView
-+-- FastInventoryCheckView
-+-- SmartStockInView
-+-- PendingStockListView
-+-- SupplierListView
-+-- QuickInputCodesView
-+-- CustomerManagementView
-+-- RevenueView
-+-- ExpenseView
-+-- DebtView
-+-- CashClosingView
-+-- FinancialReportView
-+-- FinancialActivityLogView
-+-- BankInstallmentReportView
-+-- WarrantyView
-+-- StaffListView
-+-- StaffPerformanceView
-+-- AttendanceView
-+-- AttendanceManagementView
-+-- WorkScheduleSettingsView
-+-- HRSalarySettingsView
-+-- AdvancedChatView
-+-- QRScanView
-+-- ShopSettingsView
-+-- PrinterSettingsView
-+-- NotificationsView
-+-- NotificationSettingsView
-+-- GlobalSearchView
-+-- SuperAdminView
-+-- AboutDeveloperView
-+-- UserGuideView
-+-- ExpiryManagementView (food)
-+-- VariantManagementView (fashion)
-+-- BusinessTypeWizard (onboarding)
-```
+### 26.2. Checklist debug nhanh
+
+1. Xác nhận user đã có shopId hợp lệ
+2. Kiểm tra claims role/shopId trong token
+3. Kiểm tra rules Firestore/Storage và đường dẫn upload
+4. Kiểm tra sync queue và cờ isSynced
+5. Kiểm tra index theo link Firestore error
+6. Đối chiếu local DB với cloud bằng sync health report
+
+### 26.3. Lưu ý release
+
+- Không bypass PaymentIntentService ở luồng tiền
+- Không viết trực tiếp Firebase từ UI
+- Không làm mất shopId trong dữ liệu mới
+- Bảo toàn backward compatibility cho dữ liệu cũ (legacy rows)
 
 ---
 
-## 24. Permission System
+## 27. Các tài liệu liên quan trong thư mục DOCS
 
-### Role Hierarchy
-```
-superAdmin (admin@huluca.com)  ->  all access
-owner                          ->  full shop access
-manager                        ->  business access, limited finance
-employee                       ->  basic operations, no finance
-technician                     ->  repairs + parts only
-user                           ->  minimal access (default)
-```
+Trong DOCS hiện có nhiều tài liệu phục vụ release/store/vận hành, ví dụ:
 
-### Permission Matrix (defaults)
+- APPSTORE_RELEASE_CHECKLIST.md
+- APPSTORE_METADATA_COPY_PASTE_VI.md
+- RELEASE_1.0.2_STORE_PACKAGE.md
+- RELEASE_NOTES_11.0.1.md
+- UAT_REPORT_APP_CHECK_2026-04-20.md
+- WEB_PRINT_BRIDGE.md
+- SYNC_OBSERVABILITY_PROGRESS.md
 
-| Permission | Owner | Manager | Employee | Technician | User |
-|-----------|-------|---------|----------|------------|------|
-| allowViewSales | Yes | Yes | Yes | No | No |
-| allowViewRepairs | Yes | Yes | Yes | Yes | Yes |
-| allowViewInventory | Yes | Yes | Yes | No | No |
-| allowViewParts | Yes | Yes | Yes | Yes | Yes |
-| allowViewSuppliers | Yes | Yes | Yes | No | No |
-| allowViewCustomers | Yes | Yes | Yes | Yes | Yes |
-| allowViewPurchaseOrders | Yes | Yes | Yes | No | No |
-| allowCreatePurchaseOrders | Yes | Yes | No | No | No |
-| allowViewWarranty | Yes | Yes | Yes | Yes | No |
-| allowViewChat | Yes | Yes | Yes | Yes | Yes |
-| allowViewAttendance | Yes | Yes | Yes | Yes | Yes |
-| allowViewPrinter | Yes | Yes | Yes | Yes | Yes |
-| allowViewRevenue | Yes | No | No | No | No |
-| allowViewExpenses | Yes | No | No | No | No |
-| allowViewDebts | Yes | No | No | No | No |
-| allowViewCostPrice | Yes | Yes | No | No | No |
-| allowViewSettings | Yes | Yes | No | No | No |
-| allowManageStaff | Yes | Yes | No | No | No |
-
-### Lock Mechanisms
-
-1. **Owner-level:** Per-user permission overrides stored in Firestore user doc
-2. **Super Admin-level:** Shop-wide flags:
-   - `appLocked` -> Lock entire shop
-   - `adminFinanceLocked` -> Lock finance for managers
-   - `staffSalesLocked` -> Lock sales for staff
-   - `staffInventoryLocked` -> Lock inventory for staff
-   - `staffDebtLocked` -> Lock debts for staff
-   - `staffSettingsLocked` -> Lock settings for staff/managers
-
-### Lock Source Tracking
-- `lockedByAdmin` -> List of permissions locked by super admin
-- `lockedByOwner` -> List of permissions overridden by shop owner
-- UI shows different messages based on lock source
+Khuyến nghị dùng file này làm tài liệu tổng hợp gốc, còn các file trên là tài liệu chuyên đề.
 
 ---
 
-## 25. Payment System
+## 28. Onboarding cho kỹ sư mới (đọc theo thứ tự)
 
-### Unified Payment Flow
-
-```
-Business Module -> Create PaymentIntent -> PaymentIntentService
-                                                |
-                                          Validation
-                                     (MoneyValidationService)
-                                                |
-                                          Execution
-                                     (MoneyTransactionService)
-                                                |
-                                          Record Activity
-                                    (FinancialActivityService)
-                                                |
-                                         Sync to cloud
-```
-
-### PaymentBlocker Guard
-```dart
-// In any module that might bypass payments:
-PaymentBlocker.block(); // Throws PaymentBlockedError
-
-// Only PaymentIntentService can execute payments
-```
-
-### Payment Intent Types (17)
-```
-supplierPayment, customerDebtPayment, repairPayment, salePayment,
-expensePayment, salaryPayment, repairPartnerPayment, supplierDebtPayment,
-refund, inventoryPurchase, cashAdjustment, transferBetweenAccounts,
-otherIncome, otherExpense, settlementPayment, debtCollection, staffAdvance
-```
-
-### Atomic Transactions
-1. **Debt Payment:** `FirestoreService.executeDebtPaymentTransaction()` — Prevents race conditions
-2. **Sale:** `FirestoreService.executeSaleTransaction()` — Prevents overselling with stock check
+1. Đọc toàn bộ file này
+2. Đọc main.dart để hiểu bootstrap/auth gate
+3. Đọc user_service.dart + firestore_service.dart
+4. Đọc db_helper.dart + sync_service.dart + sync_orchestrator.dart
+5. Đọc repair_model.dart + sale_order_model.dart + product_model.dart
+6. Chạy app local với dữ liệu test
+7. Chạy test + analyze trước khi sửa tính năng
 
 ---
 
-## Appendix: File Counts
+## 29. Checklist bàn giao kỹ thuật
 
-| Directory | Files | Lines (approx) |
-|-----------|-------|----------------|
-| lib/models/ | 31 | ~4,000 |
-| lib/services/ | 43 | ~25,000 |
-| lib/views/ | 80+ | ~40,000 |
-| lib/widgets/ | 28 | ~8,000 |
-| lib/data/ | 1 | 7,024 |
-| lib/utils/ | 12 | ~2,000 |
-| lib/theme/ | 4 | ~1,100 |
-| lib/constants/ | 3 | ~970 |
-| lib/core/ | 3+ | ~300 |
-| lib/l10n/ | 5 | ~5,000 |
-| lib/controllers/ | 1 | ~200 |
-| functions/ | 3 | ~1,300 |
-| Firestore rules | 1 | 1,081 |
-| **Total** | **~215** | **~95,000** |
+1. Xác nhận phiên bản app và release notes
+2. Xác nhận rules/indexes/functions đã deploy đúng môi trường
+3. Xác nhận login role chính (owner/manager/employee/technician/super admin)
+4. Xác nhận flow sửa chữa, bán hàng, công nợ, chốt quỹ, chat hoạt động
+5. Xác nhận sync 2 chiều local-cloud không có bản ghi pending kéo dài
+6. Xác nhận push notifications và deep-link hoạt động
+7. Xác nhận in ấn và scanner trên thiết bị mục tiêu
+8. Đính kèm tài liệu DOCS chuyên đề cho team vận hành
 
 ---
 
-*Documentation generated from comprehensive codebase analysis. Last updated: 2025.*
+## 30. Kết luận
 
+Quanlyshop là hệ thống quản trị cửa hàng quy mô lớn, thiên về offline-first, đa vai trò, đa nghiệp vụ và tích hợp sâu với Firebase.
+
+Để giữ hệ thống ổn định trong production, các nguyên tắc sống còn là:
+
+1. Service-first, không truy cập Firebase trực tiếp từ UI.
+2. Luôn giữ nhất quán shopId và phân quyền theo role/claims.
+3. Đồng bộ có kiểm soát timeout/retry, tránh ghi đè dữ liệu bởi snapshot partial.
+4. Duy trì test nghiệp vụ và kiểm tra log runtime trước khi release.
+
+Tài liệu này là điểm vào duy nhất để nắm toàn cảnh kiến trúc và vận hành dự án.
