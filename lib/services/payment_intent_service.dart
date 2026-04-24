@@ -716,8 +716,19 @@ class PaymentIntentService {
           });
           
           // Update debt paidAmount
+          int? localDebtId;
           if (debtId is int) {
-            await _db.updateDebtPaid(debtId, intent.amount);
+            localDebtId = debtId;
+          } else if (debtId is num) {
+            localDebtId = debtId.toInt();
+          } else if (debtId is String) {
+            localDebtId = int.tryParse(debtId);
+          }
+          if (localDebtId == null && debtFirestoreId is String && debtFirestoreId.isNotEmpty) {
+            localDebtId = await _db.getDebtIdByFirestoreId(debtFirestoreId);
+          }
+          if (localDebtId != null) {
+            await _db.updateDebtPaid(localDebtId, intent.amount);
           }
         }
         break;
@@ -786,8 +797,19 @@ class PaymentIntentService {
           });
           
           // Update debt paidAmount
+          int? localDebtId;
           if (debtId is int) {
-            await _db.updateDebtPaid(debtId, intent.amount);
+            localDebtId = debtId;
+          } else if (debtId is num) {
+            localDebtId = debtId.toInt();
+          } else if (debtId is String) {
+            localDebtId = int.tryParse(debtId);
+          }
+          if (localDebtId == null && debtFirestoreId is String && debtFirestoreId.isNotEmpty) {
+            localDebtId = await _db.getDebtIdByFirestoreId(debtFirestoreId);
+          }
+          if (localDebtId != null) {
+            await _db.updateDebtPaid(localDebtId, intent.amount);
           }
         }
         break;

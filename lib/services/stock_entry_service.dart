@@ -13,6 +13,7 @@ import '../services/financial_activity_service.dart';
 import '../services/import_order_service.dart';
 import '../services/sync_service.dart';
 import '../data/db_helper.dart';
+import '../utils/money_utils.dart';
 
 /// Service quản lý phiếu nhập kho (Staging Inventory)
 class StockEntryService {
@@ -723,6 +724,9 @@ class StockEntryService {
 
         try {
           final db = DBHelper();
+          final itemSummary = entry.items
+              .map((i) => '${i.name} x${i.quantity}')
+              .join(', ');
 
           if (entry.paymentMethod == 'CÔNG NỢ') {
             // === TẠO DEBT TRONG LOCAL DB ===
@@ -745,8 +749,9 @@ class StockEntryService {
               'totalAmount': totalCost,
               'paidAmount': 0,
               'status': 'ACTIVE', // Sử dụng ACTIVE để match với các debt khác
-              'note':
-                  'Nhập kho: ${entry.totalQuantity} sản phẩm từ $normalizedSupplierName',
+              'note': itemSummary.isNotEmpty
+                  ? 'Nợ nhập $itemSummary - ${MoneyUtils.formatCurrency(totalCost)}đ'
+                  : 'Nợ nhập ${entry.totalQuantity} sản phẩm - ${MoneyUtils.formatCurrency(totalCost)}đ',
               'linkedId': entryId,
               'linkedType': 'stock_entry',
               'createdAt': now,

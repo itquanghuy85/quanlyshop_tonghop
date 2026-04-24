@@ -2051,14 +2051,19 @@ class SyncService {
         role: role,
         isSuperAdmin: isSuperAdmin,
       )) {
+        _subscriptionStatus['product_categories'] = false;
+        _collectionRefreshers.remove('product_categories');
         debugPrint(
           '⏭️ Skipping product_categories subscription due to permissions',
         );
       } else {
         final currentShopId = shopId;
         if (currentShopId == null || currentShopId.isEmpty) {
+          _subscriptionStatus['product_categories'] = false;
+          _collectionRefreshers.remove('product_categories');
           debugPrint('⚠️ Skipping product_categories polling: missing shopId');
         } else {
+          _subscriptionStatus['product_categories'] = true;
           bool isPolling = false;
 
           Future<void> pollProductCategories({

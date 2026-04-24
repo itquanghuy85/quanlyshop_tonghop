@@ -519,7 +519,8 @@ class _DebtViewState extends State<DebtView>
                   referenceType: 'debt',
                   personName: debt['personName'],
                   personPhone: debt['phone'],
-                  idempotencyKey: debt['firestoreId'],
+                  idempotencyKey:
+                      '${debt['firestoreId']}_${DateTime.now().millisecondsSinceEpoch}',
                   metadata: {
                     'debtId': debt['id'],
                     'debtFirestoreId': debt['firestoreId'],

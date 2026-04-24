@@ -120,8 +120,6 @@ class SalesReturnService {
           createdBy: userName,
         );
       } else {
-        // For debt-based sales, reduce the debt amount instead
-        await _reduceDebt(salesOrderFirestoreId, totalReturnAmount);
         await FinancialActivityService.logCustomActivity(
           activityType: 'REFUND',
           amount: totalReturnAmount,
@@ -137,6 +135,10 @@ class SalesReturnService {
           createdBy: userName,
         );
       }
+
+      // Always attempt debt reduction for the linked sale.
+      // If no debt exists, _reduceDebt will no-op safely.
+      await _reduceDebt(salesOrderFirestoreId, totalReturnAmount);
 
       // 4. Sync to Firestore
       await _syncReturnToFirestore(returnHeader, items, returnId);
