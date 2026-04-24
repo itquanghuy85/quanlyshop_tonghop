@@ -1974,7 +1974,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _saveData() async {
-    if (!_ensureCanEditRepairOrder()) return;
+    // Cho phép: manager/owner/admin (_canEditRepairOrder) HOẶC nhân viên/KTV có quyền sửa đơn (_canEditRepairCharge hoặc _canEditRepairNotes)
+    if (!_canEditRepairOrder && !_canEditRepairCharge && !_canEditRepairNotes) {
+      _ensureCanEditRepairOrder();
+      return;
+    }
     setState(() => _isUpdating = true);
     HapticFeedback.mediumImpact();
     try {
