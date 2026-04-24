@@ -2097,7 +2097,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   /// LƯU Ý: Mỗi lần chọn và xác nhận sẽ THÊM vào đơn và TRỪ KHO ngay lập tức
   /// [skipWarning] = true khi gọi từ flow đổi PT (đã xác nhận ở bước trước)
   Future<void> _selectPartsFromInventory({bool skipWarning = false}) async {
-    if (!_ensureCanEditRepairOrder()) return;
+    if (!_canEditRepairNotes && !_canEditRepairOrder) {
+      _ensureCanEditRepairOrder();
+      return;
+    }
     // Hiển thị cảnh báo nếu đã có phụ tùng
     if (!skipWarning && r.partsUsed.isNotEmpty) {
       final proceed = await showDialog<bool>(

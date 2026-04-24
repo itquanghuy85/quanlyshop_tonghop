@@ -1190,13 +1190,14 @@ service cloud.firestore {
       allow read: if isAuth() && docInMyShop();
 
       allow create: if isAuth() &&
-                       isEmployee() &&
-                       newDocInMyShop() &&
-                       has(['deviceName', 'shopId']);
+               isStaff() &&
+               newDocInMyShop() &&
+               has(['deviceName', 'shopId']);
 
       allow update: if isAuth() &&
-                       docInMyShop() &&
-                       shopIdLocked();
+               isStaff() &&
+               docInMyShop() &&
+               shopIdLocked();
 
       allow delete: if isAuth() && docInMyShop() && isManager();
     }

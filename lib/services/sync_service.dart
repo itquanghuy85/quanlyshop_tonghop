@@ -69,6 +69,7 @@ class SyncService {
       case 'repair_parts':
       case 'repair_partners':
       case 'partner_repair_history':
+      case 'salvage_phones':
         return _hasPermission(permissions, 'allowViewRepairs');
       case 'sales':
       case 'customers':
@@ -83,7 +84,6 @@ class SyncService {
       case 'supplier_product_prices':
       case 'import_orders':
       case 'import_order_items':
-      case 'salvage_phones':
         return _hasPermission(permissions, 'allowViewInventory');
       case 'suppliers':
         return _hasPermission(permissions, 'allowViewSuppliers');

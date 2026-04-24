@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -316,6 +317,13 @@ class FirebaseRwStatsService {
       );
     } catch (e) {
       return _CloudCountResult(count: null, error: e.toString());
+    }
+    } on PlatformException catch (e) {
+      // count() aggregation trên subcollection có thể không được hỗ trợ trên một số platform
+      return _CloudCountResult(
+        count: null,
+        error: 'SKIPPED: count() không hỗ trợ trên platform này (${e.code})',
+      );
     }
   }
 }
