@@ -456,15 +456,33 @@ class SyncOrchestrator {
   }
 
   /// Lấy danh sách pending items
+  /// Exponential backoff delay in ms for a given retryCount.
+  /// retryCount 0 → 2s, 1 → 4s, 2 → 8s ... max 5min.
+  static int _backoffMs(int retryCount) {
+    const maxMs = 300000; // 5 phút
+    final ms = (1 << retryCount.clamp(0, 8)) * 2000;
+    return ms > maxMs ? maxMs : ms;
+  }
+
   Future<List<SyncQueueItem>> getPendingItems({int limit = 50}) async {
     final db = await _db.database;
+    // Fetch thêm để filter theo backoff
     final results = await db.query(
       'sync_queue',
       where: "status IN ('pending', 'processing')",
       orderBy: 'createdAt ASC',
-      limit: limit,
+      limit: limit * 3,
     );
-    return results.map((r) => SyncQueueItem.fromMap(r)).toList();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return results
+        .map((r) => SyncQueueItem.fromMap(r))
+        .where((item) {
+          if (item.retryCount <= 0) return true;
+          final readyAt = item.createdAt + _backoffMs(item.retryCount);
+          return now >= readyAt;
+        })
+        .take(limit)
+        .toList();
   }
 
   /// Sync tất cả pending items
@@ -767,7 +785,13 @@ class SyncOrchestrator {
       // Reset to pending for retry
       await db.update(
         'sync_queue',
-        {'status': 'pending', 'lastError': error, 'retryCount': newRetryCount},
+          {
+            'status': 'pending',
+            'lastError': error,
+            'retryCount': newRetryCount,
+            // Reset createdAt agar backoff dihitung dari waktu failure
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+          },
         where: 'id = ?',
         whereArgs: [item.id],
       );

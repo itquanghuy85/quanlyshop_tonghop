@@ -220,17 +220,17 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
 
   void _applyFilter() {
     var filtered = _parts.where((p) {
-      // Lọc theo search
+      // Lọc theo search (hỗ trợ có dấu và không dấu)
       final matchSearch =
           _searchQuery.isEmpty ||
-          (p['partName']?.toString().toUpperCase().contains(
-                _searchQuery.toUpperCase(),
-              ) ??
-              false) ||
-          (p['compatibleModels']?.toString().toUpperCase().contains(
-                _searchQuery.toUpperCase(),
-              ) ??
-              false);
+          VietnameseUtils.containsVietnamese(
+            p['partName']?.toString() ?? '',
+            _searchQuery,
+          ) ||
+          VietnameseUtils.containsVietnamese(
+            p['compatibleModels']?.toString() ?? '',
+            _searchQuery,
+          );
 
       // Lọc hết hàng
       final qty = p['quantity'] as int? ?? 0;
@@ -2527,14 +2527,14 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
         .where(
           (p) => _searchQuery.isEmpty
               ? true
-              : (p['partName']?.toString().toUpperCase().contains(
-                          _searchQuery.toUpperCase(),
-                        ) ??
-                        false) ||
-                    (p['compatibleModels']?.toString().toUpperCase().contains(
-                          _searchQuery.toUpperCase(),
-                        ) ??
-                        false),
+              : VietnameseUtils.containsVietnamese(
+                    p['partName']?.toString() ?? '',
+                    _searchQuery,
+                  ) ||
+                  VietnameseUtils.containsVietnamese(
+                    p['compatibleModels']?.toString() ?? '',
+                    _searchQuery,
+                  ),
         )
         .toList();
   }

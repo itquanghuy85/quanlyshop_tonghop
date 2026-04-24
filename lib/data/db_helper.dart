@@ -17,6 +17,18 @@ import '../models/leave_request_model.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
 
+/// Kết quả của [DBHelper.deductPartsAndUpdateRepairAtomic].
+class AtomicPartsResult {
+  final bool success;
+  final String? message;
+  final List<Map<String, dynamic>> partsToSync;
+  const AtomicPartsResult({
+    required this.success,
+    this.message,
+    this.partsToSync = const [],
+  });
+}
+
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
   static Database? _database;
@@ -4549,6 +4561,130 @@ return db;
       return true;
     }
     return false;
+  }
+
+  /// Trừ kho và cập nhật đơn sửa trong MỘT SQLite transaction duy nhất.
+  /// Đảm bảo tính nguyên tử: nếu bất kỳ bước nào thất bại, toàn bộ sẽ rollback.
+  ///
+  /// [parts] – danh sách part info, mỗi phần tử cần: id (int), source (String), qty (int), name (String)
+  /// [repair] – đơn sửa đã được cập nhật partsUsed/cost trong bộ nhớ, chưa ghi DB
+  ///
+  /// Trả về [AtomicPartsResult] với success flag và danh sách part cần sync Firestore sau khi commit.
+  Future<AtomicPartsResult> deductPartsAndUpdateRepairAtomic({
+    required List<Map<String, dynamic>> parts,
+    required Repair repair,
+  }) async {
+    final db = await database;
+    final shopId = await _getScopedShopId('deductPartsAndUpdateRepairAtomic');
+    if (shopId == null) {
+      return AtomicPartsResult(
+        success: false,
+        message: 'Không xác định được shop',
+      );
+    }
+
+    // Chuẩn bị dữ liệu repair ngoài transaction (PRAGMA check, column validation)
+    Map<String, dynamic> repairData = Map<String, dynamic>.from(repair.toMap());
+    repairData.remove('id');
+    final cols = await db.rawQuery('PRAGMA table_info(repairs)');
+    final colNames = cols.map((c) => c['name'] as String).toSet();
+    repairData.removeWhere((k, _) => !colNames.contains(k));
+
+    final List<Map<String, dynamic>> partsToSync = [];
+    String? failMessage;
+
+    try {
+      await db.transaction((txn) async {
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        for (final part in parts) {
+          final source = part['source'] as String;
+          final partId = part['id'] as int;
+          final qty = part['qty'] as int;
+          final partName = part['name'] ?? 'linh kiện';
+
+          if (source == 'repair_parts') {
+            final rows = await txn.query(
+              'repair_parts',
+              where: 'id = ?',
+              whereArgs: [partId],
+              limit: 1,
+            );
+            if (rows.isEmpty) {
+              failMessage = 'Không tìm thấy linh kiện "$partName"';
+              throw Exception(failMessage);
+            }
+            final currentQty = rows.first['quantity'] as int? ?? 0;
+            if (currentQty < qty) {
+              failMessage = 'Không đủ số lượng: $partName (cần $qty, còn $currentQty)';
+              throw Exception(failMessage);
+            }
+            final newQty = currentQty - qty;
+            await txn.update(
+              'repair_parts',
+              {'quantity': newQty, 'updatedAt': now, 'isSynced': 0},
+              where: 'id = ?',
+              whereArgs: [partId],
+            );
+            partsToSync.add({
+              ...part,
+              'newQty': newQty,
+              'firestoreId': rows.first['firestoreId'],
+              'collection': 'repair_parts',
+            });
+          } else if (source == 'products') {
+            final rows = await txn.query(
+              'products',
+              where: 'id = ? AND shopId = ?',
+              whereArgs: [partId, shopId],
+              limit: 1,
+            );
+            if (rows.isEmpty) {
+              failMessage = 'Không tìm thấy sản phẩm "$partName"';
+              throw Exception(failMessage);
+            }
+            final currentQty = rows.first['quantity'] as int? ?? 0;
+            if (currentQty < qty) {
+              failMessage = 'Không đủ số lượng: $partName (cần $qty, còn $currentQty)';
+              throw Exception(failMessage);
+            }
+            final newQty = currentQty - qty;
+            await txn.rawUpdate(
+              'UPDATE products SET quantity = ?, updatedAt = ?, isSynced = 0 WHERE id = ? AND shopId = ?',
+              [newQty, now, partId, shopId],
+            );
+            if (newQty <= 0) {
+              await txn.rawUpdate(
+                'UPDATE products SET status = 0 WHERE id = ? AND shopId = ?',
+                [partId, shopId],
+              );
+            }
+            partsToSync.add({
+              ...part,
+              'newQty': newQty,
+              'firestoreId': rows.first['firestoreId'],
+              'collection': 'products',
+            });
+          }
+        }
+
+        // Cập nhật đơn sửa trong cùng transaction
+        await txn.update(
+          'repairs',
+          repairData,
+          where: 'id = ?',
+          whereArgs: [repair.id],
+        );
+      });
+
+      return AtomicPartsResult(success: true, partsToSync: partsToSync);
+    } catch (e) {
+      debugPrint('❌ deductPartsAndUpdateRepairAtomic rollback: $e');
+      return AtomicPartsResult(
+        success: false,
+        message: failMessage ?? 'Lỗi khi trừ kho: $e',
+      );
+    }
   }
 
   /// Khôi phục số lượng linh kiện theo tên (tìm trong cả repair_parts và products type=LINH_KIEN)

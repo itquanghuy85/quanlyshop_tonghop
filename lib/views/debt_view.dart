@@ -349,11 +349,35 @@ class _DebtViewState extends State<DebtView>
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2962FF),
               ),
-              child: Text("TRẢ NỢ", style: AppTextStyles.button),
+              child: Text("THANH TOÁN NỢ", style: AppTextStyles.button),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // Widget hiển thị giá trị trong dialog thanh toán nợ
+  Widget _miniPayValue(String label, int amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: AppTextStyles.overlineSize,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        Text(
+          '${MoneyUtils.formatCurrency(amount)}đ',
+          style: TextStyle(
+            fontSize: AppTextStyles.caption.fontSize,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 
@@ -371,6 +395,12 @@ class _DebtViewState extends State<DebtView>
       return;
     }
 
+    final totalAmount = debt['totalAmount'] as int? ?? 0;
+    final paidAmount = debt['paidAmount'] as int? ?? 0;
+    final remainingAmount = totalAmount - paidAmount;
+    final isCustomerDebtForTitle =
+        (debt['type'] ?? 'CUSTOMER_OWES') == 'CUSTOMER_OWES';
+
     final formKey = GlobalKey<FormState>();
     final payC = TextEditingController();
     String payMethod = 'TIỀN MẶT';
@@ -379,23 +409,39 @@ class _DebtViewState extends State<DebtView>
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setS) => AlertDialog(
-          title: const Text("TRẢ NỢ"),
+          title: Text(isCustomerDebtForTitle ? "THU NỢ KHÁCH" : "THANH TOÁN NỢ"),
           content: Form(
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Thông tin tổng quan nợ
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _miniPayValue('Tổng nợ', totalAmount, Colors.grey.shade700),
+                      _miniPayValue('Đã trả', paidAmount, Colors.green),
+                      _miniPayValue('Còn lại', remainingAmount, Colors.red),
+                    ],
+                  ),
+                ),
                 CurrencyTextField(
                   controller: payC,
-                  label: "SỐ TIỀN THU (VNĐ)",
+                  label: isCustomerDebtForTitle ? "SỐ TIỀN THU (VNĐ)" : "SỐ TIỀN THANH TOÁN (VNĐ)",
                   validator: (v) => MoneyUtils.validateAmount(
                     v ?? '',
                     min: 1,
-                    max:
-                        (debt['totalAmount'] as int? ?? 0) -
-                        (debt['paidAmount'] as int? ?? 0),
-                    fieldName: 'Số tiền thu',
+                    max: remainingAmount,
+                    fieldName: isCustomerDebtForTitle ? 'Số tiền thu' : 'Số tiền thanh toán',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -460,7 +506,7 @@ class _DebtViewState extends State<DebtView>
                   paymentMethod: method,
                   description: isCustomerDebt
                       ? 'Thu nợ khách: ${debt['personName'] ?? 'N/A'}'
-                      : 'Trả nợ NCC: ${debt['personName'] ?? 'N/A'}',
+                      : 'Thanh toán nợ NCC: ${debt['personName'] ?? 'N/A'}',
                   executedBy: user?.displayName ?? user?.email ?? 'unknown',
                   referenceId: debt['firestoreId'],
                   referenceType: 'debt',
@@ -482,7 +528,7 @@ class _DebtViewState extends State<DebtView>
                     entityType: 'DEBT',
                     entityId: debt['firestoreId'] ?? '',
                     summary:
-                        '${isCustomerDebt ? "Thu nợ" : "Trả nợ"} ${debt['personName']}: ${MoneyUtils.formatCurrency(payAmount)}đ',
+                        '${isCustomerDebt ? "Thu nợ" : "Thanh toán nợ"} ${debt['personName']}: ${MoneyUtils.formatCurrency(payAmount)}đ',
                   );
                   EventBus().emit('debts_changed');
                   if (mounted) {
@@ -1500,7 +1546,7 @@ class _DebtViewState extends State<DebtView>
                       size: 14,
                     ),
                     label: Text(
-                      isCustomerDebt ? 'Thu nợ' : 'Trả nợ',
+                      isCustomerDebt ? 'Thu nợ' : 'Thanh toán nợ',
                       style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
                     ),
                     style: ElevatedButton.styleFrom(

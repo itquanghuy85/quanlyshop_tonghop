@@ -55,6 +55,7 @@ class _AttendanceViewState extends State<AttendanceView>
   double? _shopLatitude;
   double? _shopLongitude;
   bool _locationRequired = false;
+  bool _requireLocationForAttendance = false; // Bắt buộc cấu hình vị trí mới được chấm công
 
   @override
   void initState() {
@@ -145,6 +146,8 @@ class _AttendanceViewState extends State<AttendanceView>
         _shopLatitude = data['latitude']?.toDouble();
         _shopLongitude = data['longitude']?.toDouble();
         _locationRequired = _shopLatitude != null && _shopLongitude != null;
+        _requireLocationForAttendance =
+            data['requireLocationForAttendance'] == true;
       }
     } catch (e) {
       debugPrint('Error loading shop location: $e');
@@ -241,6 +244,15 @@ class _AttendanceViewState extends State<AttendanceView>
   }
 
   Future<void> _actionCheck(bool isIn) async {
+    // Nếu cửa hàng bật "bắt buộc vị trí" nhưng chưa cấu hình tọa độ → chặn chấm công
+    if (_requireLocationForAttendance && !_locationRequired) {
+      NotificationService.showSnackBar(
+        '⚠️ Quản trị viên đã bật yêu cầu vị trí nhưng chưa cấu hình tọa độ shop. '
+        'Vui lòng vào Cài đặt → Vị trí để thiết lập trước khi chấm công.',
+        color: Colors.orange,
+      );
+      return;
+    }
     // Check location first if required
     if (_locationRequired) {
       final locationOk = await _verifyLocation();

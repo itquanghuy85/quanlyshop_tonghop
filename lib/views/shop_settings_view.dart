@@ -47,6 +47,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   String _shopLogoUrl = '';
   double? _shopLatitude;
   double? _shopLongitude;
+  bool _requireLocationForAttendance = false;
   File? _selectedLogo;
 
   // Multi-Industry: Shop Settings
@@ -152,6 +153,8 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
             _shopLogoUrl = safeData['logoUrl'] ?? '';
             _shopLatitude = (safeData['latitude'] as num?)?.toDouble();
             _shopLongitude = (safeData['longitude'] as num?)?.toDouble();
+            _requireLocationForAttendance =
+                safeData['requireLocationForAttendance'] == true;
 
             _nameController.text = _shopName;
             _addressController.text = _shopAddress;
@@ -478,6 +481,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         'logoUrl': logoUrl,
         'latitude': _shopLatitude,
         'longitude': _shopLongitude,
+        'requireLocationForAttendance': _requireLocationForAttendance,
         'updatedAt': FieldValue.serverTimestamp(),
         'updatedBy': currentUser?.uid,
       };
@@ -849,55 +853,58 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     final hasLocation = _shopLatitude != null && _shopLongitude != null;
     return Card(
       margin: EdgeInsets.zero,
-      child: ListTile(
-        dense: true,
-        leading: Icon(
-          hasLocation ? Icons.location_on : Icons.location_off,
-          color: hasLocation ? Colors.green : Colors.orange,
-        ),
-        title: Text(
-          hasLocation ? 'Vị trí chấm công đã cài' : 'Chưa cài vị trí chấm công',
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-        subtitle: hasLocation
-            ? Text(
-                '${_shopLatitude!.toStringAsFixed(4)}, ${_shopLongitude!.toStringAsFixed(4)}',
-                style: const TextStyle(fontSize: 13),
-              )
-            : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (hasLocation)
-              IconButton(
-                icon: const Icon(Icons.map_outlined, size: 20, color: Colors.blue),
-                onPressed: _openShopMap,
-                tooltip: 'Mở bản đồ OSM',
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(8),
-              ),
-            if (hasLocation)
-              IconButton(
-                icon: const Icon(Icons.alt_route, size: 20, color: Colors.teal),
-                onPressed: _openDirectionsToShop,
-                tooltip: 'Chỉ đường miễn phí tới shop',
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(8),
-              ),
-            if (hasLocation)
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
-                onPressed: _clearLocation,
-                tooltip: 'Xóa vị trí',
-                constraints: const BoxConstraints(),
-                padding: const EdgeInsets.all(8),
-              ),
-            IconButton(
-              icon: Icon(
-                Icons.my_location,
-                size: 20,
-                color: hasLocation ? Colors.blue : Colors.green,
-              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            dense: true,
+            leading: Icon(
+              hasLocation ? Icons.location_on : Icons.location_off,
+              color: hasLocation ? Colors.green : Colors.orange,
+            ),
+            title: Text(
+              hasLocation ? 'Vị trí chấm công đã cài' : 'Chưa cài vị trí chấm công',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            subtitle: hasLocation
+                ? Text(
+                    '${_shopLatitude!.toStringAsFixed(4)}, ${_shopLongitude!.toStringAsFixed(4)}',
+                    style: const TextStyle(fontSize: 13),
+                  )
+                : null,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasLocation)
+                  IconButton(
+                    icon: const Icon(Icons.map_outlined, size: 20, color: Colors.blue),
+                    onPressed: _openShopMap,
+                    tooltip: 'Mở bản đồ OSM',
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
+                  ),
+                if (hasLocation)
+                  IconButton(
+                    icon: const Icon(Icons.alt_route, size: 20, color: Colors.teal),
+                    onPressed: _openDirectionsToShop,
+                    tooltip: 'Chỉ đường miễn phí tới shop',
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
+                  ),
+                if (hasLocation)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                    onPressed: _clearLocation,
+                    tooltip: 'Xóa vị trí',
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(8),
+                  ),
+                IconButton(
+                  icon: Icon(
+                    Icons.my_location,
+                    size: 20,
+                    color: hasLocation ? Colors.blue : Colors.green,
+                  ),
               onPressed: _setCurrentLocation,
               tooltip: hasLocation ? 'Cập nhật vị trí' : 'Cài vị trí',
               constraints: const BoxConstraints(),
@@ -905,6 +912,27 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
             ),
           ],
         ),
+      ),
+      const Divider(height: 1),
+      SwitchListTile(
+        dense: true,
+        value: _requireLocationForAttendance,
+        onChanged: (v) => setState(() => _requireLocationForAttendance = v),
+        title: const Text(
+          'Bắt buộc vị trí khi chấm công',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        subtitle: const Text(
+          'Nhân viên phải ở trong phạm vi 100m mới được chấm công',
+          style: TextStyle(fontSize: 12),
+        ),
+        secondary: Icon(
+          Icons.location_searching,
+          color: _requireLocationForAttendance ? Colors.green : Colors.grey,
+          size: 20,
+        ),
+      ),
+        ],
       ),
     );
   }

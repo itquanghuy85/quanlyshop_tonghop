@@ -811,7 +811,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       return;
     }
 
-    final currentStaffName = await _resolveCurrentStaffName(fallback: 'NV');
+      // FIX C-03: Set lock TRƯỚC await đầu tiên cho status 1/2/3.
+      // Status 4 delegate sang _approveDelivery/_submitForDeliveryApproval có guard riêng.
+      if (newStatus != 4) _isUpdating = true;
+
+      final currentStaffName = await _resolveCurrentStaffName(fallback: 'NV');
 
     final repairsBefore = await db.getAllRepairs();
     debugPrint('Repairs count before update: ${repairsBefore.length}');
@@ -2198,27 +2202,50 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
       // Tất cả linh kiện đều từ kho → không cần dialog thanh toán
       if (allFromStock) {
-        // Chỉ trừ kho và cập nhật partsUsed, không tạo debt/PaymentIntent
-        for (var partInfo in selectedPartsInfo) {
-          final success = await db.deductPartQuantityUnified(
-            partInfo['id'] as int,
-            partInfo['source'] as String,
-            partInfo['qty'] as int,
-          );
-          if (!success) {
-            debugPrint('⚠️ Failed to deduct part: ${partInfo['name']}');
-          }
-        }
-
-        // Cập nhật partsUsed và cost cho repair
-        final currentParts = r.partsUsed.isEmpty ? [] : r.partsUsed.split(', ');
+        // Cập nhật repair object trong bộ nhớ trước
+        final currentParts =
+            r.partsUsed.isEmpty ? <String>[] : r.partsUsed.split(', ');
         final newPartsList = [...currentParts, ...usedParts];
-
-        // Update repair object và save
         r.partsUsed = newPartsList.join(', ');
         r.cost = r.cost + totalCost;
         r.isSynced = false;
-        await db.updateRepair(r);
+
+        // === ATOMIC: trừ kho + cập nhật đơn sửa trong một SQLite transaction ===
+        final atomicResult = await db.deductPartsAndUpdateRepairAtomic(
+          parts: selectedPartsInfo,
+          repair: r,
+        );
+
+        if (!atomicResult.success) {
+          // Rollback repair object về trạng thái cũ
+          r.partsUsed = currentParts.join(', ');
+          r.cost = r.cost - totalCost;
+          r.isSynced = true;
+          NotificationService.showSnackBar(
+            '❌ ${atomicResult.message ?? "Không thể trừ kho"}',
+            color: Colors.red,
+          );
+          return;
+        }
+
+        // Sync Firestore cho từng part (best-effort, sau khi transaction SQLite đã commit)
+        for (final p in atomicResult.partsToSync) {
+          final fid = p['firestoreId'] as String?;
+          if (fid == null || fid.isEmpty) continue;
+          final collection = p['collection'] as String;
+          final newQty = p['newQty'] as int;
+          try {
+            await FirebaseFirestore.instance
+                .collection(collection)
+                .doc(fid)
+                .update({
+                  'quantity': newQty,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
+          } catch (e) {
+            debugPrint('⚠️ Sync $collection/$fid failed: $e');
+          }
+        }
 
         if (r.firestoreId != null && r.id != null) {
           await SyncOrchestrator().enqueue(
@@ -2231,7 +2258,6 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           try {
             await SyncOrchestrator().syncAll();
           } catch (_) {}
-          // FIX: Also trigger targeted repair sync for reliability
           // ignore: unawaited_futures
           SyncService.syncRepairData();
         }
@@ -2264,15 +2290,51 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final supplierName =
           paymentResult['supplier'] as String? ?? 'Nhà cung cấp phụ tùng';
 
-      // === TRỪ KHO ===
-      for (var partInfo in selectedPartsInfo) {
-        final success = await db.deductPartQuantityUnified(
-          partInfo['id'] as int,
-          partInfo['source'] as String,
-          partInfo['qty'] as int,
+      // Cập nhật repair trong bộ nhớ trước khi thực hiện atomic
+      final prevPartsUsed = r.partsUsed;
+      final prevCost = r.cost;
+      if (r.partsUsed.isNotEmpty) {
+        r.partsUsed = '${r.partsUsed}, ${usedParts.join(', ')}';
+      } else {
+        r.partsUsed = usedParts.join(', ');
+      }
+      r.cost += totalCost;
+      r.isSynced = false;
+
+      // === ATOMIC: trừ kho + cập nhật đơn sửa trong một SQLite transaction ===
+      final atomicResult = await db.deductPartsAndUpdateRepairAtomic(
+        parts: selectedPartsInfo,
+        repair: r,
+      );
+
+      if (!atomicResult.success) {
+        // Rollback repair object về trạng thái cũ
+        r.partsUsed = prevPartsUsed;
+        r.cost = prevCost;
+        r.isSynced = true;
+        NotificationService.showSnackBar(
+          '❌ ${atomicResult.message ?? "Không thể trừ kho"}',
+          color: Colors.red,
         );
-        if (!success) {
-          debugPrint('⚠️ Failed to deduct part: ${partInfo['name']}');
+        return;
+      }
+
+      // Sync Firestore cho từng part (best-effort)
+      for (final p in atomicResult.partsToSync) {
+        final fid = p['firestoreId'] as String?;
+        if (fid == null || fid.isEmpty) continue;
+        final collection = p['collection'] as String;
+        final newQty = p['newQty'] as int;
+        try {
+          await FirebaseFirestore.instance
+              .collection(collection)
+              .doc(fid)
+              .update({
+                'quantity': newQty,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+        } catch (e) {
+          debugPrint('⚠️ Sync $collection/$fid failed: $e');
         }
       }
 
@@ -2284,6 +2346,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         // Tạo debt record - Shop nợ nhà cung cấp
         try {
           final debtFId = 'debt_parts_${now}_${r.id}';
+          final partNamesDetailed = selectedPartsInfo
+              .map((p) => '${p['name']} x${p['qty']} (${MoneyUtils.formatCurrency(p['cost'] as int? ?? 0)}đ/cái)')
+              .join(', ');
           final debtData = {
             'firestoreId': debtFId,
             'type': 'SHOP_OWES',
@@ -2293,7 +2358,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
             'totalAmount': totalCost,
             'paidAmount': 0,
             'note':
-                'Công nợ phụ tùng: ${usedParts.join(', ')} - Đơn sửa ${r.model} (${r.customerName})',
+                'Nợ phụ tùng: $partNamesDetailed = ${MoneyUtils.formatCurrency(totalCost)}đ - Đơn sửa ${r.model} (${r.customerName})',
             'status': 'ACTIVE',
             'createdAt': now,
             'shopId': shopId,
@@ -2351,22 +2416,29 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         }
       }
 
-      // Cập nhật giá vốn và partsUsed
-      setState(() {
-        r.cost += totalCost;
-        if (r.partsUsed.isNotEmpty) {
-          r.partsUsed = "${r.partsUsed}, ${usedParts.join(', ')}";
-        } else {
-          r.partsUsed = usedParts.join(', ');
-        }
-      });
+      // Đồng bộ đơn sửa lên cloud
+      if (r.firestoreId != null && r.id != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: r.id!,
+          firestoreId: r.firestoreId,
+          operation: SyncOperation.update,
+          data: r.toMap(),
+        );
+        try {
+          await SyncOrchestrator().syncAll();
+        } catch (_) {}
+        // ignore: unawaited_futures
+        SyncService.syncRepairData();
+      }
 
-      await _saveData();
+      setState(() {});
 
       NotificationService.showSnackBar(
         loc.addedPartsWithPayment(paymentMethod, usedParts.join(', ')),
         color: Colors.green,
       );
+      _emitRepairChanged(financialImpact: true);
     }
   }
 
