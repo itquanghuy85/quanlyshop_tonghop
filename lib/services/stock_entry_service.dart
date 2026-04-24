@@ -788,17 +788,20 @@ class StockEntryService {
           } else {
             // === TIỀN MẶT / CHUYỂN KHOẢN - Tạo EXPENSE ===
             // Ghi expense vào local DB
+            final itemBreakdown = entry.items
+                .map((i) => '${i.name} x${i.quantity} = ${MoneyUtils.formatVND((i.cost ?? 0) * i.quantity)}')
+                .join('; ');
             await db.insertExpense({
               'firestoreId': 'exp_stock_${entryId}_$now',
               'category': 'NHẬP HÀNG',
               'title': 'Nhập kho từ ${entry.supplierName}',
               'amount': totalCost,
               'paymentMethod': entry.paymentMethod,
-              'note': 'Nhập ${entry.totalQuantity} sản phẩm',
+              'note': itemBreakdown.isNotEmpty ? itemBreakdown : 'Nhập ${entry.totalQuantity} sản phẩm',
               'date': now,
               'createdBy': userName,
               'shopId': entry.shopId,
-              'isSynced': 0, // Đổi thành 0 để sync lên Firestore
+              'isSynced': 0,
             });
             debugPrint(
               '✅ confirmEntry: Created local EXPENSE for ${entry.paymentMethod}: $totalCost',
@@ -944,7 +947,9 @@ class StockEntryService {
       EventBus().emit('products_changed');
       // Emit parts_changed: phiếu có thể chứa LINH_KIEN → cập nhật parts_inventory_view
       EventBus().emit('parts_changed');
-      debugPrint('✅ [StockEntryService] Đã emit: stock_entries_changed, products_changed, parts_changed');
+      // Emit expenses_changed: cập nhật sổ quỹ / cash_closing_view
+      EventBus().emit('expenses_changed');
+      debugPrint('✅ [StockEntryService] Đã emit: stock_entries_changed, products_changed, parts_changed, expenses_changed');
       await SyncService.refreshCloudCollections(
         reason: 'stock_entry_confirmed',
         force: true,

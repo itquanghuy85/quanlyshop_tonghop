@@ -6037,12 +6037,10 @@ return db;
   Future<bool> restorePartQuantityByName(String partName, int quantity) async {
     final db = await database;
 
-    // Tìm phụ tùng theo tên trong bảng repair_parts
-    final parts = await db.query(
-      'repair_parts',
-      where: 'name = ? AND deleted = 0',
-      whereArgs: [partName],
-      limit: 1,
+    // Tìm phụ tùng theo tên trong bảng repair_parts (không phân biệt chữ hoa/thường)
+    final parts = await db.rawQuery(
+      'SELECT * FROM repair_parts WHERE UPPER(name) = ? AND (deleted = 0 OR deleted IS NULL) LIMIT 1',
+      [partName.toUpperCase()],
     );
 
     if (parts.isEmpty) {

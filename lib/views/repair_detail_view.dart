@@ -39,6 +39,7 @@ import '../services/audit_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/storage_service.dart';
 import '../services/encryption_service.dart';
+import 'package:image_picker/image_picker.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
 import '../theme/app_colors.dart';
@@ -3640,7 +3641,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         _compactInfoRow(loc.note, r.notes!),
 
                       // Hình ảnh
-                      if (_displayableImages(r.receiveImages).isNotEmpty) ...[
+                      if (_displayableImages(r.receiveImages).isNotEmpty ||
+                          (r.status < 4 && _canEditRepairOrder)) ...[
                         const Divider(height: 12),
                         Row(
                           children: [
@@ -3659,9 +3661,31 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                 color: Colors.pink.shade700,
                               ),
                             ),
+                            const Spacer(),
+                            if (r.status < 4 && _canEditRepairOrder)
+                              GestureDetector(
+                                onTap: _addReceiveImage,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.pink.withAlpha(20),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.pink.shade200),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.add_a_photo, size: 13, color: Colors.pink.shade700),
+                                      const SizedBox(width: 4),
+                                      Text('Thêm ảnh', style: AppTextStyles.overline.copyWith(color: Colors.pink.shade700)),
+                                    ],
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                         const SizedBox(height: 6),
+                        if (_displayableImages(r.receiveImages).isNotEmpty)
                         SizedBox(
                           height: 60,
                           child: ListView.builder(
@@ -3714,6 +3738,46 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
       }
+    }
+  }
+
+  Future<void> _addReceiveImage() async {
+    if (!_canEditRepairOrder) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 60);
+    if (picked == null) return;
+    if (mounted) setState(() => _isUpdating = true);
+    try {
+      String? uploadedUrl;
+      if (!kIsWeb) {
+        uploadedUrl = await StorageService.uploadAndGetUrl(picked.path, 'repairs');
+      } else {
+        uploadedUrl = await StorageService.uploadXFileAndGetUrl(picked, 'repairs');
+      }
+      if (uploadedUrl == null) {
+        NotificationService.showSnackBar('Tải ảnh lên thất bại', color: AppColors.error);
+        return;
+      }
+      final existing = r.imagePath ?? '';
+      final updated = existing.isEmpty ? uploadedUrl : '$existing,$uploadedUrl';
+      r.imagePath = updated;
+      r.isSynced = false;
+      await db.upsertRepair(r);
+      if (r.id != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.repair,
+          entityId: r.id!,
+          firestoreId: r.firestoreId,
+          operation: SyncOperation.update,
+          data: r.toMap(),
+        );
+      }
+      if (mounted) setState(() {});
+      NotificationService.showSnackBar('Đã thêm ảnh nhận máy', color: AppColors.success);
+    } catch (e) {
+      NotificationService.showSnackBar('Lỗi thêm ảnh: $e', color: AppColors.error);
+    } finally {
+      if (mounted) setState(() => _isUpdating = false);
     }
   }
 
@@ -5301,6 +5365,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         partnerId: service.partnerId!,
         partnerCost: service.cost,
       );
+      // Guard chống nhân đôi: nếu debt đã tồn tại với cùng firestoreId thì bỏ qua
+      final existingDebt = await db.getDebtByFirestoreId(debtFId);
+      if (existingDebt != null) {
+        debugPrint('ℹ️ Partner debt đã tồn tại, bỏ qua tạo trùng: $debtFId');
+        return;
+      }
       final debtData = {
         'firestoreId': debtFId,
         'type': 'SHOP_OWES',
