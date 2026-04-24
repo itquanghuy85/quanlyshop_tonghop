@@ -315,15 +315,14 @@ class FirebaseRwStatsService {
         count: null,
         error: '${e.code}: ${e.message ?? 'unknown'}',
       );
-    } catch (e) {
-      return _CloudCountResult(count: null, error: e.toString());
-    }
     } on PlatformException catch (e) {
       // count() aggregation trên subcollection có thể không được hỗ trợ trên một số platform
       return _CloudCountResult(
         count: null,
         error: 'SKIPPED: count() không hỗ trợ trên platform này (${e.code})',
       );
+    } catch (e) {
+      return _CloudCountResult(count: null, error: e.toString());
     }
   }
 }
