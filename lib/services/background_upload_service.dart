@@ -33,6 +33,24 @@ class BackgroundUploadService {
         p.startsWith('data:');
   }
 
+  static List<String> _mergeCloudPaths(
+    List<String> currentPaths,
+    List<String> newlyUploaded,
+  ) {
+    final merged = <String>[];
+    for (final p in currentPaths) {
+      if (_isCloudPath(p) && !merged.contains(p)) {
+        merged.add(p);
+      }
+    }
+    for (final p in newlyUploaded) {
+      if (p.trim().isNotEmpty && !merged.contains(p)) {
+        merged.add(p);
+      }
+    }
+    return merged;
+  }
+
   static Future<bool> _hasPendingRepairQueue(
     DatabaseExecutor dbConn,
     int localRepairId,
@@ -91,6 +109,10 @@ class BackgroundUploadService {
         }
       }
 
+        final currentPaths = currentRows.isNotEmpty
+          ? _splitPaths((currentRows.first['imagePath'] ?? '').toString())
+          : const <String>[];
+
       debugPrint('📸 BackgroundUpload: Starting ${images.length} repair image(s)...');
       final uploadedUrls = <String>[];
       for (final picked in images) {
@@ -105,7 +127,8 @@ class BackgroundUploadService {
         return;
       }
 
-      final cloudPaths = uploadedUrls.join(',');
+      final mergedCloudPaths = _mergeCloudPaths(currentPaths, uploadedUrls);
+      final cloudPaths = mergedCloudPaths.join(',');
 
       // Always persist cloud paths locally.
       await dbConn.update(

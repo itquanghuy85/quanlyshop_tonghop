@@ -1479,6 +1479,12 @@ class OrderListViewState extends State<OrderListView> {
     final int displayCost = r.totalCost;
     final int displayPrice = _displayedChargePrice(r);
     final int displayProfit = displayPrice - displayCost;
+    final bool hideDeliveredSensitiveFinancial =
+      r.status == 4 && !(_canViewRevenue && _canViewCostPrice);
+    final bool canShowCost =
+      _canViewCostPrice && _canViewRevenue && !hideDeliveredSensitiveFinancial;
+    final bool canShowProfit =
+      _canViewRevenue && _canViewCostPrice && !hideDeliveredSensitiveFinancial;
     final bool hasRequestedCharge =
       r.pendingDeliveryApproval && r.requestedDeliveryPrice != null;
 
@@ -1817,17 +1823,14 @@ class OrderListViewState extends State<OrderListView> {
                         fontWeight: FontWeight.w600,
                       ),
                     // Giá vốn + Lợi nhuận (chỉ hiện với người có quyền)
-                    if (_canViewRevenue && _canViewCostPrice && displayCost > 0)
+                    if (canShowCost && displayCost > 0)
                       _repairInfoChip(
                         '🏷 Vốn ${MoneyUtils.formatCompactCurrency(displayCost)}đ',
                         Colors.blue.shade50,
                         textColor: Colors.blue.shade700,
                         fontWeight: FontWeight.w600,
                       ),
-                    if (_canViewRevenue &&
-                        _canViewCostPrice &&
-                        displayPrice > 0 &&
-                        displayCost > 0)
+                    if (canShowProfit && displayPrice > 0 && displayCost > 0)
                       _repairInfoChip(
                         displayProfit >= 0
                             ? '📈 Lãi ${MoneyUtils.formatCompactCurrency(displayProfit)}đ'

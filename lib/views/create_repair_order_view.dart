@@ -1411,8 +1411,11 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          ..._images.map(
-            (f) => Container(
+          ..._images.asMap().entries.map(
+            (entry) {
+              final idx = entry.key;
+              final f = entry.value;
+              return Container(
               margin: const EdgeInsets.only(right: 10),
               width: 80,
               height: 80,
@@ -1420,35 +1423,110 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.grey.shade300),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: kIsWeb
-                    ? Image.network(f.path, fit: BoxFit.cover)
-                    : Image.file(File(f.path), fit: BoxFit.cover),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: kIsWeb
+                        ? Image.network(f.path, fit: BoxFit.cover)
+                        : Image.file(File(f.path), fit: BoxFit.cover),
+                  ),
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: InkWell(
+                      onTap: () => _removeImageAt(idx),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.55),
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(3),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
-          GestureDetector(
-            onTap: () async {
-              final f = await ImagePicker().pickImage(
-                source: ImageSource.camera,
-                imageQuality: 40,
-              );
-              if (f != null) setState(() => _images.add(f));
+            );
             },
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.blue.withAlpha(13),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.add_a_photo, color: Colors.blue),
+          ),
+          OutlinedButton.icon(
+            onPressed: _showAddImageOptions,
+            icon: const Icon(Icons.add_a_photo),
+            label: const Text('Thêm ảnh'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(110, 44),
+              side: BorderSide(color: Colors.blue.shade300),
+              foregroundColor: Colors.blue.shade700,
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _removeImageAt(int index) {
+    if (index < 0 || index >= _images.length) return;
+    setState(() => _images.removeAt(index));
+  }
+
+  Future<void> _showAddImageOptions() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Chụp ảnh'),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Chọn từ thư viện'),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || action == null) return;
+    if (action == 'camera') {
+      await _pickImageFromCamera();
+    } else if (action == 'gallery') {
+      await _pickImagesFromGallery();
+    }
+  }
+
+  Future<void> _pickImageFromCamera() async {
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 60,
+      );
+      if (picked == null || !mounted) return;
+      setState(() => _images.add(picked));
+    } catch (e) {
+      NotificationService.showSnackBar('Không thể chụp ảnh: $e', color: Colors.red);
+    }
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    try {
+      final picked = await ImagePicker().pickMultiImage(imageQuality: 60);
+      if (picked.isEmpty || !mounted) return;
+      setState(() => _images.addAll(picked));
+    } catch (e) {
+      NotificationService.showSnackBar('Không thể chọn ảnh: $e', color: Colors.red);
+    }
   }
 
   @override

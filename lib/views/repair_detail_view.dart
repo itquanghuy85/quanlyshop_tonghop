@@ -38,6 +38,7 @@ import '../services/user_service.dart';
 import '../services/audit_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/storage_service.dart';
+import '../services/background_upload_service.dart';
 import '../services/encryption_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data/db_helper.dart';
@@ -71,6 +72,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   bool _canViewRevenue = false;
   bool _canViewCostPrice = false;
   bool _canEditRepairOrder = false;
+  bool _canAddRepairImage = false;
   bool _canEditRepairFinancial = false;
   bool _canEditRepairCharge = false;
   List<RepairPartner> _partners = [];
@@ -693,6 +695,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       _canViewRevenue = canViewRevenue;
       _canViewCostPrice = canViewCostPrice;
       _canEditRepairOrder = isManagerLike;
+      _canAddRepairImage = perms['allowViewRepairs'] == true;
       _canEditRepairFinancial = isManagerLike && canViewRevenue;
       _canEditRepairCharge = perms['allowViewRepairs'] == true;
     });
@@ -3198,6 +3201,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
     final displayPrice = _displayedChargePrice(r);
     final displayProfit = displayPrice - r.cost;
+    final hideDeliveredSensitiveFinancial =
+      r.status == 4 && !(_canViewRevenue && _canViewCostPrice);
+    final canShowCost =
+      _canViewCostPrice && !hideDeliveredSensitiveFinancial;
+    final canShowProfit =
+      _canViewRevenue && _canViewCostPrice && !hideDeliveredSensitiveFinancial;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -3342,7 +3351,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         const SizedBox(height: 6),
                         Row(
                           children: [
-                            if (_canViewCostPrice)
+                            if (canShowProfit)
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
@@ -3382,7 +3391,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                   ),
                                 ),
                               ),
-                            if (_canViewCostPrice && _canViewRevenue)
+                            if (canShowProfit && _canViewRevenue)
                               const SizedBox(width: 8),
                             if (_canViewRevenue)
                               _miniFinCompact(
@@ -3390,9 +3399,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                                 displayPrice,
                                 AppColors.primary,
                               ),
-                            if (_canViewRevenue && _canViewCostPrice)
+                            if (_canViewRevenue && canShowCost)
                               const SizedBox(width: 8),
-                            if (_canViewCostPrice)
+                            if (canShowCost)
                               _miniFinCompact(
                                 loc.costLabel,
                                 r.cost,
@@ -3656,8 +3665,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         _compactInfoRow(loc.note, r.notes!),
 
                       // Hình ảnh
-                      if (_displayableImages(r.receiveImages).isNotEmpty ||
-                          (r.status < 4 && _canEditRepairOrder)) ...[
+                        if (_displayableImages(r.receiveImages).isNotEmpty ||
+                          (r.status < 4 && _canAddRepairImage)) ...[
                         const Divider(height: 12),
                         Row(
                           children: [
@@ -3677,7 +3686,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                             ),
                             const Spacer(),
-                            if (r.status < 4 && _canEditRepairOrder)
+                            if (r.status < 4 && _canAddRepairImage)
                               GestureDetector(
                                 onTap: _addReceiveImage,
                                 child: Container(
@@ -3757,24 +3766,38 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _addReceiveImage() async {
-    if (!_canEditRepairOrder) return;
+    if (!_canAddRepairImage) return;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Chụp ảnh'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Chọn từ thư viện'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 60);
+    final picked = await picker.pickImage(source: source, imageQuality: 60);
     if (picked == null) return;
     if (mounted) setState(() => _isUpdating = true);
     try {
-      String? uploadedUrl;
-      if (!kIsWeb) {
-        uploadedUrl = await StorageService.uploadAndGetUrl(picked.path, 'repairs');
-      } else {
-        uploadedUrl = await StorageService.uploadXFileAndGetUrl(picked, 'repairs');
-      }
-      if (uploadedUrl == null) {
-        NotificationService.showSnackBar('Tải ảnh lên thất bại', color: AppColors.error);
-        return;
-      }
+      // Local-first: append local path first, upload cloud in background.
+      final localPath = picked.path;
       final existing = r.imagePath ?? '';
-      final updated = existing.isEmpty ? uploadedUrl : '$existing,$uploadedUrl';
+      final updated = existing.isEmpty ? localPath : '$existing,$localPath';
       r.imagePath = updated;
       r.isSynced = false;
       await db.upsertRepair(r);
@@ -3786,9 +3809,19 @@ class _RepairDetailViewState extends State<RepairDetailView> {
           operation: SyncOperation.update,
           data: r.toMap(),
         );
+        if (r.firestoreId != null && r.firestoreId!.isNotEmpty) {
+          BackgroundUploadService.uploadRepairImages(
+            localRepairId: r.id!,
+            firestoreId: r.firestoreId!,
+            images: [picked],
+          );
+        }
       }
       if (mounted) setState(() {});
-      NotificationService.showSnackBar('Đã thêm ảnh nhận máy', color: AppColors.success);
+      NotificationService.showSnackBar(
+        'Đã thêm ảnh, đang tải nền lên hệ thống',
+        color: AppColors.success,
+      );
     } catch (e) {
       NotificationService.showSnackBar('Lỗi thêm ảnh: $e', color: AppColors.error);
     } finally {
