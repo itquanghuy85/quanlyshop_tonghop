@@ -270,12 +270,13 @@ class SalesReturnService {
     }
   }
 
-  /// Sync return docs to Firestore
+  /// Sync return docs to Firestore (try direct, fallback to queue)
   static Future<void> _syncReturnToFirestore(
     SalesReturn returnHeader,
     List<SalesReturnItem> items,
     int localId,
   ) async {
+    bool headerSynced = false;
     try {
       final shopId = UserService.getShopIdSync();
       if (shopId == null) return;
@@ -290,6 +291,7 @@ class SalesReturnService {
           .collection('sales_returns')
           .doc(returnHeader.firestoreId)
           .set(encryptedHeader);
+      headerSynced = true;
 
       // Sync items
       for (final item in items) {
@@ -314,7 +316,29 @@ class SalesReturnService {
 
       debugPrint('☁️ Sales return synced to Firestore: ${returnHeader.firestoreId}');
     } catch (e) {
-      debugPrint('⚠️ Firestore sync failed for return: $e');
+      debugPrint('⚠️ Firestore sync failed for return, queuing: $e');
+      // Enqueue header for retry if not yet synced
+      if (!headerSynced) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.salesReturn,
+          entityId: localId,
+          firestoreId: returnHeader.firestoreId,
+          operation: SyncOperation.create,
+          data: returnHeader.toMap(),
+        );
+      }
+      // Enqueue items for retry
+      for (final item in items) {
+        if (item.salesReturnId != null) {
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.salesReturnItem,
+            entityId: item.salesReturnId!,
+            firestoreId: item.firestoreId,
+            operation: SyncOperation.create,
+            data: item.toMap(),
+          );
+        }
+      }
     }
   }
 

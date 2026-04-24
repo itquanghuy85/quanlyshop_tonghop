@@ -1184,6 +1184,23 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ═══════════ 10.6 SALVAGE_PHONES (Kho máy xác) ═══════════
+    // Devices taken in for parts — filtered by shopId
+    match /salvage_phones/{phoneId} {
+      allow read: if isAuth() && docInMyShop();
+
+      allow create: if isAuth() &&
+                       isEmployee() &&
+                       newDocInMyShop() &&
+                       has(['deviceName', 'shopId']);
+
+      allow update: if isAuth() &&
+                       docInMyShop() &&
+                       shopIdLocked();
+
+      allow delete: if isAuth() && docInMyShop() && isManager();
+    }
+
     // ┌──────────────────────────────────────────────────────────────────┐
     // │                   SECTION 11: HR & SALARY SETTINGS               │
     // │     Collections: shop_deduction_settings, employee_salary_settings│

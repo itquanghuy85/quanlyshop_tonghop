@@ -1128,12 +1128,12 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
             _compactInput(addressCtrl, 'Địa chỉ KH (tùy chọn)', Icons.location_on, caps: true),
             const SizedBox(height: 8),
             // Row 2: Quick brands + Model
-            _quick(brands, modelCtrl, issueF),
-            _compactInput(modelCtrl, loc.deviceModel, Icons.phone_android, caps: true),
+            _quick(brands, modelCtrl, modelF),
+            _compactInput(modelCtrl, loc.deviceModel, Icons.phone_android, caps: true, focusNode: modelF, nextFocus: issueF),
             const SizedBox(height: 8),
             // Row 3: Quick issues + Lỗi
             _quick(commonIssues, issueCtrl, priceF),
-            _compactInput(issueCtrl, loc.deviceIssue, Icons.build, caps: true),
+            _compactInput(issueCtrl, loc.deviceIssue, Icons.build, caps: true, focusNode: issueF, nextFocus: priceF),
             const SizedBox(height: 8),
             // Row 4: Giá
             CurrencyTextField(
@@ -1273,11 +1273,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   }
 
   /// Compact input field
-  Widget _compactInput(TextEditingController c, String label, IconData icon, {bool caps = false, TextInputType type = TextInputType.text}) {
+  Widget _compactInput(TextEditingController c, String label, IconData icon, {bool caps = false, TextInputType type = TextInputType.text, FocusNode? focusNode, FocusNode? nextFocus}) {
     return TextField(
       controller: c,
+      focusNode: focusNode,
       keyboardType: type,
       textCapitalization: caps ? TextCapitalization.characters : TextCapitalization.none,
+      textInputAction: nextFocus != null ? TextInputAction.next : TextInputAction.done,
+      onSubmitted: nextFocus != null ? (_) => FocusScope.of(context).requestFocus(nextFocus) : null,
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
         labelText: label,

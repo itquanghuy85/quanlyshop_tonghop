@@ -33,6 +33,8 @@ enum SyncEntityType {
   purchaseOrder,
   supplierImportHistory, // FIX BUG-001: Thêm entity type cho supplier import history
   salvagePhone,
+  salesReturn,
+  salesReturnItem,
 }
 
 /// Enum định nghĩa operation
@@ -873,6 +875,10 @@ class SyncOrchestrator {
         return 'supplier_import_history';
       case SyncEntityType.salvagePhone:
         return 'salvage_phones';
+      case SyncEntityType.salesReturn:
+        return 'sales_returns';
+      case SyncEntityType.salesReturnItem:
+        return 'sales_return_items';
     }
   }
 
@@ -919,6 +925,10 @@ class SyncOrchestrator {
         return 'supplier_import_history';
       case SyncEntityType.salvagePhone:
         return 'salvage_phones';
+      case SyncEntityType.salesReturn:
+        return 'sales_returns';
+      case SyncEntityType.salesReturnItem:
+        return 'sales_return_items';
     }
   }
 

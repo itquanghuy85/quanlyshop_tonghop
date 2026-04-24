@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../models/import_order_model.dart';
 import '../services/import_order_service.dart';
+import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/excel_export_helper.dart';
 import '../utils/money_utils.dart';
@@ -19,13 +20,24 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
   List<ImportOrder> _orders = [];
   Map<String, List<String>> _orderItemNames = {};
   bool _isLoading = true;
+  bool _canViewCostPrice = false;
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
 
   @override
   void initState() {
     super.initState();
+    _loadPermissions();
     _loadOrders();
+  }
+
+  Future<void> _loadPermissions() async {
+    final perms = await UserService.getCurrentUserPermissions();
+    if (mounted) {
+      setState(() {
+        _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+      });
+    }
   }
 
   Future<void> _loadOrders() async {
@@ -255,14 +267,16 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
                   Icons.inventory_2,
                   AppColors.info,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _summaryChip(
-                    MoneyUtils.formatCurrency(totalAmount),
-                    Icons.payments,
-                    AppColors.success,
+                if (_canViewCostPrice) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _summaryChip(
+                      MoneyUtils.formatCurrency(totalAmount),
+                      Icons.payments,
+                      AppColors.success,
+                    ),
                   ),
-                ),
+                ],
                 if (debtCount > 0) ...[
                   const SizedBox(width: 8),
                   _summaryChip(
@@ -517,29 +531,31 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
                   // Row 2: Amount + Debt info
                   Row(
                     children: [
-                      Icon(
-                        Icons.payments_outlined,
-                        size: 16,
-                        color: Colors.grey.shade500,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        MoneyUtils.formatCurrency(order.totalAmount),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
+                      if (_canViewCostPrice) ...[
+                        Icon(
+                          Icons.payments_outlined,
+                          size: 16,
+                          color: Colors.grey.shade500,
                         ),
-                      ),
-                      if (isDebt) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
-                          '(Nợ: ${MoneyUtils.formatCurrency(order.totalAmount - (order.paidAmount ?? 0))})',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.warning,
+                          MoneyUtils.formatCurrency(order.totalAmount),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
                           ),
                         ),
+                        if (isDebt) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '(Nợ: ${MoneyUtils.formatCurrency(order.totalAmount - (order.paidAmount ?? 0))})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ],
                       ],
                       const Spacer(),
                       // Payment method icon

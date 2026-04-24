@@ -26,6 +26,7 @@ import '../services/category_service.dart';
 import '../widgets/responsive_wrapper.dart';
 import 'repair_partner_detail_view.dart';
 import '../utils/excel_export_helper.dart';
+import '../utils/vietnamese_utils.dart';
 import '../widgets/export_date_filter_dialog.dart';
 
 class DebtView extends StatefulWidget {
@@ -54,6 +55,11 @@ class _DebtViewState extends State<DebtView>
   int get _tabCount =>
       _enableRepair ? 4 : 3; // 4 tabs for electronics, 3 for fashion
   bool _hasPermission = false;
+
+  // Tìm kiếm và lọc
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _showPaidDebts = false;
 
   @override
   void initState() {
@@ -148,6 +154,7 @@ class _DebtViewState extends State<DebtView>
     _reloadDebounce?.cancel();
     _tabController?.dispose();
     _eventSub?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -714,7 +721,8 @@ class _DebtViewState extends State<DebtView>
       list = _debts
           .where(
             (d) =>
-                d['type'].toString().startsWith('OTHER_') && _isActiveDebt(d),
+                d['type'].toString().startsWith('OTHER_') &&
+                (_showPaidDebts || _isActiveDebt(d)),
           )
           .toList();
     } else if (type == 'CUSTOMER_OWES') {
@@ -722,64 +730,141 @@ class _DebtViewState extends State<DebtView>
       list = _debts.where((d) {
         final debtType = d['type']?.toString() ?? '';
         return (debtType == 'CUSTOMER_OWES' || debtType == 'OWE') &&
-            _isActiveDebt(d);
+            (_showPaidDebts || _isActiveDebt(d));
       }).toList();
     } else if (type == 'SHOP_OWES') {
       // Shop nợ NCC: SHOP_OWES hoặc legacy 'OWED'
       list = _debts.where((d) {
         final debtType = d['type']?.toString() ?? '';
         return (debtType == 'SHOP_OWES' || debtType == 'OWED') &&
-            _isActiveDebt(d);
+            (_showPaidDebts || _isActiveDebt(d));
       }).toList();
     } else {
       list = _debts
-          .where((d) => d['type'] == type && _isActiveDebt(d))
+          .where((d) => d['type'] == type && (_showPaidDebts || _isActiveDebt(d)))
           .toList();
     }
 
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      list = list.where((d) {
+        return VietnameseUtils.containsVietnamese(
+              d['personName']?.toString() ?? '',
+              _searchQuery,
+            ) ||
+            VietnameseUtils.containsVietnamese(
+              d['phone']?.toString() ?? '',
+              _searchQuery,
+            ) ||
+            VietnameseUtils.containsVietnamese(
+              d['note']?.toString() ?? '',
+              _searchQuery,
+            );
+      }).toList();
+    }
+
     list.sort((a, b) {
+      // Paid debts go to bottom
+      final aActive = _isActiveDebt(a);
+      final bActive = _isActiveDebt(b);
+      if (aActive != bActive) return aActive ? -1 : 1;
       final remainCmp = _remainingDebt(b).compareTo(_remainingDebt(a));
       if (remainCmp != 0) return remainCmp;
       return _toInt(b['createdAt']).compareTo(_toInt(a['createdAt']));
     });
 
-    if (list.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.receipt_long_outlined,
-              size: 80,
-              color: Colors.grey[300],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "Hiện tại không có khoản nợ nào",
-              style: AppTextStyles.body1.copyWith(
-                color: AppColors.onSurface.withOpacity(0.5),
+    return Column(
+      children: [
+        // Search bar + toggle
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Tìm kiếm tên, SĐT...',
+                    hintStyle: const TextStyle(fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 18),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onChanged: (v) => setState(() => _searchQuery = v.trim()),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Đã trả', style: TextStyle(fontSize: 12)),
+                selected: _showPaidDebts,
+                onSelected: (v) => setState(() => _showPaidDebts = v),
+                selectedColor: Colors.green.shade100,
+                checkmarkColor: Colors.green.shade700,
+              ),
+            ],
+          ),
+        ),
+        if (list.isEmpty)
+          Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 80,
+                    color: Colors.grey[300],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _searchQuery.isNotEmpty
+                        ? 'Không tìm thấy kết quả'
+                        : "Hiện tại không có khoản nợ nào",
+                    style: AppTextStyles.body1.copyWith(
+                      color: AppColors.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      );
-    }
+          )
+        else if (type == 'OTHER')
+          Expanded(child: _buildOtherDebtContent(list))
+        else
+          Expanded(
+            child: _buildSimpleDebtList(list),
+          ),
+      ],
+    );
+  }
 
-    if (type == 'OTHER') {
-      // For OTHER tab, separate into receivable and payable debts
-      final receivableDebts = list
-          .where((d) => d['type'] == 'OTHER_CUSTOMER_OWES')
-          .toList();
-      final payableDebts = list
-          .where((d) => d['type'] == 'OTHER_SHOP_OWES')
-          .toList();
+  Widget _buildOtherDebtContent(List<Map<String, dynamic>> list) {
+    final receivableDebts = list
+        .where((d) => d['type'] == 'OTHER_CUSTOMER_OWES')
+        .toList();
+    final payableDebts = list
+        .where((d) => d['type'] == 'OTHER_SHOP_OWES')
+        .toList();
 
-      receivableDebts.sort((a, b) {
+    receivableDebts.sort((a, b) {
         final remainCmp = _remainingDebt(b).compareTo(_remainingDebt(a));
         if (remainCmp != 0) return remainCmp;
         return _toInt(b['createdAt']).compareTo(_toInt(a['createdAt']));
       });
-      payableDebts.sort((a, b) {
+    payableDebts.sort((a, b) {
         final remainCmp = _remainingDebt(b).compareTo(_remainingDebt(a));
         if (remainCmp != 0) return remainCmp;
         return _toInt(b['createdAt']).compareTo(_toInt(a['createdAt']));
@@ -915,16 +1000,15 @@ class _DebtViewState extends State<DebtView>
       );
     }
 
-    int totalRemain = list.fold(0, (sum, d) => sum + _remainingDebt(d));
+  Widget _buildSimpleDebtList(List<Map<String, dynamic>> list) {
+    final totalRemain = list.fold(0, (sum, d) => sum + _remainingDebt(d));
 
     return Column(
       children: [
         _summaryHeader(
-          type == 'CUSTOMER_OWES'
-              ? "TỔNG KHÁCH ĐANG NỢ"
-              : "TỔNG SHOP ĐANG NỢ NCC",
+          "TỔNG NỢ CÒN LẠI",
           totalRemain,
-          type == 'CUSTOMER_OWES' ? Colors.redAccent : Colors.blueAccent,
+          Colors.redAccent,
         ),
         Expanded(
           child: ListView.builder(
@@ -1459,7 +1543,13 @@ class _DebtViewState extends State<DebtView>
                     mainColor,
                   ),
                   const SizedBox(width: 6),
-                  if (isVeryUrgent)
+                  if (remain == 0)
+                    _debtInfoChip(
+                      '✓ Đã trả hết',
+                      Colors.green.shade100,
+                      Colors.green.shade700,
+                    )
+                  else if (isVeryUrgent)
                     _debtInfoChip(
                       'Quá hạn $daysSince ngày',
                       Colors.red.shade100,
