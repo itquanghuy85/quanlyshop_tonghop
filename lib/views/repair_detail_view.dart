@@ -3485,7 +3485,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                         ),
                       ],
                       // Quick actions
-                      if (r.status < 4 && _canEditRepairOrder) ...[
+                      if (r.status < 4 && (_canEditRepairOrder || _canEditRepairNotes)) ...[
                         const SizedBox(height: 6),
                         Wrap(
                           spacing: 4,
