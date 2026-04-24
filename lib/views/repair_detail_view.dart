@@ -72,6 +72,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   bool _canViewCostPrice = false;
   bool _canEditRepairOrder = false;
   bool _canEditRepairFinancial = false;
+  bool _canEditRepairCharge = false;
   List<RepairPartner> _partners = [];
   String? _lastModifiedBy;
   int? _lastModifiedAt;
@@ -679,7 +680,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _checkPermission() async {
-    final perms = await UserService.getCurrentUserPermissions();
+    final perms = await UserService.getCurrentUserPermissions(forceRefresh: true);
     final role = await UserService.getRoleFast();
     final isManagerLike =
         role == 'admin' || role == 'owner' || role == 'manager';
@@ -693,6 +694,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       _canViewCostPrice = canViewCostPrice;
       _canEditRepairOrder = isManagerLike;
       _canEditRepairFinancial = isManagerLike && canViewRevenue;
+      _canEditRepairCharge = perms['allowViewRepairs'] == true;
     });
   }
 
@@ -709,6 +711,15 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     if (_canEditRepairFinancial) return true;
     NotificationService.showSnackBar(
       'Nhân viên không có quyền sửa tài chính đơn sửa.',
+      color: Colors.orange,
+    );
+    return false;
+  }
+
+  bool _ensureCanEditRepairCharge() {
+    if (_canEditRepairCharge || _canEditRepairFinancial) return true;
+    NotificationService.showSnackBar(
+      'Bạn không có quyền sửa giá thu khách.',
       color: Colors.orange,
     );
     return false;
@@ -2788,11 +2799,13 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _editFinancials() async {
-    if (!_ensureCanEditRepairFinancial()) {
+    if (!_ensureCanEditRepairCharge()) {
       return;
     }
 
-    if (!_canViewAnyFinancial) {
+    final canEditCost = _canEditRepairFinancial && _canViewCostPrice;
+
+    if (!_canViewAnyFinancial && !_canEditRepairCharge) {
       NotificationService.showSnackBar(
         'Bạn không có quyền xem/chỉnh sửa tài chính',
         color: Colors.orange,
@@ -2837,7 +2850,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       fieldName: dialogLoc.chargeCustomerLabel,
                     ),
                   ),
-                  if (_canViewCostPrice) ...[
+                  if (canEditCost) ...[
                     const SizedBox(height: 12),
                     CurrencyTextField(
                       controller: costC,
@@ -2871,7 +2884,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     );
     if (result == true) {
       final parsedPrice = MoneyUtils.parseCurrency(priceC.text);
-      final parsedCost = _canViewCostPrice
+      final parsedCost = canEditCost
           ? MoneyUtils.parseCurrency(costC.text)
           : r.cost;
       final oldCost = r.cost;
@@ -2884,9 +2897,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       });
 
       // Show fund recording popup if cost > 0 and cost changed or not yet recorded
-      if (parsedCost > 0 && (parsedCost != oldCost || !wasFundRecorded)) {
+      if (canEditCost &&
+          parsedCost > 0 &&
+          (parsedCost != oldCost || !wasFundRecorded)) {
         await _showCostFundRecordingPopup(parsedCost);
-      } else if (parsedCost == 0 && wasFundRecorded) {
+      } else if (canEditCost && parsedCost == 0 && wasFundRecorded) {
         // Reset fund recording if cost is now 0
         setState(() {
           r.costRecordedInFund = false;
@@ -3293,7 +3308,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Header tài chính
-                      if (_canViewAnyFinancial) ...[
+                      if (_canViewAnyFinancial || _canEditRepairCharge) ...[
                         Row(
                           children: [
                             Icon(
@@ -3310,7 +3325,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                             ),
                             const Spacer(),
-                            if (_canEditRepairFinancial)
+                            if (_canEditRepairFinancial || _canEditRepairCharge)
                               TextButton.icon(
                                 onPressed: _editFinancials,
                                 icon: const Icon(Icons.edit, size: 14),
@@ -4649,11 +4664,12 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                       style: AppTextStyles.caption.copyWith(color: Colors.red),
                     ),
                   ),
-                TextButton.icon(
-                  onPressed: _editFinancials,
-                  icon: const Icon(Icons.edit, size: 14),
-                  label: Text(loc.editPrice, style: AppTextStyles.caption),
-                ),
+                if (_canEditRepairFinancial || _canEditRepairCharge)
+                  TextButton.icon(
+                    onPressed: _editFinancials,
+                    icon: const Icon(Icons.edit, size: 14),
+                    label: Text(loc.editPrice, style: AppTextStyles.caption),
+                  ),
                 TextButton.icon(
                   onPressed: _editTechnicianNotes,
                   icon: const Icon(

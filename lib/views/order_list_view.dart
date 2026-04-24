@@ -79,6 +79,7 @@ class OrderListViewState extends State<OrderListView> {
   Set<int> _statusFilters = {}; // Empty = all, {1,2} = tiếp nhận + đang sửa
   bool _filterPendingApproval = false; // Lọc đơn chờ duyệt giao
   bool _canDelete = false;
+  bool _canViewRevenue = false;
   bool _canViewCostPrice = false;
 
   bool get canDelete => _canDelete;
@@ -134,19 +135,22 @@ class OrderListViewState extends State<OrderListView> {
     try {
       final results = await Future.wait([
         UserService.isCurrentUserAdmin(),
-        UserService.getCurrentUserPermissions(),
+        UserService.getCurrentUserPermissions(forceRefresh: true),
       ]);
       if (!mounted) return;
       setState(() {
         _canDelete = results[0] as bool;
         final perms = results[1] as Map<String, dynamic>;
-        _canViewCostPrice = perms['allowViewCostPrice'] ?? false;
+        _canViewRevenue = perms['allowViewRevenue'] == true;
+        _canViewCostPrice = perms['allowViewCostPrice'] == true;
       });
     } catch (_) {
       if (!mounted) return;
-      setState(
-        () => _canDelete = widget.role == 'admin' || widget.role == 'owner',
-      );
+      setState(() {
+        _canDelete = widget.role == 'admin' || widget.role == 'owner';
+        _canViewRevenue = false;
+        _canViewCostPrice = false;
+      });
     }
   }
 
@@ -1813,14 +1817,17 @@ class OrderListViewState extends State<OrderListView> {
                         fontWeight: FontWeight.w600,
                       ),
                     // Giá vốn + Lợi nhuận (chỉ hiện với người có quyền)
-                    if (_canViewCostPrice && displayCost > 0)
+                    if (_canViewRevenue && _canViewCostPrice && displayCost > 0)
                       _repairInfoChip(
                         '🏷 Vốn ${MoneyUtils.formatCompactCurrency(displayCost)}đ',
                         Colors.blue.shade50,
                         textColor: Colors.blue.shade700,
                         fontWeight: FontWeight.w600,
                       ),
-                    if (_canViewCostPrice && displayPrice > 0 && displayCost > 0)
+                    if (_canViewRevenue &&
+                        _canViewCostPrice &&
+                        displayPrice > 0 &&
+                        displayCost > 0)
                       _repairInfoChip(
                         displayProfit >= 0
                             ? '📈 Lãi ${MoneyUtils.formatCompactCurrency(displayProfit)}đ'

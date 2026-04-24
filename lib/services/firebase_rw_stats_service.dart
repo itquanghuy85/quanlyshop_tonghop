@@ -223,7 +223,13 @@ class FirebaseRwStatsService {
 
     final stats = <FirebaseCollectionRwStat>[];
     for (final config in _configs) {
-      final cloud = await _countCloudDocs(config: config, shopId: shopId);
+      final isSyncActive = listeners[config.collection] ?? false;
+      final cloud = isSyncActive
+          ? await _countCloudDocs(config: config, shopId: shopId)
+          : const _CloudCountResult(
+              count: null,
+              error: 'SKIPPED: Sync OFF - bỏ qua cloud count để tránh lỗi quyền.',
+            );
       int success = 0;
       int retry = 0;
       int failed = 0;
@@ -249,7 +255,7 @@ class FirebaseRwStatsService {
           writeSuccess24h: success,
           writeRetry24h: retry,
           writeFailed24h: failed,
-          listenerActive: listeners[config.collection] ?? false,
+          listenerActive: isSyncActive,
           cloudCountError: cloud.error,
         ),
       );

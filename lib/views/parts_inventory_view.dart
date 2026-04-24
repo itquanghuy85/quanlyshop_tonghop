@@ -1263,15 +1263,20 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       final partName = p['partName'] as String? ?? '';
       final currentQty = p['quantity'] as int? ?? 0;
       final newQty = currentQty + addQty;
+      final effectiveCost = cost > 0 ? cost : (p['cost'] as int? ?? 0);
+      final totalCost = effectiveCost * addQty;
       final firestoreId = p['firestoreId'] as String?;
       final supplierId = p['supplierId'] as int?;
       final now = DateTime.now().millisecondsSinceEpoch;
       final shopId = await UserService.getCurrentShopId();
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final userName =
+          currentUser?.email?.split('@').first.toUpperCase() ?? 'NV';
 
       // Update local DB quantity
       await db.updatePart(partId, {
         'quantity': newQty,
-        'cost': cost > 0 ? cost : (p['cost'] as int? ?? 0),
+        'cost': effectiveCost,
         'updatedAt': now,
       });
 
@@ -1283,12 +1288,28 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               .doc(firestoreId)
               .update({
                 'quantity': newQty,
-                'cost': cost > 0 ? cost : (p['cost'] as int? ?? 0),
+                'cost': effectiveCost,
                 'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
         } catch (e) {
           debugPrint('⚠️ Quick stock-in Firestore sync error: $e');
         }
+      }
+
+      // Ghi chi phí nhập kho vào expenses để sổ quỹ và báo cáo ngày nhận đủ số liệu.
+      if (effectiveCost > 0 && paymentMethod != 'CÔNG NỢ') {
+        await db.insertExpense({
+          'firestoreId': 'exp_quick_part_${partId}_$now',
+          'category': 'NHẬP HÀNG',
+          'title': 'Nhập thêm linh kiện',
+          'amount': totalCost,
+          'paymentMethod': paymentMethod,
+          'note': '$partName x$addQty = ${NumberFormat('#,###').format(totalCost)}đ',
+          'date': now,
+          'createdBy': userName,
+          'shopId': shopId,
+          'isSynced': 0,
+        });
       }
 
       // Log audit
@@ -1298,26 +1319,26 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         entityType: 'repair_part',
         entityId: firestoreId ?? partId.toString(),
         summary:
-            'Nhập thêm ${_terms.category3}: $partName +$addQty (${NumberFormat('#,###').format(cost * addQty)}đ) - $paymentMethod',
+            'Nhập thêm ${_terms.category3}: $partName +$addQty (${NumberFormat('#,###').format(totalCost)}đ) - $paymentMethod',
         payload: {
           'partName': partName,
           'addQuantity': addQty,
           'newQuantity': newQty,
-          'cost': cost,
-          'totalCost': cost * addQty,
+          'cost': effectiveCost,
+          'totalCost': totalCost,
           'paymentMethod': paymentMethod,
           'supplierName': supplierName,
         },
       );
 
       // Record financial activity
-      if (cost > 0) {
+      if (effectiveCost > 0) {
         try {
           final supplierNameForActivity = _getSupplierName(supplierId);
           final expFId = 'exp_part_${now}_$partName';
           await FinancialActivityService.logPurchase(
             firestoreId: expFId,
-            amount: cost * addQty,
+            amount: totalCost,
             productName: partName,
             quantity: addQty,
             paymentMethod: paymentMethod,
@@ -1329,10 +1350,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       }
 
       // Record supplier import history if applicable
-      if (supplierId != null && cost > 0) {
+      if (supplierId != null && effectiveCost > 0) {
         try {
-          final user = FirebaseAuth.instance.currentUser;
-          final userName = user?.email?.split('@').first.toUpperCase() ?? 'NV';
           await db.insertSupplierImportHistory({
             'supplierId': supplierId,
             'supplierName': supplierName,
@@ -1340,8 +1359,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
             'productBrand': _terms.category3.toUpperCase(),
             'productModel': p['compatibleModels'] ?? '',
             'quantity': addQty,
-            'costPrice': cost,
-            'totalAmount': cost * addQty,
+            'costPrice': effectiveCost,
+            'totalAmount': totalCost,
             'paymentMethod': paymentMethod,
             'importDate': now,
             'importedBy': userName,
@@ -1357,6 +1376,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       // Refresh and notify
       _refreshParts();
       EventBus().emit('parts_changed');
+      EventBus().emit('expenses_changed');
+      EventBus().emit(EventBus.financialChanged);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

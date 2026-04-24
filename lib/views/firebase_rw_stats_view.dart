@@ -269,7 +269,11 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
   }
 
   Widget _buildCollectionCard(FirebaseCollectionRwStat stat) {
-    final hasCloudError = stat.cloudCountError != null;
+    final isCloudSkipped =
+      stat.cloudCountError?.startsWith('SKIPPED:') == true;
+    final hasCloudError =
+      stat.cloudCountError != null && !isCloudSkipped;
+    final cloudUnavailable = hasCloudError || isCloudSkipped || stat.cloudDocumentCount == null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -325,8 +329,10 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
               children: [
                 _metricTag(
                   'Cloud',
-                  hasCloudError ? 'N/A' : _fmt(stat.cloudDocumentCount ?? 0),
-                  hasCloudError ? Colors.red : Colors.indigo,
+                  cloudUnavailable ? 'N/A' : _fmt(stat.cloudDocumentCount ?? 0),
+                  hasCloudError
+                      ? Colors.red
+                      : (isCloudSkipped ? Colors.grey : Colors.indigo),
                 ),
                 _metricTag('Reads 24h', _fmt(stat.reads24h), Colors.teal),
                 _metricTag(
@@ -344,6 +350,13 @@ class _FirebaseRwStatsViewState extends State<FirebaseRwStatsView> {
               Text(
                 'Lỗi cloud count: ${stat.cloudCountError}',
                 style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+              ),
+            ],
+            if (isCloudSkipped) ...[
+              const SizedBox(height: 8),
+              Text(
+                stat.cloudCountError!.replaceFirst('SKIPPED: ', ''),
+                style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
               ),
             ],
           ],
