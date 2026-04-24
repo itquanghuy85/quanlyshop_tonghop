@@ -789,7 +789,7 @@ class StockEntryService {
             // === TIỀN MẶT / CHUYỂN KHOẢN - Tạo EXPENSE ===
             // Ghi expense vào local DB
             final itemBreakdown = entry.items
-                .map((i) => '${i.name} x${i.quantity} = ${MoneyUtils.formatVND((i.cost ?? 0) * i.quantity)}')
+                .map((i) => '${i.name} x${i.quantity} = ${MoneyUtils.formatVND(((i.cost ?? 0) * i.quantity).toInt())}')
                 .join('; ');
             await db.insertExpense({
               'firestoreId': 'exp_stock_${entryId}_$now',
