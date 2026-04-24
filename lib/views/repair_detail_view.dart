@@ -72,6 +72,8 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   bool _canViewRevenue = false;
   bool _canViewCostPrice = false;
   bool _canEditRepairOrder = false;
+  bool _isManagerLike = false;
+  bool _canEditRepairNotes = false;
   bool _canAddRepairImage = false;
   bool _canEditRepairFinancial = false;
   bool _canEditRepairCharge = false;
@@ -519,6 +521,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     return repair.price;
   }
 
+  bool _hideDeliveredSensitiveFinancial(Repair repair) {
+    return repair.status == 4 && !(_canViewRevenue && _canViewCostPrice);
+  }
+
   String _displayedPriceLabel(Repair repair) {
     final requested = repair.requestedDeliveryPrice;
     if (repair.pendingDeliveryApproval && requested != null) {
@@ -694,7 +700,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       _hasPermission = perms['allowViewRepairs'] ?? false;
       _canViewRevenue = canViewRevenue;
       _canViewCostPrice = canViewCostPrice;
+      _isManagerLike = isManagerLike;
       _canEditRepairOrder = isManagerLike;
+      _canEditRepairNotes = perms['allowViewRepairs'] == true; // KTV/nhân viên được ghi chú và thêm dịch vụ
       _canAddRepairImage = perms['allowViewRepairs'] == true;
       _canEditRepairFinancial = isManagerLike && canViewRevenue;
       _canEditRepairCharge = perms['allowViewRepairs'] == true;
@@ -2990,7 +2998,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
 
   /// Cho phép KTV ghi chú cho đơn sửa (vd: kt thay ic hay sàng main ...)
   Future<void> _editTechnicianNotes() async {
-    if (!_ensureCanEditRepairOrder()) return;
+    if (!_canEditRepairNotes && !_canEditRepairOrder) {
+      _ensureCanEditRepairOrder();
+      return;
+    }
     final notesC = TextEditingController(text: r.notes ?? '');
     final result = await showDialog<bool>(
       context: context,
@@ -3202,11 +3213,11 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     final displayPrice = _displayedChargePrice(r);
     final displayProfit = displayPrice - r.cost;
     final hideDeliveredSensitiveFinancial =
-      r.status == 4 && !(_canViewRevenue && _canViewCostPrice);
+      _hideDeliveredSensitiveFinancial(r);
     final canShowCost =
-      _canViewCostPrice && !hideDeliveredSensitiveFinancial;
+      _isManagerLike && _canViewCostPrice && _canViewRevenue && !hideDeliveredSensitiveFinancial;
     final canShowProfit =
-      _canViewRevenue && _canViewCostPrice && !hideDeliveredSensitiveFinancial;
+      _isManagerLike && _canViewRevenue && _canViewCostPrice && !hideDeliveredSensitiveFinancial;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -3393,7 +3404,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               ),
                             if (canShowProfit && _canViewRevenue)
                               const SizedBox(width: 8),
-                            if (_canViewRevenue)
+                            if (_canViewRevenue || _canEditRepairCharge)
                               _miniFinCompact(
                                 _displayedPriceLabel(r),
                                 displayPrice,
@@ -3424,7 +3435,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                           ),
                         ],
                         // Indicator: cost recorded in fund
-                        if (_canViewCostPrice &&
+                        if (canShowCost &&
                             r.costRecordedInFund &&
                             r.cost > 0) ...[
                           const SizedBox(height: 4),
@@ -3489,14 +3500,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                               Colors.teal,
                               _navigateToPartsInventory,
                             ),
-                            if (r.partsUsed.isNotEmpty)
+                            if (r.partsUsed.isNotEmpty && _canEditRepairOrder)
                               _quickAction(
                                 'Đổi PT',
                                 Icons.swap_horiz,
                                 Colors.deepPurple,
                                 _swapPartInRepair,
                               ),
-                            if (r.partsUsed.isNotEmpty)
+                            if (r.partsUsed.isNotEmpty && _canEditRepairOrder)
                               _quickAction(
                                 'Xóa PT',
                                 Icons.delete_sweep,
@@ -3531,7 +3542,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                             ),
                           ),
                           const Spacer(),
-                          if (r.status != 4 && _canEditRepairOrder)
+                          if (r.status != 4 && _canEditRepairNotes)
                             TextButton.icon(
                               onPressed: _showAddServiceDialog,
                               icon: const Icon(Icons.add, size: 14),
@@ -3993,7 +4004,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 color: AppColors.warning,
               ),
             ),
-          if (r.status != 4 && _canEditRepairOrder)
+          if (r.status != 4 && _canEditRepairNotes)
             IconButton(
               icon: const Icon(Icons.edit, size: 14, color: Colors.grey),
               onPressed: () => _showAddServiceDialog(s, index),
@@ -4230,10 +4241,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Widget _buildFinancialContent() {
     final displayPrice = _displayedChargePrice(r);
     final displayProfit = displayPrice - r.cost;
+    final hideDeliveredSensitiveFinancial = _hideDeliveredSensitiveFinancial(r);
+    final canShowCost =
+      _isManagerLike && _canViewCostPrice && _canViewRevenue && !hideDeliveredSensitiveFinancial;
+    final canShowProfit = _isManagerLike && _canViewRevenue && _canViewCostPrice && !hideDeliveredSensitiveFinancial;
 
     return Column(
       children: [
-        if (_canViewCostPrice)
+        if (canShowProfit)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -4257,7 +4272,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         Row(
           children: [
             _miniFin(_displayedPriceLabel(r), displayPrice, AppColors.primary),
-            if (_canViewCostPrice)
+            if (canShowCost)
               _miniFin(loc.costLabel, r.cost, AppColors.warning),
           ],
         ),
@@ -4562,6 +4577,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   Widget _buildFinancialSummary() {
     final displayPrice = _displayedChargePrice(r);
     final displayProfit = displayPrice - r.cost;
+    final hideDeliveredSensitiveFinancial = _hideDeliveredSensitiveFinancial(r);
+    final canShowCost =
+      _isManagerLike && _canViewCostPrice && _canViewRevenue && !hideDeliveredSensitiveFinancial;
+    final canShowProfit = _isManagerLike && _canViewRevenue && _canViewCostPrice && !hideDeliveredSensitiveFinancial;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -4571,7 +4590,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       ),
       child: Column(
         children: [
-          if (_canViewCostPrice)
+          if (canShowProfit)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -4599,7 +4618,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
                 displayPrice,
                 AppColors.primary,
               ),
-              if (_canViewCostPrice)
+              if (canShowCost)
                 _miniFin(loc.costLabel, r.cost, AppColors.warning),
             ],
           ),
@@ -4893,7 +4912,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     RepairService? editService,
     int? editIndex,
   ]) async {
-    if (!_ensureCanEditRepairOrder()) return;
+    if (!_canEditRepairNotes && !_ensureCanEditRepairOrder()) return;
     await _loadPartners();
     if (!mounted) return;
 

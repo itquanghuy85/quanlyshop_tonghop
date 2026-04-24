@@ -7,6 +7,7 @@ import '../data/db_helper.dart';
 import '../models/salvage_phone_model.dart';
 import '../models/expense_model.dart';
 import '../services/firestore_service.dart';
+import '../services/sync_orchestrator.dart';
 import '../services/storage_service.dart';
 import '../services/user_service.dart';
 import '../utils/money_utils.dart';
@@ -912,12 +913,25 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
                                 'createdAt': existing.createdAt,
                                 'updatedAt': now,
                                 'createdBy': existing.createdBy ?? user,
-                                'isSynced': 1,
+                                'isSynced': 0,
                                 'deleted': 0,
                               };
                               await DBHelper().upsertSalvagePhone(data);
-                              await FirestoreService
-                                  .updateSalvagePhoneCloud(data);
+                              final saved = await DBHelper()
+                                  .getSalvagePhoneByFirestoreId(fId);
+                              final localId = saved?['id'] as int?;
+                              if (localId != null) {
+                                await SyncOrchestrator().enqueue(
+                                  entityType: SyncEntityType.salvagePhone,
+                                  entityId: localId,
+                                  firestoreId: fId,
+                                  operation: SyncOperation.update,
+                                  data: data,
+                                );
+                                try {
+                                  await SyncOrchestrator().syncAll();
+                                } catch (_) {}
+                              }
                             } else {
                               // Add new
                               final fId =
@@ -935,12 +949,25 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
                                 'createdAt': now,
                                 'updatedAt': now,
                                 'createdBy': user,
-                                'isSynced': 1,
+                                'isSynced': 0,
                                 'deleted': 0,
                               };
                               await DBHelper().upsertSalvagePhone(data);
-                              await FirestoreService
-                                  .addSalvagePhoneCloud(data);
+                              final saved = await DBHelper()
+                                  .getSalvagePhoneByFirestoreId(fId);
+                              final localId = saved?['id'] as int?;
+                              if (localId != null) {
+                                await SyncOrchestrator().enqueue(
+                                  entityType: SyncEntityType.salvagePhone,
+                                  entityId: localId,
+                                  firestoreId: fId,
+                                  operation: SyncOperation.create,
+                                  data: data,
+                                );
+                                try {
+                                  await SyncOrchestrator().syncAll();
+                                } catch (_) {}
+                              }
 
                               // Auto-record expense (CHI) to sổ quỹ
                               await _recordExpense(
@@ -1206,11 +1233,24 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
       data['firestoreId'] = fId;
       data['status'] = newStatus;
       data['updatedAt'] = now;
-      data['isSynced'] = 1;
+      data['isSynced'] = 0;
       data.remove('id');
 
       await DBHelper().upsertSalvagePhone(data);
-      await FirestoreService.updateSalvagePhoneCloud(data);
+      final saved = await DBHelper().getSalvagePhoneByFirestoreId(fId);
+      final localId = saved?['id'] as int?;
+      if (localId != null) {
+        await SyncOrchestrator().enqueue(
+          entityType: SyncEntityType.salvagePhone,
+          entityId: localId,
+          firestoreId: fId,
+          operation: SyncOperation.update,
+          data: data,
+        );
+        try {
+          await SyncOrchestrator().syncAll();
+        } catch (_) {}
+      }
 
       _showSnack('Đã đổi trạng thái → ${_statusLabel(newStatus)}');
       _load();
@@ -1260,9 +1300,23 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
                   data['deleted'] = 1;
                   data['updatedAt'] =
                       DateTime.now().millisecondsSinceEpoch;
+                    data['isSynced'] = 0;
                   data.remove('id');
                   await DBHelper().upsertSalvagePhone(data);
-                  await FirestoreService.deleteSalvagePhoneCloud(fId);
+                  final saved = await DBHelper().getSalvagePhoneByFirestoreId(fId);
+                  final localId = saved?['id'] as int?;
+                  if (localId != null) {
+                    await SyncOrchestrator().enqueue(
+                      entityType: SyncEntityType.salvagePhone,
+                      entityId: localId,
+                      firestoreId: fId,
+                      operation: SyncOperation.delete,
+                      data: data,
+                    );
+                    try {
+                      await SyncOrchestrator().syncAll();
+                    } catch (_) {}
+                  }
 
                   _showSnack('Đã xóa "${p.deviceName}"');
                   _load();

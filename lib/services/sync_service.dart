@@ -83,6 +83,7 @@ class SyncService {
       case 'supplier_product_prices':
       case 'import_orders':
       case 'import_order_items':
+      case 'salvage_phones':
         return _hasPermission(permissions, 'allowViewInventory');
       case 'suppliers':
         return _hasPermission(permissions, 'allowViewSuppliers');
