@@ -367,8 +367,10 @@ class SyncService {
     final lastCaredAt = _asInt(data['lastCaredAt']);
     final pendingApproval = _asBool(data['pendingDeliveryApproval']);
 
-    // If deliveredAt already exists, status must be delivered.
-    if (deliveredAt > 0 && status < 4) {
+    // If deliveredAt already exists AND repair is NOT in pending approval state, status must be delivered.
+    // NOTE: deliveredAt is also set when staff REQUESTS delivery approval (pendingDeliveryApproval=true),
+    // so we must NOT auto-upgrade to status=4 while the repair is still pending approval.
+    if (deliveredAt > 0 && status < 4 && !pendingApproval) {
       status = 4;
     }
 
