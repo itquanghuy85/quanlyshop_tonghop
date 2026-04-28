@@ -1858,7 +1858,7 @@ class _HomeViewState extends State<HomeView>
 
       final uploadedUrl = await StorageService.uploadXFileAndGetUrl(
         picked,
-        'user_photos',
+        'user_photos/${user.uid}',
       );
       if (uploadedUrl == null || uploadedUrl.trim().isEmpty) {
         messenger.showSnackBar(

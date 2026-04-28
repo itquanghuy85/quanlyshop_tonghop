@@ -13,6 +13,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:csv/csv.dart';
 import '../services/user_service.dart';
 import '../services/category_service.dart';
+import '../services/event_bus.dart';
 import '../data/db_helper.dart';
 import '../services/storage_service.dart';
 import '../models/repair_model.dart';
@@ -1071,7 +1072,9 @@ class _StaffListViewState extends State<StaffListView> {
                           userData['displayName'] ??
                           email.split('@').first.toUpperCase();
                       final phone = userData['phone'] ?? "Chưa có SĐT";
-                      final photoUrl = userData['photoUrl'];
+                        final photoUrl = (userData['photoUrl'] ?? '')
+                          .toString()
+                          .trim();
                       final shopId = userData['shopId'];
 
                       return Card(
@@ -1098,7 +1101,7 @@ class _StaffListViewState extends State<StaffListView> {
                                 : role == 'admin'
                                 ? AppColors.error.withOpacity(0.1)
                                 : AppColors.inactive.withOpacity(0.1),
-                            child: photoUrl == null
+                            child: photoUrl.isEmpty
                                 ? Icon(
                                     role == 'owner'
                                         ? Icons.business
@@ -1394,7 +1397,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       nameCtrl.text = widget.fullData['displayName'] ?? widget.name;
       phoneCtrl.text = widget.fullData['phone'] ?? "";
       addressCtrl.text = widget.fullData['address'] ?? "";
-      _photoPath = widget.fullData['photoUrl'];
+      _photoPath = (widget.fullData['photoUrl'] ?? '').toString().trim();
       // Đảm bảo role nằm trong danh sách dropdown, nếu không dùng mặc định 'employee'
       const validRoles = ['owner', 'manager', 'employee', 'technician'];
       _selectedRole = validRoles.contains(widget.role)
@@ -1870,7 +1873,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         print('Uploading photo: $_photoPath');
         photoUrl = await StorageService.uploadAndGetUrl(
           _photoPath!,
-          'user_photos',
+          'user_photos/${widget.uid}',
         );
         if (photoUrl == null) {
           final uploadError = StorageService.lastUploadErrorMessage ?? '';
@@ -2015,6 +2018,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
       if (!mounted) return;
       setState(() => _isEditing = false);
+      EventBus().emit('user_profile_changed');
       messenger.showSnackBar(
         const SnackBar(content: Text("ĐÃ CẬP NHẬT HỒ SƠ NHÂN VIÊN!")),
       );
@@ -2164,7 +2168,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                     radius: 30,
                     backgroundImage: _safeImageProvider(_photoPath),
                     backgroundColor: Colors.blue.withAlpha(25),
-                    child: _photoPath == null
+                    child: (_photoPath == null || _photoPath!.trim().isEmpty)
                         ? const Icon(Icons.camera_alt, color: Colors.blue)
                         : null,
                   ),

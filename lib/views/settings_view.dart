@@ -9,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../services/social_auth_service.dart';
 import '../services/super_admin_security_service.dart';
 import '../services/user_service.dart';
+import '../services/event_bus.dart';
 import '../services/current_shop_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_text_styles.dart';
@@ -107,7 +108,7 @@ class _SettingsViewState extends State<SettingsView> {
 
       final uploadedUrl = await StorageService.uploadXFileAndGetUrl(
         picked,
-        'user_photos',
+        'user_photos/${user.uid}',
       );
       if (uploadedUrl == null || uploadedUrl.trim().isEmpty) {
         final denied = StorageService.lastUploadPermissionDenied ||
@@ -138,10 +139,14 @@ class _SettingsViewState extends State<SettingsView> {
         debugPrint('updatePhotoURL failed, fallback to Firestore photo only: $e');
       }
 
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_userPhotoUrl_${user.uid}', uploadedUrl);
+
       if (!mounted) return;
       setState(() {
         _profilePhotoUrl = uploadedUrl;
       });
+      EventBus().emit('user_profile_changed');
       messenger.showSnackBar(
         const SnackBar(content: Text('Đã cập nhật ảnh đại diện thành công')),
       );

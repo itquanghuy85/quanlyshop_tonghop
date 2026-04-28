@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/responsive_wrapper.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -48,6 +49,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   List<ChatMessage> _pinnedMessages = [];
   List<TypingUser> _typingUsers = [];
   List<OnlineUser> _onlineUsers = [];
+  final Map<String, String> _senderAvatarCache = {};
 
   // Reply state
   ChatMessage? _replyingTo;
@@ -136,6 +138,103 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     _onlineSubscription?.cancel();
   }
 
+  String _avatarInitial(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '?';
+    return trimmed.characters.first.toUpperCase();
+  }
+
+  String? _resolveSenderAvatarUrl(ChatMessage message) {
+    final fromMessage = (message.senderAvatar ?? '').trim();
+    if (fromMessage.isNotEmpty) return fromMessage;
+    final fromCache = (_senderAvatarCache[message.senderId] ?? '').trim();
+    if (fromCache.isNotEmpty) return fromCache;
+    return null;
+  }
+
+  Widget _buildSenderAvatar(ChatMessage message, {double radius = 16}) {
+    final avatarUrl = _resolveSenderAvatarUrl(message);
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: Colors.grey.shade100,
+        child: ClipOval(
+          child: CachedNetworkImage(
+            imageUrl: avatarUrl,
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+            errorWidget: (_, __, ___) => Text(
+              _avatarInitial(message.senderName),
+              style: TextStyle(
+                fontSize: radius - 2,
+                fontWeight: FontWeight.w700,
+                color: Colors.blueGrey.shade700,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.blueGrey.shade100,
+      child: Text(
+        _avatarInitial(message.senderName),
+        style: TextStyle(
+          fontSize: radius - 2,
+          fontWeight: FontWeight.w700,
+          color: Colors.blueGrey.shade700,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _syncSenderAvatarCache(List<ChatMessage> messages) async {
+    final pending = messages
+        .where((m) => m.senderId.isNotEmpty && m.senderId != 'system')
+        .map((m) => m.senderId)
+        .where((uid) {
+          final hasInline = messages.any((m) =>
+              m.senderId == uid &&
+              (m.senderAvatar ?? '').trim().isNotEmpty);
+          return !hasInline && (_senderAvatarCache[uid] ?? '').trim().isEmpty;
+        })
+        .toSet()
+        .toList();
+
+    if (pending.isEmpty) return;
+
+    const chunkSize = 10;
+    final found = <String, String>{};
+
+    for (var i = 0; i < pending.length; i += chunkSize) {
+      final chunk = pending.sublist(
+        i,
+        i + chunkSize > pending.length ? pending.length : i + chunkSize,
+      );
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final doc in snap.docs) {
+          final url = (doc.data()['photoUrl'] ?? '').toString().trim();
+          if (url.isNotEmpty) {
+            found[doc.id] = url;
+          }
+        }
+      } catch (e) {
+        debugPrint('Chat avatar cache load failed: $e');
+      }
+    }
+
+    if (!mounted || found.isEmpty) return;
+    setState(() {
+      _senderAvatarCache.addAll(found);
+    });
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -172,6 +271,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           _messages = messages;
           _isLoading = false;
         });
+        _syncSenderAvatarCache(messages);
         // Mark as read
         for (final msg in messages.take(5)) {
           if (msg.id != null) ChatService.markAsRead(msg.id!);
@@ -1214,47 +1314,59 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               ),
             ),
 
-          // Message bubble
-          GestureDetector(
-            onLongPress: () => _showMessageActions(message),
-            onDoubleTap: () => _showReactionPicker(message),
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: (MediaQuery.sizeOf(context).width * 0.75).clamp(
-                  0,
-                  480,
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe ? const Color(0xFF2962FF) : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isMe ? 16 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 16),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(10),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Sender name
-                  if (!isMe)
-                    Text(
-                      message.senderName,
-                      style: TextStyle(
-                        fontSize: AppTextStyles.body1.fontSize,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                      ),
+          // Message bubble + avatar
+          Row(
+            mainAxisAlignment: isMe
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (!isMe) ...[
+                _buildSenderAvatar(message),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: GestureDetector(
+                  onLongPress: () => _showMessageActions(message),
+                  onDoubleTap: () => _showReactionPicker(message),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: (MediaQuery.sizeOf(context).width * 0.72)
+                          .clamp(0, 460),
                     ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isMe ? const Color(0xFF2962FF) : Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(16),
+                        topRight: const Radius.circular(16),
+                        bottomLeft: Radius.circular(isMe ? 16 : 4),
+                        bottomRight: Radius.circular(isMe ? 4 : 16),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(10),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Sender name
+                        if (!isMe)
+                          Text(
+                            message.senderName,
+                            style: TextStyle(
+                              fontSize: AppTextStyles.body1.fontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade700,
+                            ),
+                          ),
 
                   // Priority indicator
                   if (message.priority > 0)
@@ -1375,42 +1487,50 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                       ),
                     ),
 
-                  // Footer: time + edited + pin
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        DateFormat('HH:mm').format(message.createdAt),
-                        style: TextStyle(
-                          fontSize: AppTextStyles.caption.fontSize,
-                          color: isMe ? Colors.white60 : Colors.grey,
-                        ),
-                      ),
-                      if (message.isEdited) ...[
-                        const SizedBox(width: 4),
-                        Text(
-                          '(đã sửa)',
-                          style: TextStyle(
-                            fontSize: AppTextStyles.caption.fontSize,
-                            fontStyle: FontStyle.italic,
-                            color: isMe ? Colors.white60 : Colors.grey,
-                          ),
+                        // Footer: time + edited + pin
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              DateFormat('HH:mm').format(message.createdAt),
+                              style: TextStyle(
+                                fontSize: AppTextStyles.caption.fontSize,
+                                color: isMe ? Colors.white60 : Colors.grey,
+                              ),
+                            ),
+                            if (message.isEdited) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '(đã sửa)',
+                                style: TextStyle(
+                                  fontSize: AppTextStyles.caption.fontSize,
+                                  fontStyle: FontStyle.italic,
+                                  color: isMe ? Colors.white60 : Colors.grey,
+                                ),
+                              ),
+                            ],
+                            if (message.isPinned) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.push_pin,
+                                size: 12,
+                                color:
+                                    isMe ? Colors.amber.shade200 : Colors.amber,
+                              ),
+                            ],
+                          ],
                         ),
                       ],
-                      if (message.isPinned) ...[
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.push_pin,
-                          size: 12,
-                          color: isMe ? Colors.amber.shade200 : Colors.amber,
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ],
+                ),
               ),
-            ),
+              if (isMe) ...[
+                const SizedBox(width: 8),
+                _buildSenderAvatar(message),
+              ],
+            ],
           ),
 
           // Reactions

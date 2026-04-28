@@ -22,6 +22,35 @@ class ChatService {
   static Timer? _typingTimer;
   static bool _isTyping = false;
 
+  static Future<Map<String, String?>> _resolveCurrentSenderProfile(
+    User user,
+  ) async {
+    String senderName =
+        user.email?.split('@').first.toUpperCase() ?? 'USER';
+    String? senderAvatar = (user.photoURL ?? '').trim();
+
+    try {
+      final doc = await _db.collection('users').doc(user.uid).get();
+      final data = doc.data();
+      if (data != null) {
+        final displayName = (data['displayName'] ?? data['name'] ?? '')
+            .toString()
+            .trim();
+        final photoUrl = (data['photoUrl'] ?? '').toString().trim();
+        if (displayName.isNotEmpty) {
+          senderName = displayName;
+        }
+        if (photoUrl.isNotEmpty) {
+          senderAvatar = photoUrl;
+        }
+      }
+    } catch (e) {
+      debugPrint('Chat profile fallback: $e');
+    }
+
+    return {'name': senderName, 'avatar': senderAvatar};
+  }
+
   // ============== SEND MESSAGES ==============
 
   /// Gửi tin nhắn text
@@ -39,13 +68,15 @@ class ChatService {
 
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
-
-      final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
+      final profile = await _resolveCurrentSenderProfile(user);
+      final userName = profile['name'] ?? 'USER';
+      final userAvatar = profile['avatar'];
 
       final chatMessage = ChatMessage(
         shopId: shopId,
         senderId: user.uid,
         senderName: userName,
+        senderAvatar: userAvatar,
         message: message,
         messageType: 'text',
         replyToId: replyToId,
@@ -93,13 +124,15 @@ class ChatService {
 
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
-
-      final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
+      final profile = await _resolveCurrentSenderProfile(user);
+      final userName = profile['name'] ?? 'USER';
+      final userAvatar = profile['avatar'];
 
       final chatMessage = ChatMessage(
         shopId: shopId,
         senderId: user.uid,
         senderName: userName,
+        senderAvatar: userAvatar,
         message: message,
         messageType: 'linked_order',
         linkedType: linkedType,
@@ -161,8 +194,9 @@ class ChatService {
 
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return null;
-
-      final userName = user.email?.split('@').first.toUpperCase() ?? 'USER';
+      final profile = await _resolveCurrentSenderProfile(user);
+      final userName = profile['name'] ?? 'USER';
+      final userAvatar = profile['avatar'];
 
       // Upload images
       final List<String> urls = [];
@@ -179,6 +213,7 @@ class ChatService {
         shopId: shopId,
         senderId: user.uid,
         senderName: userName,
+        senderAvatar: userAvatar,
         message: caption ?? '📷 Hình ảnh',
         messageType: 'image',
         mediaUrls: urls,

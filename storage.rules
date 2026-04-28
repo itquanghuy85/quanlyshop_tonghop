@@ -54,6 +54,11 @@ service firebase.storage {
       allow read:   if isAuth();
       allow write:  if isAuth() && withinSizeLimit() && isImage();
     }
+    match /user_photos/{uid}/{fileName} {
+      allow read:   if isAuth();
+      allow write:  if isAuth() && (isSuperAdmin() || request.auth.uid == uid)
+                       && withinSizeLimit() && isImage();
+    }
     match /user_photos/{fileName} {
       allow read:   if isAuth();
       allow write:  if isAuth() && withinSizeLimit() && isImage();

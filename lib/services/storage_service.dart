@@ -59,6 +59,13 @@ class StorageService {
       return root;
     }
 
+    if (root == 'user_photos') {
+      if (parts.length >= 2 && parts[1].isNotEmpty) {
+        return '$root/${parts[1]}';
+      }
+      return root;
+    }
+
     if (_storageRoots.contains(root)) {
       return root;
     }
@@ -90,6 +97,12 @@ class StorageService {
     return null;
   }
 
+  static String? _getCurrentUid() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.trim().isEmpty) return null;
+    return uid.trim();
+  }
+
   static Future<List<String>> _buildUploadFolderCandidates(
     String uploadFolder,
   ) async {
@@ -112,6 +125,7 @@ class StorageService {
 
     final root = parts.first;
     final shopId = await _getCurrentUserShopIdClaim();
+    final uid = _getCurrentUid();
 
     if (root == 'chat_images' || root == 'payment_requests') {
       if (parts.length >= 2) {
@@ -121,6 +135,17 @@ class StorageService {
         addCandidate('$root/$shopId');
       }
       addCandidate(uploadFolder);
+      return candidates;
+    }
+
+    if (root == 'user_photos') {
+      if (parts.length >= 2 && parts[1].isNotEmpty) {
+        addCandidate('$root/${parts[1]}');
+      }
+      if (uid != null && uid.isNotEmpty) {
+        addCandidate('$root/$uid');
+      }
+      addCandidate(root);
       return candidates;
     }
 
