@@ -33,6 +33,7 @@ import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
 import '../widgets/currency_text_field.dart';
 import '../widgets/variant_selector.dart';
+import '../widgets/entity_avatar.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -3411,17 +3412,10 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                       itemBuilder: (context, index) {
                         final customer = _filteredCustomers[index];
                         return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.primary.withOpacity(0.1),
-                            child: Text(
-                              customer.name.isNotEmpty
-                                  ? customer.name[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          leading: EntityAvatar(
+                            imageUrl: customer.avatarUrl,
+                            name: customer.name,
+                            radius: 20,
                           ),
                           title: Text(customer.name),
                           subtitle: Column(

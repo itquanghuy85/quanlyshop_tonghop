@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -404,91 +403,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                         color: Colors.blueGrey.shade200,
                         image: coverImage,
                       ),
-                      child: Stack(
-                        children: [
-                        if (coverImage != null)
-                          Positioned.fill(
-                            child: ClipRRect(
-                              child: BackdropFilter(
-                                filter: ImageFilter.blur(sigmaX: 1.8, sigmaY: 1.8),
-                                child: Container(
-                                  color: Colors.black.withOpacity(0.22),
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (coverImage == null)
-                          Center(
-                            child: Text(
-                              'Thêm ảnh bìa',
-                              style: AppTextStyles.body1.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: Row(
-                              children: [
-                              if (_coverUrl.trim().isNotEmpty)
-                                IconButton(
-                                  tooltip: 'Xem ảnh lớn',
-                                  onPressed: () => EntityAvatar.showPreview(
-                                    context,
-                                    _coverUrl,
-                                    _nameCtrl.text,
-                                  ),
-                                  icon: const Icon(Icons.fullscreen, color: Colors.white),
-                                ),
-                              if (_coverUrl.trim().isNotEmpty)
-                                IconButton(
-                                  tooltip: 'Căn giữa ảnh bìa',
-                                  onPressed: () async {
-                                    setState(() {
-                                      _coverAlignX = 0;
-                                      _coverAlignY = 0;
-                                    });
-                                    NotificationService.showSnackBar(
-                                      'Đã căn giữa. Nhấn Lưu hồ sơ để áp dụng.',
-                                      color: Colors.blue,
-                                    );
-                                  },
-                                  icon: const Icon(Icons.filter_center_focus, color: Colors.white),
-                                ),
-                              if (coverImage != null)
-                                IconButton(
-                                  tooltip: 'Chỉnh vùng hiển thị',
-                                  onPressed: _openCoverPositionEditor,
-                                  icon: const Icon(Icons.tune, color: Colors.white),
-                                ),
-                              IconButton(
-                                tooltip: 'Đổi ảnh bìa',
-                                onPressed: _pickCover,
-                                icon: const Icon(Icons.camera_alt, color: Colors.white),
-                              ),
-                              ],
-                            ),
-                          ),
-                          if (_coverUrl.trim().isNotEmpty)
-                            Positioned(
-                              left: 12,
-                              top: 12,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.35),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'Nhấn biểu tượng cân chỉnh để đổi vùng hiển thị',
-                                  style: AppTextStyles.caption.copyWith(color: Colors.white),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+                      child: const SizedBox.shrink(),
                     ),
                   ),
                 ),

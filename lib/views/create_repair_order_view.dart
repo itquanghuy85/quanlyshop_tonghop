@@ -34,6 +34,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../services/event_bus.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/entity_avatar.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import 'order_list_view.dart';
@@ -1638,6 +1639,11 @@ class _CustomerSelectionDialogState extends State<CustomerSelectionDialog> {
                       itemBuilder: (context, index) {
                         final customer = _filteredCustomers[index];
                         return ListTile(
+                          leading: EntityAvatar(
+                            imageUrl: customer.avatarUrl,
+                            name: customer.name,
+                            radius: 20,
+                          ),
                           title: Text(customer.name),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
