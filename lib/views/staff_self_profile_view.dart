@@ -317,7 +317,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                               color: Colors.blueGrey.shade200,
                               image: DecorationImage(
                                 image: coverProvider,
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                                 alignment: Alignment(localX, localY),
                               ),
                             ),
@@ -367,7 +367,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
     final coverImage = coverProvider != null
         ? DecorationImage(
             image: coverProvider,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             alignment: Alignment(_coverAlignX, _coverAlignY),
           )
         : null;

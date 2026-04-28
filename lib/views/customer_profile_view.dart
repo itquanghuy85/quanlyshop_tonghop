@@ -253,7 +253,7 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
                         image: avatarProvider != null
                             ? DecorationImage(
                                 image: avatarProvider,
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                               )
                             : null,
                       ),

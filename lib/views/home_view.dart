@@ -3515,14 +3515,7 @@ class _HomeViewState extends State<HomeView>
           ),
         ],
       ),
-      child: Container(
-        decoration: hasCover
-            ? BoxDecoration(
-                color: Colors.black.withOpacity(0.35),
-                borderRadius: BorderRadius.circular(12),
-              )
-            : null,
-        child: Column(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
           // Dòng lời chào
@@ -3661,7 +3654,6 @@ class _HomeViewState extends State<HomeView>
           ),
           ],
         ),
-      ),
     );
   }
 
