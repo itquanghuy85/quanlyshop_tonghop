@@ -2361,29 +2361,38 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OutlinedButton.icon(
-                  onPressed: _isSavingStaff ? null : _changeAvatarOnly,
-                  icon: _isSavingStaff
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.add_a_photo_outlined, size: 18),
-                  label: Text(
-                    _isSavingStaff ? 'ĐANG LƯU ẢNH...' : 'ĐỔI ẢNH ĐẠI DIỆN',
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 260),
+                  child: OutlinedButton.icon(
+                    onPressed: _isSavingStaff ? null : _changeAvatarOnly,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 40),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    icon: _isSavingStaff
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.add_a_photo_outlined, size: 18),
+                    label: Text(
+                      _isSavingStaff ? 'ĐANG LƯU ẢNH...' : 'ĐỔI ẢNH ĐẠI DIỆN',
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Mẹo: Nhân viên bị khóa tab Nhân viên vẫn có thể tự đổi ảnh trong Cài đặt.',
-                    style: TextStyle(
-                      fontSize: AppTextStyles.body1.fontSize,
-                      color: Colors.grey[600],
-                    ),
+                const SizedBox(height: 6),
+                Text(
+                  'Mẹo: Nhân viên bị khóa tab Nhân viên vẫn có thể tự đổi ảnh trong Cài đặt.',
+                  style: TextStyle(
+                    fontSize: AppTextStyles.body1.fontSize,
+                    color: Colors.grey[600],
                   ),
                 ),
               ],

@@ -1,5 +1,6 @@
 class Customer {
   String? avatarUrl;
+  String? coverUrl;
   int? id;
   String? firestoreId;
   String name;
@@ -13,6 +14,8 @@ class Customer {
   int totalSpent; // Tổng tiền đã mua
   int totalRepairs; // Tổng số lần sửa chữa
   int totalRepairCost; // Tổng tiền sửa chữa
+  double coverAlignX;
+  double coverAlignY;
   String? shopId;
   bool isSynced;
   bool deleted;
@@ -20,6 +23,7 @@ class Customer {
   Customer({
     this.id,
     this.avatarUrl,
+    this.coverUrl,
     this.firestoreId,
     required this.name,
     required this.phone,
@@ -32,6 +36,8 @@ class Customer {
     this.totalSpent = 0,
     this.totalRepairs = 0,
     this.totalRepairCost = 0,
+    this.coverAlignX = 0,
+    this.coverAlignY = 0,
     this.shopId,
     this.isSynced = false,
     this.deleted = false,
@@ -43,6 +49,7 @@ class Customer {
       'id': id,
       'firestoreId': firestoreId,
       'avatarUrl': avatarUrl,
+      'coverUrl': coverUrl,
       'name': name,
       'phone': phone,
       'email': email,
@@ -54,6 +61,8 @@ class Customer {
       'totalSpent': totalSpent,
       'totalRepairs': totalRepairs,
       'totalRepairCost': totalRepairCost,
+      'coverAlignX': coverAlignX,
+      'coverAlignY': coverAlignY,
       'shopId': shopId,
       'isSynced': isSynced ? 1 : 0,
       'deleted': deleted ? 1 : 0,
@@ -66,6 +75,7 @@ class Customer {
       id: map['id'],
       firestoreId: map['firestoreId'],
       avatarUrl: map['avatarUrl'],
+      coverUrl: map['coverUrl'],
       name: map['name'] ?? '',
       phone: map['phone'] ?? '',
       email: map['email'],
@@ -77,6 +87,8 @@ class Customer {
       totalSpent: map['totalSpent'] ?? 0,
       totalRepairs: map['totalRepairs'] ?? 0,
       totalRepairCost: map['totalRepairCost'] ?? 0,
+      coverAlignX: (map['coverAlignX'] as num?)?.toDouble() ?? 0,
+      coverAlignY: (map['coverAlignY'] as num?)?.toDouble() ?? 0,
       shopId: map['shopId'],
       isSynced: (map['isSynced'] ?? 0) == 1,
       deleted: (map['deleted'] ?? 0) == 1,
@@ -88,6 +100,7 @@ class Customer {
     return {
       'name': name,
       'avatarUrl': avatarUrl,
+      'coverUrl': coverUrl,
       'phone': phone,
       'email': email,
       'address': address,
@@ -97,6 +110,8 @@ class Customer {
       'totalSpent': totalSpent,
       'totalRepairs': totalRepairs,
       'totalRepairCost': totalRepairCost,
+      'coverAlignX': coverAlignX,
+      'coverAlignY': coverAlignY,
       'deleted': deleted,
     };
   }
@@ -106,6 +121,7 @@ class Customer {
     return Customer(
       firestoreId: firestoreId,
       avatarUrl: map['avatarUrl'],
+      coverUrl: map['coverUrl'],
       name: map['name'] ?? '',
       phone: map['phone'] ?? '',
       email: map['email'],
@@ -116,6 +132,8 @@ class Customer {
       totalSpent: map['totalSpent'] ?? 0,
       totalRepairs: map['totalRepairs'] ?? 0,
       totalRepairCost: map['totalRepairCost'] ?? 0,
+      coverAlignX: (map['coverAlignX'] as num?)?.toDouble() ?? 0,
+      coverAlignY: (map['coverAlignY'] as num?)?.toDouble() ?? 0,
       deleted: map['deleted'] ?? false,
       isSynced: true,
     );
@@ -125,6 +143,7 @@ class Customer {
   Customer copyWith({
     int? id,
     String? avatarUrl,
+    String? coverUrl,
     String? firestoreId,
     String? name,
     String? phone,
@@ -137,6 +156,8 @@ class Customer {
     int? totalSpent,
     int? totalRepairs,
     int? totalRepairCost,
+    double? coverAlignX,
+    double? coverAlignY,
     String? shopId,
     bool? isSynced,
     bool? deleted,
@@ -144,6 +165,7 @@ class Customer {
     return Customer(
       id: id ?? this.id,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      coverUrl: coverUrl ?? this.coverUrl,
       firestoreId: firestoreId ?? this.firestoreId,
       name: name ?? this.name,
       phone: phone ?? this.phone,
@@ -156,6 +178,8 @@ class Customer {
       totalSpent: totalSpent ?? this.totalSpent,
       totalRepairs: totalRepairs ?? this.totalRepairs,
       totalRepairCost: totalRepairCost ?? this.totalRepairCost,
+      coverAlignX: coverAlignX ?? this.coverAlignX,
+      coverAlignY: coverAlignY ?? this.coverAlignY,
       shopId: shopId ?? this.shopId,
       isSynced: isSynced ?? this.isSynced,
       deleted: deleted ?? this.deleted,

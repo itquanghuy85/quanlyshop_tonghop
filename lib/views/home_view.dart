@@ -102,6 +102,7 @@ import 'dashboard_settings_view.dart';
 import 'payment_request_chat_view.dart';
 import 'daily_activity_report_view.dart';
 import 'reminders_view.dart';
+import 'staff_self_profile_view.dart';
 import '../services/test_data_service.dart';
 import '../services/social_auth_service.dart';
 import '../services/reminder_service.dart';
@@ -457,6 +458,7 @@ class _HomeViewState extends State<HomeView>
   String _shopName = ''; // Tên cửa hàng
   String _userPhotoUrl = ''; // Ảnh đại diện người dùng
   String _shopLogoUrl = ''; // Logo cửa hàng
+  String _shopCoverUrl = ''; // Ảnh nền cửa hàng
   bool _updatingMyAvatar = false;
   String _runtimeRole = '';
   static const ExpansionFeatureFlags _multiBranchFlags =
@@ -1605,6 +1607,8 @@ class _HomeViewState extends State<HomeView>
           (prefs.getString('cached_userPhotoUrl_${user.uid}') ?? '').trim();
       final cachedShopLogo =
           (prefs.getString('cached_shopLogoUrl_${user.uid}') ?? '').trim();
+        final cachedShopCover =
+          (prefs.getString('cached_shopCoverUrl_${user.uid}') ?? '').trim();
       debugPrint(
         '_loadUserAndShopInfo: Cache - userName=$cachedUserName, shopName=$cachedShopName',
       );
@@ -1620,6 +1624,7 @@ class _HomeViewState extends State<HomeView>
               _shopName = cachedShopName;
             if (cachedUserPhoto.isNotEmpty) _userPhotoUrl = cachedUserPhoto;
             if (cachedShopLogo.isNotEmpty) _shopLogoUrl = cachedShopLogo;
+            if (cachedShopCover.isNotEmpty) _shopCoverUrl = cachedShopCover;
           });
           debugPrint(
             '_loadUserAndShopInfo: Set state from cache - userName=$_userName, shopName=$_shopName',
@@ -1677,6 +1682,7 @@ class _HomeViewState extends State<HomeView>
       // Lấy tên shop (trong try-catch riêng để không ảnh hưởng userName)
       String shopName = '';
       String shopLogoUrl = '';
+      String shopCoverUrl = '';
       try {
         debugPrint('_loadUserAndShopInfo: Getting shopId...');
         final shopId = await UserService.getCurrentShopId();
@@ -1702,6 +1708,9 @@ class _HomeViewState extends State<HomeView>
             debugPrint('_loadUserAndShopInfo: Shop doc data=$shopData');
             shopName = normalizeLegacyShopName(shopData?['name']?.toString());
             shopLogoUrl = (shopData?['logoUrl'] ?? '').toString().trim();
+            shopCoverUrl = (shopData?['coverUrl'] ?? shopData?['bannerUrl'] ?? '')
+                .toString()
+                .trim();
             debugPrint(
               '_loadUserAndShopInfo: shopName from Firestore=$shopName',
             );
@@ -1731,6 +1740,12 @@ class _HomeViewState extends State<HomeView>
                 }
                 if (shopLogoUrl.isEmpty) {
                   shopLogoUrl = (profileData?['logoUrl'] ?? '').toString().trim();
+                }
+                if (shopCoverUrl.isEmpty) {
+                  shopCoverUrl =
+                      (profileData?['coverUrl'] ?? profileData?['bannerUrl'] ?? '')
+                          .toString()
+                          .trim();
                 }
               }
             } catch (profileError) {
@@ -1767,6 +1782,9 @@ class _HomeViewState extends State<HomeView>
       if (shopLogoUrl.isNotEmpty) {
         await prefs.setString('cached_shopLogoUrl_${user.uid}', shopLogoUrl);
       }
+      if (shopCoverUrl.isNotEmpty) {
+        await prefs.setString('cached_shopCoverUrl_${user.uid}', shopCoverUrl);
+      }
 
       if (mounted) {
         setState(() {
@@ -1774,6 +1792,7 @@ class _HomeViewState extends State<HomeView>
           _shopName = shopName;
           _userPhotoUrl = userPhotoUrl;
           _shopLogoUrl = shopLogoUrl;
+          _shopCoverUrl = shopCoverUrl;
           _runtimeRole = resolvedRole;
         });
         debugPrint(
@@ -1898,6 +1917,32 @@ class _HomeViewState extends State<HomeView>
     } finally {
       if (mounted) setState(() => _updatingMyAvatar = false);
     }
+  }
+
+  Future<void> _openMyStaffProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const StaffSelfProfileView()),
+    );
+    if (!mounted) return;
+    await _loadUserAndShopInfo();
+  }
+
+  Future<void> _openShopSettingsFromGreeting() async {
+    final isOwner = _effectiveRole == 'owner' || _isSuperAdmin;
+    if (!isOwner) {
+      NotificationService.showSnackBar(
+        'Chỉ chủ shop mới có quyền mở cài đặt shop',
+        color: Colors.orange,
+      );
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ShopSettingsView()),
+    );
+    if (!mounted) return;
+    await _loadUserAndShopInfo();
   }
 
   Future<void> _updatePermissions({bool forceRefresh = false}) async {
@@ -3441,15 +3486,26 @@ class _HomeViewState extends State<HomeView>
       roleIcon = Icons.person;
     }
 
+    final hasCover = _shopCoverUrl.trim().isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        image: hasCover
+            ? DecorationImage(
+                image: NetworkImage(_shopCoverUrl),
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+              )
+            : null,
+        gradient: hasCover
+            ? null
+            : LinearGradient(
+                colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -3459,9 +3515,16 @@ class _HomeViewState extends State<HomeView>
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Container(
+        decoration: hasCover
+            ? BoxDecoration(
+                color: Colors.black.withOpacity(0.35),
+                borderRadius: BorderRadius.circular(12),
+              )
+            : null,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Dòng lời chào
           Row(
             children: [
@@ -3493,30 +3556,36 @@ class _HomeViewState extends State<HomeView>
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.7), width: 2),
-                ),
-                child: ClipOval(
-                  child: _userPhotoUrl.isNotEmpty
-                      ? Image.network(
-                          _userPhotoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.person_rounded,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.person_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+              GestureDetector(
+                onTap: _openMyStaffProfile,
+                child: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withOpacity(0.7), width: 2),
+                  ),
+                  child: Hero(
+                    tag: 'hero_staff_avatar_${FirebaseAuth.instance.currentUser?.uid ?? 'me'}',
+                    child: ClipOval(
+                      child: _userPhotoUrl.isNotEmpty
+                          ? Image.network(
+                              _userPhotoUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.person_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.person_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -3568,13 +3637,18 @@ class _HomeViewState extends State<HomeView>
                         if (_shopName.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Flexible(
-                            child: Text(
-                              '• $_shopName',
-                              style: AppTextStyles.subtitle1.copyWith(
-                                color: Colors.white.withOpacity(0.85),
+                            child: GestureDetector(
+                              onTap: _openShopSettingsFromGreeting,
+                              child: Text(
+                                '• $_shopName',
+                                style: AppTextStyles.subtitle1.copyWith(
+                                  color: Colors.white.withOpacity(0.85),
+                                  decoration: TextDecoration.underline,
+                                  decorationColor: Colors.white70,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -3583,37 +3657,10 @@ class _HomeViewState extends State<HomeView>
                   ],
                 ),
               ),
-              if (_shopLogoUrl.isNotEmpty)
-              Container(
-                width: 52,
-                height: 52,
-                margin: const EdgeInsets.only(left: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.7), width: 2),
-                ),
-                child: ClipOval(
-                  child: _shopLogoUrl.isNotEmpty
-                      ? Image.network(
-                          _shopLogoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.store_rounded,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        )
-                      : const Icon(
-                          Icons.store_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                ),
-              ),
             ],
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

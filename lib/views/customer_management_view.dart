@@ -9,6 +9,7 @@ import '../services/customer_service.dart';
 import '../services/sync_service.dart';
 import '../services/event_bus.dart';
 import '../services/storage_service.dart';
+import '../core/utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/global_search_bar.dart';
@@ -20,6 +21,7 @@ import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../expansion/safe_mode/expansion_feature_flags.dart';
 import 'expansion/crm/customer_loyalty_view.dart';
+import 'customer_profile_view.dart';
 
 class CustomerManagementView extends StatefulWidget {
   const CustomerManagementView({super.key});
@@ -437,6 +439,18 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
                           onEdit: () => _editCustomer(customer),
                           onDelete: () => _deleteCustomer(customer),
                           onViewHistory: () => _viewCustomerHistory(customer),
+                          onOpenProfile: () async {
+                            final result = await Navigator.push<dynamic>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    CustomerProfileView(customer: customer),
+                              ),
+                            );
+                            if (result != null) {
+                              await _loadCustomers();
+                            }
+                          },
                           onViewLoyalty: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -476,6 +490,7 @@ class CustomerListItem extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onViewHistory;
+  final VoidCallback? onOpenProfile;
   final VoidCallback? onViewLoyalty;
 
   const CustomerListItem({
@@ -484,6 +499,7 @@ class CustomerListItem extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onViewHistory,
+    this.onOpenProfile,
     this.onViewLoyalty,
   });
 
@@ -497,6 +513,8 @@ class CustomerListItem extends StatelessWidget {
             imageUrl: customer.avatarUrl,
             name: customer.name,
             radius: 22,
+            heroTag:
+                'hero_customer_avatar_${customer.id ?? customer.phone}',
           ),
         ),
         title: Text(
@@ -531,7 +549,7 @@ class CustomerListItem extends StatelessWidget {
               runSpacing: 2,
               children: [
                 Text(
-                  'Đã mua: ${NumberFormat('#,###').format(customer.totalSpent)}đ',
+                  'Đã mua: ${MoneyUtils.formatCompact(customer.totalSpent)}',
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.success,
                   ),
@@ -546,68 +564,8 @@ class CustomerListItem extends StatelessWidget {
             ),
           ],
         ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) {
-            switch (value) {
-              case 'loyalty':
-                onViewLoyalty?.call();
-                break;
-              case 'edit':
-                onEdit();
-                break;
-              case 'delete':
-                onDelete();
-                break;
-              case 'history':
-                onViewHistory();
-                break;
-            }
-          },
-          itemBuilder: (context) => [
-            if (onViewLoyalty != null)
-              const PopupMenuItem(
-                value: 'loyalty',
-                child: Row(
-                  children: [
-                    Icon(Icons.stars, size: 20, color: Colors.amber),
-                    SizedBox(width: 8),
-                    Text('Xem điểm'),
-                  ],
-                ),
-              ),
-            const PopupMenuItem(
-              value: 'history',
-              child: Row(
-                children: [
-                  Icon(Icons.history, size: 20),
-                  SizedBox(width: 8),
-                  Text('Lịch sử'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(Icons.edit, size: 20),
-                  SizedBox(width: 8),
-                  Text('Chỉnh sửa'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, color: Colors.red, size: 20),
-                  SizedBox(width: 8),
-                  Text('Xóa', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        onTap: onViewHistory,
+        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+        onTap: onOpenProfile ?? onViewHistory,
       ),
     );
   }

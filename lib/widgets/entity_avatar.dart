@@ -18,6 +18,7 @@ class EntityAvatar extends StatelessWidget {
   final bool showEditButton;
   final VoidCallback? onEditTap;
   final bool tappableToView;
+  final String? heroTag;
 
   const EntityAvatar({
     super.key,
@@ -28,6 +29,7 @@ class EntityAvatar extends StatelessWidget {
     this.showEditButton = false,
     this.onEditTap,
     this.tappableToView = true,
+    this.heroTag,
   });
 
   // Lấy 1-2 ký tự đầu tên
@@ -134,6 +136,10 @@ class EntityAvatar extends StatelessWidget {
         onTap: () => showPreview(context, url, name),
         child: avatar,
       );
+    }
+
+    if (heroTag != null && heroTag!.trim().isNotEmpty) {
+      avatar = Hero(tag: heroTag!, child: avatar);
     }
 
     return SizedBox(
