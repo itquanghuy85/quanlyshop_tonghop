@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -41,6 +44,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
   String _email = '';
   String _avatarUrl = '';
   String _coverUrl = '';
+  File? _selectedCover;
   double _coverAlignX = 0;
   double _coverAlignY = 0;
   String _shopName = '';
@@ -159,7 +163,11 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
 
   Future<void> _pickAvatar() async {
     if (_saving) return;
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 1200);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 92,
+      maxWidth: 2200,
+    );
     if (picked == null) return;
     setState(() => _saving = true);
     try {
@@ -183,41 +191,48 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
 
   Future<void> _pickCover() async {
     if (_saving) return;
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 1800);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 92,
+      maxWidth: 2600,
+    );
     if (picked == null) return;
-    setState(() => _saving = true);
-    try {
-      final uploadedUrl = await StorageService.uploadXFileAndGetUrl(
-        picked,
-        'user_photos/$_uid',
-      );
-      if (uploadedUrl == null || uploadedUrl.trim().isEmpty) {
-        NotificationService.showSnackBar('Không thể tải ảnh bìa', color: Colors.red);
-        return;
-      }
-      await FirebaseFirestore.instance.collection('users').doc(_uid).set({
-        'coverUrl': uploadedUrl,
-        'coverAlignX': 0,
-        'coverAlignY': 0,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      if (!mounted) return;
-      setState(() {
-        _coverUrl = uploadedUrl;
-        _coverAlignX = 0;
-        _coverAlignY = 0;
-      });
-      EventBus().emit('user_profile_changed');
-      NotificationService.showSnackBar('Đã cập nhật ảnh bìa', color: Colors.green);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    setState(() {
+      _selectedCover = File(picked.path);
+      _coverAlignX = 0;
+      _coverAlignY = 0;
+    });
+    NotificationService.showSnackBar(
+      'Đã chọn ảnh bìa. Nhấn Lưu hồ sơ để tải lên.',
+      color: Colors.blue,
+    );
   }
 
   Future<void> _saveInfo() async {
     if (_saving) return;
     setState(() => _saving = true);
     try {
+      String finalCoverUrl = _coverUrl;
+      if (_selectedCover != null) {
+        NotificationService.showSnackBar(
+          'Đang tải ảnh bìa lên hệ thống...',
+          color: Colors.blue,
+          duration: const Duration(seconds: 6),
+        );
+        final urls = await StorageService.uploadMultipleImages(
+          [_selectedCover!.path],
+          'user_photos/$_uid',
+        );
+        if (urls.isEmpty || urls.first.trim().isEmpty) {
+          NotificationService.showSnackBar(
+            'Tải ảnh bìa thất bại, vui lòng thử lại',
+            color: Colors.red,
+          );
+          return;
+        }
+        finalCoverUrl = urls.first;
+      }
+
       await UserService.updateUserInfo(
         uid: _uid,
         name: _nameCtrl.text.trim(),
@@ -228,11 +243,13 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
         photoUrl: _avatarUrl,
       );
       await FirebaseFirestore.instance.collection('users').doc(_uid).set({
-        'coverUrl': _coverUrl,
+        'coverUrl': finalCoverUrl,
         'coverAlignX': _coverAlignX,
         'coverAlignY': _coverAlignY,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      _coverUrl = finalCoverUrl;
+      _selectedCover = null;
       EventBus().emit('user_profile_changed');
       if (!mounted) return;
       NotificationService.showSnackBar('Đã lưu hồ sơ nhân viên', color: Colors.green);
@@ -245,22 +262,99 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
     }
   }
 
-  Future<void> _saveCoverAlignment() async {
-    if (_uid.isEmpty) return;
-    await FirebaseFirestore.instance.collection('users').doc(_uid).set({
-      'coverAlignX': _coverAlignX,
-      'coverAlignY': _coverAlignY,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+  ImageProvider? _buildCoverImageProvider() {
+    if (_selectedCover != null) {
+      return kIsWeb
+          ? NetworkImage(_selectedCover!.path)
+          : FileImage(_selectedCover!) as ImageProvider;
+    }
+    if (_coverUrl.trim().isNotEmpty) {
+      return CachedNetworkImageProvider(
+        _coverUrl,
+        maxWidth: 2200,
+        maxHeight: 1300,
+      );
+    }
+    return null;
   }
 
-  void _onCoverPanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
-    final width = constraints.maxWidth <= 0 ? 1.0 : constraints.maxWidth;
-    final height = constraints.maxHeight <= 0 ? 1.0 : constraints.maxHeight;
-    setState(() {
-      _coverAlignX = (_coverAlignX + (details.delta.dx / (width / 2))).clamp(-1.0, 1.0);
-      _coverAlignY = (_coverAlignY + (details.delta.dy / (height / 2))).clamp(-1.0, 1.0);
-    });
+  Future<void> _openCoverPositionEditor() async {
+    final coverProvider = _buildCoverImageProvider();
+    if (coverProvider == null) {
+      NotificationService.showSnackBar('Vui lòng chọn ảnh bìa trước', color: Colors.orange);
+      return;
+    }
+
+    double localX = _coverAlignX;
+    double localY = _coverAlignY;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Chỉnh vùng hiển thị ảnh bìa'),
+              content: SizedBox(
+                width: 340,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => GestureDetector(
+                          onPanUpdate: (details) {
+                            final w = constraints.maxWidth <= 0 ? 1.0 : constraints.maxWidth;
+                            final h = 180.0;
+                            setDialogState(() {
+                              localX = (localX + (details.delta.dx / (w / 2))).clamp(-1.0, 1.0);
+                              localY = (localY + (details.delta.dy / (h / 2))).clamp(-1.0, 1.0);
+                            });
+                          },
+                          child: Container(
+                            height: 180,
+                            decoration: BoxDecoration(
+                              color: Colors.blueGrey.shade200,
+                              image: DecorationImage(
+                                image: coverProvider,
+                                fit: BoxFit.cover,
+                                alignment: Alignment(localX, localY),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Kéo ảnh để chọn đúng vùng hiển thị', style: AppTextStyles.caption),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Hủy'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _coverAlignX = localX;
+                      _coverAlignY = localY;
+                    });
+                    Navigator.pop(dialogContext);
+                    NotificationService.showSnackBar(
+                      'Đã căn ảnh. Nhấn Lưu hồ sơ để áp dụng.',
+                      color: Colors.blue,
+                    );
+                  },
+                  child: const Text('Áp dụng'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -269,13 +363,14 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final coverImage = _coverUrl.isNotEmpty
-      ? DecorationImage(
-        image: NetworkImage(_coverUrl),
-        fit: BoxFit.cover,
-        alignment: Alignment(_coverAlignX, _coverAlignY),
-        )
-      : null;
+    final coverProvider = _buildCoverImageProvider();
+    final coverImage = coverProvider != null
+        ? DecorationImage(
+            image: coverProvider,
+            fit: BoxFit.cover,
+            alignment: Alignment(_coverAlignX, _coverAlignY),
+          )
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -303,12 +398,6 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                 LayoutBuilder(
                   builder: (context, constraints) => GestureDetector(
                     onTap: _pickCover,
-                    onPanUpdate: _coverUrl.trim().isNotEmpty
-                        ? (details) => _onCoverPanUpdate(details, constraints)
-                        : null,
-                    onPanEnd: _coverUrl.trim().isNotEmpty
-                        ? (_) => _saveCoverAlignment()
-                        : null,
                     child: Container(
                       height: 170,
                       decoration: BoxDecoration(
@@ -361,9 +450,18 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                                       _coverAlignX = 0;
                                       _coverAlignY = 0;
                                     });
-                                    await _saveCoverAlignment();
+                                    NotificationService.showSnackBar(
+                                      'Đã căn giữa. Nhấn Lưu hồ sơ để áp dụng.',
+                                      color: Colors.blue,
+                                    );
                                   },
                                   icon: const Icon(Icons.filter_center_focus, color: Colors.white),
+                                ),
+                              if (coverImage != null)
+                                IconButton(
+                                  tooltip: 'Chỉnh vùng hiển thị',
+                                  onPressed: _openCoverPositionEditor,
+                                  icon: const Icon(Icons.tune, color: Colors.white),
                                 ),
                               IconButton(
                                 tooltip: 'Đổi ảnh bìa',
@@ -384,7 +482,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  'Kéo ảnh bìa để chọn vùng hiển thị',
+                                  'Nhấn biểu tượng cân chỉnh để đổi vùng hiển thị',
                                   style: AppTextStyles.caption.copyWith(color: Colors.white),
                                 ),
                               ),

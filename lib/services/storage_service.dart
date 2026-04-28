@@ -246,8 +246,8 @@ class StorageService {
   }
 
   /// Nén hình ảnh trước khi upload
-  /// - Giảm quality xuống 70%
-  /// - Giảm kích thước max 1920px
+  /// - Giữ quality ở mức cao hơn để tránh ảnh mờ
+  /// - Giảm kích thước max 2560px để cân bằng chất lượng và dung lượng
   /// - Chuyển sang JPEG để tiết kiệm dung lượng
   static Future<File?> _compressImage(File file) async {
     try {
@@ -275,9 +275,9 @@ class StorageService {
       final XFile? compressedXFile = await FlutterImageCompress.compressAndGetFile(
         filePath,
         targetPath,
-        quality: 70, // Chất lượng 70%
-        minWidth: 1920, // Max width
-        minHeight: 1920, // Max height
+        quality: 88, // Chất lượng tốt cho ảnh hồ sơ/ảnh bìa
+        minWidth: 2560, // Giữ chi tiết tốt hơn trên màn hình lớn
+        minHeight: 2560,
         format: format,
         keepExif: false, // Bỏ metadata để giảm dung lượng
       );

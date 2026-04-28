@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -410,9 +411,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     try {
       final settings = await CategoryService().getShopSettings();
       debugPrint('🏪 ShopSettings: Loaded - businessType=${settings?.businessType}');
-      if (mounted) {
-        setState(() => _shopSettings = settings);
-      }
+      _safeSetState(() => _shopSettings = settings);
     } catch (e) {
       debugPrint('Error loading shop settings: $e');
     }
@@ -447,46 +446,124 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     );
   }
 
-  void _onCoverPanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
-    final width = constraints.maxWidth <= 0 ? 1.0 : constraints.maxWidth;
-    final height = constraints.maxHeight <= 0 ? 1.0 : constraints.maxHeight;
-    _safeSetState(() {
-      _shopCoverAlignX =
-          (_shopCoverAlignX + (details.delta.dx / (width / 2))).clamp(-1.0, 1.0);
-      _shopCoverAlignY =
-          (_shopCoverAlignY + (details.delta.dy / (height / 2))).clamp(-1.0, 1.0);
-    });
+  ImageProvider? _buildShopCoverImageProvider() {
+    if (_selectedCover != null) {
+      return kIsWeb
+          ? NetworkImage(_selectedCover!.path)
+          : FileImage(_selectedCover!) as ImageProvider;
+    }
+    if (_shopCoverUrl.trim().isNotEmpty) {
+      return CachedNetworkImageProvider(
+        _shopCoverUrl,
+        maxWidth: 2400,
+        maxHeight: 1400,
+      );
+    }
+    return null;
   }
 
-  Future<void> _saveCoverAlignmentOnly() async {
-    var shopId = await UserService.getCurrentShopId();
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if ((shopId == null || shopId.isEmpty) && currentUser != null) {
-      shopId = currentUser.uid;
+  Future<void> _openCoverPositionEditor() async {
+    final coverProvider = _buildShopCoverImageProvider();
+    if (coverProvider == null) {
+      NotificationService.showSnackBar(
+        'Vui lòng chọn ảnh bìa trước',
+        color: Colors.orange,
+      );
+      return;
     }
-    if (shopId == null || shopId.isEmpty) return;
-    await FirebaseFirestore.instance.collection('shops').doc(shopId).set({
-      'coverAlignX': _shopCoverAlignX,
-      'coverAlignY': _shopCoverAlignY,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'updatedBy': currentUser?.uid,
-    }, SetOptions(merge: true));
-    await FirebaseFirestore.instance
-        .collection('shops')
-        .doc(shopId)
-        .collection('settings')
-        .doc('shop_profile')
-        .set({
-      'coverAlignX': _shopCoverAlignX,
-      'coverAlignY': _shopCoverAlignY,
-      'updatedAt': FieldValue.serverTimestamp(),
-      'updatedBy': currentUser?.uid,
-    }, SetOptions(merge: true));
+
+    double localX = _shopCoverAlignX;
+    double localY = _shopCoverAlignY;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Chỉnh vùng hiển thị ảnh bìa'),
+              content: SizedBox(
+                width: 360,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => GestureDetector(
+                          onPanUpdate: (details) {
+                            final w = constraints.maxWidth <= 0
+                                ? 1.0
+                                : constraints.maxWidth;
+                            final h = 180.0;
+                            setDialogState(() {
+                              localX =
+                                  (localX + (details.delta.dx / (w / 2))).clamp(
+                                    -1.0,
+                                    1.0,
+                                  );
+                              localY =
+                                  (localY + (details.delta.dy / (h / 2))).clamp(
+                                    -1.0,
+                                    1.0,
+                                  );
+                            });
+                          },
+                          child: Container(
+                            height: 180,
+                            decoration: BoxDecoration(
+                              color: Colors.blueGrey.shade100,
+                              image: DecorationImage(
+                                image: coverProvider,
+                                fit: BoxFit.cover,
+                                alignment: Alignment(localX, localY),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Kéo ảnh để chọn vùng hiển thị đẹp nhất',
+                      style: AppTextStyles.caption,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Hủy'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    _safeSetState(() {
+                      _shopCoverAlignX = localX;
+                      _shopCoverAlignY = localY;
+                    });
+                    Navigator.pop(dialogContext);
+                    NotificationService.showSnackBar(
+                      'Đã căn ảnh. Nhấn Lưu thay đổi để áp dụng.',
+                      color: Colors.blue,
+                    );
+                  },
+                  child: const Text('Áp dụng'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _pickLogo() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 92,
+      maxWidth: 2000,
+    );
 
     if (pickedFile != null) {
       _safeSetState(() {
@@ -499,8 +576,8 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 75,
-      maxWidth: 1800,
+      imageQuality: 92,
+      maxWidth: 2600,
     );
 
     if (pickedFile != null) {
@@ -767,17 +844,8 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                               clipBehavior: Clip.none,
                               children: [
                                 LayoutBuilder(
-                                  builder: (context, constraints) => GestureDetector(
+                                  builder: (context, _) => GestureDetector(
                                     onTap: _pickCover,
-                                    onPanUpdate: (_selectedCover != null ||
-                                            _shopCoverUrl.trim().isNotEmpty)
-                                        ? (details) =>
-                                            _onCoverPanUpdate(details, constraints)
-                                        : null,
-                                    onPanEnd: (_selectedCover != null ||
-                                            _shopCoverUrl.trim().isNotEmpty)
-                                        ? (_) => _saveCoverAlignmentOnly()
-                                        : null,
                                     child: Container(
                                       height: 150,
                                       width: double.infinity,
@@ -840,7 +908,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        'Kéo ảnh bìa để chọn vùng hiển thị',
+                                        'Chọn ảnh trước, cân chỉnh sau rồi bấm Lưu',
                                         style: AppTextStyles.caption.copyWith(
                                           color: Colors.white,
                                         ),
@@ -872,15 +940,28 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                                           _shopCoverUrl.trim().isNotEmpty)
                                         IconButton(
                                           tooltip: 'Căn giữa ảnh bìa',
-                                          onPressed: () async {
+                                          onPressed: () {
                                             _safeSetState(() {
                                               _shopCoverAlignX = 0;
                                               _shopCoverAlignY = 0;
                                             });
-                                            await _saveCoverAlignmentOnly();
+                                            NotificationService.showSnackBar(
+                                              'Đã căn giữa. Nhấn Lưu thay đổi để áp dụng.',
+                                              color: Colors.blue,
+                                            );
                                           },
                                           icon: const Icon(
                                             Icons.filter_center_focus,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      if (_selectedCover != null ||
+                                          _shopCoverUrl.trim().isNotEmpty)
+                                        IconButton(
+                                          tooltip: 'Chỉnh vùng hiển thị',
+                                          onPressed: _openCoverPositionEditor,
+                                          icon: const Icon(
+                                            Icons.tune,
                                             color: Colors.white,
                                           ),
                                         ),
@@ -1234,7 +1315,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       SwitchListTile(
         dense: true,
         value: _requireLocationForAttendance,
-        onChanged: (v) => setState(() => _requireLocationForAttendance = v),
+        onChanged: (v) => _safeSetState(() => _requireLocationForAttendance = v),
         title: const Text(
           'Bắt buộc vị trí khi chấm công',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
@@ -1665,7 +1746,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         fromShopId: fromShopId,
         toShopId: currentShopId,
         onProgress: (message) {
-          setState(() => _migrationProgress = message);
+          _safeSetState(() => _migrationProgress = message);
         },
       );
 
@@ -2069,7 +2150,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      setState(() {
+      _safeSetState(() {
         _shopLatitude = position.latitude;
         _shopLongitude = position.longitude;
       });
@@ -2084,7 +2165,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   }
 
   void _clearLocation() {
-    setState(() {
+    _safeSetState(() {
       _shopLatitude = null;
       _shopLongitude = null;
     });

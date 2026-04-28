@@ -71,7 +71,7 @@ class EntityAvatar extends StatelessWidget {
     if (url.startsWith('http') ||
         url.startsWith('blob:') ||
         url.startsWith('data:')) {
-      return CachedNetworkImageProvider(url, maxWidth: 400, maxHeight: 400);
+      return CachedNetworkImageProvider(url, maxWidth: 1400, maxHeight: 1400);
     }
     if (!kIsWeb) {
       final f = File(url);

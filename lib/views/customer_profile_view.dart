@@ -1,6 +1,3 @@
-import 'dart:ui';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -35,9 +32,7 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
   bool _saving = false;
   bool _loadingHistory = true;
   String _avatarUrl = '';
-  String _coverUrl = '';
-  double _coverAlignX = 0;
-  double _coverAlignY = 0;
+  String? _pendingAvatarPath;
 
   Map<String, dynamic> _history = const {
     'history': <dynamic>[],
@@ -61,9 +56,6 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
     _addressCtrl.text = c.address ?? '';
     _notesCtrl.text = c.notes ?? '';
     _avatarUrl = c.avatarUrl ?? '';
-    _coverUrl = c.coverUrl ?? '';
-    _coverAlignX = c.coverAlignX;
-    _coverAlignY = c.coverAlignY;
     _loadHistory();
   }
 
@@ -94,89 +86,18 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
     if (_saving) return;
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      imageQuality: 75,
-      maxWidth: 1200,
+      imageQuality: 92,
+      maxWidth: 2200,
     );
     if (picked == null) return;
-    setState(() => _saving = true);
-    try {
-      final uploaded = await StorageService.uploadXFileAndGetUrl(
-        picked,
-        'user_photos',
-      );
-      if (uploaded == null || uploaded.trim().isEmpty) {
-        NotificationService.showSnackBar(
-          'Không thể tải ảnh khách hàng',
-          color: Colors.red,
-        );
-        return;
-      }
-      if (!mounted) return;
-      setState(() => _avatarUrl = uploaded);
-      NotificationService.showSnackBar(
-        'Đã cập nhật ảnh khách hàng',
-        color: Colors.green,
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _pickCover() async {
-    if (_saving) return;
-    final picked = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 75,
-      maxWidth: 1800,
-    );
-    if (picked == null) return;
-    setState(() => _saving = true);
-    try {
-      final uploaded = await StorageService.uploadXFileAndGetUrl(
-        picked,
-        'user_photos',
-      );
-      if (uploaded == null || uploaded.trim().isEmpty) {
-        NotificationService.showSnackBar('Không thể tải ảnh bìa', color: Colors.red);
-        return;
-      }
-      if (!mounted) return;
-      setState(() {
-        _coverUrl = uploaded;
-        _coverAlignX = 0;
-        _coverAlignY = 0;
-      });
-      NotificationService.showSnackBar('Đã cập nhật ảnh bìa', color: Colors.green);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _saveCoverAlignment() async {
-    final id = widget.customer.id;
-    if (id == null) return;
-    final base = widget.customer.copyWith(
-      avatarUrl: _avatarUrl,
-      coverUrl: _coverUrl,
-      coverAlignX: _coverAlignX,
-      coverAlignY: _coverAlignY,
-      name: _nameCtrl.text.trim(),
-      phone: _phoneCtrl.text.trim(),
-      email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-      address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
-      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-    );
-    await _service.updateCustomer(base);
-  }
-
-  void _onCoverPanUpdate(DragUpdateDetails details, BoxConstraints constraints) {
-    final width = constraints.maxWidth <= 0 ? 1.0 : constraints.maxWidth;
-    final height = constraints.maxHeight <= 0 ? 1.0 : constraints.maxHeight;
     setState(() {
-      _coverAlignX = (_coverAlignX + (details.delta.dx / (width / 2))).clamp(-1.0, 1.0);
-      _coverAlignY = (_coverAlignY + (details.delta.dy / (height / 2))).clamp(-1.0, 1.0);
+      _pendingAvatarPath = picked.path;
+      _avatarUrl = picked.path;
     });
+    NotificationService.showSnackBar(
+      'Đã chọn ảnh khách hàng. Nhấn Lưu để tải lên.',
+      color: Colors.blue,
+    );
   }
 
   Future<void> _save() async {
@@ -184,44 +105,53 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
     final name = _nameCtrl.text.trim();
     final phone = _phoneCtrl.text.trim();
     if (name.isEmpty || phone.isEmpty) {
-      NotificationService.showSnackBar(
-        'Tên và số điện thoại là bắt buộc',
-        color: Colors.red,
-      );
+      NotificationService.showSnackBar('Tên và số điện thoại là bắt buộc', color: Colors.red);
       return;
     }
 
     final base = widget.customer;
-    final updated = base.copyWith(
-      avatarUrl: _avatarUrl,
-      coverUrl: _coverUrl,
-      name: name,
-      phone: phone,
-      email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-      address: _addressCtrl.text.trim().isEmpty
-          ? null
-          : _addressCtrl.text.trim(),
-      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      coverAlignX: _coverAlignX,
-      coverAlignY: _coverAlignY,
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-    );
+    String finalAvatarUrl = _avatarUrl;
 
     setState(() => _saving = true);
     try {
+      if (_pendingAvatarPath != null && _pendingAvatarPath!.trim().isNotEmpty) {
+        NotificationService.showSnackBar(
+          'Đang tải ảnh khách hàng lên hệ thống...',
+          color: Colors.blue,
+          duration: const Duration(seconds: 6),
+        );
+        final urls = await StorageService.uploadMultipleImages([
+          _pendingAvatarPath!,
+        ], 'user_photos');
+        if (urls.isEmpty || urls.first.trim().isEmpty) {
+          NotificationService.showSnackBar(
+            'Tải ảnh khách hàng thất bại, vui lòng thử lại',
+            color: Colors.red,
+          );
+          return;
+        }
+        finalAvatarUrl = urls.first;
+      }
+
+    final updated = base.copyWith(
+      avatarUrl: finalAvatarUrl,
+      name: name,
+      phone: phone,
+      email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+      address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
+      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+
       final ok = await _service.updateCustomer(updated);
       if (!mounted) return;
       if (!ok) {
-        NotificationService.showSnackBar(
-          'Lưu khách hàng thất bại',
-          color: Colors.red,
-        );
+        NotificationService.showSnackBar('Lưu khách hàng thất bại', color: Colors.red);
         return;
       }
-      NotificationService.showSnackBar(
-        'Đã lưu hồ sơ khách hàng',
-        color: Colors.green,
-      );
+      _avatarUrl = finalAvatarUrl;
+      _pendingAvatarPath = null;
+      NotificationService.showSnackBar('Đã lưu hồ sơ khách hàng', color: Colors.green);
       Navigator.pop(context, updated);
     } catch (e) {
       NotificationService.showSnackBar('Lỗi lưu khách hàng: $e', color: Colors.red);
@@ -274,6 +204,7 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
   Widget build(BuildContext context) {
     final totalSpent = (_history['totalSpent'] as int?) ?? widget.customer.totalSpent;
     final totalRepair = (_history['totalRepairCost'] as int?) ?? widget.customer.totalRepairCost;
+    final avatarProvider = EntityAvatar.imageProviderFromUrl(_avatarUrl);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -295,135 +226,93 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: [
-            LayoutBuilder(
-              builder: (context, constraints) => GestureDetector(
-                onTap: _pickCover,
-                onPanUpdate: _coverUrl.trim().isNotEmpty
-                    ? (details) => _onCoverPanUpdate(details, constraints)
-                    : null,
-                onPanEnd: _coverUrl.trim().isNotEmpty
-                    ? (_) => _saveCoverAlignment()
-                    : null,
-                child: Container(
-                  height: 170,
-                  decoration: BoxDecoration(
-                    gradient: _coverUrl.trim().isEmpty
-                        ? const LinearGradient(
-                            colors: [Color(0xFF0E74DB), Color(0xFF5AA6F4)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          )
-                        : null,
-                    image: _coverUrl.trim().isNotEmpty
-                        ? DecorationImage(
-                            image: NetworkImage(_coverUrl),
-                            fit: BoxFit.cover,
-                            alignment: Alignment(_coverAlignX, _coverAlignY),
-                          )
-                        : null,
-                  ),
-                  child: Stack(
-                    children: [
-                  Positioned.fill(
-                    child: ClipRRect(
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 1.2, sigmaY: 1.2),
-                        child: Container(color: Colors.black.withOpacity(0.18)),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 16,
-                    bottom: 14,
-                    child: EntityAvatar(
-                      imageUrl: _avatarUrl,
-                      name: _nameCtrl.text.trim().isEmpty ? 'KH' : _nameCtrl.text.trim(),
-                      radius: 44,
-                      showEditButton: true,
-                      onEditTap: _pickAvatar,
-                      heroTag: 'hero_customer_avatar_${widget.customer.id ?? widget.customer.phone}',
-                    ),
-                  ),
-                  Positioned(
-                    left: 120,
-                    right: 14,
-                    bottom: 22,
-                    child: Text(
-                      _nameCtrl.text.trim().isEmpty ? 'Khách hàng' : _nameCtrl.text.trim(),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.headline2.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                      Positioned(
-                        top: 10,
-                        right: 8,
-                        child: Row(
-                          children: [
-                            if (_coverUrl.trim().isNotEmpty)
-                              IconButton(
-                                tooltip: 'Xem ảnh bìa',
-                                onPressed: () => EntityAvatar.showPreview(
-                                  context,
-                                  _coverUrl,
-                                  _nameCtrl.text,
-                                ),
-                                icon: const Icon(Icons.fullscreen, color: Colors.white),
-                              ),
-                            if (_coverUrl.trim().isNotEmpty)
-                              IconButton(
-                                tooltip: 'Căn giữa ảnh bìa',
-                                onPressed: () async {
-                                  setState(() {
-                                    _coverAlignX = 0;
-                                    _coverAlignY = 0;
-                                  });
-                                  await _saveCoverAlignment();
-                                },
-                                icon: const Icon(Icons.filter_center_focus, color: Colors.white),
-                              ),
-                            IconButton(
-                              tooltip: 'Đổi ảnh bìa',
-                              onPressed: _pickCover,
-                              icon: const Icon(Icons.camera_alt, color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_coverUrl.trim().isNotEmpty)
-                        Positioned(
-                          left: 12,
-                          top: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.35),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Kéo ảnh bìa để chọn vùng hiển thị',
-                              style: AppTextStyles.caption.copyWith(color: Colors.white),
-                            ),
-                          ),
-                        )
-                      else
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Text(
-                            'Thêm ảnh bìa',
-                            style: AppTextStyles.caption.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0E74DB), Color(0xFF5AA6F4)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+              ),
+              child: Column(
+                children: [
+                  GestureDetector(
+                    onTap: () => EntityAvatar.showPreview(
+                      context,
+                      _avatarUrl,
+                      _nameCtrl.text.trim(),
+                    ),
+                    child: Container(
+                      height: 190,
+                      width: double.infinity,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: Colors.blueGrey.shade200,
+                        borderRadius: BorderRadius.circular(12),
+                        image: avatarProvider != null
+                            ? DecorationImage(
+                                image: avatarProvider,
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: Stack(
+                        children: [
+                          if (avatarProvider == null)
+                            Center(
+                              child: Text(
+                                'Thêm ảnh khách hàng',
+                                style: AppTextStyles.body1.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Row(
+                              children: [
+                                if (avatarProvider != null)
+                                  IconButton(
+                                    tooltip: 'Xem ảnh lớn',
+                                    onPressed: () => EntityAvatar.showPreview(
+                                      context,
+                                      _avatarUrl,
+                                      _nameCtrl.text,
+                                    ),
+                                    icon: const Icon(Icons.fullscreen, color: Colors.white),
+                                  ),
+                                IconButton(
+                                  tooltip: 'Đổi ảnh',
+                                  onPressed: _pickAvatar,
+                                  icon: const Icon(Icons.camera_alt, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _nameCtrl.text.trim().isEmpty ? 'Khách hàng' : _nameCtrl.text.trim(),
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.headline2.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _phoneCtrl.text.trim(),
+                    style: AppTextStyles.subtitle1.copyWith(color: Colors.white70),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 14),
@@ -484,7 +373,7 @@ class _CustomerProfileViewState extends State<CustomerProfileView> {
                           child: OutlinedButton.icon(
                             onPressed: _saving ? null : _save,
                             icon: const Icon(Icons.save),
-                            label: const Text('Chỉnh sửa & Lưu'),
+                            label: const Text('Chỉnh sửa và Lưu'),
                           ),
                         ),
                         const SizedBox(width: 8),
