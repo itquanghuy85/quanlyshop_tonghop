@@ -1,5 +1,6 @@
 class RepairPartner {
   final int? id;
+  final String? avatarUrl;
   final String name;
   final String? phone;
   final String? note;
@@ -11,6 +12,7 @@ class RepairPartner {
 
   RepairPartner({
     this.id,
+    this.avatarUrl,
     required this.name,
     this.phone,
     this.note,
@@ -26,6 +28,7 @@ class RepairPartner {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'avatarUrl': avatarUrl,
       'name': name,
       'phone': phone,
       'note': note,
@@ -40,6 +43,7 @@ class RepairPartner {
   factory RepairPartner.fromMap(Map<String, dynamic> map) {
     return RepairPartner(
       id: map['id'],
+      avatarUrl: map['avatarUrl'],
       name: map['name'],
       phone: map['phone'],
       note: map['note'],
@@ -53,6 +57,7 @@ class RepairPartner {
 
   RepairPartner copyWith({
     int? id,
+    String? avatarUrl,
     String? name,
     String? phone,
     String? note,
@@ -64,6 +69,7 @@ class RepairPartner {
   }) {
     return RepairPartner(
       id: id ?? this.id,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       name: name ?? this.name,
       phone: phone ?? this.phone,
       note: note ?? this.note,

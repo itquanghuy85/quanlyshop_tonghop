@@ -16,6 +16,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_fab.dart';
 import '../utils/excel_export_helper.dart';
+import '../widgets/entity_avatar.dart';
 
 class SupplierDetailView extends StatefulWidget {
   final Supplier supplier;
@@ -97,7 +98,18 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
             ),
           ),
         ),
-        title: Text(widget.supplier.name, style: const TextStyle(color: Colors.white)),
+        title: Row(
+          children: [
+            EntityAvatar(
+              imageUrl: widget.supplier.avatarUrl,
+              name: widget.supplier.name,
+              radius: 18,
+              tappableToView: true,
+            ),
+            const SizedBox(width: 10),
+            Flexible(child: Text(widget.supplier.name, style: const TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
+          ],
+        ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,

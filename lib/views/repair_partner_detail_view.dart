@@ -18,6 +18,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/gradient_fab.dart';
 import '../utils/excel_export_helper.dart';
+import '../widgets/entity_avatar.dart';
 
 class RepairPartnerDetailView extends StatefulWidget {
   final RepairPartner partner;
@@ -171,9 +172,17 @@ class _RepairPartnerDetailViewState extends State<RepairPartnerDetailView>
             ),
           ),
         ),
-        title: Text(
-          widget.partner.name,
-          style: const TextStyle(color: Colors.white),
+        title: Row(
+          children: [
+            EntityAvatar(
+              imageUrl: widget.partner.avatarUrl,
+              name: widget.partner.name,
+              radius: 18,
+              tappableToView: true,
+            ),
+            const SizedBox(width: 10),
+            Flexible(child: Text(widget.partner.name, style: const TextStyle(color: Colors.white), overflow: TextOverflow.ellipsis)),
+          ],
         ),
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,

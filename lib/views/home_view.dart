@@ -3494,30 +3494,30 @@ class _HomeViewState extends State<HomeView>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.7), width: 2),
                 ),
-                child: _userPhotoUrl.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
+                child: ClipOval(
+                  child: _userPhotoUrl.isNotEmpty
+                      ? Image.network(
                           _userPhotoUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const Icon(
                             Icons.person_rounded,
                             color: Colors.white,
-                            size: 20,
+                            size: 24,
                           ),
+                        )
+                      : const Icon(
+                          Icons.person_rounded,
+                          color: Colors.white,
+                          size: 24,
                         ),
-                      )
-                    : const Icon(
-                        Icons.person_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -3584,26 +3584,33 @@ class _HomeViewState extends State<HomeView>
                 ),
               ),
               if (_shopLogoUrl.isNotEmpty)
-                Container(
-                  width: 56,
-                  height: 56,
-                  margin: const EdgeInsets.only(left: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.white.withOpacity(0.5)),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Image.network(
-                      _shopLogoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.store_rounded,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+              Container(
+                width: 52,
+                height: 52,
+                margin: const EdgeInsets.only(left: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withOpacity(0.7), width: 2),
                 ),
+                child: ClipOval(
+                  child: _shopLogoUrl.isNotEmpty
+                      ? Image.network(
+                          _shopLogoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.store_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.store_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                ),
+              ),
             ],
           ),
         ],

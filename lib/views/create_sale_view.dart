@@ -2018,24 +2018,16 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               ),
             ),
             const SizedBox(width: 4),
-            IconButton(
-              constraints: const BoxConstraints(),
-              padding: EdgeInsets.zero,
-              icon: Icon(
-                _autoCalcTotal ? Icons.lock_outline : Icons.edit,
-                size: 16,
-                color: AppColors.primary,
-              ),
-              onPressed: () => setState(() => _autoCalcTotal = !_autoCalcTotal),
-            ),
-            const SizedBox(width: 4),
             Expanded(
               child: CurrencyTextField(
                 controller: priceCtrl,
                 label: "",
-                enabled: !_autoCalcTotal,
+                enabled: true,
                 autoMultiply1000: false,
-                onChanged: (_) => _calculateInstallment(),
+                onChanged: (_) {
+                  setState(() => _autoCalcTotal = false);
+                  _calculateInstallment();
+                },
               ),
             ),
           ],
@@ -2527,24 +2519,15 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               ),
             ),
             const Spacer(),
-            IconButton(
-              constraints: const BoxConstraints(),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              icon: Icon(
-                _autoCalcTotal ? Icons.lock_outline : Icons.edit,
-                size: 18,
-                color: AppColors.primary,
-              ),
-              onPressed: () => setState(() => _autoCalcTotal = !_autoCalcTotal),
-            ),
             SizedBox(
               width: 130,
               child: CurrencyTextField(
                 controller: priceCtrl,
                 label: "",
-                enabled: !_autoCalcTotal,
+                enabled: true,
                 autoMultiply1000: false,
                 onChanged: (_) {
+                  setState(() => _autoCalcTotal = false);
                   _calculateInstallment();
                 },
               ),

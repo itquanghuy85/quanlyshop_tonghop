@@ -2239,6 +2239,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
         r.partsUsed = newPartsList.join(', ');
         r.cost = r.cost + totalCost;
         r.isSynced = false;
+        r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
 
         // === ATOMIC: trừ kho + cập nhật đơn sửa trong một SQLite transaction ===
         final atomicResult = await db.deductPartsAndUpdateRepairAtomic(
@@ -2330,6 +2331,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
       r.cost += totalCost;
       r.isSynced = false;
+      r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
 
       // === ATOMIC: trừ kho + cập nhật đơn sửa trong một SQLite transaction ===
       final atomicResult = await db.deductPartsAndUpdateRepairAtomic(

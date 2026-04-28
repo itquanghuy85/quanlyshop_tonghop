@@ -1,15 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/customer_model.dart';
 import '../services/customer_service.dart';
 import '../services/sync_service.dart';
 import '../services/event_bus.dart';
+import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/global_search_bar.dart';
+import '../widgets/entity_avatar.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/vietnamese_utils.dart';
@@ -490,13 +493,10 @@ class CustomerListItem extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.primary.withOpacity(0.1),
-          child: Text(
-            customer.name.isNotEmpty ? customer.name[0].toUpperCase() : '?',
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.bold,
-            ),
+          child: EntityAvatar(
+            imageUrl: customer.avatarUrl,
+            name: customer.name,
+            radius: 22,
           ),
         ),
         title: Text(
@@ -629,6 +629,9 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
   final _emailController = TextEditingController();
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();
+  String? _avatarUrl;
+  XFile? _pendingAvatar;
+  bool _uploadingAvatar = false;
 
   @override
   void initState() {
@@ -639,6 +642,7 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
       _emailController.text = widget.customer!.email ?? '';
       _addressController.text = widget.customer!.address ?? '';
       _notesController.text = widget.customer!.notes ?? '';
+      _avatarUrl = widget.customer!.avatarUrl;
     }
   }
 
@@ -664,6 +668,32 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Avatar khách hàng
+              Center(
+                child: Column(
+                  children: [
+                    EntityAvatar(
+                      imageUrl: _pendingAvatar != null ? _pendingAvatar!.path : _avatarUrl,
+                      name: _nameController.text.trim().isEmpty ? 'KH' : _nameController.text.trim(),
+                      radius: 38,
+                      showEditButton: true,
+                      onEditTap: _pickAvatar,
+                      tappableToView: _pendingAvatar != null || (_avatarUrl?.isNotEmpty == true),
+                    ),
+                    const SizedBox(height: 4),
+                    TextButton.icon(
+                      onPressed: _pickAvatar,
+                      icon: const Icon(Icons.camera_alt, size: 16),
+                      label: const Text('Chọn ảnh đại diện', style: TextStyle(fontSize: 12)),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -728,17 +758,41 @@ class _CustomerFormDialogState extends State<CustomerFormDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Hủy'),
         ),
-        ElevatedButton(onPressed: _saveCustomer, child: const Text('Lưu')),
+        ElevatedButton(
+          onPressed: _uploadingAvatar ? null : _saveCustomer,
+          child: _uploadingAvatar
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Text('Lưu'),
+        ),
       ],
     );
   }
 
-  void _saveCustomer() {
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 600);
+    if (picked != null && mounted) {
+      setState(() => _pendingAvatar = picked);
+    }
+  }
+
+  Future<void> _saveCustomer() async {
     if (!_formKey.currentState!.validate()) return;
+
+    String? finalAvatarUrl = _avatarUrl;
+    if (_pendingAvatar != null) {
+      setState(() => _uploadingAvatar = true);
+      finalAvatarUrl = await StorageService.uploadXFileAndGetUrl(
+        _pendingAvatar!,
+        'entity_photos/customers',
+      );
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
 
     final customer = Customer(
       id: widget.customer?.id,
       firestoreId: widget.customer?.firestoreId,
+      avatarUrl: finalAvatarUrl,
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
       email: _emailController.text.trim().isEmpty
@@ -793,17 +847,10 @@ class CustomerHistoryDialog extends StatelessWidget {
             // Header
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.primary.withOpacity(0.1),
-                  child: Text(
-                    customer.name.isNotEmpty
-                        ? customer.name[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                EntityAvatar(
+                  imageUrl: customer.avatarUrl,
+                  name: customer.name,
+                  radius: 22,
                 ),
                 const SizedBox(width: 12),
                 Expanded(

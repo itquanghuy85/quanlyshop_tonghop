@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../models/supplier_model.dart';
 import '../services/supplier_service.dart';
+import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
+import '../widgets/entity_avatar.dart';
 
 class SupplierFormView extends StatefulWidget {
   final Supplier? editing;
@@ -25,6 +28,8 @@ class _SupplierFormViewState extends State<SupplierFormView> {
   bool _active = true;
   bool _favorite = false;
   bool _saving = false;
+  String? _avatarUrl;
+  XFile? _pendingAvatar;
 
   @override
   void initState() {
@@ -37,6 +42,7 @@ class _SupplierFormViewState extends State<SupplierFormView> {
       _noteCtrl.text = s.note ?? '';
       _active = s.active;
       _favorite = s.favorite;
+      _avatarUrl = s.avatarUrl;
     }
   }
 
@@ -49,6 +55,14 @@ class _SupplierFormViewState extends State<SupplierFormView> {
     super.dispose();
   }
 
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 600);
+    if (picked != null && mounted) {
+      setState(() => _pendingAvatar = picked);
+    }
+  }
+
   Future<void> _save() async {
     if (_nameCtrl.text.trim().isEmpty) {
       NotificationService.showSnackBar('Tên NCC bắt buộc', color: Colors.red);
@@ -57,9 +71,17 @@ class _SupplierFormViewState extends State<SupplierFormView> {
     setState(() => _saving = true);
     try {
       final shopId = await UserService.getCurrentShopId();
+      String? finalAvatarUrl = _avatarUrl;
+      if (_pendingAvatar != null) {
+        finalAvatarUrl = await StorageService.uploadXFileAndGetUrl(
+          _pendingAvatar!,
+          'entity_photos/suppliers',
+        );
+      }
       final supplier = Supplier(
         id: widget.editing?.id,
         firestoreId: widget.editing?.firestoreId,
+        avatarUrl: finalAvatarUrl,
         name: _nameCtrl.text.trim().toUpperCase(),
         phone: _phoneCtrl.text.trim(),
         address: _addressCtrl.text.trim(),
@@ -108,6 +130,32 @@ class _SupplierFormViewState extends State<SupplierFormView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Avatar NCC
+            Center(
+              child: Column(
+                children: [
+                  EntityAvatar(
+                    imageUrl: _pendingAvatar != null ? _pendingAvatar!.path : _avatarUrl,
+                    name: _nameCtrl.text.trim().isEmpty ? 'NCC' : _nameCtrl.text.trim(),
+                    radius: 44,
+                    showEditButton: true,
+                    onEditTap: _pickAvatar,
+                    tappableToView: _pendingAvatar != null || (_avatarUrl?.isNotEmpty == true),
+                  ),
+                  const SizedBox(height: 6),
+                  TextButton.icon(
+                    onPressed: _pickAvatar,
+                    icon: const Icon(Icons.camera_alt, size: 16),
+                    label: const Text('Chọn ảnh đại diện'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _nameCtrl,
               decoration: const InputDecoration(labelText: 'Tên NCC *', prefixIcon: Icon(Icons.business)),

@@ -32,6 +32,7 @@ import 'repair_partner_detail_view.dart';
 import 'create_sale_view.dart';
 import 'inventory_view.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/entity_avatar.dart';
 
 class SupplierListView extends StatefulWidget {
   const SupplierListView({super.key});
@@ -768,6 +769,12 @@ class _SupplierListViewState extends State<SupplierListView>
       child: Row(
         children: [
           // Thông tin NCC
+            EntityAvatar(
+              imageUrl: d.supplier.avatarUrl,
+              name: d.supplier.name,
+              radius: 22,
+            ),
+            const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1226,6 +1233,12 @@ class _SupplierListViewState extends State<SupplierListView>
             d.partner.active ? Icons.check_circle : Icons.cancel,
             color: activeColor,
             size: 16,
+          ),
+          const SizedBox(width: 8),
+          EntityAvatar(
+            imageUrl: d.partner.avatarUrl,
+            name: d.partner.name,
+            radius: 20,
           ),
           const SizedBox(width: 8),
 

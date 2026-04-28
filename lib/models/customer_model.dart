@@ -1,4 +1,5 @@
 class Customer {
+  String? avatarUrl;
   int? id;
   String? firestoreId;
   String name;
@@ -18,6 +19,7 @@ class Customer {
 
   Customer({
     this.id,
+    this.avatarUrl,
     this.firestoreId,
     required this.name,
     required this.phone,
@@ -40,6 +42,7 @@ class Customer {
     return {
       'id': id,
       'firestoreId': firestoreId,
+      'avatarUrl': avatarUrl,
       'name': name,
       'phone': phone,
       'email': email,
@@ -62,6 +65,7 @@ class Customer {
     return Customer(
       id: map['id'],
       firestoreId: map['firestoreId'],
+      avatarUrl: map['avatarUrl'],
       name: map['name'] ?? '',
       phone: map['phone'] ?? '',
       email: map['email'],
@@ -83,6 +87,7 @@ class Customer {
   Map<String, dynamic> toFirestoreMap() {
     return {
       'name': name,
+      'avatarUrl': avatarUrl,
       'phone': phone,
       'email': email,
       'address': address,
@@ -100,6 +105,7 @@ class Customer {
   factory Customer.fromFirestoreMap(String firestoreId, Map<String, dynamic> map) {
     return Customer(
       firestoreId: firestoreId,
+      avatarUrl: map['avatarUrl'],
       name: map['name'] ?? '',
       phone: map['phone'] ?? '',
       email: map['email'],
@@ -118,6 +124,7 @@ class Customer {
   // Copy with
   Customer copyWith({
     int? id,
+    String? avatarUrl,
     String? firestoreId,
     String? name,
     String? phone,
@@ -136,6 +143,7 @@ class Customer {
   }) {
     return Customer(
       id: id ?? this.id,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       firestoreId: firestoreId ?? this.firestoreId,
       name: name ?? this.name,
       phone: phone ?? this.phone,

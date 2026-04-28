@@ -17,10 +17,12 @@ import '../services/claims_service.dart';
 import '../services/category_service.dart';
 import '../services/osm_map_service.dart';
 import '../widgets/app_cached_image.dart';
+import '../widgets/entity_avatar.dart';
 import '../models/shop_settings_model.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/app_colors.dart';
 import 'adjustment_history_view.dart';
 import 'hr_salary_settings_view.dart';
 import 'label_designer_view.dart';
@@ -640,33 +642,57 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
                             Row(
                               children: [
                                 GestureDetector(
-                                  onTap: _pickLogo,
-                                  child: Container(
-                                    width: 70,
-                                    height: 70,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.shade300),
-                                    ),
-                                    child: _selectedLogo != null
-                                        ? ClipRRect(
-                                            borderRadius: BorderRadius.circular(12),
-                                            child: kIsWeb
-                                                ? Image.network(_selectedLogo!.path, fit: BoxFit.cover)
-                                                : Image.file(_selectedLogo!, fit: BoxFit.cover),
-                                          )
-                                        : _shopLogoUrl.isNotEmpty
-                                            ? ClipRRect(
-                                                borderRadius: BorderRadius.circular(12),
-                                                child: AppCachedImage(
-                                                  imageUrl: _shopLogoUrl,
-                                                  fit: BoxFit.cover,
-                                                  memCacheWidth: 200,
-                                                  memCacheHeight: 200,
-                                                ),
-                                              )
-                                            : const Icon(Icons.add_a_photo, size: 28, color: Colors.grey),
+                                  onTap: () {
+                                    // Tap ảnh để xem phóng to
+                                    if (_selectedLogo != null || _shopLogoUrl.isNotEmpty) {
+                                      EntityAvatar.showPreview(
+                                        context,
+                                        _selectedLogo != null ? _selectedLogo!.path : _shopLogoUrl,
+                                        _nameController.text,
+                                      );
+                                    } else {
+                                      _pickLogo();
+                                    }
+                                  },
+                                  child: Stack(
+                                    alignment: Alignment.bottomRight,
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade100,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.grey.shade300, width: 2),
+                                        ),
+                                        child: ClipOval(
+                                          child: _selectedLogo != null
+                                              ? (kIsWeb
+                                                  ? Image.network(_selectedLogo!.path, fit: BoxFit.cover)
+                                                  : Image.file(_selectedLogo!, fit: BoxFit.cover))
+                                              : _shopLogoUrl.isNotEmpty
+                                                  ? AppCachedImage(
+                                                      imageUrl: _shopLogoUrl,
+                                                      fit: BoxFit.cover,
+                                                      memCacheWidth: 200,
+                                                      memCacheHeight: 200,
+                                                    )
+                                                  : const Icon(Icons.store_rounded, size: 36, color: Colors.grey),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: _pickLogo,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 1.5),
+                                          ),
+                                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(width: 12),

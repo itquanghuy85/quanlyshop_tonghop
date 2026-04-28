@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/repair_partner_model.dart';
 import '../services/repair_partner_service.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import '../widgets/entity_avatar.dart';
 
 class RepairPartnerFormView extends StatefulWidget {
   final RepairPartner? editing;
@@ -24,6 +27,8 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
   late TextEditingController _noteCtrl;
   bool _active = true;
   bool _saving = false;
+  String? _avatarUrl;
+  XFile? _pendingAvatar;
 
   bool get isEditing => widget.editing != null;
 
@@ -34,6 +39,7 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
     _phoneCtrl = TextEditingController(text: widget.editing?.phone ?? '');
     _noteCtrl = TextEditingController(text: widget.editing?.note ?? '');
     _active = widget.editing?.active ?? true;
+    _avatarUrl = widget.editing?.avatarUrl;
   }
 
   @override
@@ -44,6 +50,12 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
     super.dispose();
   }
 
+  Future<void> _pickAvatar() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 600);
+    if (picked != null && mounted) setState(() => _pendingAvatar = picked);
+  }
+
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     
@@ -52,8 +64,17 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
     try {
       final shopId = await UserService.getCurrentShopId() ?? '';
       
+      String? finalAvatarUrl = _avatarUrl;
+      if (_pendingAvatar != null) {
+        finalAvatarUrl = await StorageService.uploadXFileAndGetUrl(
+          _pendingAvatar!,
+          'entity_photos/repair_partners',
+        );
+      }
+
       if (isEditing) {
         final updated = widget.editing!.copyWith(
+          avatarUrl: finalAvatarUrl,
           name: _nameCtrl.text.trim().toUpperCase(),
           phone: _phoneCtrl.text.trim(),
           note: _noteCtrl.text.trim(),
@@ -69,6 +90,7 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
         }
       } else {
         final partner = RepairPartner(
+          avatarUrl: finalAvatarUrl,
           name: _nameCtrl.text.trim().toUpperCase(),
           phone: _phoneCtrl.text.trim(),
           note: _noteCtrl.text.trim(),
@@ -136,6 +158,32 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Avatar đối tác
+            Center(
+              child: Column(
+                children: [
+                  EntityAvatar(
+                    imageUrl: _pendingAvatar != null ? _pendingAvatar!.path : _avatarUrl,
+                    name: _nameCtrl.text.trim().isEmpty ? 'ĐT' : _nameCtrl.text.trim(),
+                    radius: 44,
+                    showEditButton: true,
+                    onEditTap: _pickAvatar,
+                    tappableToView: _pendingAvatar != null || (_avatarUrl?.isNotEmpty == true),
+                  ),
+                  const SizedBox(height: 6),
+                  TextButton.icon(
+                    onPressed: _pickAvatar,
+                    icon: const Icon(Icons.camera_alt, size: 16),
+                    label: const Text('Chọn ảnh đại diện'),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             // Tên đối tác
             _buildTextField(
               controller: _nameCtrl,

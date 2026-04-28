@@ -3772,6 +3772,29 @@ Future<void> _ensureUniqueIndexExists({
         } catch (e) {
           debugPrint('DB onOpen check error (products indexes): $e');
         }
+
+        // avatarUrl cho khách hàng, nhà cung cấp, đối tác sửa chữa
+        await _ensureColumnExists(
+          executor: db,
+          table: 'customers',
+          column: 'avatarUrl',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
+        await _ensureColumnExists(
+          executor: db,
+          table: 'suppliers',
+          column: 'avatarUrl',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
+        await _ensureColumnExists(
+          executor: db,
+          table: 'repair_partners',
+          column: 'avatarUrl',
+          definition: 'TEXT',
+          logScope: 'DB onOpen',
+        );
       },
     );
     await _forceFixMissingColumns(db);
@@ -4669,12 +4692,16 @@ return db;
         }
 
         // Cập nhật đơn sửa trong cùng transaction
-        await txn.update(
+        final updatedRows = await txn.update(
           'repairs',
           repairData,
           where: 'id = ?',
           whereArgs: [repair.id],
         );
+        if (updatedRows == 0) {
+          failMessage = 'Không tìm thấy đơn sửa để cập nhật (id=${repair.id})';
+          throw Exception(failMessage);
+        }
       });
 
       return AtomicPartsResult(success: true, partsToSync: partsToSync);
