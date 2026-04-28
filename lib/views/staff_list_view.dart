@@ -1353,6 +1353,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
   String? _photoPath;
   String _selectedRole = 'employee'; // Mặc định là employee
   bool _isEditing = false;
+  bool _isSavingStaff = false;
 
   String? _staffShopId;
   String? _currentUserShopId;
@@ -1857,6 +1858,130 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
     if (f != null) setState(() => _photoPath = f.path);
   }
 
+  Future<void> _showAvatarPreview() async {
+    final avatarPath = (_photoPath ?? '').trim();
+    if (avatarPath.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nhân viên chưa có ảnh đại diện')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) {
+        final navigator = Navigator.of(ctx);
+
+        Widget buildAvatarImage() {
+          if (avatarPath.startsWith('http') ||
+              avatarPath.startsWith('blob:') ||
+              avatarPath.startsWith('data:')) {
+            return InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4,
+              child: CachedNetworkImage(
+                imageUrl: avatarPath,
+                fit: BoxFit.contain,
+                placeholder: (context, _) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+                errorWidget: (context, _, __) => const Icon(
+                  Icons.broken_image,
+                  color: Colors.white,
+                  size: 48,
+                ),
+              ),
+            );
+          }
+
+          if (StorageService.isGsStoragePath(avatarPath) ||
+              StorageService.isStorageRelativePath(avatarPath)) {
+            return FutureBuilder<String?>(
+              future: StorageService.resolveDisplayUrl(avatarPath),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+                final resolvedUrl = (snap.data ?? '').trim();
+                if (resolvedUrl.isEmpty) {
+                  return const Icon(
+                    Icons.broken_image,
+                    color: Colors.white,
+                    size: 48,
+                  );
+                }
+                return InteractiveViewer(
+                  minScale: 0.8,
+                  maxScale: 4,
+                  child: CachedNetworkImage(
+                    imageUrl: resolvedUrl,
+                    fit: BoxFit.contain,
+                    placeholder: (context, _) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (context, _, __) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                  ),
+                );
+              },
+            );
+          }
+
+          final file = File(avatarPath);
+          if (file.existsSync()) {
+            return InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4,
+              child: Image.file(file, fit: BoxFit.contain),
+            );
+          }
+
+          return const Icon(Icons.broken_image, color: Colors.white, size: 48);
+        }
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: AspectRatio(aspectRatio: 1, child: buildAvatarImage()),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  onPressed: () => navigator.pop(),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _changeAvatarOnly() async {
+    if (_isSavingStaff) return;
+    await _pickPhoto();
+    if (_photoPath == null || _photoPath!.trim().isEmpty) return;
+    await _saveStaffInfo(keepEditing: _isEditing);
+  }
+
   bool _isPermissionDeniedError(Object e) {
     final message = e.toString().toLowerCase();
     return message.contains('permission_denied') ||
@@ -1864,7 +1989,9 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
         message.contains('insufficient permissions');
   }
 
-  Future<void> _saveStaffInfo() async {
+  Future<void> _saveStaffInfo({bool keepEditing = false}) async {
+    if (_isSavingStaff) return;
+    setState(() => _isSavingStaff = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
       // Upload photo if it's a local file
@@ -2017,7 +2144,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
       }
 
       if (!mounted) return;
-      setState(() => _isEditing = false);
+      setState(() => _isEditing = keepEditing ? _isEditing : false);
       EventBus().emit('user_profile_changed');
       messenger.showSnackBar(
         const SnackBar(content: Text("ĐÃ CẬP NHẬT HỒ SƠ NHÂN VIÊN!")),
@@ -2040,6 +2167,10 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           duration: const Duration(seconds: 5),
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isSavingStaff = false);
+      }
     }
   }
 
@@ -2163,7 +2294,7 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: _isEditing ? _pickPhoto : null,
+                  onTap: _showAvatarPreview,
                   child: CircleAvatar(
                     radius: 30,
                     backgroundImage: _safeImageProvider(_photoPath),
@@ -2204,11 +2335,19 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
                   ),
                 ),
                 IconButton(
-                  icon: Icon(
-                    _isEditing ? Icons.check_circle : Icons.edit,
-                    color: _isEditing ? Colors.green : Colors.blue,
-                  ),
-                  onPressed: () {
+                  icon: _isSavingStaff
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _isEditing ? Icons.check_circle : Icons.edit,
+                          color: _isEditing ? Colors.green : Colors.blue,
+                        ),
+                  onPressed: _isSavingStaff
+                      ? null
+                      : () {
                     if (_isEditing) {
                       _saveStaffInfo();
                     } else {
@@ -2219,6 +2358,60 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
               ],
             ),
           ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _isSavingStaff ? null : _changeAvatarOnly,
+                  icon: _isSavingStaff
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_a_photo_outlined, size: 18),
+                  label: Text(
+                    _isSavingStaff ? 'ĐANG LƯU ẢNH...' : 'ĐỔI ẢNH ĐẠI DIỆN',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Mẹo: Nhân viên bị khóa tab Nhân viên vẫn có thể tự đổi ảnh trong Cài đặt.',
+                    style: TextStyle(
+                      fontSize: AppTextStyles.body1.fontSize,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (_isSavingStaff)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'ĐANG LƯU CẬP NHẬT... VUI LÒNG CHỜ',
+                    style: TextStyle(
+                      color: Colors.blueGrey,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           if (_isEditing)
             SizedBox(
