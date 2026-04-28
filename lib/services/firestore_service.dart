@@ -906,10 +906,10 @@ class FirestoreService {
     }
   }
 
-  static Future<String?> resetEntireShopData() async {
+  static Future<String?> resetEntireShopData({String? shopIdOverride}) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) {
+      final shopId = (shopIdOverride ?? await UserService.getCurrentShopId())?.trim();
+      if (shopId == null || shopId.isEmpty) {
         return 'Không tìm thấy shopId. Vui lòng đăng xuất và đăng nhập lại để đồng bộ dữ liệu shop.';
       }
       final collections = [
@@ -934,27 +934,9 @@ class FirestoreService {
 
       for (var colName in collections) {
         try {
-          List<Query<Map<String, dynamic>>> queries = [];
-          if (colName == 'debts') {
-            queries.add(
-              _db.collection(colName).where('shopId', isEqualTo: shopId),
-            );
-            if (UserService.isCurrentUserSuperAdmin()) {
-              queries.add(
-                _db.collection(colName).where('shopId', isNull: true),
-              );
-              queries.add(
-                _db.collection(colName).where('type', isEqualTo: 'OWE'),
-              );
-              queries.add(
-                _db.collection(colName).where('type', isEqualTo: 'SHOP_OWES'),
-              );
-            }
-          } else {
-            queries.add(
-              _db.collection(colName).where('shopId', isEqualTo: shopId),
-            );
-          }
+          final queries = <Query<Map<String, dynamic>>>[
+            _db.collection(colName).where('shopId', isEqualTo: shopId),
+          ];
 
           for (var query in queries) {
             final snapshots = await query.get();

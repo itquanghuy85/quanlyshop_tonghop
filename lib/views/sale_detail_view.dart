@@ -346,13 +346,25 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     }
   }
 
+  String _resolvePricingTierLabel() {
+    final names = s.productNames.toUpperCase();
+    final hasVip = names.contains('[VIP]');
+    final hasWholesale = names.contains('[SỈ]') || names.contains('[SI]');
+    if (hasVip && hasWholesale) return 'VIP + SỈ';
+    if (hasVip) return 'VIP';
+    if (hasWholesale) return 'SỈ';
+    return 'THƯỜNG';
+  }
+
   Map<String, dynamic> _buildSalePrintData() {
     final discount = s.discount;
     final finalTotal = s.finalPrice;
+    final pricingTierLabel = _resolvePricingTierLabel();
     return {
       'customerName': s.customerName,
       'customerPhone': s.phone,
       'customerAddress': s.address,
+      'pricingTierLabel': pricingTierLabel,
       'productNames': s.productNames,
       'productImeis': s.productImeis,
       'warranty': s.warranty.isNotEmpty ? s.warranty : 'KO BH',

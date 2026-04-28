@@ -27,6 +27,7 @@ import '../services/business_type_helper.dart';
 import '../services/variant_service.dart';
 import '../models/payment_intent_model.dart';
 import '../models/shop_settings_model.dart';
+import '../constants/product_constants.dart';
 import '../constants/financial_constants.dart';
 import '../widgets/validated_text_field.dart';
 import '../widgets/debounced_search_field.dart';
@@ -40,6 +41,10 @@ import 'smart_stock_in_view.dart';
 import 'supplier_list_view.dart';
 import '../l10n/app_localizations.dart';
 import '../utils/vietnamese_utils.dart';
+import '../expansion/safe_mode/expansion_feature_flags.dart';
+import '../expansion/safe_mode/pricing_models.dart';
+import 'expansion/vat/create_invoice_view.dart';
+import 'expansion/pricing/price_selector_sheet.dart';
 
 class CreateSaleView extends StatefulWidget {
   final Product? preSelectedProduct;
@@ -51,6 +56,32 @@ class CreateSaleView extends StatefulWidget {
 }
 
 class _CreateSaleViewState extends State<CreateSaleView> {
+
+    String? _pricingTypeTag(PricingRuleType? type) {
+      switch (type) {
+        case PricingRuleType.vip:
+          return 'VIP';
+        case PricingRuleType.wholesale:
+          return 'SỈ';
+        case PricingRuleType.normal:
+        case null:
+          return null;
+      }
+    }
+
+  String _cleanProductDisplayName(String raw) {
+    return ProductConstants.cleanProductName(raw.trim());
+  }
+
+  bool _shouldShowVariantName(String productName, String? variantName) {
+    final cleanedVariant = ProductConstants.cleanProductName(
+      (variantName ?? '').trim(),
+    );
+    if (cleanedVariant.isEmpty) return false;
+    final cleanedProduct = ProductConstants.cleanProductName(productName.trim());
+    return !cleanedProduct.contains(cleanedVariant);
+  }
+
   final db = DBHelper();
   final nameCtrl = TextEditingController();
   final phoneCtrl = TextEditingController();
@@ -551,6 +582,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         'isGift': false,
         'sellPrice': p.price,
         'originalPrice': p.price,
+        'pricingType': PricingRuleType.normal,
         'quantity': 1,
         'imei': p.imei ?? '',
       });
@@ -637,6 +669,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         'isGift': false,
         'sellPrice': itemPrice,
         'originalPrice': itemPrice,
+        'pricingType': PricingRuleType.normal,
         'quantity': 1,
         'imei': p.imei ?? '',
         // Store variant display name for UI
@@ -963,15 +996,17 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               final name = (e['product'] as Product).name;
               final qty = e['quantity'] as int;
               final isGift = e['isGift'] as bool? ?? false;
+              final pricingTag = _pricingTypeTag(e['pricingType'] as PricingRuleType?);
               final origPrice = e['originalPrice'] as int? ?? 0;
               final curPrice = e['sellPrice'] as int? ?? origPrice;
               final isDisc = !isGift && curPrice < origPrice;
+              final tierSuffix = pricingTag != null ? ' [$pricingTag]' : '';
               if (isGift) {
-                return "$name x$qty (Tặng)";
+                return "$name x$qty (Tặng)$tierSuffix";
               } else if (isDisc) {
-                return "$name x$qty (Giảm ${MoneyUtils.formatCurrency(origPrice - curPrice)})";
+                return "$name x$qty (Giảm ${MoneyUtils.formatCurrency(origPrice - curPrice)})$tierSuffix";
               }
-              return "$name x$qty";
+              return "$name x$qty$tierSuffix";
             })
             .join(', '),
         productImeis: _selectedItems
@@ -1925,6 +1960,27 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    // === [VAT MODULE] Nút xuất hóa đơn VAT - ẩn khi enableVAT=false ===
+                    if (const ExpansionFeatureFlags.safeDefaults().enableVAT)
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: const Text('Xuất hóa đơn VAT'),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CreateInvoiceView(
+                                  flags: ExpansionFeatureFlags(enableVAT: true),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 4),
                   ],
                 ),
               ),
@@ -2879,6 +2935,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         final quantity = item['quantity'] as int? ?? 1;
         final variant = item['variant'] as ProductVariant?;
         final variantName = item['variantName'] as String?;
+        final displayName = _cleanProductDisplayName(product.name);
+        final showVariantName = _shouldShowVariantName(product.name, variantName);
         final isGift = item['isGift'] as bool? ?? false;
         final originalPrice = item['originalPrice'] as int? ?? product.price;
         final sellPrice = item['sellPrice'] as int? ?? originalPrice;
@@ -2903,7 +2961,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                             children: [
                               Flexible(
                                 child: Text(
-                                  product.name,
+                                  displayName,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -2953,7 +3011,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                             ],
                           ),
                           // Show variant info if available
-                          if (variantName != null) ...[
+                          if (showVariantName) ...[
                             const SizedBox(height: 2),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -2966,7 +3024,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 border: Border.all(color: Colors.blue.shade200),
                               ),
                               child: Text(
-                                variantName,
+                                variantName!,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.blue.shade700,
@@ -2978,6 +3036,45 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                         ],
                       ),
                     ),
+                    if (const ExpansionFeatureFlags.safeDefaults().enablePricing)
+                      IconButton(
+                        icon: const Icon(Icons.price_change_outlined,
+                            color: Colors.blueGrey),
+                        tooltip: 'Chọn giá linh hoạt',
+                        onPressed: () async {
+                          final rawOriginalPrice =
+                              (item['originalPrice'] as int?) ?? 0;
+                          final rawSellPrice = (item['sellPrice'] as int?) ?? 0;
+                          final resolvedBasePriceInt = rawOriginalPrice > 0
+                              ? rawOriginalPrice
+                              : (rawSellPrice > 0 ? rawSellPrice : product.price);
+
+                          final productId = (product.firestoreId?.isNotEmpty == true)
+                              ? product.firestoreId!
+                              : product.id.toString();
+                          await PriceSelectorSheet.show(
+                            context,
+                            productId: productId,
+                            productName: displayName,
+                            basePrice: resolvedBasePriceInt.toDouble(),
+                            quantity: item['quantity'] as int? ?? 1,
+                            customerId: phoneCtrl.text.trim().isNotEmpty
+                                ? phoneCtrl.text.trim()
+                                : null,
+                            flags: const ExpansionFeatureFlags.safeDefaults(),
+                            onPriceSelected: (price, pricingType) {
+                              setState(() {
+                                item['sellPrice'] = price.toInt();
+                                item['pricingType'] = pricingType;
+                                // Luôn cập nhật thành tiền dù _autoCalcTotal
+                                // đang bị khóa, vì người dùng chủ động chọn giá mới.
+                                _autoCalcTotal = true;
+                                _calculateTotal();
+                              });
+                            },
+                          );
+                        },
+                      ),
                     IconButton(
                       icon: Icon(
                         Icons.card_giftcard,

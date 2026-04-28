@@ -8,6 +8,18 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "analyze-updated-inventory-attendance",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"analyze",
+				"lib/views/inventory_view.dart",
+				"lib/services/notification_service.dart",
+				"lib/views/attendance_view.dart"
+			],
+			"isBackground": false
 		}
 	]
 }

@@ -190,6 +190,33 @@ class SuperAdminSecurityService {
     await _logAdminAction('super_admin_login');
   }
 
+  /// Public audit helper for Super Admin actions.
+  static Future<void> logAction({
+    required String action,
+    String? shopId,
+    String? targetUserId,
+    Map<String, dynamic>? metadata,
+    bool success = true,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+      await _db.collection('admin_audit_log').add({
+        'uid': user.uid,
+        'email': user.email,
+        'action': action,
+        'shopId': shopId,
+        'targetUserId': targetUserId,
+        'metadata': metadata ?? <String, dynamic>{},
+        'success': success,
+        'timestamp': FieldValue.serverTimestamp(),
+        'platform': kIsWeb ? 'web' : 'mobile',
+      });
+    } catch (e) {
+      debugPrint('Audit log error (non-fatal): $e');
+    }
+  }
+
   /// Get recent audit logs
   static Future<List<Map<String, dynamic>>> getRecentAuditLogs({int limit = 50}) async {
     try {

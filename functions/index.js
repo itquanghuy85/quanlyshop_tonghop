@@ -15,24 +15,17 @@ setGlobalOptions({ region: "asia-southeast1", timeoutSeconds: 30 });
 // Claims: shopId, role, isSuperAdmin
 // ============================================================
 
-const SUPER_ADMIN_EMAIL = "admin@huluca.com";
-const VALID_ROLES = ["owner", "manager", "employee", "technician", "user"];
-
-/**
- * Check if email is super admin
- */
-function checkIsSuperAdmin(email) {
-  return email && email.toLowerCase() === SUPER_ADMIN_EMAIL;
-}
+const VALID_ROLES = ["owner", "manager", "employee", "technician", "user", "super_admin"];
 
 /**
  * Build custom claims object from user data
  */
 function buildCustomClaims(userData, email) {
-  const isSuperAdmin = checkIsSuperAdmin(email);
+  const roleFromDoc = (userData?.role || "user").toString().trim().toLowerCase();
+  const isSuperAdmin = roleFromDoc === "super_admin";
   return {
     shopId: userData?.shopId || null,
-    role: isSuperAdmin ? "admin" : (userData?.role || "user"),
+    role: isSuperAdmin ? "super_admin" : roleFromDoc,
     isSuperAdmin: isSuperAdmin,
   };
 }
@@ -807,11 +800,12 @@ exports.createStaffAccount = onCall(async (request) => {
 
   const requesterUid = auth.uid;
   const requesterEmail = auth.token.email || "";
-  const isSuperAdmin = requesterEmail === "admin@huluca.com";
+  const requesterRoleClaim = (auth.token.role || "").toString().toLowerCase();
+  const isSuperAdmin = auth.token.isSuperAdmin === true || requesterRoleClaim === "super_admin";
 
   const requesterDoc = await admin.firestore().collection("users").doc(requesterUid).get();
   const requesterData = requesterDoc.data() || {};
-  const requesterRole = isSuperAdmin ? "admin" : requesterData.role || "user";
+  const requesterRole = isSuperAdmin ? "super_admin" : requesterData.role || "user";
   const requesterShopId = requesterData.shopId || requesterUid;
 
   // Allow owner and admin to create staff accounts
@@ -1159,7 +1153,7 @@ exports.sendShopNotification = onCall(async (request) => {
 /**
  * BATCH SYNC ALL CLAIMS - Đồng bộ Custom Claims cho TOÀN BỘ user cũ
  * 
- * Chỉ Super Admin (admin@huluca.com) được quyền gọi.
+ * Chỉ Super Admin (custom claims role=super_admin) được quyền gọi.
  * Đọc từ Firestore users/{uid} và set custom claims.
  * 
  * @returns {Object} Thống kê: total, success, skipped, failed, errors
@@ -1177,7 +1171,9 @@ exports.batchSyncAllClaims = onCall({
   
   // 2. ONLY Super Admin can call this function
   const callerEmail = auth.token.email || "";
-  if (callerEmail !== "admin@huluca.com") {
+  const callerRole = (auth.token.role || "").toString().toLowerCase();
+  const callerIsSuperAdmin = auth.token.isSuperAdmin === true || callerRole === "super_admin";
+  if (!callerIsSuperAdmin) {
     console.log(`DENIED: ${callerEmail} tried to call batchSyncAllClaims`);
     throw new HttpsError("permission-denied", "Chỉ Super Admin mới có quyền sync claims toàn bộ");
   }
@@ -1220,15 +1216,15 @@ exports.batchSyncAllClaims = onCall({
         }
         
         // 5.3 Validate role
-        const validRoles = ['owner', 'manager', 'employee', 'technician', 'user', 'admin'];
+        const validRoles = ['owner', 'manager', 'employee', 'technician', 'user', 'super_admin'];
         const finalRole = validRoles.includes(role) ? role : 'user';
         
         // 5.4 Determine isSuperAdmin
-        const isSuperAdmin = email === "admin@huluca.com";
+        const isSuperAdmin = finalRole === 'super_admin';
         
         // 5.5 Build claims object
         const claims = {
-          role: finalRole,
+          role: isSuperAdmin ? 'super_admin' : finalRole,
           shopId: shopId || uid, // Fallback to uid if no shopId
           isSuperAdmin: isSuperAdmin
         };
@@ -1314,7 +1310,8 @@ exports.syncUserClaimsV2 = onCall(async (request) => {
   }
   
   const callerEmail = auth.token.email || "";
-  const isSuperAdmin = callerEmail === "admin@huluca.com";
+  const callerRole = (auth.token.role || "").toString().toLowerCase();
+  const isSuperAdmin = auth.token.isSuperAdmin === true || callerRole === "super_admin";
   
   // Get caller's data to check permissions
   const callerDoc = await admin.firestore().collection('users').doc(auth.uid).get();
@@ -1340,11 +1337,12 @@ exports.syncUserClaimsV2 = onCall(async (request) => {
   const email = (targetData.email || "").toString().trim().toLowerCase();
   const role = (targetData.role || "user").toString();
   const shopId = targetData.shopId || targetUid;
+  const isSuperAdminByRole = role === 'super_admin';
   
   const claims = {
-    role: role,
+    role: isSuperAdminByRole ? 'super_admin' : role,
     shopId: shopId,
-    isSuperAdmin: email === "admin@huluca.com"
+    isSuperAdmin: isSuperAdminByRole
   };
   
   // Set claims
@@ -1388,11 +1386,12 @@ exports.refreshMyClaimsV2 = onCall(async (request) => {
   const email = (userData.email || auth.token.email || "").toString().trim().toLowerCase();
   const role = (userData.role || "user").toString();
   const shopId = userData.shopId || uid;
+  const isSuperAdminByRole = role === 'super_admin';
   
   const claims = {
-    role: role,
+    role: isSuperAdminByRole ? 'super_admin' : role,
     shopId: shopId,
-    isSuperAdmin: email === "admin@huluca.com"
+    isSuperAdmin: isSuperAdminByRole
   };
   
   // Set claims

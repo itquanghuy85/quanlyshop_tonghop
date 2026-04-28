@@ -15,6 +15,8 @@ import '../l10n/app_localizations.dart';
 import '../utils/vietnamese_utils.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
+import '../expansion/safe_mode/expansion_feature_flags.dart';
+import 'expansion/crm/customer_loyalty_view.dart';
 
 class CustomerManagementView extends StatefulWidget {
   const CustomerManagementView({super.key});
@@ -432,6 +434,29 @@ class _CustomerManagementViewState extends State<CustomerManagementView> {
                           onEdit: () => _editCustomer(customer),
                           onDelete: () => _deleteCustomer(customer),
                           onViewHistory: () => _viewCustomerHistory(customer),
+                          onViewLoyalty: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CustomerLoyaltyView(
+                                customerId:
+                                    customer.firestoreId ??
+                                    customer.id?.toString() ??
+                                    customer.phone,
+                                customerIdAliases: <String>[
+                                  if ((customer.firestoreId ?? '').isNotEmpty)
+                                    customer.firestoreId!,
+                                  if (customer.id != null)
+                                    customer.id.toString(),
+                                  customer.phone,
+                                ],
+                                customerName: customer.name,
+                                initialTotalSpent: customer.totalSpent,
+                                flags: const ExpansionFeatureFlags(
+                                  enableCRM: true,
+                                ),
+                              ),
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -448,6 +473,7 @@ class CustomerListItem extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onViewHistory;
+  final VoidCallback? onViewLoyalty;
 
   const CustomerListItem({
     super.key,
@@ -455,6 +481,7 @@ class CustomerListItem extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.onViewHistory,
+    this.onViewLoyalty,
   });
 
   @override
@@ -522,6 +549,9 @@ class CustomerListItem extends StatelessWidget {
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
             switch (value) {
+              case 'loyalty':
+                onViewLoyalty?.call();
+                break;
               case 'edit':
                 onEdit();
                 break;
@@ -534,6 +564,17 @@ class CustomerListItem extends StatelessWidget {
             }
           },
           itemBuilder: (context) => [
+            if (onViewLoyalty != null)
+              const PopupMenuItem(
+                value: 'loyalty',
+                child: Row(
+                  children: [
+                    Icon(Icons.stars, size: 20, color: Colors.amber),
+                    SizedBox(width: 8),
+                    Text('Xem điểm'),
+                  ],
+                ),
+              ),
             const PopupMenuItem(
               value: 'history',
               child: Row(

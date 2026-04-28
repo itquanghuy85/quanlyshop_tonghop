@@ -9,7 +9,7 @@ service firebase.storage {
     function isSuperAdmin() {
       return isAuth() && (
         request.auth.token.isSuperAdmin == true ||
-        request.auth.token.email == 'admin@huluca.com'
+        request.auth.token.role == 'super_admin'
       );
     }
     function myShopId() {

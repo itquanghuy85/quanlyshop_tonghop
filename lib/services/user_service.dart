@@ -9,6 +9,7 @@ import 'encryption_service.dart';
 import 'claims_service.dart';
 import 'event_bus.dart';
 import 'payment_intent_service.dart';
+import 'super_admin_security_service.dart';
 
 class UserService {
   // Validate input fields
@@ -59,6 +60,8 @@ class UserService {
   static String? _cachedShopId;
   static String? _cachedUid; // Track which user's shopId is cached
   static String? _adminSelectedShopId; // Shop được super admin chọn để xem
+  static bool _cachedIsSuperAdmin = false;
+  static String? _cachedIsSuperAdminUid;
   static bool? _cachedCanViewCostPrice; // Cache permission xem giá vốn
   static DateTime? _cachedCanViewCostPriceTime; // Thời điểm cache
   static Map<String, dynamic>? _cachedPermissions;
@@ -274,6 +277,8 @@ class UserService {
     _cachedShopId = null;
     _cachedUid = null;
     _adminSelectedShopId = null;
+    _cachedIsSuperAdmin = false;
+    _cachedIsSuperAdminUid = null;
     invalidatePermissionsCache();
     _cachedCanViewCostPrice = null;
     _cachedCanViewCostPriceTime = null;
@@ -297,7 +302,13 @@ class UserService {
   }
 
   static bool _isSuperAdmin(User? user) {
-    return user?.email?.toLowerCase() == 'admin@huluca.com';
+    if (user == null) return false;
+    return _cachedIsSuperAdmin && _cachedIsSuperAdminUid == user.uid;
+  }
+
+  static void setCurrentUserSuperAdmin(bool isSuperAdmin, {String? uid}) {
+    _cachedIsSuperAdmin = isSuperAdmin;
+    _cachedIsSuperAdminUid = uid ?? FirebaseAuth.instance.currentUser?.uid;
   }
 
   static bool isCurrentUserSuperAdmin() {
@@ -421,7 +432,7 @@ class UserService {
     final isManager = role == 'manager';
     final isEmployee = role == 'employee';
     final isTechnician = role == 'technician';
-    final isAdmin = role == 'admin'; // Super admin
+    final isAdmin = role == 'admin' || role == 'super_admin'; // Super admin
     final isUser = role == 'user'; // Default fallback
 
     return {
@@ -480,9 +491,9 @@ class UserService {
           isTechnician ||
           isAdmin ||
           isUser,
-      'allowViewRevenue': isOwner, // Chỉ chủ shop được xem tài chính
-      'allowViewExpenses': isOwner, // Chỉ chủ shop được xem chi phí
-      'allowViewDebts': isOwner, // Chỉ chủ shop được xem công nợ
+      'allowViewRevenue': isOwner || isAdmin, // Chủ shop hoặc super admin
+      'allowViewExpenses': isOwner || isAdmin, // Chủ shop hoặc super admin
+      'allowViewDebts': isOwner || isAdmin, // Chủ shop hoặc super admin
       'allowViewCostPrice':
           isOwner ||
           isManager ||
@@ -623,22 +634,23 @@ class UserService {
   // Lấy quyền của người dùng (Có nhận diện Admin đặc biệt)
   // NOTE: Prefer using ClaimsService().getRoleFromClaims() for faster access
   static Future<String> getUserRole(String uid) async {
-    // CAO KIẾN: Nhận diện Admin tối cao qua Email
     final currentUser = FirebaseAuth.instance.currentUser;
-    debugPrint("getUserRole: currentUser email = ${currentUser?.email}");
-    if (currentUser?.email == 'admin@huluca.com') {
-      debugPrint("getUserRole: returning admin for super admin");
-      return 'admin'; // Luôn là Admin nếu dùng email này
-    }
 
     // Try to get role from Custom Claims first (faster, no Firestore read)
     if (uid == currentUser?.uid) {
       try {
-        final role = await ClaimsService().getRoleFromClaims();
+        final claims = await ClaimsService().getClaimsFromToken();
+        final isSuperAdminClaim = claims?['isSuperAdmin'] == true ||
+            claims?['role'] == 'super_admin';
+        if (isSuperAdminClaim) {
+          setCurrentUserSuperAdmin(true, uid: uid);
+          return 'admin';
+        }
+
+        final role = (claims?['role'] ?? 'user').toString();
         if (role != 'user') {
-          // user is default, might not be set yet
           debugPrint("getUserRole: role from claims = $role");
-          return role;
+          return role == 'super_admin' ? 'admin' : role;
         }
       } catch (e) {
         debugPrint("getUserRole: claims error $e, falling back to Firestore");
@@ -659,11 +671,16 @@ class UserService {
 
   /// Fast role check using Custom Claims (no Firestore read)
   static Future<String> getRoleFast() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser?.email == 'admin@huluca.com') {
+    final claims = await ClaimsService().getClaimsFromToken();
+    final isSuperAdminClaim = claims?['isSuperAdmin'] == true ||
+        claims?['role'] == 'super_admin';
+    if (isSuperAdminClaim) {
+      setCurrentUserSuperAdmin(true);
       return 'admin';
     }
-    return await ClaimsService().getRoleFromClaims();
+
+    final role = (claims?['role'] ?? 'user').toString();
+    return role == 'super_admin' ? 'admin' : role;
   }
 
   /// Fast shopId check using Custom Claims (no Firestore read)
@@ -747,8 +764,10 @@ class UserService {
       return _pollQuerySnapshots(query);
     }
 
-    // Trường hợp chưa đồng bộ shopId, tạm thời trả toàn bộ (sẽ thu hẹp sau khi syncUserInfo chạy)
-    return _pollQuerySnapshots(_db.collection('users').limit(20));
+    // Trường hợp chưa đồng bộ shopId: không trả toàn bộ để tránh leak cross-tenant.
+    return _pollQuerySnapshots(
+      _db.collection('users').where('shopId', isEqualTo: '__NO_SHOP__').limit(1),
+    );
   }
 
   /// Stream lấy users theo shopId cụ thể (dùng khi cần đảm bảo có shopId)
@@ -814,8 +833,7 @@ class UserService {
     }
 
     // Chỉ SuperAdmin mới được cập nhật shopId
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final isSuperAdmin = currentUser?.email == 'admin@huluca.com';
+    final isSuperAdmin = isCurrentUserSuperAdmin();
     if (shopId != null && isSuperAdmin) {
       updateData['shopId'] = shopId;
     }
@@ -908,7 +926,10 @@ class UserService {
     final userDoc = await userRef.get();
     final data = userDoc.data() ?? {};
 
-    final bool isSuperAdmin = email == 'admin@huluca.com';
+    final claims = await ClaimsService().getClaimsFromToken();
+    final bool isSuperAdmin = claims?['isSuperAdmin'] == true ||
+        claims?['role'] == 'super_admin';
+    setCurrentUserSuperAdmin(isSuperAdmin, uid: uid);
     String? shopId = data['shopId'];
     bool isNewShop = false;
 
@@ -1279,7 +1300,7 @@ class UserService {
 
     // Admin tối cao luôn có toàn quyền
     if (_isSuperAdmin(currentUser)) {
-      return _defaultPermissionsForRole('admin');
+      return _defaultPermissionsForRole('super_admin');
     }
 
     if (!forceRefresh) {
@@ -1625,6 +1646,10 @@ class UserService {
     String? flagName,
     bool? flagValue,
   }) async {
+    if (!isCurrentUserSuperAdmin()) {
+      throw Exception('Chỉ Super Admin được cập nhật lock flags cấp shop.');
+    }
+
     final updateData = <String, dynamic>{
       'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
     };
@@ -1642,6 +1667,18 @@ class UserService {
         .collection('shops')
         .doc(shopId)
         .set(updateData, SetOptions(merge: true));
+
+    await SuperAdminSecurityService.logAction(
+      action: 'shop_lock_update',
+      shopId: shopId,
+      metadata: {
+        'appLocked': appLocked,
+        'adminFinanceLocked': adminFinanceLocked,
+        'flagName': flagName,
+        'flagValue': flagValue,
+      },
+      success: true,
+    );
   }
 
   // --- INVITE SYSTEM ---
@@ -1780,6 +1817,11 @@ class UserService {
     if (!_isSuperAdmin(currentUser)) return;
 
     await _db.collection('users').doc(uid).delete();
+    await SuperAdminSecurityService.logAction(
+      action: 'delete_user_doc',
+      targetUserId: uid,
+      success: true,
+    );
   }
 
   /// Xóa user + Auth account + dữ liệu liên quan qua Cloud Function
@@ -1795,6 +1837,14 @@ class UserService {
       'userId': uid,
       'deleteAuth': deleteAuth,
     });
+
+    await SuperAdminSecurityService.logAction(
+      action: 'delete_user_with_data',
+      targetUserId: uid,
+      metadata: {'deleteAuth': deleteAuth},
+      success: true,
+    );
+
     return Map<String, dynamic>.from(result.data as Map);
   }
 

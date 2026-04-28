@@ -468,6 +468,19 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         ], 'shop_logos');
         if (urls.isNotEmpty) {
           logoUrl = urls.first;
+        } else {
+          final denied = StorageService.lastUploadPermissionDenied ||
+              (StorageService.lastUploadErrorMessage ?? '').toLowerCase().contains('unauthorized') ||
+              (StorageService.lastUploadErrorMessage ?? '').toLowerCase().contains('permission');
+          if (mounted) {
+            NotificationService.showSnackBar(
+              denied
+                  ? 'Không có quyền tải logo lên (lỗi 403). Kiểm tra cấu hình App Check/Storage Firebase.'
+                  : 'Tải logo thất bại. Vui lòng kiểm tra kết nối mạng và thử lại.',
+              color: Colors.red,
+              duration: const Duration(seconds: 6),
+            );
+          }
         }
       }
 

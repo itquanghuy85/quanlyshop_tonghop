@@ -2360,6 +2360,15 @@ class UnifiedPrinterService {
         ),
       );
     }
+    final pricingTierLabel = saleData['pricingTierLabel']?.toString() ?? '';
+    if (pricingTierLabel.trim().isNotEmpty) {
+      bytes.addAll(
+        generator.text(
+          _removeDiacritics('Nhom gia: $pricingTierLabel'),
+          styles: const PosStyles(bold: true),
+        ),
+      );
+    }
     bytes.addAll(generator.feed(1));
 
     // Thông tin sản phẩm

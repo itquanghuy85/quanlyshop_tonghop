@@ -13,6 +13,8 @@ import 'package:path_provider/path_provider.dart';
 class StorageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
   static final Map<String, String> _resolvedUrlCache = {};
+  static String? _lastUploadErrorMessage;
+  static bool _lastUploadPermissionDenied = false;
   static const Set<String> _storageRoots = {
     'repairs',
     'attendance',
@@ -22,6 +24,19 @@ class StorageService {
     'payment_requests',
     'products',
   };
+
+  static String? get lastUploadErrorMessage => _lastUploadErrorMessage;
+  static bool get lastUploadPermissionDenied => _lastUploadPermissionDenied;
+
+  static void _clearLastUploadError() {
+    _lastUploadErrorMessage = null;
+    _lastUploadPermissionDenied = false;
+  }
+
+  static void _setLastUploadError(Object error) {
+    _lastUploadErrorMessage = error.toString();
+    _lastUploadPermissionDenied = _isUnauthorizedStorageError(error);
+  }
 
   /// Normalize upload folder to match deployed storage.rules.
   /// Most roots only allow one segment (e.g. repairs/{fileName}),
@@ -269,6 +284,7 @@ class StorageService {
 
   /// Tự động upload và trả về URL để đồng bộ giữa các máy
   static Future<String?> uploadAndGetUrl(String localPath, String folder) async {
+    _clearLastUploadError();
     try {
       if (localPath.startsWith('http')) return localPath; // Đã là link cloud
 
@@ -319,8 +335,11 @@ class StorageService {
         } catch (_) {}
       }
 
-      return await snapshot.ref.getDownloadURL();
+      final url = await snapshot.ref.getDownloadURL();
+      _clearLastUploadError();
+      return url;
     } catch (e) {
+      _setLastUploadError(e);
       debugPrint("STORAGE_ERROR: $e");
       return null;
     }
@@ -328,6 +347,7 @@ class StorageService {
 
   /// Upload trực tiếp từ XFile (an toàn cho web vì dùng bytes).
   static Future<String?> uploadXFileAndGetUrl(XFile picked, String folder) async {
+    _clearLastUploadError();
     try {
       if (picked.path.startsWith('http')) return picked.path;
 
@@ -355,7 +375,9 @@ class StorageService {
           uploadFolder: uploadFolder,
           metadata: metadata,
         );
-        return await snapshot.ref.getDownloadURL();
+        final url = await snapshot.ref.getDownloadURL();
+        _clearLastUploadError();
+        return url;
       }
 
       final file = File(picked.path);
@@ -386,8 +408,11 @@ class StorageService {
         try { await fileToUpload.delete(); } catch (_) {}
       }
 
-      return await snapshot.ref.getDownloadURL();
+      final url = await snapshot.ref.getDownloadURL();
+      _clearLastUploadError();
+      return url;
     } catch (e) {
+      _setLastUploadError(e);
       debugPrint("STORAGE_XFILE_ERROR: $e");
       return null;
     }

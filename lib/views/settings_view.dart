@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../services/social_auth_service.dart';
 import '../services/super_admin_security_service.dart';
 import '../services/user_service.dart';
 import '../services/current_shop_service.dart';
+import '../services/storage_service.dart';
 import '../theme/app_text_styles.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
@@ -42,6 +44,9 @@ class _SettingsViewState extends State<SettingsView> {
   String _role = 'user';
   bool _loading = true;
   late final Future<String> _versionFuture;
+  bool _updatingAvatar = false;
+  String? _profilePhotoUrl;
+  String? _profileDisplayName;
 
   // Super admin shop selection
   List<Map<String, dynamic>> _allShops = [];
@@ -56,8 +61,107 @@ class _SettingsViewState extends State<SettingsView> {
     super.initState();
     _versionFuture = AppInfo.getVersion();
     _loadRole();
+    _loadCurrentUserProfile();
     _loadShopsForAdmin();
     // Language selection hidden
+  }
+
+  Future<void> _loadCurrentUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final data = doc.data();
+      if (!mounted || data == null) return;
+      setState(() {
+        _profilePhotoUrl = (data['photoUrl'] as String?)?.trim();
+        final displayName = (data['displayName'] as String?)?.trim();
+        _profileDisplayName =
+            (displayName != null && displayName.isNotEmpty) ? displayName : null;
+      });
+    } catch (e) {
+      debugPrint('Load current user profile failed: $e');
+    }
+  }
+
+  Future<void> _pickAndUploadMyAvatar() async {
+    if (_updatingAvatar) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      NotificationService.showSnackBar('Vui lòng đăng nhập lại', color: Colors.red);
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      setState(() => _updatingAvatar = true);
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 1600,
+      );
+      if (picked == null) return;
+
+      final uploadedUrl = await StorageService.uploadXFileAndGetUrl(
+        picked,
+        'user_photos',
+      );
+      if (uploadedUrl == null || uploadedUrl.trim().isEmpty) {
+        final denied = StorageService.lastUploadPermissionDenied ||
+            (StorageService.lastUploadErrorMessage ?? '').toLowerCase().contains('unauthorized') ||
+            (StorageService.lastUploadErrorMessage ?? '').toLowerCase().contains('permission');
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              denied
+                  ? 'Không có quyền tải ảnh lên (lỗi 403). Vui lòng liên hệ quản trị viên kiểm tra cấu hình App Check/Storage.'
+                  : 'Không tải được ảnh lên. Vui lòng kiểm tra kết nối mạng và thử lại.',
+            ),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        return;
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'photoUrl': uploadedUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      try {
+        await user.updatePhotoURL(uploadedUrl);
+        await user.reload();
+      } catch (e) {
+        debugPrint('updatePhotoURL failed, fallback to Firestore photo only: $e');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _profilePhotoUrl = uploadedUrl;
+      });
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã cập nhật ảnh đại diện thành công')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final errStr = e.toString().toLowerCase();
+      final denied = errStr.contains('unauthorized') || errStr.contains('permission');
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            denied
+                ? 'Không có quyền tải ảnh lên (lỗi 403). Vui lòng liên hệ quản trị viên.'
+                : 'Lỗi cập nhật ảnh đại diện: $e',
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingAvatar = false);
+    }
   }
   
   /// Load danh sách shops cho super admin
@@ -1167,8 +1271,12 @@ class _SettingsViewState extends State<SettingsView> {
   Widget _buildAccountCard(AppLocalizations localizations) {
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email ?? 'N/A';
-    final displayName = user?.displayName ?? email.split('@').first;
-    final photoUrl = user?.photoURL;
+    final displayName =
+      _profileDisplayName ?? user?.displayName ?? email.split('@').first;
+    final photoUrl =
+      (_profilePhotoUrl != null && _profilePhotoUrl!.trim().isNotEmpty)
+      ? _profilePhotoUrl
+      : user?.photoURL;
     final googleLinked = SocialAuthService.isGoogleLinked();
     final appleLinked = SocialAuthService.isAppleLinked();
     final passwordLinked = SocialAuthService.isPasswordLinked();
@@ -1187,16 +1295,56 @@ class _SettingsViewState extends State<SettingsView> {
             // User info row
             Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-                  backgroundColor: Colors.blue.shade100,
-                  child: photoUrl == null
-                      ? Text(
-                          displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
-                        )
-                      : null,
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundImage:
+                          photoUrl != null ? NetworkImage(photoUrl) : null,
+                      backgroundColor: Colors.blue.shade100,
+                      child: photoUrl == null
+                          ? Text(
+                              displayName.isNotEmpty
+                                  ? displayName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Material(
+                        color: Colors.white,
+                        shape: const CircleBorder(),
+                        elevation: 2,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _updatingAvatar ? null : _pickAndUploadMyAvatar,
+                          child: Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: _updatingAvatar
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.camera_alt,
+                                    size: 14,
+                                    color: Colors.blue,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 12),
                 Expanded(

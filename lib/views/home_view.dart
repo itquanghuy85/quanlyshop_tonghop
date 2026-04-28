@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,7 +32,7 @@ import 'warranty_view.dart';
 import 'shop_settings_view.dart';
 import 'advanced_chat_view.dart';
 import 'printer_settings_view.dart';
-import 'super_admin_view.dart' as admin_view;
+import 'super_admin_console_view.dart' as admin_view;
 import 'staff_list_view.dart';
 import 'qr_scan_view.dart';
 import 'attendance_view.dart';
@@ -72,6 +73,7 @@ import '../services/sync_health_check.dart';
 import '../services/user_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
+import '../services/storage_service.dart';
 import '../services/encryption_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
@@ -106,6 +108,10 @@ import '../services/reminder_service.dart';
 import '../services/dashboard_config_service.dart';
 import '../widgets/dashboard_cards.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../expansion/safe_mode/expansion_feature_flags.dart';
+import '../expansion/safe_mode/branch_service.dart';
+import 'expansion/branch/branch_selector_view.dart';
+import 'expansion/branch/branch_list_view.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -199,6 +205,9 @@ class _HomeViewState extends State<HomeView>
   void initState() {
     super.initState();
     _primePermissionsFromCache();
+    if (_enableMultiBranch) {
+      unawaited(_loadCurrentBranchName());
+    }
     WidgetsBinding.instance.addObserver(
       this,
     ); // Lifecycle observer for iOS background handling
@@ -446,7 +455,15 @@ class _HomeViewState extends State<HomeView>
   bool _notificationWorking = false; // Trạng thái thông báo
   String _userName = ''; // Tên hiển thị của người dùng
   String _shopName = ''; // Tên cửa hàng
+  String _userPhotoUrl = ''; // Ảnh đại diện người dùng
+  String _shopLogoUrl = ''; // Logo cửa hàng
+  bool _updatingMyAvatar = false;
   String _runtimeRole = '';
+  static const ExpansionFeatureFlags _multiBranchFlags =
+      ExpansionFeatureFlags.safeDefaults();
+  static final bool _enableMultiBranch = _multiBranchFlags.enableMultiBranch;
+  final BranchService _branchService = BranchService(flags: _multiBranchFlags);
+  String _currentBranchName = '';
 
   // Modular Dashboard Config
   List<DashboardCardConfig> _dashboardConfigs = [];
@@ -1326,7 +1343,119 @@ class _HomeViewState extends State<HomeView>
     _statsDebounceTimer?.cancel();
     _phoneSearchCtrl.dispose();
     _debtOverviewDebounceTimer?.cancel();
+    _branchService.close();
     super.dispose();
+  }
+
+  Future<void> _loadCurrentBranchName() async {
+    if (!_enableMultiBranch) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final branch = await _branchService.getBranchForUser(user.uid);
+      if (!mounted) return;
+      setState(() {
+        _currentBranchName = branch?.name ?? '';
+      });
+    } catch (_) {
+      // Safe mode: bỏ qua lỗi module để không ảnh hưởng flow chính.
+    }
+  }
+
+  Future<void> _openBranchSelector() async {
+    if (!_enableMultiBranch) return;
+    final shopId = await UserService.getCurrentShopId();
+    if (!mounted || shopId == null || shopId.isEmpty) return;
+
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final selected = await _pushRoute(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BranchSelectorView(
+          shopId: shopId,
+          currentUserId: currentUserId,
+          flags: _multiBranchFlags,
+        ),
+      ),
+    );
+
+    if (selected != null) {
+      // Dùng trực tiếp tên chi nhánh từ kết quả pop (tránh re-query DB có thể fail)
+      try {
+        final name = (selected as dynamic).name as String?;
+        if (name != null && name.isNotEmpty && mounted) {
+          setState(() => _currentBranchName = name);
+        } else {
+          await _loadCurrentBranchName();
+        }
+      } catch (_) {
+        await _loadCurrentBranchName();
+      }
+      _debouncedLoadStats();
+      _debouncedLoadDebtOverview();
+    }
+  }
+
+  Future<void> _openBranchManagement() async {
+    if (!_enableMultiBranch) return;
+    final shopId = await UserService.getCurrentShopId();
+    if (!mounted || shopId == null || shopId.isEmpty) return;
+
+    await _pushRoute(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BranchListView(
+          shopId: shopId,
+          flags: _multiBranchFlags,
+        ),
+      ),
+    );
+
+    await _loadCurrentBranchName();
+    _debouncedLoadStats();
+    _debouncedLoadDebtOverview();
+  }
+
+  Widget _buildCurrentBranchButton() {
+    if (!_enableMultiBranch) return const SizedBox.shrink();
+    final branchName =
+        _currentBranchName.trim().isEmpty ? 'Chưa chọn' : _currentBranchName;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: OutlinedButton.icon(
+        onPressed: _openBranchSelector,
+        icon: const Icon(Icons.account_tree_outlined, size: 18),
+        label: Text('Chi nhánh hiện tại: $branchName'),
+        style: OutlinedButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          foregroundColor: Colors.blueGrey.shade700,
+          side: BorderSide(color: Colors.blueGrey.shade200),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBranchManagementButton() {
+    if (!_enableMultiBranch) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: OutlinedButton.icon(
+        onPressed: _openBranchManagement,
+        icon: const Icon(Icons.store_mall_directory_outlined, size: 18),
+        label: const Text('Quản lý chi nhánh'),
+        style: OutlinedButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          foregroundColor: Colors.blueGrey.shade700,
+          side: BorderSide(color: Colors.blueGrey.shade200),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+    );
   }
 
   Future<void> _initialSetup() async {
@@ -1340,6 +1469,9 @@ class _HomeViewState extends State<HomeView>
 
       // 2. Load user info NGAY (quan trọng cho lời chào)
       await _loadUserAndShopInfo();
+      if (_enableMultiBranch) {
+        await _loadCurrentBranchName();
+      }
 
       // Track nếu cần download từ cloud (chỉ gọi TỐI ĐA 1 lần)
       bool needsCloudDownload = false;
@@ -1469,6 +1601,10 @@ class _HomeViewState extends State<HomeView>
       final cachedShopName = normalizeLegacyShopName(
         prefs.getString('cached_shopName_${user.uid}'),
       );
+      final cachedUserPhoto =
+          (prefs.getString('cached_userPhotoUrl_${user.uid}') ?? '').trim();
+      final cachedShopLogo =
+          (prefs.getString('cached_shopLogoUrl_${user.uid}') ?? '').trim();
       debugPrint(
         '_loadUserAndShopInfo: Cache - userName=$cachedUserName, shopName=$cachedShopName',
       );
@@ -1482,6 +1618,8 @@ class _HomeViewState extends State<HomeView>
               _userName = cachedUserName;
             if (cachedShopName != null && cachedShopName.isNotEmpty)
               _shopName = cachedShopName;
+            if (cachedUserPhoto.isNotEmpty) _userPhotoUrl = cachedUserPhoto;
+            if (cachedShopLogo.isNotEmpty) _shopLogoUrl = cachedShopLogo;
           });
           debugPrint(
             '_loadUserAndShopInfo: Set state from cache - userName=$_userName, shopName=$_shopName',
@@ -1500,6 +1638,17 @@ class _HomeViewState extends State<HomeView>
       );
       String displayName = await UserService.getCurrentUserName();
       debugPrint('_loadUserAndShopInfo: displayName=$displayName');
+
+      String userPhotoUrl = '';
+      try {
+        final userInfo = await UserService.getUserInfo(user.uid);
+        userPhotoUrl = (userInfo['photoUrl'] ?? '').toString().trim();
+      } catch (e) {
+        debugPrint('_loadUserAndShopInfo: user photo fetch error=$e');
+      }
+      if (userPhotoUrl.isEmpty) {
+        userPhotoUrl = (user.photoURL ?? '').trim();
+      }
 
       // Nếu vẫn rỗng, dùng email prefix làm tên
       if (displayName.trim().isEmpty && user.email != null) {
@@ -1527,6 +1676,7 @@ class _HomeViewState extends State<HomeView>
 
       // Lấy tên shop (trong try-catch riêng để không ảnh hưởng userName)
       String shopName = '';
+      String shopLogoUrl = '';
       try {
         debugPrint('_loadUserAndShopInfo: Getting shopId...');
         final shopId = await UserService.getCurrentShopId();
@@ -1551,6 +1701,7 @@ class _HomeViewState extends State<HomeView>
             final shopData = shopDoc.data();
             debugPrint('_loadUserAndShopInfo: Shop doc data=$shopData');
             shopName = normalizeLegacyShopName(shopData?['name']?.toString());
+            shopLogoUrl = (shopData?['logoUrl'] ?? '').toString().trim();
             debugPrint(
               '_loadUserAndShopInfo: shopName from Firestore=$shopName',
             );
@@ -1577,6 +1728,9 @@ class _HomeViewState extends State<HomeView>
                   debugPrint(
                     '_loadUserAndShopInfo: shopName from shop_profile fallback=$shopName',
                   );
+                }
+                if (shopLogoUrl.isEmpty) {
+                  shopLogoUrl = (profileData?['logoUrl'] ?? '').toString().trim();
                 }
               }
             } catch (profileError) {
@@ -1607,11 +1761,19 @@ class _HomeViewState extends State<HomeView>
         await prefs.setString('cached_shopName_${user.uid}', shopName);
         debugPrint('_loadUserAndShopInfo: Cached shopName=$shopName');
       }
+      if (userPhotoUrl.isNotEmpty) {
+        await prefs.setString('cached_userPhotoUrl_${user.uid}', userPhotoUrl);
+      }
+      if (shopLogoUrl.isNotEmpty) {
+        await prefs.setString('cached_shopLogoUrl_${user.uid}', shopLogoUrl);
+      }
 
       if (mounted) {
         setState(() {
           if (displayName.isNotEmpty) _userName = displayName;
           _shopName = shopName;
+          _userPhotoUrl = userPhotoUrl;
+          _shopLogoUrl = shopLogoUrl;
           _runtimeRole = resolvedRole;
         });
         debugPrint(
@@ -1655,6 +1817,86 @@ class _HomeViewState extends State<HomeView>
           }
         }
       }
+    }
+  }
+
+  String _avatarInitialFromName(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return '?';
+    return normalized.characters.first.toUpperCase();
+  }
+
+  String _resolveAvatarUploadErrorMessage() {
+    final raw = (StorageService.lastUploadErrorMessage ?? '').toLowerCase();
+    final denied = StorageService.lastUploadPermissionDenied ||
+        raw.contains('permission denied') ||
+        raw.contains('unauthorized') ||
+        raw.contains('permission-denied');
+    if (denied) {
+      return 'Không có quyền tải ảnh đại diện. Vui lòng kiểm tra quyền Storage/Firebase.';
+    }
+    return 'Không tải được ảnh đại diện. Vui lòng kiểm tra mạng và thử lại.';
+  }
+
+  Future<void> _pickAndUploadMyAvatar() async {
+    if (_updatingMyAvatar) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      NotificationService.showSnackBar('Vui lòng đăng nhập lại', color: Colors.red);
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      setState(() => _updatingMyAvatar = true);
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 1600,
+      );
+      if (picked == null) return;
+
+      final uploadedUrl = await StorageService.uploadXFileAndGetUrl(
+        picked,
+        'user_photos',
+      );
+      if (uploadedUrl == null || uploadedUrl.trim().isEmpty) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(_resolveAvatarUploadErrorMessage())),
+        );
+        return;
+      }
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'photoUrl': uploadedUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      try {
+        await user.updatePhotoURL(uploadedUrl);
+        await user.reload();
+      } catch (e) {
+        debugPrint('HomeView updatePhotoURL failed, fallback Firestore photo only: $e');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_userPhotoUrl_${user.uid}', uploadedUrl);
+
+      if (!mounted) return;
+      setState(() {
+        _userPhotoUrl = uploadedUrl;
+      });
+      EventBus().emit('user_profile_changed');
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Đã cập nhật ảnh đại diện thành công')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Lỗi cập nhật ảnh đại diện: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingMyAvatar = false);
     }
   }
 
@@ -2488,9 +2730,15 @@ class _HomeViewState extends State<HomeView>
         subtitle: _shopName.isNotEmpty ? _shopName : null,
         showBackButton: false,
         centerTitle: false,
-        leading: const Padding(
-          padding: EdgeInsets.only(left: 12),
-          child: Icon(Icons.store_rounded, color: Colors.white, size: 20),
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: _shopLogoUrl.isNotEmpty
+              ? CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.white,
+                  backgroundImage: NetworkImage(_shopLogoUrl),
+                )
+              : const Icon(Icons.store_rounded, color: Colors.white, size: 20),
         ),
         actions: [
           NotificationBadge(
@@ -2926,6 +3174,8 @@ class _HomeViewState extends State<HomeView>
                     ),
                   ),
                 ),
+              _buildCurrentBranchButton(),
+              _buildBranchManagementButton(),
               // MODULAR DASHBOARD - render cards based on config
               ..._buildModularDashboard(),
               const SizedBox(height: 50),
@@ -3250,11 +3500,24 @@ class _HomeViewState extends State<HomeView>
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: _userPhotoUrl.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          _userPhotoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.person_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      )
+                    : const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -3320,6 +3583,27 @@ class _HomeViewState extends State<HomeView>
                   ],
                 ),
               ),
+              if (_shopLogoUrl.isNotEmpty)
+                Container(
+                  width: 56,
+                  height: 56,
+                  margin: const EdgeInsets.only(left: 8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.white.withOpacity(0.5)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: Image.network(
+                      _shopLogoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.store_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ],
@@ -7654,7 +7938,7 @@ class _HomeViewState extends State<HomeView>
                     () => _pushRoute(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const admin_view.SuperAdminView(),
+                        builder: (_) => const admin_view.SuperAdminConsoleView(),
                       ),
                     ),
                     subtitle: loc.adminCenterDescription,
@@ -7758,8 +8042,14 @@ class _HomeViewState extends State<HomeView>
   Widget _buildHomeAccountCard() {
     final user = FirebaseAuth.instance.currentUser;
     final email = user?.email ?? 'N/A';
-    final displayName = user?.displayName ?? email.split('@').first;
-    final photoUrl = user?.photoURL;
+    final fallbackName = user?.displayName ?? email.split('@').first;
+    final displayName = _userName.trim().isNotEmpty ? _userName : fallbackName;
+    final resolvedPhotoUrl = _userPhotoUrl.trim().isNotEmpty
+        ? _userPhotoUrl.trim()
+        : (user?.photoURL ?? '').trim();
+    final hasPhoto = resolvedPhotoUrl.isNotEmpty;
+    final hasShopLogo = _shopLogoUrl.trim().isNotEmpty;
+    final shopName = _shopName.trim().isNotEmpty ? _shopName.trim() : 'Cửa hàng của bạn';
     final googleLinked = SocialAuthService.isGoogleLinked();
     final appleLinked = SocialAuthService.isAppleLinked();
     final passwordLinked = SocialAuthService.isPasswordLinked();
@@ -7779,24 +8069,53 @@ class _HomeViewState extends State<HomeView>
             // User info
             Row(
               children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundImage: photoUrl != null
-                      ? NetworkImage(photoUrl)
-                      : null,
-                  backgroundColor: Colors.blue.shade100,
-                  child: photoUrl == null
-                      ? Text(
-                          displayName.isNotEmpty
-                              ? displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundImage: hasPhoto
+                          ? NetworkImage(resolvedPhotoUrl)
+                          : null,
+                      backgroundColor: Colors.blue.shade100,
+                      child: hasPhoto
+                          ? null
+                          : Text(
+                              _avatarInitialFromName(displayName),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Material(
+                        color: Colors.white,
+                        shape: const CircleBorder(),
+                        elevation: 2,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: _updatingMyAvatar ? null : _pickAndUploadMyAvatar,
+                          child: Padding(
+                            padding: const EdgeInsets.all(5),
+                            child: _updatingMyAvatar
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(
+                                    Icons.camera_alt,
+                                    size: 12,
+                                    color: Colors.blue,
+                                  ),
                           ),
-                        )
-                      : null,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -7841,6 +8160,48 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blueGrey.shade100),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Colors.indigo.shade100,
+                    backgroundImage: hasShopLogo
+                        ? NetworkImage(_shopLogoUrl.trim())
+                        : null,
+                    child: hasShopLogo
+                        ? null
+                        : const Icon(Icons.store, size: 14, color: Colors.indigo),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      shopName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blueGrey.shade800,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    'Cửa hàng',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.blueGrey.shade600,
+                    ),
+                  ),
+                ],
+              ),
             ),
             const Divider(height: 20),
 

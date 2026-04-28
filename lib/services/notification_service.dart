@@ -1440,7 +1440,9 @@ class NotificationService {
   ) async {
     final timeString =
         '${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
-    final status = action == 'check_in' ? 'đã check-in' : 'đã check-out';
+    // Chấp nhận cả hai dạng: 'check-in' (gạch ngang) và 'check_in' (gạch dưới)
+    final normalizedAction = action.replaceAll('-', '_').toLowerCase();
+    final status = normalizedAction == 'check_in' ? 'đã check-in' : 'đã check-out';
 
     await sendAttendanceNotification(staffName, status, timeString);
   }

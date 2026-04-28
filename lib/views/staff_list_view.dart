@@ -1873,9 +1873,17 @@ class _StaffActivityCenterState extends State<_StaffActivityCenter>
           'user_photos',
         );
         if (photoUrl == null) {
+          final uploadError = StorageService.lastUploadErrorMessage ?? '';
+          final denied = StorageService.lastUploadPermissionDenied ||
+              uploadError.toLowerCase().contains('permission denied') ||
+              uploadError.toLowerCase().contains('unauthorized');
           messenger.showSnackBar(
-            const SnackBar(
-              content: Text("Lỗi khi upload ảnh - kiểm tra kết nối internet"),
+            SnackBar(
+              content: Text(
+                denied
+                    ? 'Không có quyền tải ảnh đại diện lên. Vui lòng kiểm tra quyền Storage/Firebase.'
+                    : 'Lỗi khi upload ảnh - kiểm tra kết nối mạng và thử lại.',
+              ),
             ),
           );
           return;

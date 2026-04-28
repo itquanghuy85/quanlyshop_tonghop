@@ -7,7 +7,7 @@ service cloud.firestore {
     // ║  Author: Firebase Security Architect                             ║
     // ╠══════════════════════════════════════════════════════════════════╣
     // ║  CUSTOM CLAIMS (set by Cloud Functions only):                    ║
-    // ║  • isSuperAdmin: boolean (true for admin@huluca.com)             ║
+    // ║  • isSuperAdmin: boolean (derived from role=super_admin)         ║
     // ║  • shopId: string (user's assigned shop)                         ║
     // ║  • role: owner | manager | employee | technician | user          ║
     // ╠══════════════════════════════════════════════════════════════════╣
@@ -40,11 +40,11 @@ service cloud.firestore {
       return request.auth.uid;
     }
 
-    // ═══════════ 1.2 SUPER ADMIN (from isSuperAdmin claim OR email fallback) ═══════════
+    // ═══════════ 1.2 SUPER ADMIN (claims only) ═══════════
     function isSuperAdmin() {
       return isAuth() && (
         request.auth.token.isSuperAdmin == true ||
-        request.auth.token.email == 'admin@huluca.com'
+        request.auth.token.role == 'super_admin'
       );
     }
 
@@ -166,6 +166,16 @@ service cloud.firestore {
       return field in resource.data && 
              field in request.resource.data &&
              request.resource.data[field] != resource.data[field];
+    }
+
+    // Các cờ khóa do Super Admin quản trị ở cấp shop.
+    function adminShopControlFlagsChanged() {
+      return changed('appLocked') ||
+             changed('adminFinanceLocked') ||
+             changed('staffSalesLocked') ||
+             changed('staffInventoryLocked') ||
+             changed('staffDebtLocked') ||
+             changed('staffSettingsLocked');
     }
     
     // Protected fields - nhưng owner có thể thay đổi role và shopId của nhân viên trong shop
@@ -297,9 +307,13 @@ service cloud.firestore {
                        request.resource.data.ownerUid == uid() &&
                        str('name', 1, 100);
       
-      // UPDATE: Shop owner only
+      // UPDATE: Shop owner có thể sửa thông tin shop thường,
+      // nhưng KHÔNG được sửa các lock flags do Super Admin quản trị.
       allow update: if isAuth() && 
-                       (isSuperAdmin() || resource.data.ownerUid == uid()) &&
+                       (
+                         isSuperAdmin() ||
+                         (resource.data.ownerUid == uid() && !adminShopControlFlagsChanged())
+                       ) &&
                        !changed('ownerUid');
       
       // DELETE: Owner or super admin only

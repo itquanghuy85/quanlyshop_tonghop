@@ -48,7 +48,7 @@ class _SaleInvoicePreviewViewState extends State<SaleInvoicePreviewView> {
     final header = prefs.getString('sale_invoice_header') ??
         '=== HÓA ĐƠN BÁN HÀNG ===\n{shopName}\n{shopAddr}\nHotline: {shopPhone}\n--------------------------------';
     final body = prefs.getString('sale_invoice_body') ??
-      'Mã HD: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\nĐ/c: {customerAddress}\n\nSản phẩm: {products}\nIMEI: {imeis}\nBảo hành: {warranty}\n\nTổng: {total} đ\nGiảm: {discount} đ\nThực thu: {finalTotal} đ\nThanh toán: {paymentMethod}\nNV bán: {sellerName}\n\nTRẢ GÓP\nĐặt cọc: {downPayment} đ ({downPaymentMethod})\nVay NH1: {loanAmount} đ - {bankName}\nVay NH2: {loanAmount2} đ - {bankName2}\nKỳ hạn: {installmentTerm}\nCòn nợ: {remainingDebt} đ\n{warrantyPolicy}\n{returnPolicy}\n[QR]{qrData}';
+      'Mã HD: {code}\nNgày: {date} {time}\n\nKhách: {customerName}\nSĐT: {customerPhone}\nĐ/c: {customerAddress}\nNhóm giá: {pricingTierLabel}\n\nSản phẩm: {products}\nIMEI: {imeis}\nBảo hành: {warranty}\n\nTổng: {total} đ\nGiảm: {discount} đ\nThực thu: {finalTotal} đ\nThanh toán: {paymentMethod}\nNV bán: {sellerName}\n\nTRẢ GÓP\nĐặt cọc: {downPayment} đ ({downPaymentMethod})\nVay NH1: {loanAmount} đ - {bankName}\nVay NH2: {loanAmount2} đ - {bankName2}\nKỳ hạn: {installmentTerm}\nCòn nợ: {remainingDebt} đ\n{warrantyPolicy}\n{returnPolicy}\n[QR]{qrData}';
     final footer = prefs.getString('sale_invoice_footer') ??
         '--------------------------------\nCảm ơn quý khách!';
 
@@ -95,6 +95,8 @@ class _SaleInvoicePreviewViewState extends State<SaleInvoicePreviewView> {
       'customerName': widget.saleData['customerName']?.toString() ?? 'Khach le',
       'customerPhone': widget.saleData['customerPhone']?.toString() ?? '',
       'customerAddress': widget.saleData['customerAddress']?.toString() ?? '',
+      'pricingTierLabel':
+          widget.saleData['pricingTierLabel']?.toString() ?? 'THƯỜNG',
       'products': names.join(', '),
       'imeis': imeis.where((e) => e.trim().isNotEmpty).join(', '),
       'warranty': widget.saleData['warranty']?.toString() ?? '',

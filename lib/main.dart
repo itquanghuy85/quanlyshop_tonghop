@@ -617,8 +617,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       }
     }
 
-    // Kiểm tra super admin TRƯỚC - không cần sync data
-    final bool isSuperAdmin = email.toLowerCase() == 'admin@huluca.com';
+    // Kiểm tra super admin TRƯỚC - dựa trên custom claims, không dùng email hardcode.
+    final claims = await ClaimsService().getClaimsFromToken();
+    final bool isSuperAdmin = claims?['isSuperAdmin'] == true ||
+        claims?['role'] == 'super_admin';
+    UserService.setCurrentUserSuperAdmin(isSuperAdmin, uid: uid);
     if (isSuperAdmin) {
       // Vẫn sync nhưng không chặn
       try {
@@ -889,8 +892,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           future: _getOrCreateRoleFuture(uid, email),
           builder: (context, roleSnap) {
             if (roleSnap.connectionState == ConnectionState.waiting) {
-              // Super admin kiểm tra nhanh hơn vì không cần sync
-              final isSuperAdmin = email == 'admin@huluca.com';
+              final isSuperAdmin = UserService.isCurrentUserSuperAdmin();
               return _buildLoadingScreen(
                 isSuperAdmin
                     ? 'Đang kiểm tra quyền...'

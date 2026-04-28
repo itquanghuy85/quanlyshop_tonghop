@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/user_service.dart';
 import '../services/claims_service.dart';
+import '../services/super_admin_security_service.dart';
 import '../theme/app_text_styles.dart';
 import '../l10n/app_localizations.dart';
 
@@ -647,6 +647,12 @@ class _ShopsTabState extends State<ShopsTab> {
       flagName: flag,
       flagValue: value,
     );
+    // Audit log mọi hành động khóa/mở khóa
+    await SuperAdminSecurityService.logAction(
+      action: value ? 'lock_shop_flag' : 'unlock_shop_flag',
+      shopId: shopId,
+      metadata: {'flag': flag, 'featureName': featureName, 'value': value},
+    );
     messenger.showSnackBar(
       SnackBar(
         content: Text(
@@ -950,6 +956,14 @@ class UsersTab extends StatelessWidget {
                       ? null
                       : shopIdController.text,
                 );
+                await SuperAdminSecurityService.logAction(
+                  action: 'edit_user',
+                  targetUserId: uid,
+                  metadata: {
+                    'newRole': roleController.text,
+                    'newShopId': shopIdController.text.isEmpty ? null : shopIdController.text,
+                  },
+                );
                 navigator.pop();
                 messenger.showSnackBar(
                   const SnackBar(content: Text('Đã cập nhật thông tin user')),
@@ -987,6 +1001,11 @@ class UsersTab extends StatelessWidget {
               final navigator = Navigator.of(context);
               try {
                 await UserService.deleteUser(uid);
+                await SuperAdminSecurityService.logAction(
+                  action: 'delete_user_doc',
+                  targetUserId: uid,
+                  metadata: {'email': email},
+                );
                 navigator.pop();
                 messenger.showSnackBar(
                   SnackBar(content: Text('Đã xóa Firestore doc của $email')),

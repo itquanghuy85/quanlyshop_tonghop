@@ -472,12 +472,14 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
       debugPrint('🔧 Triggering immediate sync for new repair...');
       final syncResult = await SyncOrchestrator().syncAll();
       debugPrint('🔧 Sync result: success=${syncResult.success}, failed=${syncResult.failed}');
-      bool syncedToCloud = !syncResult.noNetwork && syncResult.failed == 0;
-      
-      // Nếu sync thất bại, thử upload trực tiếp lên Firestore.
+      bool syncedToCloud =
+          !syncResult.noNetwork && syncResult.failed == 0 && syncResult.success > 0;
+
+      // Nếu sync thất bại (có mạng nhưng ghi lỗi), thử upload trực tiếp lên Firestore.
+      // Khi không có mạng (noNetwork) thì bỏ qua hoàn toàn, tránh treo màn hình.
       // Guard: không push local image path lên cloud vì web sẽ không render được.
-      if (syncResult.failed > 0 || syncResult.noNetwork) {
-        debugPrint('🔧 Queue sync failed, trying direct Firestore upload...');
+      if (!syncedToCloud && !syncResult.noNetwork) {
+        debugPrint('🔧 Queue sync did not confirm cloud doc, trying direct Firestore upload...');
         try {
           final hasLocalOnlyImagePath = ((savedRepair.imagePath ?? '')
               .split(RegExp(r'[,;\n]'))
@@ -501,6 +503,24 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         } catch (e) {
           debugPrint('🔧 Direct upload also failed: $e (will retry later)');
           // Don't throw - repair is saved locally and will sync later
+        }
+      }
+
+      // Xác nhận tồn tại thật sự trên cloud trước khi bắn chat/push.
+      // Chỉ kiểm tra khi đã xác định là có mạng để tránh treo.
+      if (syncedToCloud) {
+        try {
+          final cloudDoc = await FirestoreService.getRepairDoc(r.firestoreId!)
+              .timeout(const Duration(seconds: 6));
+          syncedToCloud = cloudDoc.exists;
+          if (!syncedToCloud) {
+            debugPrint(
+              '⚠️ Repair sync not confirmed on cloud, keep local queue and skip chat/push',
+            );
+          }
+        } catch (e) {
+          syncedToCloud = false;
+          debugPrint('⚠️ Failed to verify cloud repair document: $e');
         }
       }
 
