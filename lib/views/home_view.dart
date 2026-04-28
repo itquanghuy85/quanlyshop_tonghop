@@ -3490,7 +3490,7 @@ class _HomeViewState extends State<HomeView>
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(12, 22, 12, 22),
       decoration: BoxDecoration(
         image: hasCover
             ? DecorationImage(

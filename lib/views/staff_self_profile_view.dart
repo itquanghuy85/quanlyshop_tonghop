@@ -154,10 +154,23 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
       }
     }
 
-    final attendance = await _db.getAttendanceByUser(_uid, limit: 30);
-    _recentAttendance = attendance;
-    _attendanceCount = attendance.length;
-    _lateCount = attendance.where((a) => a.isLate == 1).length;
+    final attendance = await _db.getAttendanceByUser(_uid, limit: 120);
+    final monthlyAttendance = attendance.where(_isAttendanceInCurrentMonth).toList();
+    _recentAttendance = monthlyAttendance;
+    _attendanceCount = monthlyAttendance.length;
+    _lateCount = monthlyAttendance.where((a) => a.isLate == 1).length;
+  }
+
+  bool _isAttendanceInCurrentMonth(Attendance attendance) {
+    final now = DateTime.now();
+    DateTime? date;
+    if (attendance.dateKey.trim().isNotEmpty) {
+      date = DateTime.tryParse(attendance.dateKey.trim());
+    }
+    date ??= attendance.checkInAt != null
+        ? DateTime.fromMillisecondsSinceEpoch(attendance.checkInAt!)
+        : DateTime.fromMillisecondsSinceEpoch(attendance.createdAt);
+    return date.year == now.year && date.month == now.month;
   }
 
   Future<void> _pickAvatar() async {
@@ -397,13 +410,55 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                 LayoutBuilder(
                   builder: (context, constraints) => GestureDetector(
                     onTap: _pickCover,
-                    child: Container(
-                      height: 170,
-                      decoration: BoxDecoration(
-                        color: Colors.blueGrey.shade200,
-                        image: coverImage,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        height: 170,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF123B63),
+                          image: coverImage,
+                        ),
+                        child: Stack(
+                          children: [
+                            if (coverImage == null)
+                              Center(
+                                child: Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.18),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.add_photo_alternate_outlined,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                              ),
+                            Positioned(
+                              right: 10,
+                              bottom: 10,
+                              child: Material(
+                                color: Colors.black.withOpacity(0.32),
+                                borderRadius: BorderRadius.circular(999),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(999),
+                                  onTap: _pickCover,
+                                  child: const Padding(
+                                    padding: EdgeInsets.all(10),
+                                    child: Icon(
+                                      Icons.camera_alt_outlined,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: const SizedBox.shrink(),
                     ),
                   ),
                 ),
