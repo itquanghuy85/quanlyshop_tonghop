@@ -22,6 +22,8 @@ import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/entity_avatar.dart';
 import '../widgets/responsive_wrapper.dart';
+import 'repair_detail_view.dart';
+import 'sale_detail_view.dart';
 
 class StaffSelfProfileView extends StatefulWidget {
   const StaffSelfProfileView({super.key});
@@ -649,6 +651,11 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                       children: [
                         Text('Đơn bán tháng này', style: AppTextStyles.headline6),
                         const Spacer(),
+                        if (_monthlySales.isNotEmpty)
+                          TextButton(
+                            onPressed: _showAllMonthlySales,
+                            child: const Text('Xem tất cả'),
+                          ),
                         Text('${_monthlySales.length} đơn', style: AppTextStyles.caption),
                       ],
                     ),
@@ -680,6 +687,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                               sale.totalPrice.toString(),
                               style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
                             ),
+                            onTap: () => _openSaleDetail(sale),
                           )),
                   ],
                 ),
@@ -697,6 +705,11 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                       children: [
                         Text('Đơn sửa tháng này', style: AppTextStyles.headline6),
                         const Spacer(),
+                        if (_monthlyRepairs.isNotEmpty)
+                          TextButton(
+                            onPressed: _showAllMonthlyRepairs,
+                            child: const Text('Xem tất cả'),
+                          ),
                         Text('${_monthlyRepairs.length} đơn', style: AppTextStyles.caption),
                       ],
                     ),
@@ -728,6 +741,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                               repair.price.toString(),
                               style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
                             ),
+                            onTap: () => _openRepairDetail(repair),
                           )),
                   ],
                 ),
@@ -786,5 +800,141 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
       default:
         return 'Không rõ';
     }
+  }
+
+  Future<void> _openSaleDetail(SaleOrder sale) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SaleDetailView(sale: sale)),
+    );
+  }
+
+  Future<void> _openRepairDetail(Repair repair) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => RepairDetailView(repair: repair)),
+    );
+  }
+
+  Future<void> _showAllMonthlySales() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.78,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                child: Row(
+                  children: [
+                    Text('Tất cả đơn bán tháng này', style: AppTextStyles.headline6),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _monthlySales.length,
+                  itemBuilder: (context, index) {
+                    final sale = _monthlySales[index];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.blue.shade50,
+                        child: Icon(Icons.point_of_sale, size: 16, color: Colors.blue.shade700),
+                      ),
+                      title: Text(
+                        sale.customerName.isEmpty ? 'Khách lẻ' : sale.customerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        '${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(sale.soldAt))} • ${sale.productNames}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Text(sale.totalPrice.toString(), style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await _openSaleDetail(sale);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAllMonthlyRepairs() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.78,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                child: Row(
+                  children: [
+                    Text('Tất cả đơn sửa tháng này', style: AppTextStyles.headline6),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _monthlyRepairs.length,
+                  itemBuilder: (context, index) {
+                    final repair = _monthlyRepairs[index];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.orange.shade50,
+                        child: Icon(Icons.build_circle_outlined, size: 16, color: Colors.orange.shade700),
+                      ),
+                      title: Text(
+                        '${repair.customerName} • ${repair.model}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        '${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_repairActivityAt(repair)))} • ${_getRepairStatusText(repair.status)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Text(repair.price.toString(), style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await _openRepairDetail(repair);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

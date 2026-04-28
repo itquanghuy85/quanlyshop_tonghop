@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -50,14 +51,38 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   List<TypingUser> _typingUsers = [];
   List<OnlineUser> _onlineUsers = [];
   final Map<String, String> _senderAvatarCache = {};
-  Color _chatBackgroundColor = const Color(0xFFF5F5F5);
+  String _chatBackgroundPresetKey = 'solid_light';
+  String _chatBackgroundImagePath = '';
 
-  static const Map<String, int> _chatBackgroundPresets = {
-    'Xám sáng': 0xFFF5F5F5,
-    'Xanh trời nhạt': 0xFFEFF6FF,
-    'Kem ấm': 0xFFFBF5E9,
-    'Xanh ngọc nhạt': 0xFFEDF9F6,
-    'Hồng phấn nhạt': 0xFFFFF1F3,
+  static const Map<String, Map<String, dynamic>> _chatBackgroundPresets = {
+    'solid_light': {
+      'label': 'Xám sáng',
+      'colors': [0xFFF5F5F5],
+    },
+    'solid_sky': {
+      'label': 'Xanh trời nhạt',
+      'colors': [0xFFEFF6FF],
+    },
+    'solid_warm': {
+      'label': 'Kem ấm',
+      'colors': [0xFFFBF5E9],
+    },
+    'solid_mint': {
+      'label': 'Xanh ngọc nhạt',
+      'colors': [0xFFEDF9F6],
+    },
+    'gradient_sky': {
+      'label': 'Gradient trời',
+      'colors': [0xFFEAF4FF, 0xFFDDEBFF, 0xFFF8FBFF],
+    },
+    'gradient_peach': {
+      'label': 'Gradient đào',
+      'colors': [0xFFFFF1EB, 0xFFFFE4D9, 0xFFFFF8F3],
+    },
+    'gradient_mint': {
+      'label': 'Gradient ngọc',
+      'colors': [0xFFEDFDF8, 0xFFDDF7EE, 0xFFF7FFFC],
+    },
   };
 
   // Reply state
@@ -150,16 +175,94 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
 
   Future<void> _loadChatBackgroundColor() async {
     final prefs = await SharedPreferences.getInstance();
-    final value = prefs.getInt('advanced_chat_background_color') ?? 0xFFF5F5F5;
+    final value = prefs.getString('advanced_chat_background_preset') ?? 'solid_light';
+    final imagePath = prefs.getString('advanced_chat_background_image') ?? '';
     if (!mounted) return;
-    setState(() => _chatBackgroundColor = Color(value));
+    setState(() {
+      _chatBackgroundPresetKey = _chatBackgroundPresets.containsKey(value)
+          ? value
+          : 'solid_light';
+      _chatBackgroundImagePath = imagePath;
+    });
   }
 
-  Future<void> _setChatBackgroundColor(Color color) async {
+  Future<void> _setChatBackgroundPreset(String presetKey) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('advanced_chat_background_color', color.value);
+    await prefs.setString('advanced_chat_background_preset', presetKey);
     if (!mounted) return;
-    setState(() => _chatBackgroundColor = color);
+    setState(() => _chatBackgroundPresetKey = presetKey);
+  }
+
+  Future<void> _pickChatBackgroundImage() async {
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 92,
+      maxWidth: 2400,
+    );
+    if (picked == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('advanced_chat_background_image', picked.path);
+    if (!mounted) return;
+    setState(() => _chatBackgroundImagePath = picked.path);
+    _showSuccess('Đã cập nhật ảnh nền chat');
+  }
+
+  Future<void> _clearChatBackgroundImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('advanced_chat_background_image');
+    if (!mounted) return;
+    setState(() => _chatBackgroundImagePath = '');
+    _showSuccess('Đã xoá ảnh nền chat');
+  }
+
+  ImageProvider? get _chatBackgroundImageProvider {
+    final path = _chatBackgroundImagePath.trim();
+    if (path.isEmpty) return null;
+    if (kIsWeb) {
+      return NetworkImage(path);
+    }
+    final file = File(path);
+    if (!file.existsSync()) return null;
+    return FileImage(file);
+  }
+
+  List<Color> get _chatBackgroundColors {
+    final raw = _chatBackgroundPresets[_chatBackgroundPresetKey]?['colors'] as List<dynamic>?;
+    if (raw == null || raw.isEmpty) {
+      return const [Color(0xFFF5F5F5)];
+    }
+    return raw.map((value) => Color(value as int)).toList();
+  }
+
+  BoxDecoration get _chatBackgroundDecoration {
+    final colors = _chatBackgroundColors;
+    final backgroundImage = _chatBackgroundImageProvider;
+    if (colors.length == 1) {
+      return BoxDecoration(
+        color: colors.first,
+        image: backgroundImage != null
+            ? DecorationImage(
+                image: backgroundImage,
+                fit: BoxFit.cover,
+                opacity: 0.28,
+              )
+            : null,
+      );
+    }
+    return BoxDecoration(
+      gradient: LinearGradient(
+        colors: colors,
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ),
+      image: backgroundImage != null
+          ? DecorationImage(
+              image: backgroundImage,
+              fit: BoxFit.cover,
+              opacity: 0.24,
+            )
+          : null,
+    );
   }
 
   Future<void> _showChatBackgroundPicker() async {
@@ -177,22 +280,49 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Chọn màu nền chat',
+              'Chọn nền chat',
               style: TextStyle(
                 fontSize: AppTextStyles.headline3.fontSize,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _pickChatBackgroundImage();
+                    },
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Chọn ảnh nền'),
+                  ),
+                ),
+                if (_chatBackgroundImagePath.trim().isNotEmpty) ...[
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      await _clearChatBackgroundImage();
+                    },
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Xóa ảnh'),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 10,
               runSpacing: 10,
               children: _chatBackgroundPresets.entries.map((entry) {
-                final color = Color(entry.value);
-                final selected = _chatBackgroundColor.value == color.value;
+                final meta = entry.value;
+                final colors = (meta['colors'] as List<dynamic>).map((value) => Color(value as int)).toList();
+                final selected = _chatBackgroundPresetKey == entry.key;
                 return InkWell(
                   onTap: () async {
-                    await _setChatBackgroundColor(color);
+                    await _setChatBackgroundPreset(entry.key);
                     if (ctx.mounted) Navigator.pop(ctx);
                   },
                   borderRadius: BorderRadius.circular(14),
@@ -212,13 +342,20 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                         Container(
                           height: 42,
                           decoration: BoxDecoration(
-                            color: color,
+                            color: colors.first,
+                            gradient: colors.length > 1
+                                ? LinearGradient(
+                                    colors: colors,
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          entry.key,
+                          meta['label'] as String,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: AppTextStyles.subtitle1.fontSize,
@@ -976,35 +1113,38 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _chatBackgroundColor,
+      backgroundColor: Colors.transparent,
       appBar: _buildAppBar(),
       body: ResponsiveCenter(
-        child: Column(
-          children: [
-            // Pinned messages
-            if (_pinnedMessages.isNotEmpty) _buildPinnedSection(),
+        child: Container(
+          decoration: _chatBackgroundDecoration,
+          child: Column(
+            children: [
+              // Pinned messages
+              if (_pinnedMessages.isNotEmpty) _buildPinnedSection(),
 
-            // Online users indicator
-            if (_onlineUsers.isNotEmpty) _buildOnlineIndicator(),
+              // Online users indicator
+              if (_onlineUsers.isNotEmpty) _buildOnlineIndicator(),
 
-            // Messages list
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _isSearching && _searchResults.isNotEmpty
-                  ? _buildSearchResults()
-                  : _buildMessagesList(),
-            ),
+              // Messages list
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _isSearching && _searchResults.isNotEmpty
+                    ? _buildSearchResults()
+                    : _buildMessagesList(),
+              ),
 
-            // Typing indicator
-            if (_typingUsers.isNotEmpty) _buildTypingIndicator(),
+              // Typing indicator
+              if (_typingUsers.isNotEmpty) _buildTypingIndicator(),
 
-            // Reply preview
-            if (_replyingTo != null) _buildReplyPreview(),
+              // Reply preview
+              if (_replyingTo != null) _buildReplyPreview(),
 
-            // Input area
-            _buildInputArea(),
-          ],
+              // Input area
+              _buildInputArea(),
+            ],
+          ),
         ),
       ),
     );
@@ -1118,7 +1258,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             const PopupMenuItem(value: 'pinned', child: Text('Tin ghim')),
             const PopupMenuItem(
               value: 'chatBackground',
-              child: Text('Màu nền chat'),
+              child: Text('Nền chat'),
             ),
             const PopupMenuItem(
               value: 'sendPrintLink',
