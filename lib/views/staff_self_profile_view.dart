@@ -12,6 +12,8 @@ import 'package:intl/intl.dart';
 import '../data/db_helper.dart';
 import '../l10n/app_localizations.dart';
 import '../models/attendance_model.dart';
+import '../models/repair_model.dart';
+import '../models/sale_order_model.dart';
 import '../services/event_bus.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
@@ -54,6 +56,8 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
   int _attendanceCount = 0;
   int _lateCount = 0;
   List<Attendance> _recentAttendance = const [];
+  List<SaleOrder> _monthlySales = const [];
+  List<Repair> _monthlyRepairs = const [];
 
   @override
   void initState() {
@@ -127,15 +131,26 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
     final repairs = await _db.getAllRepairs();
     final sales = await _db.getAllSales();
 
-    _repairsCount = repairs.where((r) {
+    final monthlyRepairs = repairs.where((r) {
+      if (!_isTimestampInCurrentMonth(_repairActivityAt(r))) return false;
       if (matchesStaff(r.repairedBy)) return true;
       if ((r.repairedBy == null || r.repairedBy!.isEmpty) && r.status >= 3 && matchesStaff(r.createdBy)) {
         return true;
       }
       return false;
-    }).length;
+    }).toList()
+      ..sort((a, b) => _repairActivityAt(b).compareTo(_repairActivityAt(a)));
 
-    _salesCount = sales.where((s) => matchesStaff(s.sellerName)).length;
+    final monthlySales = sales.where((s) {
+      if (!_isTimestampInCurrentMonth(s.soldAt)) return false;
+      return matchesStaff(s.sellerName);
+    }).toList()
+      ..sort((a, b) => b.soldAt.compareTo(a.soldAt));
+
+    _monthlyRepairs = monthlyRepairs;
+    _monthlySales = monthlySales;
+    _repairsCount = monthlyRepairs.length;
+    _salesCount = monthlySales.length;
 
     if (_shopId.isNotEmpty) {
       final doc = await FirebaseFirestore.instance.collection('work_schedules').doc('staff_${_uid}_$_shopId').get();
@@ -159,6 +174,17 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
     _recentAttendance = monthlyAttendance;
     _attendanceCount = monthlyAttendance.length;
     _lateCount = monthlyAttendance.where((a) => a.isLate == 1).length;
+  }
+
+  int _repairActivityAt(Repair repair) {
+    return repair.finishedAt ?? repair.deliveredAt ?? repair.startedAt ?? repair.createdAt;
+  }
+
+  bool _isTimestampInCurrentMonth(int timestamp) {
+    if (timestamp <= 0) return false;
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final now = DateTime.now();
+    return date.year == now.year && date.month == now.month;
   }
 
   bool _isAttendanceInCurrentMonth(Attendance attendance) {
@@ -383,6 +409,14 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
             alignment: Alignment(_coverAlignX, _coverAlignY),
           )
         : null;
+    final coverBackdrop = coverProvider != null
+        ? DecorationImage(
+            image: coverProvider,
+            fit: BoxFit.cover,
+            alignment: Alignment(_coverAlignX, _coverAlignY),
+            opacity: 0.22,
+          )
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -416,10 +450,16 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                         height: 170,
                         decoration: BoxDecoration(
                           color: const Color(0xFF123B63),
-                          image: coverImage,
+                          image: coverBackdrop,
                         ),
                         child: Stack(
                           children: [
+                            if (coverImage != null)
+                              Positioned.fill(
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(image: coverImage),
+                                ),
+                              ),
                             if (coverImage == null)
                               Center(
                                 child: Container(
@@ -497,11 +537,11 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
                 children: [
-                  Expanded(child: _statCard('Đơn bán', _salesCount.toString(), Icons.point_of_sale)),
+                  Expanded(child: _statCard('Đơn bán tháng', _salesCount.toString(), Icons.point_of_sale)),
                   const SizedBox(width: 8),
-                  Expanded(child: _statCard('Đơn sửa', _repairsCount.toString(), Icons.build_circle_outlined)),
+                  Expanded(child: _statCard('Đơn sửa tháng', _repairsCount.toString(), Icons.build_circle_outlined)),
                   const SizedBox(width: 8),
-                  Expanded(child: _statCard('Ngày công', _attendanceCount.toString(), Icons.event_available)),
+                  Expanded(child: _statCard('Công tháng', _attendanceCount.toString(), Icons.event_available)),
                 ],
               ),
             ),
@@ -597,6 +637,102 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('Đơn bán tháng này', style: AppTextStyles.headline6),
+                        const Spacer(),
+                        Text('${_monthlySales.length} đơn', style: AppTextStyles.caption),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (_monthlySales.isEmpty)
+                      Text('Chưa có đơn bán trong tháng', style: AppTextStyles.caption)
+                    else
+                      ..._monthlySales.take(8).map((sale) => ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Colors.blue.shade50,
+                              child: Icon(Icons.point_of_sale, size: 14, color: Colors.blue.shade700),
+                            ),
+                            title: Text(
+                              sale.customerName.isEmpty ? 'Khách lẻ' : sale.customerName,
+                              style: AppTextStyles.body1,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(sale.soldAt))} • ${sale.productNames}',
+                              style: AppTextStyles.caption,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Text(
+                              sale.totalPrice.toString(),
+                              style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          )),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('Đơn sửa tháng này', style: AppTextStyles.headline6),
+                        const Spacer(),
+                        Text('${_monthlyRepairs.length} đơn', style: AppTextStyles.caption),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    if (_monthlyRepairs.isEmpty)
+                      Text('Chưa có đơn sửa trong tháng', style: AppTextStyles.caption)
+                    else
+                      ..._monthlyRepairs.take(8).map((repair) => ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              radius: 14,
+                              backgroundColor: Colors.orange.shade50,
+                              child: Icon(Icons.build_circle_outlined, size: 14, color: Colors.orange.shade700),
+                            ),
+                            title: Text(
+                              '${repair.customerName} • ${repair.model}',
+                              style: AppTextStyles.body1,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Text(
+                              '${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_repairActivityAt(repair)))} • ${_getRepairStatusText(repair.status)}',
+                              style: AppTextStyles.caption,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Text(
+                              repair.price.toString(),
+                              style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          )),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -634,6 +770,21 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
         return 'Kỹ thuật viên';
       default:
         return 'Nhân viên';
+    }
+  }
+
+  String _getRepairStatusText(int status) {
+    switch (status) {
+      case 1:
+        return 'Đã nhận';
+      case 2:
+        return 'Đang sửa';
+      case 3:
+        return 'Xong';
+      case 4:
+        return 'Đã giao';
+      default:
+        return 'Không rõ';
     }
   }
 }

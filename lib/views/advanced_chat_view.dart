@@ -50,6 +50,15 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   List<TypingUser> _typingUsers = [];
   List<OnlineUser> _onlineUsers = [];
   final Map<String, String> _senderAvatarCache = {};
+  Color _chatBackgroundColor = const Color(0xFFF5F5F5);
+
+  static const Map<String, int> _chatBackgroundPresets = {
+    'Xám sáng': 0xFFF5F5F5,
+    'Xanh trời nhạt': 0xFFEFF6FF,
+    'Kem ấm': 0xFFFBF5E9,
+    'Xanh ngọc nhạt': 0xFFEDF9F6,
+    'Hồng phấn nhạt': 0xFFFFF1F3,
+  };
 
   // Reply state
   ChatMessage? _replyingTo;
@@ -88,6 +97,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initChat();
+    unawaited(_loadChatBackgroundColor());
     _msgCtrl.addListener(_onTyping);
 
     // Listen for shop changes to reinitialize chat
@@ -136,6 +146,95 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     _pinnedSubscription?.cancel();
     _typingSubscription?.cancel();
     _onlineSubscription?.cancel();
+  }
+
+  Future<void> _loadChatBackgroundColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getInt('advanced_chat_background_color') ?? 0xFFF5F5F5;
+    if (!mounted) return;
+    setState(() => _chatBackgroundColor = Color(value));
+  }
+
+  Future<void> _setChatBackgroundColor(Color color) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('advanced_chat_background_color', color.value);
+    if (!mounted) return;
+    setState(() => _chatBackgroundColor = color);
+  }
+
+  Future<void> _showChatBackgroundPicker() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Chọn màu nền chat',
+              style: TextStyle(
+                fontSize: AppTextStyles.headline3.fontSize,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: _chatBackgroundPresets.entries.map((entry) {
+                final color = Color(entry.value);
+                final selected = _chatBackgroundColor.value == color.value;
+                return InkWell(
+                  onTap: () async {
+                    await _setChatBackgroundColor(color);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: 108,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: selected ? AppBarAccents.chat : Colors.grey.shade300,
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          entry.key,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: AppTextStyles.subtitle1.fontSize,
+                            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _avatarInitial(String name) {
@@ -877,7 +976,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: _chatBackgroundColor,
       appBar: _buildAppBar(),
       body: ResponsiveCenter(
         child: Column(
@@ -1006,6 +1105,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               case 'sendPrintLink':
                 _showSendPrintLinkDialog();
                 break;
+              case 'chatBackground':
+                _showChatBackgroundPicker();
+                break;
             }
           },
           itemBuilder: (ctx) => [
@@ -1014,6 +1116,10 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
               child: Text('Đánh dấu đã đọc'),
             ),
             const PopupMenuItem(value: 'pinned', child: Text('Tin ghim')),
+            const PopupMenuItem(
+              value: 'chatBackground',
+              child: Text('Màu nền chat'),
+            ),
             const PopupMenuItem(
               value: 'sendPrintLink',
               child: Text('Gửi link in web'),
