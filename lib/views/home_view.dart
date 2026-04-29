@@ -113,6 +113,9 @@ import '../expansion/safe_mode/expansion_feature_flags.dart';
 import '../expansion/safe_mode/branch_service.dart';
 import 'expansion/branch/branch_selector_view.dart';
 import 'expansion/branch/branch_list_view.dart';
+import '../finance_v2/finance_v2_feature_flag.dart';
+import '../finance_v2/finance_v2_view.dart' as finance_v2;
+import '../finance_v2/finance_v2_daily_report_view.dart' as finance_v2_report;
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -7378,6 +7381,30 @@ class _HomeViewState extends State<HomeView>
                       ),
                     ),
                   ),
+                  if (FinanceV2FeatureFlag.enableFinanceV2)
+                    _financeQuickCard(
+                      'Tài chính V2',
+                      Icons.account_balance_wallet_outlined,
+                      const Color(0xFF0D47A1),
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => finance_v2.FinanceV2View(),
+                        ),
+                      ),
+                    ),
+                  if (FinanceV2FeatureFlag.enableFinanceV2)
+                    _financeQuickCard(
+                      'Báo cáo ngày',
+                      Icons.calendar_today_rounded,
+                      const Color(0xFF5E35B1),
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
+                        ),
+                      ),
+                    ),
                   if (hasFullAccess || _permissions['allowViewRevenue'] == true)
                     _financeQuickCard(
                       'Báo cáo hoạt động',

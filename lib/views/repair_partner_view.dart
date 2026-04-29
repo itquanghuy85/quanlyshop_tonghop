@@ -11,6 +11,7 @@ import '../widgets/gradient_fab.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import 'repair_partner_detail_view.dart';
+import '../widgets/entity_avatar.dart';
 
 class RepairPartnerView extends StatefulWidget {
   const RepairPartnerView({super.key});
@@ -670,17 +671,11 @@ class _RepairPartnerViewState extends State<RepairPartnerView> {
         child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           childrenPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          leading: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isActive ? AppColors.primary.withOpacity(0.1) : AppColors.warning.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.handshake,
-              color: isActive ? AppColors.primary : AppColors.warning,
-              size: 24,
-            ),
+          leading: EntityAvatar(
+            imageUrl: partner.avatarUrl,
+            name: partner.name,
+            radius: 22,
+            tappableToView: true,
           ),
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

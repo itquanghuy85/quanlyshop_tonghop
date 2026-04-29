@@ -510,7 +510,7 @@ Future<void> _ensureUniqueIndexExists({
           'CREATE TABLE IF NOT EXISTS work_schedules(id INTEGER PRIMARY KEY AUTOINCREMENT, userId TEXT UNIQUE, startTime TEXT DEFAULT "08:00", endTime TEXT DEFAULT "17:00", breakTime INTEGER DEFAULT 1, maxOtHours INTEGER DEFAULT 4, workDays TEXT DEFAULT "[1,2,3,4,5,6]", holidays TEXT, weekdayOtRate INTEGER DEFAULT 150, weekendOtRate INTEGER DEFAULT 200, holidayOtRate INTEGER DEFAULT 300, shopId TEXT, updatedAt INTEGER)',
         );
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS debt_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, debtId INTEGER, debtFirestoreId TEXT, debtType TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, createdBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, personName TEXT, receivedBy TEXT, totalDebt INTEGER DEFAULT 0, alreadyPaid INTEGER DEFAULT 0, customerName TEXT)',
+          'CREATE TABLE IF NOT EXISTS debt_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, debtId INTEGER, debtFirestoreId TEXT, debtType TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, createdBy TEXT, createdAt INTEGER, updatedAt INTEGER, isSynced INTEGER DEFAULT 0, shopId TEXT, personName TEXT, receivedBy TEXT, totalDebt INTEGER DEFAULT 0, alreadyPaid INTEGER DEFAULT 0, customerName TEXT, deleted INTEGER DEFAULT 0)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS quick_input_codes(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, code TEXT, name TEXT, type TEXT, brand TEXT, model TEXT, capacity TEXT, color TEXT, condition TEXT, cost INTEGER, price INTEGER, description TEXT, labelInfo TEXT, supplier TEXT, paymentMethod TEXT, isActive INTEGER DEFAULT 1, createdAt INTEGER, isSynced INTEGER DEFAULT 0)',
@@ -939,7 +939,7 @@ Future<void> _ensureUniqueIndexExists({
         if (oldV < 19) {
           try {
             await db.execute(
-              'CREATE TABLE IF NOT EXISTS debt_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, debtId INTEGER, debtFirestoreId TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, createdBy TEXT, isSynced INTEGER DEFAULT 0)',
+              'CREATE TABLE IF NOT EXISTS debt_payments(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, debtId INTEGER, debtFirestoreId TEXT, amount INTEGER, paidAt INTEGER, paymentMethod TEXT, note TEXT, createdBy TEXT, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0)',
             );
           } catch (e) {
             debugPrint('DB upgrade error (debt_payments): $e');
@@ -3754,6 +3754,12 @@ Future<void> _ensureUniqueIndexExists({
             );
             debugPrint('DB onOpen: added customerName to debt_payments');
           }
+          if (!colNames.contains('deleted')) {
+            await db.execute(
+              'ALTER TABLE debt_payments ADD COLUMN deleted INTEGER DEFAULT 0',
+            );
+            debugPrint('DB onOpen: added deleted to debt_payments');
+          }
         } catch (e) {
           debugPrint('DB onOpen check error (debt_payments columns): $e');
         }
@@ -4719,15 +4725,33 @@ return db;
           }
         }
 
-        // Cập nhật đơn sửa trong cùng transaction
-        final updatedRows = await txn.update(
-          'repairs',
-          repairData,
-          where: 'id = ?',
-          whereArgs: [repair.id],
-        );
+        // Cập nhật đơn sửa trong cùng transaction.
+        // Một số luồng mở chi tiết từ dữ liệu cloud chỉ có firestoreId, id local có thể null.
+        int updatedRows = 0;
+        final localId = repair.id;
+        final firestoreId = (repair.firestoreId ?? '').trim();
+
+        if (localId != null && localId > 0) {
+          updatedRows = await txn.update(
+            'repairs',
+            repairData,
+            where: 'id = ?',
+            whereArgs: [localId],
+          );
+        }
+
+        if (updatedRows == 0 && firestoreId.isNotEmpty) {
+          updatedRows = await txn.update(
+            'repairs',
+            repairData,
+            where: 'firestoreId = ?',
+            whereArgs: [firestoreId],
+          );
+        }
+
         if (updatedRows == 0) {
-          failMessage = 'Không tìm thấy đơn sửa để cập nhật (id=${repair.id})';
+          failMessage =
+              'Không tìm thấy đơn sửa để cập nhật (id=${repair.id}, firestoreId=${repair.firestoreId})';
           throw Exception(failMessage);
         }
       });
@@ -4771,7 +4795,28 @@ return db;
     }
 
     final productId = products.first['id'] as int;
+    final firestoreId = (products.first['firestoreId'] ?? '').toString();
+    final currentQty = (products.first['quantity'] as int? ?? 0);
+    final newQty = currentQty + quantity;
     await addProductQuantity(productId, quantity);
+    if (firestoreId.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('products')
+            .doc(firestoreId)
+            .update({
+              'quantity': newQty,
+              'status': newQty <= 0 ? 0 : 1,
+              'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
+            });
+        await db.rawUpdate(
+          'UPDATE products SET isSynced = 1 WHERE id = ? AND shopId = ?',
+          [productId, shopId],
+        );
+      } catch (e) {
+        debugPrint('⚠️ Failed to sync restored product quantity immediately: $e');
+      }
+    }
     debugPrint('✅ Restored product quantity: $partName, +$quantity');
     return true;
   }
@@ -6995,6 +7040,8 @@ return db;
 
     final selectSql = '''
       SELECT
+        p.id,
+        p.firestoreId,
         p.amount,
         p.paidAt,
         p.paymentMethod,
@@ -7007,18 +7054,30 @@ return db;
       FROM debt_payments p
       LEFT JOIN debts d
         ON (p.debtId IS NOT NULL AND p.debtId = d.id)
-        OR (p.debtFirestoreId IS NOT NULL AND p.debtFirestoreId != '' AND p.debtFirestoreId = d.firestoreId)
+        OR (
+          (p.debtId IS NULL OR p.debtId = 0)
+          AND p.debtFirestoreId IS NOT NULL
+          AND p.debtFirestoreId != ''
+          AND p.debtFirestoreId = d.firestoreId
+        )
       WHERE p.paidAt >= ? AND p.paidAt < ?
+        AND COALESCE(p.deleted, 0) != 1
     ''';
 
     if (shopId != null && shopId.isNotEmpty) {
       return await db.rawQuery(
         '''
         $selectSql
-          AND (p.shopId = ? OR p.shopId IS NULL)
+          AND (
+            p.shopId = ?
+            OR (
+              p.shopId IS NULL
+              AND (d.shopId = ? OR d.shopId IS NULL)
+            )
+          )
         ORDER BY p.paidAt DESC
         ''',
-        [startMs, endMs, shopId],
+        [startMs, endMs, shopId, shopId],
       );
     }
 

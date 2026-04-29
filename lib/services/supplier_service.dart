@@ -299,7 +299,22 @@ class SupplierService {
       supplierMap['firestoreId'] = supplier.firestoreId;
     }
 
-    final result = await db.updateSupplier(supplier.id!, supplierMap);
+    int result = 0;
+    if (supplier.id != null) {
+      result = await db.updateSupplier(supplier.id!, supplierMap);
+    } else {
+      final firestoreId = (supplier.firestoreId ?? '').trim();
+      if (firestoreId.isNotEmpty) {
+        final localDb = await db.database;
+        result = await localDb.update(
+          'suppliers',
+          supplierMap,
+          where: 'firestoreId = ?',
+          whereArgs: [firestoreId],
+        );
+      }
+    }
+
     if (result > 0) {
       await FirestoreService.updateSupplier(supplierMap);
       EventBus().emit('suppliers_changed');

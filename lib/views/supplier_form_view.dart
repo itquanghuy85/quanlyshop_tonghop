@@ -75,8 +75,14 @@ class _SupplierFormViewState extends State<SupplierFormView> {
       if (_pendingAvatar != null) {
         finalAvatarUrl = await StorageService.uploadXFileAndGetUrl(
           _pendingAvatar!,
-          'entity_photos/suppliers',
+          'user_photos/suppliers',
         );
+        if (finalAvatarUrl == null || finalAvatarUrl.trim().isEmpty) {
+          throw Exception(
+            StorageService.lastUploadErrorMessage ??
+                'Không thể tải ảnh đại diện lên máy chủ',
+          );
+        }
       }
       final supplier = Supplier(
         id: widget.editing?.id,

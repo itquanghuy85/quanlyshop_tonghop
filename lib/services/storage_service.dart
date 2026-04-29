@@ -245,17 +245,37 @@ class StorageService {
     return _imageExtensions.contains(ext);
   }
 
-  /// Nén hình ảnh trước khi upload
-  /// - Giữ quality ở mức cao hơn để tránh ảnh mờ
-  /// - Giảm kích thước max 2560px để cân bằng chất lượng và dung lượng
-  /// - Chuyển sang JPEG để tiết kiệm dung lượng
-  static Future<File?> _compressImage(File file) async {
+  /// Nén hình ảnh trước khi upload.
+  /// Tối ưu trải nghiệm: file nhỏ thì bỏ qua nén, file lớn dùng profile theo folder.
+  static Future<File?> _compressImage(
+    File file, {
+    String? uploadFolderHint,
+  }) async {
     try {
       final filePath = file.path;
       final ext = path.extension(filePath).toLowerCase();
 
       // Lấy kích thước file gốc
       final originalSize = await file.length();
+      const smallFileThreshold = 350 * 1024; // 350KB
+      if (originalSize <= smallFileThreshold) {
+        debugPrint('⚡ Bỏ qua nén (file nhỏ): ${path.basename(filePath)}');
+        return file;
+      }
+
+      final folder = (uploadFolderHint ?? '').toLowerCase();
+      int quality = 82;
+      int targetSize = 1600;
+      if (folder.startsWith('user_photos')) {
+        quality = 76;
+        targetSize = 720;
+      } else if (folder.startsWith('chat_images') ||
+          folder.startsWith('payment_requests') ||
+          folder.startsWith('attendance')) {
+        quality = 78;
+        targetSize = 1280;
+      }
+
       debugPrint('📸 Nén ảnh: ${path.basename(filePath)} - Size gốc: ${(originalSize / 1024).toStringAsFixed(1)} KB');
 
       // Tạo đường dẫn file tạm để lưu ảnh nén
@@ -275,12 +295,12 @@ class StorageService {
       final XFile? compressedXFile = await FlutterImageCompress.compressAndGetFile(
         filePath,
         targetPath,
-        quality: 88, // Chất lượng tốt cho ảnh hồ sơ/ảnh bìa
-        minWidth: 2560, // Giữ chi tiết tốt hơn trên màn hình lớn
-        minHeight: 2560,
+        quality: quality,
+        minWidth: targetSize,
+        minHeight: targetSize,
         format: format,
-        keepExif: false, // Bỏ metadata để giảm dung lượng
-      );
+        keepExif: false,
+      ).timeout(const Duration(seconds: 12));
 
       if (compressedXFile == null) {
         debugPrint('⚠️ Không thể nén ảnh, sử dụng file gốc');
@@ -332,7 +352,10 @@ class StorageService {
       // Nén ảnh nếu là file hình ảnh
       File fileToUpload = file;
       if (_isImageFile(localPath)) {
-        final compressedFile = await _compressImage(file);
+        final compressedFile = await _compressImage(
+          file,
+          uploadFolderHint: uploadFolder,
+        );
         if (compressedFile != null) {
           fileToUpload = compressedFile;
         }
@@ -411,7 +434,10 @@ class StorageService {
       // Compress image if applicable (attendance, repair photos)
       File fileToUpload = file;
       if (_isImageFile(picked.path)) {
-        final compressed = await _compressImage(file);
+        final compressed = await _compressImage(
+          file,
+          uploadFolderHint: uploadFolder,
+        );
         if (compressed != null) fileToUpload = compressed;
       }
 

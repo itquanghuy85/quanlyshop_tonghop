@@ -3,16 +3,16 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/chat_message_model.dart';
 import 'user_service.dart';
 import 'notification_service.dart';
+import 'storage_service.dart';
 
 /// Service quản lý Chat nâng cao với đầy đủ tính năng
 class ChatService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static const String _collectionChats = 'chats';
   static const String _collectionTyping = 'chat_typing';
@@ -201,11 +201,16 @@ class ChatService {
       // Upload images
       final List<String> urls = [];
       for (final image in images) {
-        final fileName =
-            'chat_${DateTime.now().millisecondsSinceEpoch}_${urls.length}.jpg';
-        final ref = _storage.ref().child('chat_images/$shopId/$fileName');
-        await ref.putFile(image);
-        final url = await ref.getDownloadURL();
+        final url = await StorageService.uploadXFileAndGetUrl(
+          XFile(image.path),
+          'chat_images/$shopId',
+        );
+        if (url == null || url.trim().isEmpty) {
+          throw Exception(
+            StorageService.lastUploadErrorMessage ??
+                'Không thể tải ảnh chat lên máy chủ',
+          );
+        }
         urls.add(url);
       }
 

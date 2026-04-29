@@ -2617,6 +2617,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     // 4. Reduce cost
     r.cost = (r.cost - removedCost).clamp(0, r.cost);
     r.isSynced = false;
+    r.lastCaredAt = DateTime.now().millisecondsSinceEpoch;
     await db.updateRepair(r);
 
     // 5. Sync

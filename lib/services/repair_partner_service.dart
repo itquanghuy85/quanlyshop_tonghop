@@ -163,7 +163,22 @@ class RepairPartnerService {
       partnerMap['firestoreId'] = partner.firestoreId;
     }
 
-    final result = await db.updateRepairPartner(partner.id!, partnerMap);
+    int result = 0;
+    if (partner.id != null) {
+      result = await db.updateRepairPartner(partner.id!, partnerMap);
+    } else {
+      final firestoreId = (partner.firestoreId ?? '').trim();
+      if (firestoreId.isNotEmpty) {
+        final localDb = await db.database;
+        result = await localDb.update(
+          'repair_partners',
+          partnerMap,
+          where: 'firestoreId = ?',
+          whereArgs: [firestoreId],
+        );
+      }
+    }
+
     if (result > 0) {
       await FirestoreService.updateRepairPartner(partnerMap);
       return true;

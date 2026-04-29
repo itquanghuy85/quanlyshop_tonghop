@@ -68,8 +68,14 @@ class _RepairPartnerFormViewState extends State<RepairPartnerFormView> {
       if (_pendingAvatar != null) {
         finalAvatarUrl = await StorageService.uploadXFileAndGetUrl(
           _pendingAvatar!,
-          'entity_photos/repair_partners',
+          'user_photos/repair_partners',
         );
+        if (finalAvatarUrl == null || finalAvatarUrl.trim().isEmpty) {
+          throw Exception(
+            StorageService.lastUploadErrorMessage ??
+                'Không thể tải ảnh đại diện lên máy chủ',
+          );
+        }
       }
 
       if (isEditing) {
