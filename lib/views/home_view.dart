@@ -6869,26 +6869,57 @@ class _HomeViewState extends State<HomeView>
             vertical: 10,
           ),
           children: [
-            // Header Section
             _buildTabHeader(loc.staffManagement, Icons.people, Colors.teal),
             const SizedBox(height: 10),
 
-            // Quick Action - Chấm công
             _buildSectionHeader(loc.quickActions),
             _staffQuickCard(
               loc.attendance,
               Icons.fingerprint,
               Colors.teal,
-              () => _pushRoute(
-                context,
-                MaterialPageRoute(builder: (_) => const AttendanceView()),
+              _guardedFeatureAction(
+                featureName: loc.attendance,
+                permission: 'allowViewAttendance',
+                onAllowed: () => _pushRoute(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AttendanceView()),
+                ),
               ),
+              locked: !canViewAttendance,
+              lockHint: 'Bạn cần quyền chấm công để dùng tính năng này',
             ),
+
+            if (!canManageStaff)
+              Container(
+                margin: const EdgeInsets.only(top: 10, bottom: 2),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.blue.shade700,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Bạn vẫn có thể dùng tab Nhân sự ở chế độ cá nhân. Một số chức năng quản lý đã được ẩn/khóa theo phân quyền.',
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.blue.shade800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             const SizedBox(height: 10),
             _buildSectionHeader(loc.staffManagement),
-
-            // Grid responsive cho các chức năng chính
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -6904,290 +6935,240 @@ class _HomeViewState extends State<HomeView>
                   Icons.people,
                   Colors.blue,
                   _guardedFeatureAction(
-                    featureName: loc.attendance,
+                    featureName: loc.staffListLabel,
+                    permission: 'allowManageStaff',
+                    onAllowed: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(builder: (_) => const StaffListView()),
+                    ),
+                  ),
+                  locked: !canManageStaff,
+                  lockHint: 'Cần quyền quản lý nhân viên',
+                ),
+                _staffQuickCard(
+                  'Hồ sơ của tôi',
+                  Icons.account_circle_outlined,
+                  Colors.teal,
+                  _guardedFeatureAction(
+                    featureName: 'Hồ sơ của tôi',
+                    onAllowed: _openMyStaffProfile,
+                  ),
+                ),
+                _staffQuickCard(
+                  'Danh bạ nội bộ',
+                  Icons.badge_outlined,
+                  Colors.indigo,
+                  _guardedFeatureAction(
+                    featureName: 'Danh bạ nội bộ',
+                    onAllowed: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StaffDirectoryView(),
+                      ),
+                    ),
+                  ),
+                ),
+                _staffQuickCardWithHelp(
+                  loc.salaryCalculation,
+                  Icons.bar_chart,
+                  Colors.orange,
+                  _guardedFeatureAction(
+                    featureName: loc.salaryCalculation,
+                    permission: 'allowManageStaff',
+                    onAllowed: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const StaffPerformanceView(),
+                      ),
+                    ),
+                  ),
+                  _showSalaryHelpDialog,
+                  locked: !canManageStaff,
+                  lockHint: 'Cần quyền quản lý nhân viên',
+                ),
+                _staffQuickCard(
+                  loc.workSchedule,
+                  Icons.schedule,
+                  Colors.blue,
+                  _guardedFeatureAction(
+                    featureName: loc.workSchedule,
+                    permission: 'allowManageStaff',
+                    onAllowed: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const WorkScheduleSettingsView(),
+                      ),
+                    ),
+                  ),
+                  locked: !canManageStaff,
+                  lockHint: 'Cần quyền quản lý nhân viên',
+                ),
+                _staffQuickCard(
+                  loc.salaryCommissionSettings,
+                  Icons.account_balance_wallet,
+                  Colors.green,
+                  _guardedFeatureAction(
+                    featureName: loc.salaryCommissionSettings,
+                    permission: 'allowManageStaff',
+                    onAllowed: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HRSalarySettingsView(),
+                      ),
+                    ),
+                  ),
+                  locked: !canManageStaff,
+                  lockHint: 'Cần quyền quản lý nhân viên',
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+            _buildSectionHeader(loc.report),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: context.responsive.isMobile ? 1 : 2,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 8,
+              childAspectRatio: context.responsive.isMobile ? 5.5 : 5.0,
+              children: [
+                _tabMenuItem(
+                  loc.attendanceTracking,
+                  Icons.people_outline,
+                  Colors.teal,
+                  _guardedFeatureAction(
+                    featureName: loc.attendanceTracking,
+                    permission: 'allowManageStaff',
+                    onAllowed: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AttendanceManagementView(),
+                      ),
+                    ),
+                  ),
+                  subtitle: loc.viewAttendanceAllStaff,
+                ),
+                _tabMenuItem(
+                  loc.personalAttendance,
+                  Icons.history,
+                  Colors.indigo,
+                  _guardedFeatureAction(
+                    featureName: loc.personalAttendance,
                     permission: 'allowViewAttendance',
                     onAllowed: () => _pushRoute(
                       context,
                       MaterialPageRoute(builder: (_) => const AttendanceView()),
                     ),
                   ),
-                  locked: !canViewAttendance,
-                  lockHint: 'Bạn cần quyền chấm công để dùng tính năng này',
-                ),
-
-                if (!canManageStaff)
-                  Container(
-                    margin: const EdgeInsets.only(top: 10, bottom: 2),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.blue.shade100),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Bạn vẫn có thể dùng tab Nhân sự ở chế độ cá nhân. Một số chức năng quản lý đã được ẩn/khóa theo phân quyền.',
-                            style: AppTextStyles.caption.copyWith(color: Colors.blue.shade800),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                const SizedBox(height: 10),
-                _buildSectionHeader(loc.staffManagement),
-
-                // Grid responsive cho các chức năng chính
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: context.responsive.isMobile
-                      ? 2
-                      : (context.responsive.isDesktop ? 4 : 3),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: context.responsive.isMobile ? 2.5 : 3.2,
-                  children: [
-                    _staffQuickCard(
-                      loc.staffListLabel,
-                      Icons.people,
-                      Colors.blue,
-                      _guardedFeatureAction(
-                        featureName: loc.staffListLabel,
-                        permission: 'allowManageStaff',
-                        onAllowed: () => _pushRoute(
-                          context,
-                          MaterialPageRoute(builder: (_) => const StaffListView()),
-                        ),
-                      ),
-                      locked: !canManageStaff,
-                      lockHint: 'Cần quyền quản lý nhân viên',
-                    ),
-                    _staffQuickCard(
-                      'Hồ sơ của tôi',
-                      Icons.account_circle_outlined,
-                      Colors.teal,
-                      _guardedFeatureAction(
-                        featureName: 'Hồ sơ của tôi',
-                        onAllowed: _openMyStaffProfile,
-                      ),
-                    ),
-                    _staffQuickCard(
-                      'Danh bạ nội bộ',
-                      Icons.badge_outlined,
-                      Colors.indigo,
-                      _guardedFeatureAction(
-                        featureName: 'Danh bạ nội bộ',
-                        onAllowed: () => _pushRoute(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const StaffDirectoryView(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    _staffQuickCardWithHelp(
-                      loc.salaryCalculation,
-                      Icons.bar_chart,
-                      Colors.orange,
-                      _guardedFeatureAction(
-                        featureName: loc.salaryCalculation,
-                        permission: 'allowManageStaff',
-                        onAllowed: () => _pushRoute(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const StaffPerformanceView(),
-                          ),
-                        ),
-                      ),
-                      _showSalaryHelpDialog,
-                      locked: !canManageStaff,
-                      lockHint: 'Cần quyền quản lý nhân viên',
-                    ),
-                    _staffQuickCard(
-                      loc.workSchedule,
-                      Icons.schedule,
-                      Colors.blue,
-                      _guardedFeatureAction(
-                        featureName: loc.workSchedule,
-                        permission: 'allowManageStaff',
-                        onAllowed: () => _pushRoute(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const WorkScheduleSettingsView(),
-                          ),
-                        ),
-                      ),
-                      locked: !canManageStaff,
-                      lockHint: 'Cần quyền quản lý nhân viên',
-                    ),
-                    _staffQuickCard(
-                      loc.salaryCommissionSettings,
-                      Icons.account_balance_wallet,
-                      Colors.green,
-                      _guardedFeatureAction(
-                        featureName: loc.salaryCommissionSettings,
-                        permission: 'allowManageStaff',
-                        onAllowed: () => _pushRoute(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const HRSalarySettingsView(),
-                          ),
-                        ),
-                      ),
-                      locked: !canManageStaff,
-                      lockHint: 'Cần quyền quản lý nhân viên',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-                _buildSectionHeader(loc.report),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: context.responsive.isMobile ? 1 : 2,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: context.responsive.isMobile ? 5.5 : 5.0,
-                  children: [
-                    _tabMenuItem(
-                      loc.attendanceTracking,
-                      Icons.people_outline,
-                      Colors.teal,
-                      _guardedFeatureAction(
-                        featureName: loc.attendanceTracking,
-                        permission: 'allowManageStaff',
-                        onAllowed: () => _pushRoute(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AttendanceManagementView(),
-                          ),
-                        ),
-                      ),
-                      subtitle: loc.viewAttendanceAllStaff,
-                    ),
-                    _tabMenuItem(
-                      loc.personalAttendance,
-                      Icons.history,
-                      Colors.indigo,
-                      _guardedFeatureAction(
-                        featureName: loc.personalAttendance,
-                        permission: 'allowViewAttendance',
-                        onAllowed: () => _pushRoute(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AttendanceView()),
-                        ),
-                      ),
-                      subtitle: loc.personalAttendanceDescription,
-                    ),
-                  ],
+                  subtitle: loc.personalAttendanceDescription,
                 ),
               ],
             ),
-          ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _hasFeaturePermission(String permission) {
+    if (hasFullAccess) return true;
+    if (_permissions.isEmpty) return false;
+    return _permissions[permission] == true;
+  }
+
+  VoidCallback _guardedFeatureAction({
+    required String featureName,
+    String? permission,
+    required VoidCallback onAllowed,
+  }) {
+    return () {
+      try {
+        if (permission == null || _hasFeaturePermission(permission)) {
+          onAllowed();
+          return;
+        }
+        NotificationService.showSnackBar(
+          'Bạn không có quyền truy cập "$featureName". Vui lòng liên hệ chủ shop.',
+          color: Colors.orange,
+        );
+      } catch (e) {
+        debugPrint('HomeView: error opening feature "$featureName": $e');
+        NotificationService.showSnackBar(
+          'Không thể mở "$featureName" lúc này. Vui lòng thử lại.',
+          color: Colors.red,
         );
       }
+    };
+  }
 
-      bool _hasFeaturePermission(String permission) {
-        if (hasFullAccess) return true;
-        if (_permissions.isEmpty) return false;
-        return _permissions[permission] == true;
-      }
-
-      VoidCallback _guardedFeatureAction({
-        required String featureName,
-        String? permission,
-        required VoidCallback onAllowed,
-      }) {
-        return () {
-          try {
-            if (permission == null || _hasFeaturePermission(permission)) {
-              onAllowed();
-              return;
-            }
-            NotificationService.showSnackBar(
-              'Bạn không có quyền truy cập "$featureName". Vui lòng liên hệ chủ shop.',
-              color: Colors.orange,
-            );
-          } catch (e) {
-            debugPrint('HomeView: error opening feature "$featureName": $e');
-            NotificationService.showSnackBar(
-              'Không thể mở "$featureName" lúc này. Vui lòng thử lại.',
-              color: Colors.red,
-            );
-          }
-        };
-      }
-
-      /// Card nhỏ cho Staff Quick Actions
-      Widget _staffQuickCard(
-        String title,
-        IconData icon,
-        Color color,
-        VoidCallback onTap, {
-        bool locked = false,
-        String? lockHint,
-      }) {
-        final displayColor = locked ? Colors.grey : color;
-        return Card(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
+  Widget _staffQuickCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap, {
+    bool locked = false,
+    String? lockHint,
+  }) {
+    final displayColor = locked ? Colors.grey : color;
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: displayColor.withOpacity(0.2)),
+      ),
+      child: InkWell(
+        onTap: locked
+            ? () => NotificationService.showSnackBar(
+                lockHint ?? 'Tính năng đang bị khóa theo phân quyền',
+                color: Colors.orange,
+              )
+            : onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            side: BorderSide(color: displayColor.withOpacity(0.2)),
+            color: displayColor.withOpacity(0.05),
           ),
-          child: InkWell(
-            onTap: locked
-                ? () => NotificationService.showSnackBar(
-                    lockHint ?? 'Tính năng đang bị khóa theo phân quyền',
-                    color: Colors.orange,
-                  )
-                : onTap,
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: displayColor.withOpacity(0.05),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: displayColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  locked ? Icons.lock_outline : icon,
+                  color: displayColor,
+                  size: 18,
+                ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: displayColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(locked ? Icons.lock_outline : icon, color: displayColor, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: displayColor,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: AppTextStyles.body2.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: displayColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Icon(
-                    locked ? Icons.lock_outline : Icons.chevron_right,
-                    color: displayColor.withOpacity(0.4),
-                    size: 16,
-                  ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
+              Icon(
+                locked ? Icons.lock_outline : Icons.chevron_right,
+                color: displayColor.withOpacity(0.4),
+                size: 16,
+              ),
+            ],
           ),
-        );
-      }
+        ),
+      ),
+    );
+  }
 
   /// Card với nút help cho LƯƠNG Tính lương
   Widget _staffQuickCardWithHelp(
