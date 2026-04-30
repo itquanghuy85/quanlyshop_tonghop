@@ -4692,7 +4692,11 @@ class _HomeViewState extends State<HomeView>
         case ShortcutType.report:
           return () => _pushRoute(
             context,
-            MaterialPageRoute(builder: (_) => const RevenueView()),
+            MaterialPageRoute(
+              builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
+                  ? finance_v2.FinanceV2View()
+                  : const RevenueView(),
+            ),
           );
         case ShortcutType.attendance:
           return () => _pushRoute(
@@ -4918,7 +4922,11 @@ class _HomeViewState extends State<HomeView>
             Colors.purple,
             () => _pushRoute(
               context,
-              MaterialPageRoute(builder: (_) => const RevenueView()),
+              MaterialPageRoute(
+                builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
+                    ? finance_v2.FinanceV2View()
+                    : const RevenueView(),
+              ),
             ),
           ),
         if (_ok('allowViewAttendance'))
@@ -5899,7 +5907,11 @@ class _HomeViewState extends State<HomeView>
                   child: InkWell(
                     onTap: () => _pushRoute(
                       context,
-                      MaterialPageRoute(builder: (_) => const RevenueView()),
+                      MaterialPageRoute(
+                        builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
+                            ? finance_v2.FinanceV2View()
+                            : const RevenueView(),
+                      ),
                     ),
                     borderRadius: BorderRadius.circular(10),
                     child: Padding(
@@ -6232,7 +6244,11 @@ class _HomeViewState extends State<HomeView>
                   AppColors.primaryDark,
                   () => _pushRoute(
                     context,
-                    MaterialPageRoute(builder: (_) => const RevenueView()),
+                    MaterialPageRoute(
+                      builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
+                          ? finance_v2.FinanceV2View()
+                          : const RevenueView(),
+                    ),
                   ),
                 ),
               ),
@@ -7330,60 +7346,11 @@ class _HomeViewState extends State<HomeView>
                 crossAxisSpacing: 8,
                 childAspectRatio: context.responsive.isMobile ? 2.5 : 3.2,
                 children: [
-                  _financeQuickCard(
-                    'Báo cáo doanh thu',
-                    Icons.trending_up,
-                    Colors.blue,
-                    () => _pushRoute(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RevenueView()),
-                    ),
-                  ),
-                  if (hasFullAccess || _permissions['allowViewDebts'] == true)
+                  if (FinanceV2FeatureFlag.showV2Entry)
                     _financeQuickCard(
-                      'Quản lý công nợ',
-                      Icons.account_balance,
-                      Colors.orange,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(builder: (_) => const DebtView()),
-                      ),
-                    ),
-                  _financeQuickCard(
-                    'Lịch sử tài chính',
-                    Icons.receipt_long,
-                    Colors.indigo,
-                    () => _pushRoute(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const CashClosingView(showOnlyTransactions: true),
-                      ),
-                    ),
-                  ),
-                  _financeQuickCard(
-                    'Nhật ký hệ thống',
-                    Icons.history,
-                    Colors.purple,
-                    () => _pushRoute(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AuditLogView()),
-                    ),
-                  ),
-                  _financeQuickCard(
-                    'Lợi nhuận theo tháng',
-                    Icons.bar_chart,
-                    Colors.teal,
-                    () => _pushRoute(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MonthlyProfitReportView(),
-                      ),
-                    ),
-                  ),
-                  if (FinanceV2FeatureFlag.enableFinanceV2)
-                    _financeQuickCard(
-                      'Tài chính V2',
+                      FinanceV2FeatureFlag.showV2AsPrimary
+                          ? 'Tài chính V2 (Mặc định)'
+                          : 'Tài chính V2',
                       Icons.account_balance_wallet_outlined,
                       const Color(0xFF0D47A1),
                       () => _pushRoute(
@@ -7393,7 +7360,7 @@ class _HomeViewState extends State<HomeView>
                         ),
                       ),
                     ),
-                  if (FinanceV2FeatureFlag.enableFinanceV2)
+                  if (FinanceV2FeatureFlag.showV2Entry)
                     _financeQuickCard(
                       'Báo cáo ngày',
                       Icons.calendar_today_rounded,
@@ -7402,6 +7369,62 @@ class _HomeViewState extends State<HomeView>
                         context,
                         MaterialPageRoute(
                           builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
+                        ),
+                      ),
+                    ),
+                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
+                    _financeQuickCard(
+                      'Báo cáo doanh thu',
+                      Icons.trending_up,
+                      Colors.blue,
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RevenueView()),
+                      ),
+                    ),
+                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries &&
+                      (hasFullAccess || _permissions['allowViewDebts'] == true))
+                    _financeQuickCard(
+                      'Quản lý công nợ',
+                      Icons.account_balance,
+                      Colors.orange,
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DebtView()),
+                      ),
+                    ),
+                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
+                    _financeQuickCard(
+                      'Lịch sử tài chính',
+                      Icons.receipt_long,
+                      Colors.indigo,
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              const CashClosingView(showOnlyTransactions: true),
+                        ),
+                      ),
+                    ),
+                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
+                    _financeQuickCard(
+                      'Nhật ký hệ thống',
+                      Icons.history,
+                      Colors.purple,
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AuditLogView()),
+                      ),
+                    ),
+                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
+                    _financeQuickCard(
+                      'Lợi nhuận theo tháng',
+                      Icons.bar_chart,
+                      Colors.teal,
+                      () => _pushRoute(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MonthlyProfitReportView(),
                         ),
                       ),
                     ),

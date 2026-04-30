@@ -455,3 +455,53 @@ Cách an toàn là:
 - xóa sau khi qua ít nhất một vòng chạy thật ổn định
 
 
+
+---
+
+## 5. Nhật ký chuyển đổi (Migration Log)
+
+### [29/04/2026] — Chuyển sang v2Only, hoàn tất rollout
+
+**Trạng thái rollout:** `FinanceV2RolloutStage.v2Only`
+(khi v2Only: `showLegacyFinanceEntries = false`, toàn bộ entry point V1 song song bị ẩn với mọi user)
+
+**Các thay đổi đã thực hiện trong phiên này:**
+
+#### `lib/finance_v2/finance_v2_view.dart`
+- Tái xây dựng toàn bộ file từ đầu (49KB, ~587 dòng) — đây là màn chính Finance V2.
+- Cấu trúc 5 tab: Tổng quan, Giao dịch, Công nợ, Báo cáo, Nhật ký.
+- Sửa lỗi biên dịch:
+  - Import thiếu `repair_model.dart` (lớp `Repair` không được nhận dạng).
+  - Thay `CustomAppBar.tab()` bằng `Tab(text: '...')` đúng API.
+- Sửa tràn giao diện: thêm `isScrollable: true` vào `CustomAppBar.buildWithTabs` để tab bar không bị tràn 75px sang phải.
+- Chuẩn hóa toàn bộ tiếng Việt có dấu trong UI labels và thông báo.
+- Kết quả analyzer: `No issues found`.
+
+#### `lib/finance_v2/finance_v2_feature_flag.dart`
+- Thay đổi: `rolloutStage = FinanceV2RolloutStage.v2Primary` → `v2Only`.
+- Tác động: `showLegacyFinanceEntries` trả về `false`, ẩn toàn bộ entry point V1 trùng chức năng.
+
+#### `lib/views/home_view.dart`
+- Cập nhật 4 vị trí điều hướng "Báo cáo" từ `RevenueView()` sang:
+  ```dart
+  builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
+      ? finance_v2.FinanceV2View()
+      : const RevenueView(),
+  ```
+- Các vị trí còn `RevenueView()` đều nằm trong khối `showLegacyFinanceEntries` (ẩn khi v2Only).
+
+**Các view V1 còn giữ nguyên (không xóa):**
+- `DebtView`, `ExpenseView`, `CashClosingView` — vẫn là màn nghiệp vụ sâu, được gọi từ V2.
+- `RevenueView`, `FinancialReportView`, `FinancialActivityLogView` — chưa xóa, chờ ít nhất 1 vòng release ổn định.
+
+**Regression:**
+- `flutter analyze lib/finance_v2/` → `No issues found`.
+- App build và chạy trên thiết bị Android.
+
+### [29/04/2026] — Bổ sung hoàn thiện các hạng mục còn thiếu (đợt 2)
+
+- Tab Tổng quan: đã bổ sung drill-down cho So sánh kỳ trước và Nhóm chi phí chính.
+- Tab Công nợ: đã bổ sung tìm kiếm nhanh tên/sđt, lọc đối tượng nợ (khách/NCC/đối tác), và drill-down tuổi nợ 0-30 / 31-60 / >60.
+- Tab Báo cáo: đã bổ sung breakdown sâu theo bucket (nguồn thu/chi), top sản phẩm bán chạy và top khách hàng mua nhiều.
+- Tab Nhật ký: đã bổ sung preset lọc Giá trị lớn / Rủi ro.
+- Trạng thái hiện tại: phần code đã hoàn thiện theo backlog chính; còn lại là regression vận hành thực tế và đối soát số liệu V2 vs V1.

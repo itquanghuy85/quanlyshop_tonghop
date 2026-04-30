@@ -103,6 +103,10 @@ class FinanceV2CategoryStat {
 class FinanceV2Snapshot {
   final int totalIn;
   final int totalOut;
+  /// Tiền ra thuần (không tính trả nợ NCC/đối tác)
+  final int operatingExpenseOut;
+  /// Tiền trả nợ nhà cung cấp / đối tác (SHOP_OWES)
+  final int debtRepayOut;
   final int receivableTotal;
   final int payableTotal;
   final int netCashflow;
@@ -128,6 +132,8 @@ class FinanceV2Snapshot {
   const FinanceV2Snapshot({
     required this.totalIn,
     required this.totalOut,
+    required this.operatingExpenseOut,
+    required this.debtRepayOut,
     required this.receivableTotal,
     required this.payableTotal,
     required this.netCashflow,
@@ -259,6 +265,7 @@ class FinanceV2DataService {
     int saleIn = 0;
     int repairIn = 0;
     int expenseOut = 0;
+    int debtRepayOut = 0; // Trả nợ NCC/đối tác (SHOP_OWES) — tách riêng để hiển thị
     int extraIn = 0;
 
     final transactions = <FinanceV2Txn>[];
@@ -376,6 +383,7 @@ class FinanceV2DataService {
         extraIn += amount;
       } else {
         expenseOut += amount;
+        debtRepayOut += amount; // Ghi nhận riêng phần trả nợ NCC/đối tác
       }
 
       transactions.add(
@@ -481,6 +489,7 @@ class FinanceV2DataService {
 
     final totalIn = saleIn + repairIn + extraIn;
     final totalOut = expenseOut;
+    final operatingExpenseOut = expenseOut - debtRepayOut; // chi vận hành thuần (không tính trả nợ NCC)
     final netCashflow = totalIn - totalOut;
     final previousTotalIn = previousSaleIn + previousRepairIn + previousExtraIn;
     final previousTotalOut = previousExpenseOut;
@@ -560,6 +569,8 @@ class FinanceV2DataService {
     return FinanceV2Snapshot(
       totalIn: totalIn,
       totalOut: totalOut,
+      operatingExpenseOut: operatingExpenseOut,
+      debtRepayOut: debtRepayOut,
       receivableTotal: receivableTotal,
       payableTotal: payableTotal,
       netCashflow: netCashflow,

@@ -376,6 +376,8 @@ class CustomAppBar {
     if (subtitle == null) {
       return Text(
         title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: kTitleFontSize,
@@ -391,6 +393,8 @@ class CustomAppBar {
       children: [
         Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: kTitleFontSize,
@@ -401,6 +405,8 @@ class CustomAppBar {
         const SizedBox(height: 2),
         Text(
           subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: kSubtitleFontSize,
             fontWeight: FontWeight.w400,
@@ -420,6 +426,8 @@ class CustomAppBar {
     if (subtitle == null) {
       return Text(
         title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: kTitleFontSize,
@@ -435,6 +443,8 @@ class CustomAppBar {
       children: [
         Text(
           title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: kTitleFontSize,
@@ -445,6 +455,8 @@ class CustomAppBar {
         const SizedBox(height: 2),
         Text(
           subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             fontSize: kSubtitleFontSize,
             fontWeight: FontWeight.w400,
