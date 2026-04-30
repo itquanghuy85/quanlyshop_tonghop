@@ -50,6 +50,7 @@ class OrderListView extends StatefulWidget {
 
 class OrderListViewState extends State<OrderListView> {
   final db = DBHelper();
+  final ScrollController _listScrollController = ScrollController();
   StreamSubscription<String>? _eventSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _repairRealtimeSubscription;
@@ -58,6 +59,8 @@ class OrderListViewState extends State<OrderListView> {
   bool _receivedServerSnapshot = false;
   bool _isRealtimeConnected = false;
   bool _useRealtimeIndexFallback = false;
+  int _indexedFetchLimit = 50;
+  bool _isLoadingMoreRealtime = false;
 
   AppLocalizations get loc => AppLocalizations.of(context)!;
 
@@ -112,6 +115,7 @@ class OrderListViewState extends State<OrderListView> {
   @override
   void initState() {
     super.initState();
+    _listScrollController.addListener(_onListScroll);
     _loadShopSettings();
     _loadDeletePermission();
     unawaited(_startRealtimeRepairsListener(forceRestart: true));
@@ -168,9 +172,24 @@ class OrderListViewState extends State<OrderListView> {
 
   @override
   void dispose() {
+    _listScrollController.removeListener(_onListScroll);
+    _listScrollController.dispose();
     _repairRealtimeSubscription?.cancel();
     _eventSubscription?.cancel();
     super.dispose();
+  }
+
+  void _onListScroll() {
+    if (!_listScrollController.hasClients || _isLoadingMoreRealtime) return;
+    if (_useRealtimeIndexFallback) return;
+
+    final pos = _listScrollController.position;
+    if (pos.pixels < pos.maxScrollExtent - 220) return;
+    if (_displayedRepairs.length < _indexedFetchLimit) return;
+
+    setState(() => _isLoadingMoreRealtime = true);
+    _indexedFetchLimit = (_indexedFetchLimit + 50).clamp(50, 500);
+    unawaited(_startRealtimeRepairsListener(forceRestart: true));
   }
 
   Future<void> _startRealtimeRepairsListener({
@@ -220,6 +239,7 @@ class OrderListViewState extends State<OrderListView> {
         FirestoreService.watchRepairsByShop(
           shopId,
           useIndexedQuery: !_useRealtimeIndexFallback,
+          indexedLimit: _indexedFetchLimit,
         ).listen(
           (snapshot) {
             unawaited(_handleRealtimeSnapshot(snapshot));
@@ -517,6 +537,7 @@ class OrderListViewState extends State<OrderListView> {
 
     setState(() {
       _displayedRepairs = searched;
+      _isLoadingMoreRealtime = false;
       if (markLoaded || _isLoading || !_isRealtimeConnected) {
         _isLoading = false;
         _isRealtimeConnected = true;
@@ -1432,6 +1453,7 @@ class OrderListViewState extends State<OrderListView> {
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ListView.builder(
+                    controller: _listScrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       itemCount: _displayedRepairs.length + 1,
                       itemBuilder: (ctx, i) {

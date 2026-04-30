@@ -447,7 +447,12 @@ class SyncDomainReportService {
       }
 
       if (shopId != null && shopId.isNotEmpty && columns.contains('shopId')) {
-        where.add('(shopId = ? OR shopId IS NULL)');
+        if (table == 'debt_payments') {
+          // Keep debt_payments aligned with cloud query by requiring exact shopId.
+          where.add('shopId = ?');
+        } else {
+          where.add('(shopId = ? OR shopId IS NULL)');
+        }
         whereArgs.add(shopId);
       }
 

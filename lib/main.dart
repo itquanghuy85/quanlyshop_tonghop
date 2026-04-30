@@ -55,6 +55,14 @@ const bool _disableIosAppCheck = bool.fromEnvironment(
   'DISABLE_IOS_APP_CHECK',
   defaultValue: true,
 );
+const bool _enableAndroidDebugAppCheck = bool.fromEnvironment(
+  'ENABLE_ANDROID_DEBUG_APP_CHECK',
+  defaultValue: false,
+);
+const bool _printAppCheckDebugToken = bool.fromEnvironment(
+  'PRINT_APP_CHECK_DEBUG_TOKEN',
+  defaultValue: false,
+);
 
 const String _deprecatedLocalApiBaseUrl = String.fromEnvironment(
   'LOCAL_API_BASE_URL',
@@ -91,11 +99,15 @@ Future<void> _activateFirebaseAppCheck() async {
   _appCheckActivationAttempted = true;
 
   final shouldSkipForIOS = !kIsWeb && Platform.isIOS && _disableIosAppCheck;
-  if (_disableFirebaseAppCheck || shouldSkipForIOS) {
+  final shouldSkipForAndroidDebug =
+      !kIsWeb && Platform.isAndroid && kDebugMode && !_enableAndroidDebugAppCheck;
+  if (_disableFirebaseAppCheck || shouldSkipForIOS || shouldSkipForAndroidDebug) {
     if (!_appCheckSkipLogged) {
-      const reason = _disableFirebaseAppCheck
+      final reason = _disableFirebaseAppCheck
           ? 'DISABLE_FIREBASE_APP_CHECK=true'
-          : 'DISABLE_IOS_APP_CHECK=true';
+          : shouldSkipForAndroidDebug
+              ? 'ENABLE_ANDROID_DEBUG_APP_CHECK=false'
+              : 'DISABLE_IOS_APP_CHECK=true';
       debugPrint('ℹ️ Firebase App Check activation skipped ($reason)');
       _appCheckSkipLogged = true;
     }
@@ -117,8 +129,8 @@ Future<void> _activateFirebaseAppCheck() async {
       '✅ Firebase App Check activated (mode=${kDebugMode ? 'debug' : 'release'})',
     );
 
-    // Trong debug cần lấy token để đăng ký vào App Check console cho thiết bị test.
-    if (kDebugMode) {
+    // Optional token print in debug when explicitly enabled.
+    if (kDebugMode && _printAppCheckDebugToken) {
       try {
         final token = await FirebaseAppCheck.instance
             .getToken(true)

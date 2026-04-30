@@ -5,11 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../core/utils/money_utils.dart' as money;
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import 'staff_public_profile_view.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/responsive_wrapper.dart';
 
@@ -26,19 +26,7 @@ class _StaffDirectoryViewState extends State<StaffDirectoryView> {
   bool _loading = true;
   String _query = '';
   String _myUid = '';
-  String _myRole = 'user';
-  bool _isSuperAdmin = false;
   List<Map<String, dynamic>> _staff = [];
-
-  bool get _canViewSensitive {
-    if (_isSuperAdmin) return true;
-    return _myRole == 'owner' || _myRole == 'manager' || _myRole == 'admin';
-  }
-
-  bool get _canViewFinancial {
-    if (_isSuperAdmin) return true;
-    return _myRole == 'owner' || _myRole == 'manager';
-  }
 
   @override
   void initState() {
@@ -56,15 +44,11 @@ class _StaffDirectoryViewState extends State<StaffDirectoryView> {
     setState(() => _loading = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
-      final role = await UserService.getRoleFast();
-      final isSuperAdmin = UserService.isCurrentUserSuperAdmin();
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null || shopId.isEmpty) {
         if (!mounted) return;
         setState(() {
           _myUid = user?.uid ?? '';
-          _myRole = role;
-          _isSuperAdmin = isSuperAdmin;
           _staff = [];
           _loading = false;
         });
@@ -75,8 +59,6 @@ class _StaffDirectoryViewState extends State<StaffDirectoryView> {
       if (!mounted) return;
       setState(() {
         _myUid = user?.uid ?? '';
-        _myRole = role;
-        _isSuperAdmin = isSuperAdmin;
         _staff = list;
         _loading = false;
       });
@@ -125,209 +107,17 @@ class _StaffDirectoryViewState extends State<StaffDirectoryView> {
     return file.existsSync() ? FileImage(file) : null;
   }
 
-  int _toInt(dynamic v) {
-    if (v == null) return 0;
-    if (v is int) return v;
-    if (v is double) return v.round();
-    if (v is num) return v.toInt();
-    return int.tryParse(v.toString()) ?? 0;
-  }
-
-  String _fmtCompact(int v) {
-    return money.MoneyUtils.formatCompact(v);
-  }
-
-  String _fmtFull(int v) {
-    return '${money.MoneyUtils.formatVND(v)} đ';
-  }
-
-  String _maskPhone(String raw) {
-    final v = raw.trim();
-    if (v.length < 7) return '***';
-    return '${v.substring(0, 3)}****${v.substring(v.length - 3)}';
-  }
-
-  String _maskEmail(String raw) {
-    final v = raw.trim();
-    final at = v.indexOf('@');
-    if (at <= 1) return '***';
-    final name = v.substring(0, at);
-    final domain = v.substring(at);
-    final first = name.substring(0, 1);
-    final last = name.length > 1 ? name.substring(name.length - 1) : '';
-    return '$first***$last$domain';
-  }
-
-  String _maskAddress(String raw) {
-    final v = raw.trim();
-    if (v.isEmpty) return 'Chưa cập nhật địa chỉ';
-    if (v.length <= 10) return '***';
-    return '${v.substring(0, 6)}...';
-  }
-
-  Widget _moneyRow(String label, int value, {IconData? icon}) {
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 16, color: AppColors.primary),
-            const SizedBox(width: 6),
-          ],
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.caption.copyWith(color: AppColors.secondary),
-            ),
-          ),
-          Text(
-            _fmtCompact(value),
-            style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _fmtFull(value),
-            style: AppTextStyles.caption.copyWith(color: AppColors.secondary),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _openProfile(Map<String, dynamic> s) {
-    final name = (s['name'] ?? s['displayName'] ?? 'Chưa có tên').toString();
-    final role = _roleVi((s['role'] ?? 'user').toString());
-    final phone = (s['phone'] ?? '').toString();
-    final email = (s['email'] ?? '').toString();
-    final address = (s['address'] ?? '').toString();
-    final isMe = (s['uid'] ?? '') == _myUid;
-
-    final baseSalary = _toInt(s['baseSalary']);
-    final dailyRate = _toInt(s['dailyRate']);
-    final showSensitive = _canViewSensitive || isMe;
-    final showFinancial = _canViewFinancial || isMe;
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (_) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundImage: _avatar(s['photoUrl']?.toString()),
-                        child: s['photoUrl'] == null ? const Icon(Icons.person, size: 26) : null,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(name, style: AppTextStyles.headline4.copyWith(fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 2),
-                            Text(
-                              '$role${isMe ? ' • Bạn' : ''}',
-                              style: AppTextStyles.caption.copyWith(color: AppColors.secondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  _infoLine(
-                    Icons.phone_outlined,
-                    phone.isEmpty
-                        ? 'Chưa cập nhật SĐT'
-                        : (showSensitive ? phone : _maskPhone(phone)),
-                  ),
-                  _infoLine(
-                    Icons.mail_outline,
-                    email.isEmpty
-                        ? 'Chưa cập nhật email'
-                        : (showSensitive ? email : _maskEmail(email)),
-                  ),
-                  _infoLine(
-                    Icons.home_outlined,
-                    address.isEmpty
-                        ? 'Chưa cập nhật địa chỉ'
-                        : (showSensitive ? address : _maskAddress(address)),
-                  ),
-                  if (showFinancial && (baseSalary > 0 || dailyRate > 0)) ...[
-                    const SizedBox(height: 12),
-                    Text('Tài chính (chỉ xem)', style: AppTextStyles.body1.copyWith(fontWeight: FontWeight.w700)),
-                    if (baseSalary > 0)
-                      _moneyRow('Lương cơ bản', baseSalary, icon: Icons.account_balance_wallet_outlined),
-                    if (dailyRate > 0)
-                      _moneyRow('Lương theo ngày', dailyRate, icon: Icons.calendar_today_outlined),
-                  ],
-                  if (!showFinancial) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'Thông tin lương được ẩn theo quyền hiện tại.',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.secondary),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F8E9),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      showSensitive
-                          ? 'Chế độ xem nội bộ: chỉ xem hồ sơ, không sửa đổi.'
-                          : 'Chế độ xem nội bộ: chỉ xem và một số dữ liệu được ẩn theo quyền.',
-                      style: AppTextStyles.caption.copyWith(color: Colors.green.shade800),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _infoLine(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.secondary),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text, style: AppTextStyles.body1)),
-        ],
+    final uid = (s['uid'] ?? '').toString().trim();
+    if (uid.isEmpty) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StaffPublicProfileView(
+          userId: uid,
+          fallbackName: (s['name'] ?? s['displayName'] ?? 'Nhân viên').toString(),
+        ),
       ),
     );
   }

@@ -4,6 +4,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
+import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../widgets/responsive_wrapper.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -26,6 +29,8 @@ import 'repair_detail_view.dart';
 import 'sale_detail_view.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/permission_gate.dart';
+import 'community_view.dart';
+import 'staff_public_profile_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 /// Chat View đẳng cấp với đầy đủ tính năng
@@ -53,6 +58,9 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
   final Map<String, String> _senderAvatarCache = {};
   String _chatBackgroundPresetKey = 'solid_light';
   String _chatBackgroundImagePath = '';
+  String _chatBackgroundImageUrl = '';
+  int _messageLimit = 20;
+  bool _loadingMoreMessages = false;
 
   static const Map<String, Map<String, dynamic>> _chatBackgroundPresets = {
     'solid_light': {
@@ -124,6 +132,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     _initChat();
     unawaited(_loadChatBackgroundColor());
     _msgCtrl.addListener(_onTyping);
+    _scrollCtrl.addListener(_onMessageScroll);
 
     // Listen for shop changes to reinitialize chat
     _shopChangedSubscription = EventBus().on(EventBus.shopChanged, (_) async {
@@ -159,6 +168,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     _cancelSubscriptions();
     _shopChangedSubscription?.cancel();
     _msgCtrl.removeListener(_onTyping);
+    _scrollCtrl.removeListener(_onMessageScroll);
     _msgCtrl.dispose();
     _scrollCtrl.dispose();
     _focusNode.dispose();
@@ -177,12 +187,33 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString('advanced_chat_background_preset') ?? 'solid_light';
     final imagePath = prefs.getString('advanced_chat_background_image') ?? '';
+    String imageUrl = prefs.getString('advanced_chat_background_image_url') ?? '';
+
+    if (imageUrl.trim().isEmpty) {
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null && uid.isNotEmpty) {
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .get();
+          imageUrl = (userDoc.data()?['chatBackgroundUrl'] ?? '')
+              .toString()
+              .trim();
+          if (imageUrl.isNotEmpty) {
+            await prefs.setString('advanced_chat_background_image_url', imageUrl);
+          }
+        }
+      } catch (_) {}
+    }
+
     if (!mounted) return;
     setState(() {
       _chatBackgroundPresetKey = _chatBackgroundPresets.containsKey(value)
           ? value
           : 'solid_light';
       _chatBackgroundImagePath = imagePath;
+      _chatBackgroundImageUrl = imageUrl;
     });
   }
 
@@ -197,25 +228,174 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
       imageQuality: 92,
-      maxWidth: 2400,
+      maxWidth: 3200,
     );
     if (picked == null) return;
+
+    final croppedFile = await _openChatBackgroundEditor(File(picked.path));
+    if (croppedFile == null) return;
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('advanced_chat_background_image', picked.path);
+    await prefs.setString('advanced_chat_background_image', croppedFile.path);
     if (!mounted) return;
-    setState(() => _chatBackgroundImagePath = picked.path);
-    _showSuccess('Đã cập nhật ảnh nền chat');
+    setState(() => _chatBackgroundImagePath = croppedFile.path);
+    _showSuccess('Đã cập nhật ảnh nền chat, đang đồng bộ nền...');
+    unawaited(_uploadChatBackgroundToCloud(croppedFile));
+  }
+
+  Future<void> _uploadChatBackgroundToCloud(File croppedFile) async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null || uid.isEmpty) return;
+
+      final url = await ChatService.uploadImageFileAndGetUrl(
+        croppedFile,
+        'user_photos/$uid',
+      );
+      if (url == null || url.trim().isEmpty) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('advanced_chat_background_image_url', url);
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'chatBackgroundUrl': url,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+      setState(() => _chatBackgroundImageUrl = url);
+      _showSuccess('Đã đồng bộ nền chat');
+    } catch (e) {
+      debugPrint('Chat background upload failed: $e');
+    }
+  }
+
+  Future<File?> _openChatBackgroundEditor(File sourceFile) async {
+    final bytes = await sourceFile.readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      _showError('Không đọc được ảnh đã chọn');
+      return null;
+    }
+
+    final imageAspect = decoded.width / decoded.height;
+    const targetAspect = 16 / 9;
+    double cropTopFactor = 0.5;
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Text('Crop nền chat (16:9)'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AspectRatio(
+                    aspectRatio: targetAspect,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.file(sourceFile, fit: BoxFit.cover),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    imageAspect > targetAspect
+                        ? 'Ảnh rộng, sẽ crop ngang ở giữa.'
+                        : 'Ảnh cao, kéo thanh để chọn vùng crop.',
+                    style: AppTextStyles.caption,
+                  ),
+                  if (imageAspect <= targetAspect) ...[
+                    const SizedBox(height: 6),
+                    Slider(
+                      value: cropTopFactor,
+                      onChanged: (v) => setDialogState(() => cropTopFactor = v),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Hủy'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Dùng ảnh này'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (accepted != true) return null;
+
+    int cropX = 0;
+    int cropY = 0;
+    int cropW = decoded.width;
+    int cropH = decoded.height;
+
+    if (imageAspect > targetAspect) {
+      cropH = decoded.height;
+      cropW = (cropH * targetAspect).round();
+      cropX = ((decoded.width - cropW) / 2).round();
+    } else {
+      cropW = decoded.width;
+      cropH = (cropW / targetAspect).round();
+      final maxTop = (decoded.height - cropH).clamp(0, decoded.height);
+      cropY = (maxTop * cropTopFactor).round();
+    }
+
+    final cropped = img.copyCrop(
+      decoded,
+      x: cropX,
+      y: cropY,
+      width: cropW,
+      height: cropH,
+    );
+
+    final tempDir = await getTemporaryDirectory();
+    final outPath = p.join(
+      tempDir.path,
+      'chat_background_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    final outFile = File(outPath);
+    await outFile.writeAsBytes(img.encodeJpg(cropped, quality: 92), flush: true);
+    return outFile;
   }
 
   Future<void> _clearChatBackgroundImage() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('advanced_chat_background_image');
+    await prefs.remove('advanced_chat_background_image_url');
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null && uid.isNotEmpty) {
+      unawaited(
+        FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'chatBackgroundUrl': '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)),
+      );
+    }
+
     if (!mounted) return;
-    setState(() => _chatBackgroundImagePath = '');
+    setState(() {
+      _chatBackgroundImagePath = '';
+      _chatBackgroundImageUrl = '';
+    });
     _showSuccess('Đã xoá ảnh nền chat');
   }
 
   ImageProvider? get _chatBackgroundImageProvider {
+    final cloudUrl = _chatBackgroundImageUrl.trim();
+    if (cloudUrl.isNotEmpty) {
+      return CachedNetworkImageProvider(cloudUrl);
+    }
+
     final path = _chatBackgroundImagePath.trim();
     if (path.isEmpty) return null;
     if (kIsWeb) {
@@ -296,7 +476,7 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
                       await _pickChatBackgroundImage();
                     },
                     icon: const Icon(Icons.photo_library_outlined),
-                    label: const Text('Chọn ảnh nền'),
+                    label: const Text('Chọn và crop ảnh nền'),
                   ),
                 ),
                 if (_chatBackgroundImagePath.trim().isNotEmpty) ...[
@@ -426,6 +606,22 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     );
   }
 
+  Future<void> _openStaffProfile(
+    String uid, {
+    String? fallbackName,
+  }) async {
+    if (uid.trim().isEmpty || uid == 'system') return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StaffPublicProfileView(
+          userId: uid,
+          fallbackName: fallbackName,
+        ),
+      ),
+    );
+  }
+
   Future<void> _syncSenderAvatarCache(List<ChatMessage> messages) async {
     final pending = messages
         .where((m) => m.senderId.isNotEmpty && m.senderId != 'system')
@@ -499,13 +695,14 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     }
 
     // Subscribe to messages
-    _messagesSubscription = ChatService.messagesStream(limit: 100).listen((
+    _messagesSubscription = ChatService.messagesStream(limit: _messageLimit).listen((
       messages,
     ) {
       if (mounted) {
         setState(() {
           _messages = messages;
           _isLoading = false;
+          _loadingMoreMessages = false;
         });
         _syncSenderAvatarCache(messages);
         // Mark as read
@@ -535,6 +732,40 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
     if (_msgCtrl.text.isNotEmpty) {
       ChatService.setTypingStatus(true);
     }
+  }
+
+  void _onMessageScroll() {
+    if (!_scrollCtrl.hasClients || _loadingMoreMessages) return;
+    final pos = _scrollCtrl.position;
+    if (pos.pixels >= pos.maxScrollExtent - 120) {
+      _loadMoreMessages();
+    }
+  }
+
+  void _loadMoreMessages() {
+    if (_loadingMoreMessages) return;
+    if (_messages.length < _messageLimit) return;
+
+    setState(() {
+      _loadingMoreMessages = true;
+      _messageLimit = (_messageLimit + 20).clamp(20, 200);
+    });
+
+    _messagesSubscription?.cancel();
+    _messagesSubscription = ChatService.messagesStream(limit: _messageLimit).listen(
+      (messages) {
+        if (!mounted) return;
+        setState(() {
+          _messages = messages;
+          _loadingMoreMessages = false;
+        });
+        _syncSenderAvatarCache(messages);
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() => _loadingMoreMessages = false);
+      },
+    );
   }
 
   Future<void> _sendMessage() async {
@@ -1222,6 +1453,17 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             ),
       actions: [
         IconButton(
+          icon: const Icon(Icons.groups_2_outlined, size: 22, color: Colors.white),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CommunityView()),
+            );
+          },
+          tooltip: 'Cộng đồng shop',
+          splashRadius: 20,
+        ),
+        IconButton(
           icon: Icon(
             _isSearching ? Icons.close : Icons.search_rounded,
             size: 22,
@@ -1491,8 +1733,16 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
       controller: _scrollCtrl,
       reverse: true,
       padding: const EdgeInsets.all(12),
-      itemCount: _messages.length,
-      itemBuilder: (ctx, i) => _buildMessageBubble(_messages[i]),
+      itemCount: _messages.length + (_loadingMoreMessages ? 1 : 0),
+      itemBuilder: (ctx, i) {
+        if (_loadingMoreMessages && i == _messages.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          );
+        }
+        return _buildMessageBubble(_messages[i]);
+      },
     );
   }
 
@@ -1568,7 +1818,13 @@ class _AdvancedChatViewState extends State<AdvancedChatView>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (!isMe) ...[
-                _buildSenderAvatar(message),
+                GestureDetector(
+                  onTap: () => _openStaffProfile(
+                    message.senderId,
+                    fallbackName: message.senderName,
+                  ),
+                  child: _buildSenderAvatar(message),
+                ),
                 const SizedBox(width: 8),
               ],
               Flexible(

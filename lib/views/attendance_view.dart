@@ -50,6 +50,9 @@ class _AttendanceViewState extends State<AttendanceView>
   Map<String, dynamic> _workSchedule = {};
   List<Attendance> _history = [];
   List<LeaveRequest> _leaveRequests = [];
+  static const int _historyPageSize = 60;
+  int _historyLimit = _historyPageSize;
+  bool _isLoadingMoreHistory = false;
 
   // Shop location for attendance verification
   double? _shopLatitude;
@@ -174,7 +177,7 @@ class _AttendanceViewState extends State<AttendanceView>
         uid,
       );
       final schedule = await db.getWorkSchedule(uid);
-      final history = await db.getAttendanceByUser(uid);
+      final history = await db.getAttendanceByUser(uid, limit: _historyLimit);
       final leaveRequests = await db.getLeaveRequestsByUser(uid);
 
       if (!mounted) return;
@@ -188,6 +191,26 @@ class _AttendanceViewState extends State<AttendanceView>
     } catch (e) {
       debugPrint('❌ Error refreshing attendance: $e');
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMoreHistory() async {
+    if (_isLoadingMoreHistory) return;
+    if (_history.length < _historyLimit) return;
+
+    setState(() => _isLoadingMoreHistory = true);
+    final nextLimit = _historyLimit + _historyPageSize;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+      final history = await db.getAttendanceByUser(uid, limit: nextLimit);
+      if (!mounted) return;
+      setState(() {
+        _historyLimit = nextLimit;
+        _history = history;
+      });
+    } finally {
+      if (mounted) setState(() => _isLoadingMoreHistory = false);
     }
   }
 
@@ -770,8 +793,31 @@ class _AttendanceViewState extends State<AttendanceView>
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _history.length,
+      itemCount: _history.length + 1,
       itemBuilder: (ctx, i) {
+        if (i == _history.length) {
+          final canLoadMore = _history.length >= _historyLimit;
+          if (!canLoadMore) {
+            return const SizedBox(height: 8);
+          }
+          return Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 14),
+            child: Center(
+              child: OutlinedButton.icon(
+                onPressed: _isLoadingMoreHistory ? null : _loadMoreHistory,
+                icon: _isLoadingMoreHistory
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.expand_more),
+                label: const Text('Tải thêm lịch sử'),
+              ),
+            ),
+          );
+        }
+
         final item = _history[i];
         return Card(
           margin: const EdgeInsets.only(bottom: 12),

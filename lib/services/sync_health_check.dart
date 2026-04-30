@@ -399,7 +399,12 @@ class SyncHealthCheck {
       whereClauses.add('(deleted IS NULL OR deleted = 0)');
     }
     if (columns.contains('shopId')) {
-      whereClauses.add('(shopId = ? OR shopId IS NULL)');
+      if (collection == 'debt_payments') {
+        // debt_payments must be shop-strict to avoid counting legacy null-shop rows.
+        whereClauses.add('shopId = ?');
+      } else {
+        whereClauses.add('(shopId = ? OR shopId IS NULL)');
+      }
       whereArgs.add(shopId);
     }
 

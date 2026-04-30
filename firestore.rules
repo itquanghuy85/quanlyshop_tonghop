@@ -1035,8 +1035,46 @@ service cloud.firestore {
       allow delete: if isAuth() && typingId.matches('.*' + uid() + '.*');
     }
 
+    // ═══════════ 8.5 COMMUNITY POSTS ═══════════
+    match /community_posts/{postId} {
+      allow read: if isAuth() && docInMyShop();
+
+      allow create: if isAuth() &&
+                       newDocInMyShop() &&
+                       has(['shopId', 'authorUid', 'authorName', 'content', 'imageUrl', 'likedBy', 'likeCount', 'commentCount', 'deleted', 'createdAt', 'updatedAt']) &&
+                       request.resource.data.authorUid == uid() &&
+                       request.resource.data.deleted == false;
+
+      allow update: if isAuth() &&
+                       docInMyShop() &&
+                       shopIdLocked();
+
+      allow delete: if false;
+
+      match /comments/{commentId} {
+        allow read: if isAuth() &&
+                       (
+                         isSuperAdmin() ||
+                         get(/databases/$(database)/documents/community_posts/$(postId)).data.shopId == myShopId() ||
+                         isShopOwner(get(/databases/$(database)/documents/community_posts/$(postId)).data.shopId)
+                       );
+
+        allow create: if isAuth() &&
+                         exists(/databases/$(database)/documents/community_posts/$(postId)) &&
+                         (
+                           isSuperAdmin() ||
+                           get(/databases/$(database)/documents/community_posts/$(postId)).data.shopId == myShopId() ||
+                           isShopOwner(get(/databases/$(database)/documents/community_posts/$(postId)).data.shopId)
+                         ) &&
+                         has(['authorUid', 'authorName', 'content', 'createdAt']) &&
+                         request.resource.data.authorUid == uid();
+
+        allow update, delete: if false;
+      }
+    }
+
     // ┌──────────────────────────────────────────────────────────────────┐
-    // │              SECTION 8.5: PAYMENT REQUESTS                       │
+    // │              SECTION 8.6: PAYMENT REQUESTS                       │
     // │           Collection: payment_requests                           │
     // │           Chat-like payment collection requests                  │
     // └──────────────────────────────────────────────────────────────────┘

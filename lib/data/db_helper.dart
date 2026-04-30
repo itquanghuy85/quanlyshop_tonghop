@@ -7072,7 +7072,7 @@ return db;
             p.shopId = ?
             OR (
               p.shopId IS NULL
-              AND (d.shopId = ? OR d.shopId IS NULL)
+              AND d.shopId = ?
             )
           )
         ORDER BY p.paidAt DESC

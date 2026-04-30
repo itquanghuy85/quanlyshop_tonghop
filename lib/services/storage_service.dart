@@ -9,6 +9,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -24,6 +25,8 @@ class StorageService {
     'payment_requests',
     'products',
   };
+  static const String _pendingUploadsKey = 'storage_pending_uploads_v1';
+  static bool _retryingPendingUploads = false;
 
   static String? get lastUploadErrorMessage => _lastUploadErrorMessage;
   static bool get lastUploadPermissionDenied => _lastUploadPermissionDenied;
@@ -36,6 +39,60 @@ class StorageService {
   static void _setLastUploadError(Object error) {
     _lastUploadErrorMessage = error.toString();
     _lastUploadPermissionDenied = _isUnauthorizedStorageError(error);
+  }
+
+  static String _pendingEntryKey(String localPath, String folder) {
+    return '${folder.trim()}||${localPath.trim()}';
+  }
+
+  static Future<void> _enqueuePendingUpload(String localPath, String folder) async {
+    final normalizedPath = localPath.trim();
+    final normalizedFolder = folder.trim();
+    if (normalizedPath.isEmpty || normalizedFolder.isEmpty) return;
+    final key = _pendingEntryKey(normalizedPath, normalizedFolder);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final current = prefs.getStringList(_pendingUploadsKey) ?? const <String>[];
+      if (current.contains(key)) return;
+      await prefs.setStringList(_pendingUploadsKey, [...current, key]);
+    } catch (_) {}
+  }
+
+  static Future<void> _removePendingUpload(String localPath, String folder) async {
+    final key = _pendingEntryKey(localPath, folder);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final current = prefs.getStringList(_pendingUploadsKey) ?? const <String>[];
+      if (!current.contains(key)) return;
+      final updated = current.where((e) => e != key).toList();
+      await prefs.setStringList(_pendingUploadsKey, updated);
+    } catch (_) {}
+  }
+
+  static Future<void> retryPendingUploads({int maxItems = 8}) async {
+    if (_retryingPendingUploads) return;
+    _retryingPendingUploads = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final entries = List<String>.from(prefs.getStringList(_pendingUploadsKey) ?? const <String>[]);
+      if (entries.isEmpty) return;
+
+      for (final entry in entries.take(maxItems)) {
+        final parts = entry.split('||');
+        if (parts.length != 2) continue;
+        final folder = parts[0].trim();
+        final localPath = parts[1].trim();
+        if (folder.isEmpty || localPath.isEmpty) continue;
+        final url = await uploadAndGetUrl(localPath, folder);
+        if (url != null && url.trim().isNotEmpty) {
+          await _removePendingUpload(localPath, folder);
+        }
+      }
+    } catch (e) {
+      debugPrint('StorageService.retryPendingUploads error: $e');
+    } finally {
+      _retryingPendingUploads = false;
+    }
   }
 
   /// Normalize upload folder to match deployed storage.rules.
@@ -330,6 +387,9 @@ class StorageService {
   /// Tự động upload và trả về URL để đồng bộ giữa các máy
   static Future<String?> uploadAndGetUrl(String localPath, String folder) async {
     _clearLastUploadError();
+    if (!_retryingPendingUploads) {
+      unawaited(retryPendingUploads());
+    }
     try {
       if (localPath.startsWith('http')) return localPath; // Đã là link cloud
 
@@ -385,9 +445,11 @@ class StorageService {
 
       final url = await snapshot.ref.getDownloadURL();
       _clearLastUploadError();
+      await _removePendingUpload(localPath, uploadFolder);
       return url;
     } catch (e) {
       _setLastUploadError(e);
+      await _enqueuePendingUpload(localPath, folder);
       debugPrint("STORAGE_ERROR: $e");
       return null;
     }
@@ -396,6 +458,9 @@ class StorageService {
   /// Upload trực tiếp từ XFile (an toàn cho web vì dùng bytes).
   static Future<String?> uploadXFileAndGetUrl(XFile picked, String folder) async {
     _clearLastUploadError();
+    if (!_retryingPendingUploads) {
+      unawaited(retryPendingUploads());
+    }
     try {
       if (picked.path.startsWith('http')) return picked.path;
 
@@ -425,6 +490,7 @@ class StorageService {
         );
         final url = await snapshot.ref.getDownloadURL();
         _clearLastUploadError();
+        await _removePendingUpload(picked.path, uploadFolder);
         return url;
       }
 
@@ -461,9 +527,11 @@ class StorageService {
 
       final url = await snapshot.ref.getDownloadURL();
       _clearLastUploadError();
+      await _removePendingUpload(picked.path, uploadFolder);
       return url;
     } catch (e) {
       _setLastUploadError(e);
+      await _enqueuePendingUpload(picked.path, folder);
       debugPrint("STORAGE_XFILE_ERROR: $e");
       return null;
     }

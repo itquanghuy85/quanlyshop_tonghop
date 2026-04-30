@@ -425,11 +425,26 @@ class ChatService {
         .collection(_collectionChats)
         .where('shopId', isEqualTo: shopId)
         .orderBy('createdAt', descending: true)
-      .limit(limit.clamp(1, 20));
+      .limit(limit.clamp(1, 200));
 
     yield* query.snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => ChatMessage.fromSnapshot(doc)).toList();
     });
+  }
+
+  static Future<String?> uploadImageFileAndGetUrl(
+    File imageFile,
+    String folder,
+  ) async {
+    try {
+      return await StorageService.uploadXFileAndGetUrl(
+        XFile(imageFile.path),
+        folder,
+      );
+    } catch (e) {
+      debugPrint('❌ Chat uploadImageFileAndGetUrl error: $e');
+      return null;
+    }
   }
 
   /// Stream tin nhắn đã ghim

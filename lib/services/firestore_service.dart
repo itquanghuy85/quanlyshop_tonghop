@@ -51,13 +51,14 @@ class FirestoreService {
   static Stream<QuerySnapshot<Map<String, dynamic>>> watchRepairsByShop(
     String shopId, {
     required bool useIndexedQuery,
+    int indexedLimit = 50,
   }) {
     Query<Map<String, dynamic>> query = _db
         .collection('repairs')
         .where('shopId', isEqualTo: shopId);
 
     if (useIndexedQuery) {
-      query = query.orderBy('updatedAt', descending: true).limit(50);
+      query = query.orderBy('updatedAt', descending: true).limit(indexedLimit.clamp(20, 500));
     }
 
     return query.snapshots();
