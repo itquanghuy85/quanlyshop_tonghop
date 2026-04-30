@@ -17,6 +17,7 @@ import '../widgets/responsive_wrapper.dart';
 import 'finance_v2_data_service.dart';
 import 'finance_v2_excel_export.dart';
 import 'finance_v2_theme.dart';
+import 'finance_v2_daily_report_view.dart';
 
 class _TLEntry {
   final int ts;
@@ -66,7 +67,20 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 5 && !_tabController.indexIsChanging && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _tabController.index = 0;
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FinanceV2DailyReportView()),
+            );
+          }
+        });
+      }
+    });
     _txCtrl.addListener(() { if (mounted) setState(() => _txQuery = _txCtrl.text); });
     _tlCtrl.addListener(() { if (mounted) setState(() => _tlQ = _tlCtrl.text); });
     _load();
@@ -237,16 +251,15 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Scaffold(
       backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.buildWithTabs(
-        title: 'Quản lý tài chính', subtitle: _sub, tabController: _tabController,
-        tabs: [Tab(text:'Tổng quan'),Tab(text:'Giao dịch'),Tab(text:'Công nợ'),Tab(text:'Phân tích'),Tab(text:'Nhật ký')],
-        accentColor: AppBarAccents.finance, showBackButton: true,
-        onBackPressed: ()=>Navigator.maybePop(context),
+        title: 'Tài chính', subtitle: _sub, tabController: _tabController,
+        tabs: [Tab(text:'Tổng quan'),Tab(text:'Giao dịch'),Tab(text:'Công nợ'),Tab(text:'Phân tích'),Tab(text:'Nhật ký'),Tab(text:'Báo cáo')],
+        accentColor: AppBarAccents.finance, showBackButton: false,
         actions: [IconButton(icon:const Icon(Icons.refresh_rounded),tooltip:'Làm mới',onPressed:_load)],
       ),
       body: _loading
           ? const Center(child:CircularProgressIndicator(color:FinanceV2Theme.accent))
           : TabBarView(controller:_tabController, children:[
-              _t0(), _t1(), _t2(), _t3(), _t4(),
+              _t0(), _t1(), _t2(), _t3(), _t4(), _t5(),
             ]),
     );
   }
@@ -652,5 +665,28 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Future<void> _exTL(List<_TLEntry> ents) async {
     if(!mounted) return;
     await FinanceV2ExcelExport.exportTable(context,sheetName:'Nhật ký',filePrefix:'nhat_ky',headers:['Thời gian','Loại','Tiêu đề','Mô tả','NV','TT','Tiền vào','Tiền ra'],rows:ents.map((e)=>[FinanceV2ExcelExport.fmtDateTime(e.ts),_ft(e.type),e.title,e.subtitle,e.actorName??'',e.paymentMethod??'',e.isIncome?e.amount:0,e.isIncome?0:e.amount]).toList(),start:_start,end:_end);
+  }
+
+  // TAB 5 - Báo cáo ngày (navigate to FinanceV2DailyReportView)
+  Widget _t5() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.summarize_rounded, size: 72, color: FinanceV2Theme.accent.withValues(alpha: 0.6)),
+          const SizedBox(height: 16),
+          const Text('Báo cáo tài chính chi tiết', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: FinanceV2Theme.ink)),
+          const SizedBox(height: 8),
+          const Text('Xem doanh thu, chi phí, lãi gộp và nhân sự\ntheo ngày / tháng / năm / khoảng thời gian', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: FinanceV2Theme.subInk)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinanceV2DailyReportView())),
+            icon: const Icon(Icons.open_in_new_rounded),
+            label: const Text('Mở báo cáo'),
+            style: ElevatedButton.styleFrom(backgroundColor: FinanceV2Theme.accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14)),
+          ),
+        ],
+      ),
+    );
   }
 }

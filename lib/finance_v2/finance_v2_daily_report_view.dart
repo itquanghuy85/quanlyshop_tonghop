@@ -400,36 +400,45 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   Future<void> _exportReport() async {
     if (_snapshot == null) return;
     
+    final s = _snapshot!;
     final rows = <List<dynamic>>[
       ['BÁO CÁO ${_periodSuffix.toUpperCase()} $_rangeLabel'],
       [''],
       ['TỔNG QUAN'],
-      ['Doanh thu vào', MoneyUtils.formatVND(_snapshot!.totalIn)],
-      ['Chi phí ra', MoneyUtils.formatVND(_snapshot!.totalOut)],
-      ['Ròng', MoneyUtils.formatVND(_snapshot!.totalIn - _snapshot!.totalOut)],
-      ['Số giao dịch', _snapshot!.transactionCount.toString()],
-      ['Doanh thu bán hàng', MoneyUtils.formatVND(_snapshot!.incomeFromSales)],
-      ['Doanh thu sửa chữa', MoneyUtils.formatVND(_snapshot!.incomeFromRepairs)],
-      ['Thu khác', MoneyUtils.formatVND(_snapshot!.incomeOther)],
-      ['Phải thu', MoneyUtils.formatVND(_snapshot!.receivableTotal)],
-      ['Phải trả', MoneyUtils.formatVND(_snapshot!.payableTotal)],
+      ['Doanh thu vào', MoneyUtils.formatVND(s.totalIn)],
+      ['Chi phí ra', MoneyUtils.formatVND(s.totalOut)],
+      ['Ròng', MoneyUtils.formatVND(s.totalIn - s.totalOut)],
+      ['Số giao dịch', s.transactionCount.toString()],
+      ['Doanh thu bán hàng', MoneyUtils.formatVND(s.incomeFromSales)],
+      ['Doanh thu sửa chữa', MoneyUtils.formatVND(s.incomeFromRepairs)],
+      ['Thu khác', MoneyUtils.formatVND(s.incomeOther)],
+      ['Phải thu', MoneyUtils.formatVND(s.receivableTotal)],
+      ['Phải trả', MoneyUtils.formatVND(s.payableTotal)],
+      [''],
+      ['LÃI GỘP & VỐN'],
+      ['Vốn bán hàng', MoneyUtils.formatVND(s.cogsFromSales)],
+      ['Vốn sửa chữa', MoneyUtils.formatVND(s.cogsFromRepairs)],
+      ['Tổng vốn', MoneyUtils.formatVND(s.cogsFromSales + s.cogsFromRepairs)],
+      ['Lãi gộp bán hàng', MoneyUtils.formatVND(s.grossProfitFromSales)],
+      ['Lãi gộp sửa chữa', MoneyUtils.formatVND(s.grossProfitFromRepairs)],
+      ['Tổng lãi gộp', MoneyUtils.formatVND(s.grossProfitTotal)],
       [''],
     ];
 
-    if (_snapshot!.topExpenseCategories.isNotEmpty) {
+    if (s.topExpenseCategories.isNotEmpty) {
       rows.add(['CHI PHÍ THEO DANH MỤC']);
       rows.add(['Danh mục', 'Số tiền']);
-      for (final c in _snapshot!.topExpenseCategories) {
+      for (final c in s.topExpenseCategories) {
         rows.add([c.label, MoneyUtils.formatVND(c.amount)]);
       }
       rows.add(['']);
     }
 
     // Transactions
-    if (_snapshot!.transactions.isNotEmpty) {
+    if (s.transactions.isNotEmpty) {
       rows.add(['GIAO DỊCH']);
       rows.add(['Thời gian', 'Tiêu đề', 'Chi tiết', 'Loại', 'Hướng', 'Số tiền', 'Vốn', 'Lãi gộp', 'Nhân viên', 'PT thanh toán']);
-      for (final tx in _snapshot!.transactions.take(500)) {
+      for (final tx in s.transactions.take(500)) {
         rows.add([
           _dtFmt.format(DateTime.fromMillisecondsSinceEpoch(tx.createdAt)),
           _displayTitle(tx),
@@ -446,11 +455,24 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       rows.add(['']);
     }
 
+    // Staff attendance
+    if (_attendanceByUser.isNotEmpty) {
+      rows.add(['NHÂN SỰ - CHẤM CÔNG']);
+      rows.add(['Nhân viên', 'Có mặt', 'Vắng mặt', 'Đi trễ', 'Đổi ca']);
+      final entries = _attendanceByUser.entries.toList()
+        ..sort((a, b) => a.value.name.compareTo(b.value.name));
+      for (final e in entries) {
+        final st = e.value;
+        rows.add([st.name, st.presentDays, st.absentDays, st.lateDays, st.swapCount]);
+      }
+      rows.add(['']);
+    }
+
     // Receivables
-    if (_snapshot!.receivables.isNotEmpty) {
+    if (s.receivables.isNotEmpty) {
       rows.add(['CÔNG NỢ PHẢI THU']);
       rows.add(['Tên', 'SĐT', 'Tổng (đ)', 'Đã TT (đ)', 'Còn lại (đ)']);
-      for (final debt in _snapshot!.receivables) {
+      for (final debt in s.receivables) {
         rows.add([
           debt.name,
           debt.phone ?? '',
@@ -463,10 +485,10 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
 
     // Payables
-    if (_snapshot!.payables.isNotEmpty) {
+    if (s.payables.isNotEmpty) {
       rows.add(['CÔNG NỢ PHẢI TRẢ']);
       rows.add(['Tên', 'SĐT', 'Tổng (đ)', 'Đã TT (đ)', 'Còn lại (đ)']);
-      for (final debt in _snapshot!.payables) {
+      for (final debt in s.payables) {
         rows.add([
           debt.name,
           debt.phone ?? '',
@@ -477,11 +499,11 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       }
     }
 
-    if (_snapshot!.auditLogs.isNotEmpty) {
+    if (s.auditLogs.isNotEmpty) {
       rows.add(['']);
       rows.add(['NHẬT KÝ TÀI CHÍNH']);
       rows.add(['Thời gian', 'Loại', 'Hướng', 'Tiêu đề', 'Mô tả', 'Số tiền']);
-      for (final log in _snapshot!.auditLogs.take(300)) {
+      for (final log in s.auditLogs.take(300)) {
         final createdAt = (log['createdAt'] as num?)?.toInt() ?? 0;
         final ts = createdAt > 0
             ? _dtFmt.format(DateTime.fromMillisecondsSinceEpoch(createdAt))
@@ -663,6 +685,38 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
 
     // Luồng tiền cuối
+    // Lãi gộp / vốn
+    if (s.grossProfitTotal != 0 || s.cogsFromSales != 0 || s.cogsFromRepairs != 0) {
+      lines.writeln('[C][B]--- VON & LAI GOT ---');
+      if (s.cogsFromSales > 0) {
+        lines.writeln('Von ban hang: ${MoneyUtils.formatCompactCurrency(s.cogsFromSales)}d');
+      }
+      if (s.cogsFromRepairs > 0) {
+        lines.writeln('Von sua chua: ${MoneyUtils.formatCompactCurrency(s.cogsFromRepairs)}d');
+      }
+      lines.writeln('Tong von:     ${MoneyUtils.formatCompactCurrency(s.cogsFromSales + s.cogsFromRepairs)}d');
+      if (s.grossProfitFromSales != 0) {
+        lines.writeln('Lai ban hang: ${MoneyUtils.formatCompactCurrency(s.grossProfitFromSales)}d');
+      }
+      if (s.grossProfitFromRepairs != 0) {
+        lines.writeln('Lai sua chua: ${MoneyUtils.formatCompactCurrency(s.grossProfitFromRepairs)}d');
+      }
+      lines.writeln('Tong lai got: ${MoneyUtils.formatCompactCurrency(s.grossProfitTotal)}d');
+      lines.writeln('');
+    }
+
+    // Nhân sự chấm công
+    if (_attendanceByUser.isNotEmpty) {
+      lines.writeln('[C][B]--- NHAN SU - CHAM CONG ---');
+      final staffList = _attendanceByUser.values.toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      for (final st in staffList) {
+        lines.writeln('${st.name}:');
+        lines.writeln('  Co mat:${st.presentDays}  Vang:${st.absentDays}  Tre:${st.lateDays}  DoiCa:${st.swapCount}');
+      }
+      lines.writeln('');
+    }
+
     lines.writeln('[C]================================');
     lines.writeln('[C][B]LOI NHUAN: ${MoneyUtils.formatCompactCurrency(s.netCashflow)}d');
     lines.writeln('[C]================================');
