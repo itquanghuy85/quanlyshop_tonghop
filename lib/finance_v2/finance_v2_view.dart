@@ -35,6 +35,8 @@ class _TLEntry {
     this.avatarUrl, this.actorName, this.paymentMethod, this.referenceId});
 }
 
+enum _FilterMode { today, month, year, custom }
+
 class FinanceV2View extends StatefulWidget {
   const FinanceV2View({super.key});
   @override
@@ -52,6 +54,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   FinanceV2Snapshot? _snap;
   DateTime _start = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   DateTime _end = DateTime.now();
+  // Chế độ lọc tường minh - không suy diễn từ ngày
+  _FilterMode _mode = _FilterMode.today;
   String _txFilter = 'ALL';
   String _txQuery = '';
   String _txPm = '';
@@ -111,18 +115,18 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   /// - Năm → năm trước
   /// - Khoảng tùy chọn → cùng độ dài, liền trước kỳ hiện tại
   (DateTime?, DateTime?) _previousPeriod() {
-    if (_isToday) {
+    if (_mode == _FilterMode.today) {
       final y = _start.subtract(const Duration(days: 1));
       return (DateTime(y.year, y.month, y.day), DateTime(y.year, y.month, y.day));
     }
-    if (_isMonth) {
+    if (_mode == _FilterMode.month) {
       final prevMonth = _start.month == 1
           ? DateTime(_start.year - 1, 12, 1)
           : DateTime(_start.year, _start.month - 1, 1);
       final lastDayPrev = DateTime(prevMonth.year, prevMonth.month + 1, 0);
       return (prevMonth, lastDayPrev);
     }
-    if (_isYear) {
+    if (_mode == _FilterMode.year) {
       return (DateTime(_start.year - 1, 1, 1), DateTime(_start.year - 1, 12, 31));
     }
     return (null, null); // custom → data service xử lý theo độ dài
@@ -130,44 +134,37 @@ class _FinanceV2ViewState extends State<FinanceV2View>
 
   /// Nhãn hiển thị kỳ trước trong mục So sánh
   String get _compLabel {
-    if (_isToday) return 'hôm qua';
-    if (_isMonth) {
+    if (_mode == _FilterMode.today) return 'hôm qua';
+    if (_mode == _FilterMode.month) {
       final prev = _start.month == 1
           ? DateTime(_start.year - 1, 12)
           : DateTime(_start.year, _start.month - 1);
       return 'tháng ${prev.month}/${prev.year}';
     }
-    if (_isYear) return 'năm ${_start.year - 1}';
+    if (_mode == _FilterMode.year) return 'năm ${_start.year - 1}';
     return 'kỳ trước';
   }
 
-  bool get _isToday {
-    final n = DateTime.now();
-    final t = DateTime(n.year, n.month, n.day);
-    return _start == t && _end.year == n.year && _end.month == n.month && _end.day == n.day;
-  }
-  bool get _isMonth {
-    final n = DateTime.now();
-    return _start.year == n.year && _start.month == n.month && _start.day == 1
-        && _end.year == n.year && _end.month == n.month;
-  }
-  bool get _isYear {
-    final n = DateTime.now();
-    return _start.year == n.year && _start.month == 1 && _start.day == 1 && _end.year == n.year;
-  }
-  bool get _isSingle => _start.year == _end.year && _start.month == _end.month && _start.day == _end.day;
+  bool get _isToday => _mode == _FilterMode.today;
+  bool get _isMonth => _mode == _FilterMode.month;
+  bool get _isYear  => _mode == _FilterMode.year;
+  bool get _isSingle => _mode == _FilterMode.custom &&
+      _start.year == _end.year && _start.month == _end.month && _start.day == _end.day;
 
   String get _sub {
-    if (_isToday) return 'Hôm nay';
-    if (_isMonth) return 'Tháng ${DateFormat('MM/yyyy').format(_start)}';
-    if (_isYear) return 'Năm ${DateFormat('yyyy').format(_start)}';
-    if (_isSingle) return DateFormat('dd/MM/yyyy').format(_start);
-    return '${DateFormat('dd/MM').format(_start)} - ${DateFormat('dd/MM/yyyy').format(_end)}';
+    switch (_mode) {
+      case _FilterMode.today:  return 'Hôm nay';
+      case _FilterMode.month:  return 'Tháng ${DateFormat('MM/yyyy').format(_start)}';
+      case _FilterMode.year:   return 'Năm ${DateFormat('yyyy').format(_start)}';
+      case _FilterMode.custom:
+        if (_isSingle) return DateFormat('dd/MM/yyyy').format(_start);
+        return '${DateFormat('dd/MM').format(_start)} - ${DateFormat('dd/MM/yyyy').format(_end)}';
+    }
   }
 
-  void _setToday() { final n=DateTime.now(); setState((){_start=DateTime(n.year,n.month,n.day);_end=n;}); _load(); }
-  void _setMonth() { final n=DateTime.now(); setState((){_start=DateTime(n.year,n.month,1);_end=n;}); _load(); }
-  void _setYear() { final n=DateTime.now(); setState((){_start=DateTime(n.year,1,1);_end=n;}); _load(); }
+  void _setToday() { final n=DateTime.now(); setState((){_mode=_FilterMode.today;_start=DateTime(n.year,n.month,n.day);_end=n;}); _load(); }
+  void _setMonth() { final n=DateTime.now(); setState((){_mode=_FilterMode.month;_start=DateTime(n.year,n.month,1);_end=n;}); _load(); }
+  void _setYear()  { final n=DateTime.now(); setState((){_mode=_FilterMode.year;_start=DateTime(n.year,1,1);_end=n;}); _load(); }
 
   Future<void> _pick() async {
     final p = await showDateRangePicker(
@@ -177,7 +174,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       builder: (c, ch) => Theme(data: Theme.of(c).copyWith(
         colorScheme: const ColorScheme.light(primary: FinanceV2Theme.accent)), child: ch!),
     );
-    if (p != null && mounted) { setState((){_start=p.start;_end=p.end;}); _load(); }
+    if (p != null && mounted) { setState((){_mode=_FilterMode.custom;_start=p.start;_end=p.end;}); _load(); }
   }
 
   void _goTx(String f) { setState(()=>_txFilter=f); _tabController.animateTo(1); }
@@ -191,7 +188,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       final y=int.parse(parts[0]), m=int.parse(parts[1]);
       s=DateTime(y,m,1); e=(m==12?DateTime(y+1,1,1):DateTime(y,m+1,1)).subtract(const Duration(days:1));
     } else { final y=int.parse(parts[0]); s=DateTime(y,1,1); e=DateTime(y,12,31); }
-    setState((){_start=s;_end=e;_txFilter='ALL';});
+    setState((){_mode=_FilterMode.custom;_start=s;_end=e;_txFilter='ALL';});
     _load().then((_){ if(mounted) _tabController.animateTo(1); });
   }
   Future<void> _openTL(_TLEntry e) async {
@@ -213,15 +210,15 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   }
 
   Widget _fbar() {
-    final custom=!_isToday&&!_isMonth&&!_isYear;
+    final custom = _mode == _FilterMode.custom;
     return Container(color:Colors.white, padding:const EdgeInsets.fromLTRB(12,8,12,8),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
         SingleChildScrollView(scrollDirection:Axis.horizontal,
           child:Row(children:[
-            _rc('Hôm nay',_isToday,_setToday), const SizedBox(width:6),
-            _rc('Tháng này',_isMonth,_setMonth), const SizedBox(width:6),
-            _rc('Năm nay',_isYear,_setYear), const SizedBox(width:6),
-            _rc('Tùy chọn',custom,_pick,icon:Icons.date_range_rounded),
+            _rc('Hôm nay', _mode==_FilterMode.today, _setToday), const SizedBox(width:6),
+            _rc('Tháng này', _mode==_FilterMode.month, _setMonth), const SizedBox(width:6),
+            _rc('Năm nay', _mode==_FilterMode.year, _setYear), const SizedBox(width:6),
+            _rc('Tùy chọn', custom, _pick, icon:Icons.date_range_rounded),
           ]),
         ),
         if(custom)...[const SizedBox(height:4),
