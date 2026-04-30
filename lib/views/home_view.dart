@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ import 'qr_scan_view.dart';
 import 'attendance_view.dart';
 import 'attendance_management_view.dart';
 import 'staff_performance_view.dart';
+import 'staff_directory_view.dart';
 import 'notifications_view.dart';
 import 'notification_settings_view.dart';
 import 'global_search_view.dart';
@@ -2784,7 +2786,7 @@ class _HomeViewState extends State<HomeView>
               ? CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.white,
-                  backgroundImage: NetworkImage(_shopLogoUrl),
+                  backgroundImage: CachedNetworkImageProvider(_shopLogoUrl),
                 )
               : const Icon(Icons.store_rounded, color: Colors.white, size: 20),
         ),
@@ -3497,7 +3499,7 @@ class _HomeViewState extends State<HomeView>
       decoration: BoxDecoration(
         image: hasCover
             ? DecorationImage(
-                image: NetworkImage(_shopCoverUrl),
+              image: CachedNetworkImageProvider(_shopCoverUrl),
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
               )
@@ -6903,6 +6905,23 @@ class _HomeViewState extends State<HomeView>
                   () => _pushRoute(
                     context,
                     MaterialPageRoute(builder: (_) => const StaffListView()),
+                  ),
+                ),
+                _staffQuickCard(
+                  'Hồ sơ của tôi',
+                  Icons.account_circle_outlined,
+                  Colors.teal,
+                  _openMyStaffProfile,
+                ),
+                _staffQuickCard(
+                  'Danh bạ nội bộ',
+                  Icons.badge_outlined,
+                  Colors.indigo,
+                  () => _pushRoute(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const StaffDirectoryView(),
+                    ),
                   ),
                 ),
                 _staffQuickCardWithHelp(

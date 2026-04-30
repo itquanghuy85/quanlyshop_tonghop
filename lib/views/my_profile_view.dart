@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart';
 import '../widgets/validated_text_field.dart';
@@ -123,7 +124,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                         backgroundImage: _photoPath != null && !kIsWeb && File(_photoPath!).existsSync()
                             ? FileImage(File(_photoPath!))
                             : _photoPath != null && (_photoPath!.startsWith('http') || _photoPath!.startsWith('blob:'))
-                                ? NetworkImage(_photoPath!) as ImageProvider
+                            ? CachedNetworkImageProvider(_photoPath!) as ImageProvider
                                 : null,
                         child: _photoPath == null ? const Icon(Icons.person, size: 30) : null,
                       ),
