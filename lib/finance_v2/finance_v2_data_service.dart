@@ -202,6 +202,8 @@ class FinanceV2DataService {
   Future<FinanceV2Snapshot> loadSnapshot({
     DateTime? start,
     DateTime? end,
+    DateTime? previousStart,
+    DateTime? previousEnd,
   }) async {
     final now = DateTime.now();
     final rangeStart = DateTime(
@@ -221,8 +223,17 @@ class FinanceV2DataService {
     final startMs = rangeStart.millisecondsSinceEpoch;
     final endMs = rangeEnd.millisecondsSinceEpoch;
     final periodMs = endMs - startMs + 1;
-    final previousEndMs = startMs - 1;
-    final previousStartMs = previousEndMs - periodMs + 1;
+
+    // Tính khoảng kỳ trước: ưu tiên tham số truyền vào, nếu không thì dùng độ dài tương đương
+    final int previousStartMs;
+    final int previousEndMs;
+    if (previousStart != null && previousEnd != null) {
+      previousStartMs = DateTime(previousStart.year, previousStart.month, previousStart.day).millisecondsSinceEpoch;
+      previousEndMs = DateTime(previousEnd.year, previousEnd.month, previousEnd.day, 23, 59, 59).millisecondsSinceEpoch;
+    } else {
+      previousEndMs = startMs - 1;
+      previousStartMs = previousEndMs - periodMs + 1;
+    }
 
     final sales = await _db.getSalesByDateRange(startMs, endMs);
     final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);

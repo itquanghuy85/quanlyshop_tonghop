@@ -10164,38 +10164,6 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _financeShortcutButton(
-                  icon: Icons.wifi_find,
-                  label: 'Test Firestore',
-                  color: Colors.indigo,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FirestoreConnectivityTestView(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _financeShortcutButton(
-                  icon: Icons.query_stats,
-                  label: 'Thống kê Số liệu',
-                  color: Colors.blueGrey,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FirebaseRwStatsView(),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ],

@@ -96,9 +96,49 @@ class _FinanceV2ViewState extends State<FinanceV2View>
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final d = await _service.loadSnapshot(start: _start, end: _end);
+    final prev = _previousPeriod();
+    final d = await _service.loadSnapshot(
+      start: _start, end: _end,
+      previousStart: prev.$1, previousEnd: prev.$2,
+    );
     if (!mounted) return;
     setState(() { _snap = d; _loading = false; });
+  }
+
+  /// Tính khoảng kỳ trước tuỳ theo chế độ lọc:
+  /// - Ngày → hôm qua
+  /// - Tháng → tháng trước
+  /// - Năm → năm trước
+  /// - Khoảng tùy chọn → cùng độ dài, liền trước kỳ hiện tại
+  (DateTime?, DateTime?) _previousPeriod() {
+    if (_isToday) {
+      final y = _start.subtract(const Duration(days: 1));
+      return (DateTime(y.year, y.month, y.day), DateTime(y.year, y.month, y.day));
+    }
+    if (_isMonth) {
+      final prevMonth = _start.month == 1
+          ? DateTime(_start.year - 1, 12, 1)
+          : DateTime(_start.year, _start.month - 1, 1);
+      final lastDayPrev = DateTime(prevMonth.year, prevMonth.month + 1, 0);
+      return (prevMonth, lastDayPrev);
+    }
+    if (_isYear) {
+      return (DateTime(_start.year - 1, 1, 1), DateTime(_start.year - 1, 12, 31));
+    }
+    return (null, null); // custom → data service xử lý theo độ dài
+  }
+
+  /// Nhãn hiển thị kỳ trước trong mục So sánh
+  String get _compLabel {
+    if (_isToday) return 'hôm qua';
+    if (_isMonth) {
+      final prev = _start.month == 1
+          ? DateTime(_start.year - 1, 12)
+          : DateTime(_start.year, _start.month - 1);
+      return 'tháng ${prev.month}/${prev.year}';
+    }
+    if (_isYear) return 'năm ${_start.year - 1}';
+    return 'kỳ trước';
   }
 
   bool get _isToday {
@@ -251,8 +291,12 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Scaffold(
       backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.buildWithTabs(
-        title: 'Tài chính', subtitle: _sub, tabController: _tabController,
-        tabs: [Tab(text:'Tổng quan'),Tab(text:'Giao dịch'),Tab(text:'Công nợ'),Tab(text:'Phân tích'),Tab(text:'Nhật ký'),Tab(text:'Báo cáo')],
+        title: 'Tài chính', tabController: _tabController,
+        tabs: [
+          _tab2('Tổng\nquan'), _tab2('Giao\ndịch'), _tab2('Công\nnợ'),
+          _tab2('Phân\ntích'), _tab2('Nhật\nký'), _tab2('Báo\ncáo'),
+        ],
+        isScrollable: false,
         accentColor: AppBarAccents.finance, showBackButton: false,
         actions: [IconButton(icon:const Icon(Icons.refresh_rounded),tooltip:'Làm mới',onPressed:_load)],
       ),
@@ -341,15 +385,17 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       ])));
   }
 
+  Tab _tab2(String text) => Tab(height: 42, child: Text(text, maxLines: 2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)));
+
   Widget _compSection(FinanceV2Snapshot s) {
     final chg=s.previousNetCashflow==0?null:((s.netCashflow-s.previousNetCashflow)/s.previousNetCashflow)*100.0;
     return Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Container(
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('So sánh kỳ trước',style:TextStyle(fontWeight:FontWeight.w600,fontSize:13,color:FinanceV2Theme.ink)),
+        Text('So sánh $_compLabel',style:const TextStyle(fontWeight:FontWeight.w600,fontSize:13,color:FinanceV2Theme.ink)),
         const SizedBox(height:10),
         Row(children:[Expanded(child:_cs('Thu tiền',s.totalIn,s.previousTotalIn)),Expanded(child:_cs('Chi tiền',s.totalOut,s.previousTotalOut)),Expanded(child:_cs('Ròng',s.netCashflow,s.previousNetCashflow,net:true))]),
-        if(chg!=null)...[const SizedBox(height:8),Row(children:[Icon(chg>=0?Icons.trending_up_rounded:Icons.trending_down_rounded,size:14,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative),const SizedBox(width:4),Text('${chg>=0?"+":""}${chg.toStringAsFixed(1)}% so với kỳ trước',style:TextStyle(fontSize:11,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))])],
+        if(chg!=null)...[const SizedBox(height:8),Row(children:[Icon(chg>=0?Icons.trending_up_rounded:Icons.trending_down_rounded,size:14,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative),const SizedBox(width:4),Text('${chg>=0?"+":""}${chg.toStringAsFixed(1)}% so với $_compLabel',style:TextStyle(fontSize:11,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))])],
       ])));
   }
 
