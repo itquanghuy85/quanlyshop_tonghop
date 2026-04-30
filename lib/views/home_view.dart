@@ -5022,11 +5022,7 @@ class _HomeViewState extends State<HomeView>
         case ShortcutType.report:
           return () => _pushRoute(
             context,
-            MaterialPageRoute(
-              builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
-                  ? finance_v2.FinanceV2View()
-                  : const RevenueView(),
-            ),
+            MaterialPageRoute(builder: (_) => finance_v2.FinanceV2View()),
           );
         case ShortcutType.attendance:
           return () => _pushRoute(
@@ -5068,7 +5064,9 @@ class _HomeViewState extends State<HomeView>
         case ShortcutType.financialReport:
           return () => _pushRoute(
             context,
-            MaterialPageRoute(builder: (_) => finance_v2.FinanceV2View()),
+            MaterialPageRoute(
+              builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
+            ),
           );
         case ShortcutType.activityLog:
           return () => _pushRoute(

@@ -35,6 +35,10 @@ class FinanceV2Txn {
   final String? actorName;
   final String? paymentMethod;
   final String? referenceId;
+  final String? customerName;
+  final String? itemName;
+  final int? costAmount;
+  final int? grossProfit;
 
   const FinanceV2Txn({
     required this.id,
@@ -48,6 +52,10 @@ class FinanceV2Txn {
     this.actorName,
     this.paymentMethod,
     this.referenceId,
+    this.customerName,
+    this.itemName,
+    this.costAmount,
+    this.grossProfit,
   });
 }
 
@@ -112,6 +120,11 @@ class FinanceV2Snapshot {
   final int netCashflow;
   final int incomeFromSales;
   final int incomeFromRepairs;
+  final int cogsFromSales;
+  final int cogsFromRepairs;
+  final int grossProfitFromSales;
+  final int grossProfitFromRepairs;
+  final int grossProfitTotal;
   final int incomeOther;
   final int transactionCount;
   final int avgIncomePerTransaction;
@@ -139,6 +152,11 @@ class FinanceV2Snapshot {
     required this.netCashflow,
     required this.incomeFromSales,
     required this.incomeFromRepairs,
+    required this.cogsFromSales,
+    required this.cogsFromRepairs,
+    required this.grossProfitFromSales,
+    required this.grossProfitFromRepairs,
+    required this.grossProfitTotal,
     required this.incomeOther,
     required this.transactionCount,
     required this.avgIncomePerTransaction,
@@ -275,6 +293,8 @@ class FinanceV2DataService {
     int expenseOut = 0;
     int debtRepayOut = 0; // Trả nợ NCC/đối tác (SHOP_OWES) — tách riêng để hiển thị
     int extraIn = 0;
+    int saleCogs = 0;
+    int repairCogs = 0;
 
     final transactions = <FinanceV2Txn>[];
 
@@ -289,6 +309,17 @@ class FinanceV2DataService {
         actualPaid = sale.finalPrice;
       }
       if (actualPaid > 0) {
+        int recognizedCost = 0;
+        if (sale.totalCost > 0) {
+          if (sale.finalPrice > 0) {
+            recognizedCost = ((sale.totalCost * actualPaid) / sale.finalPrice).round();
+          } else {
+            recognizedCost = sale.totalCost;
+          }
+          if (recognizedCost < 0) recognizedCost = 0;
+          if (recognizedCost > actualPaid) recognizedCost = actualPaid;
+        }
+        saleCogs += recognizedCost;
         saleIn += actualPaid;
         transactions.add(
           FinanceV2Txn(
@@ -307,6 +338,10 @@ class FinanceV2DataService {
             actorName: sale.sellerName.trim().isEmpty ? null : sale.sellerName,
             paymentMethod: sale.paymentMethod,
             referenceId: sale.firestoreId ?? sale.id?.toString(),
+            customerName: sale.customerName,
+            itemName: sale.productNames,
+            costAmount: recognizedCost,
+            grossProfit: actualPaid - recognizedCost,
           ),
         );
       }
@@ -318,6 +353,8 @@ class FinanceV2DataService {
       }
       final amount = repair.price;
       if (amount > 0) {
+        final repairCost = repair.totalCost > 0 ? repair.totalCost : 0;
+        repairCogs += repairCost;
         repairIn += amount;
         transactions.add(
           FinanceV2Txn(
@@ -337,6 +374,10 @@ class FinanceV2DataService {
                 : (repair.repairedBy ?? repair.createdBy ?? '').trim(),
             paymentMethod: repair.paymentMethod,
             referenceId: repair.firestoreId ?? repair.id?.toString(),
+            customerName: repair.customerName,
+            itemName: repair.model,
+            costAmount: repairCost,
+            grossProfit: amount - repairCost,
           ),
         );
       }
@@ -590,6 +631,9 @@ class FinanceV2DataService {
     final totalOut = expenseOut;
     final operatingExpenseOut = expenseOut - debtRepayOut; // chi vận hành thuần (không tính trả nợ NCC)
     final netCashflow = totalIn - totalOut;
+    final grossProfitFromSales = saleIn - saleCogs;
+    final grossProfitFromRepairs = repairIn - repairCogs;
+    final grossProfitTotal = grossProfitFromSales + grossProfitFromRepairs;
     final previousTotalIn = previousSaleIn + previousRepairIn + previousExtraIn;
     final previousTotalOut = previousExpenseOut;
     final previousNetCashflow = previousTotalIn - previousTotalOut;
@@ -700,6 +744,11 @@ class FinanceV2DataService {
       netCashflow: netCashflow,
       incomeFromSales: saleIn,
       incomeFromRepairs: repairIn,
+      cogsFromSales: saleCogs,
+      cogsFromRepairs: repairCogs,
+      grossProfitFromSales: grossProfitFromSales,
+      grossProfitFromRepairs: grossProfitFromRepairs,
+      grossProfitTotal: grossProfitTotal,
       incomeOther: extraIn,
       transactionCount: transactions.length,
       avgIncomePerTransaction: avgIncomePerTransaction,

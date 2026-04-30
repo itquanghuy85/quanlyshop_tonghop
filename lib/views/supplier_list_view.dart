@@ -615,7 +615,7 @@ class _SupplierListViewState extends State<SupplierListView>
             Expanded(
               child: _headerTile(
                 'Tổng công nợ',
-                MoneyUtils.formatCurrency(_totalPayable),
+                MoneyUtils.formatCompactCurrency(_totalPayable),
                 Icons.account_balance,
                 AppColors.error,
               ),
@@ -637,7 +637,7 @@ class _SupplierListViewState extends State<SupplierListView>
             Expanded(
               child: _headerTile(
                 'Đã trả trong tháng',
-                MoneyUtils.formatCurrency(_paidThisMonth),
+                MoneyUtils.formatCompactCurrency(_paidThisMonth),
                 Icons.payments,
                 AppColors.success,
               ),
@@ -815,7 +815,7 @@ class _SupplierListViewState extends State<SupplierListView>
                     Text('Nợ: ', style: AppTextStyles.caption),
                     Flexible(
                       child: Text(
-                        MoneyUtils.formatCurrency(d.remain),
+                        MoneyUtils.formatCompactCurrency(d.remain),
                         style: AppTextStyles.caption.copyWith(
                           color: color,
                           fontWeight: FontWeight.bold,
@@ -962,7 +962,7 @@ class _SupplierListViewState extends State<SupplierListView>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}',
+                  'Còn nợ: ${MoneyUtils.formatCompactCurrency(d.remain)}',
                   style: AppTextStyles.body1.copyWith(
                     color: AppColors.error,
                     fontWeight: FontWeight.bold,
@@ -1080,7 +1080,7 @@ class _SupplierListViewState extends State<SupplierListView>
       if (result.success) {
         if (mounted) {
           NotificationService.showSnackBar(
-            'Đã thanh toán ${MoneyUtils.formatCurrency(amount)}đ!',
+            'Đã thanh toán ${MoneyUtils.formatCompactCurrency(amount)}!',
             color: Colors.green,
           );
           await _load();
@@ -1118,7 +1118,7 @@ class _SupplierListViewState extends State<SupplierListView>
             Expanded(
               child: _headerTile(
                 'Còn nợ đối tác',
-                MoneyUtils.formatCurrency(remain),
+                MoneyUtils.formatCompactCurrency(remain),
                 Icons.account_balance,
                 remain > 0 ? AppColors.error : AppColors.success,
               ),
@@ -1140,7 +1140,7 @@ class _SupplierListViewState extends State<SupplierListView>
             Expanded(
               child: _headerTile(
                 'Đã thanh toán',
-                MoneyUtils.formatCurrency(_totalPartnerPaid),
+                MoneyUtils.formatCompactCurrency(_totalPartnerPaid),
                 Icons.payments,
                 AppColors.success,
               ),
@@ -1283,7 +1283,7 @@ class _SupplierListViewState extends State<SupplierListView>
                     Text('Nợ: ', style: AppTextStyles.caption),
                     Flexible(
                       child: Text(
-                        MoneyUtils.formatCurrency(d.remain),
+                        MoneyUtils.formatCompactCurrency(d.remain),
                         style: AppTextStyles.caption.copyWith(
                           color: color,
                           fontWeight: FontWeight.bold,
@@ -1417,7 +1417,7 @@ class _SupplierListViewState extends State<SupplierListView>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Còn nợ: ${MoneyUtils.formatCurrency(d.remain)}',
+                  'Còn nợ: ${MoneyUtils.formatCompactCurrency(d.remain)}',
                   style: AppTextStyles.body1.copyWith(
                     color: AppColors.error,
                     fontWeight: FontWeight.bold,
@@ -1482,7 +1482,7 @@ class _SupplierListViewState extends State<SupplierListView>
                   entityType: 'repair_partner',
                   entityId: d.partner.id!.toString(),
                   summary:
-                      'Thanh toán đối tác ${d.partner.name}: ${MoneyUtils.formatCurrency(amount)} ($method)',
+                      'Thanh toán đối tác ${d.partner.name}: ${MoneyUtils.formatCompactCurrency(amount)} ($method)',
                   payload: {
                     'partnerId': d.partner.id,
                     'partnerName': d.partner.name,

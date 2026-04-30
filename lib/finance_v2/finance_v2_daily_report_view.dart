@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../utils/money_utils.dart';
 import '../services/unified_printer_service.dart';
 import '../models/printer_types.dart';
 import '../widgets/printer_selection_dialog.dart';
+import '../models/attendance_model.dart';
 import 'finance_v2_data_service.dart';
 import 'finance_v2_theme.dart';
 import 'finance_v2_excel_export.dart';
 import '../services/label_settings_service.dart';
+import '../services/user_service.dart';
+import '../data/db_helper.dart';
 import '../views/debt_view.dart';
 
 class FinanceV2DailyReportView extends StatefulWidget {
@@ -22,9 +26,12 @@ class FinanceV2DailyReportView extends StatefulWidget {
 class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   final FinanceV2DataService _service = FinanceV2DataService();
   DateTime _selectedDate = DateTime.now();
+  DateTimeRange? _customRange;
   FinanceV2Snapshot? _snapshot;
   bool _loading = true;
   _ReportRangeMode _rangeMode = _ReportRangeMode.day;
+  final DBHelper _db = DBHelper();
+  Map<String, _StaffAttendanceStats> _attendanceByUser = <String, _StaffAttendanceStats>{};
 
   final _dtFmt = DateFormat('dd/MM/yyyy HH:mm');
   final _dFmt = DateFormat('dd/MM/yyyy');
@@ -38,18 +45,17 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
 
   Future<void> _loadReport() async {
     setState(() => _loading = true);
-    final start = _rangeMode == _ReportRangeMode.day
-        ? DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day)
-        : DateTime(_selectedDate.year, _selectedDate.month, 1);
-    final end = _rangeMode == _ReportRangeMode.day
-        ? DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59)
-        : DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
+    final range = _resolveRange();
+    final start = range.$1;
+    final end = range.$2;
     
     try {
       final data = await _service.loadSnapshot(start: start, end: end);
+      final attendance = await _loadAttendanceSummary(start: start, end: end);
       if (mounted) {
         setState(() {
           _snapshot = data;
+          _attendanceByUser = attendance;
           _loading = false;
         });
       }
@@ -66,6 +72,11 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   }
 
   Future<void> _pickDate() async {
+    if (_rangeMode == _ReportRangeMode.custom) {
+      await _pickCustomRange();
+      return;
+    }
+
     DateTime? picked;
     if (_rangeMode == _ReportRangeMode.day) {
       picked = await showDatePicker(
@@ -75,7 +86,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
         lastDate: DateTime.now(),
         locale: const Locale('vi', 'VN'),
       );
-    } else {
+    } else if (_rangeMode == _ReportRangeMode.month) {
       picked = await showDatePicker(
         context: context,
         initialDate: _selectedDate,
@@ -87,6 +98,18 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       if (picked != null) {
         picked = DateTime(picked.year, picked.month, 1);
       }
+    } else {
+      picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate,
+        firstDate: DateTime(2020),
+        lastDate: DateTime.now(),
+        locale: const Locale('vi', 'VN'),
+        initialDatePickerMode: DatePickerMode.year,
+      );
+      if (picked != null) {
+        picked = DateTime(picked.year, 1, 1);
+      }
     }
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked!);
@@ -94,11 +117,48 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
   }
 
+  Future<void> _pickCustomRange() async {
+    final now = DateTime.now();
+    final initial = _customRange ?? DateTimeRange(
+      start: DateTime(now.year, now.month, now.day),
+      end: DateTime(now.year, now.month, now.day),
+    );
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: now,
+      initialDateRange: initial,
+      locale: const Locale('vi', 'VN'),
+      saveText: 'Áp dụng',
+    );
+    if (picked != null) {
+      setState(() {
+        _customRange = DateTimeRange(
+          start: DateTime(picked.start.year, picked.start.month, picked.start.day),
+          end: DateTime(picked.end.year, picked.end.month, picked.end.day),
+        );
+      });
+      _loadReport();
+    }
+  }
+
   void _goPreviousDay() {
     setState(() {
-      _selectedDate = _rangeMode == _ReportRangeMode.day
-          ? _selectedDate.subtract(const Duration(days: 1))
-          : DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
+      if (_rangeMode == _ReportRangeMode.day) {
+        _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+      } else if (_rangeMode == _ReportRangeMode.month) {
+        _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
+      } else if (_rangeMode == _ReportRangeMode.year) {
+        _selectedDate = DateTime(_selectedDate.year - 1, 1, 1);
+      } else {
+        final range = _customRange;
+        if (range != null) {
+          final span = range.end.difference(range.start).inDays;
+          final nextEnd = range.start.subtract(const Duration(days: 1));
+          final nextStart = nextEnd.subtract(Duration(days: span));
+          _customRange = DateTimeRange(start: nextStart, end: nextEnd);
+        }
+      }
     });
     _loadReport();
   }
@@ -110,6 +170,30 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       final currentMonth = DateTime(now.year, now.month, 1);
       if (!nextMonth.isAfter(currentMonth)) {
         setState(() => _selectedDate = nextMonth);
+        _loadReport();
+      }
+      return;
+    }
+
+    if (_rangeMode == _ReportRangeMode.year) {
+      final nextYear = DateTime(_selectedDate.year + 1, 1, 1);
+      final currentYear = DateTime(now.year, 1, 1);
+      if (!nextYear.isAfter(currentYear)) {
+        setState(() => _selectedDate = nextYear);
+        _loadReport();
+      }
+      return;
+    }
+
+    if (_rangeMode == _ReportRangeMode.custom) {
+      final range = _customRange;
+      if (range == null) return;
+      final span = range.end.difference(range.start).inDays;
+      final nextStart = range.end.add(const Duration(days: 1));
+      final nextEnd = nextStart.add(Duration(days: span));
+      final todayEnd = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      if (!nextEnd.isAfter(todayEnd)) {
+        setState(() => _customRange = DateTimeRange(start: nextStart, end: nextEnd));
         _loadReport();
       }
       return;
@@ -129,6 +213,17 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       final now = DateTime.now();
       return _selectedDate.year == now.year && _selectedDate.month == now.month;
     }
+    if (_rangeMode == _ReportRangeMode.year) {
+      final now = DateTime.now();
+      return _selectedDate.year == now.year;
+    }
+    if (_rangeMode == _ReportRangeMode.custom) {
+      final range = _customRange;
+      if (range == null) return false;
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      return range.start == today && range.end == today;
+    }
     final now = DateTime.now();
     return _selectedDate.year == now.year &&
         _selectedDate.month == now.month &&
@@ -139,7 +234,158 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     if (_rangeMode == _ReportRangeMode.month) {
       return DateFormat('MM/yyyy').format(_selectedDate);
     }
+    if (_rangeMode == _ReportRangeMode.year) {
+      return DateFormat('yyyy').format(_selectedDate);
+    }
+    if (_rangeMode == _ReportRangeMode.custom) {
+      final range = _customRange;
+      if (range == null) return 'Chưa chọn khoảng';
+      return '${_dFmt.format(range.start)} - ${_dFmt.format(range.end)}';
+    }
     return _dFmt.format(_selectedDate);
+  }
+
+  String get _periodSuffix {
+    switch (_rangeMode) {
+      case _ReportRangeMode.day:
+        return 'ngày';
+      case _ReportRangeMode.month:
+        return 'tháng';
+      case _ReportRangeMode.year:
+        return 'năm';
+      case _ReportRangeMode.custom:
+        return 'khoảng thời gian';
+    }
+  }
+
+  String get _periodShortLabel {
+    switch (_rangeMode) {
+      case _ReportRangeMode.day:
+        return 'Theo ngày';
+      case _ReportRangeMode.month:
+        return 'Theo tháng';
+      case _ReportRangeMode.year:
+        return 'Theo năm';
+      case _ReportRangeMode.custom:
+        return 'Khoảng thời gian';
+    }
+  }
+
+  (DateTime, DateTime) _resolveRange() {
+    if (_rangeMode == _ReportRangeMode.month) {
+      return (
+        DateTime(_selectedDate.year, _selectedDate.month, 1),
+        DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59),
+      );
+    }
+    if (_rangeMode == _ReportRangeMode.year) {
+      return (
+        DateTime(_selectedDate.year, 1, 1),
+        DateTime(_selectedDate.year, 12, 31, 23, 59, 59),
+      );
+    }
+    if (_rangeMode == _ReportRangeMode.custom) {
+      final now = DateTime.now();
+      final range = _customRange ?? DateTimeRange(
+        start: DateTime(now.year, now.month, now.day),
+        end: DateTime(now.year, now.month, now.day),
+      );
+      return (
+        DateTime(range.start.year, range.start.month, range.start.day),
+        DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59),
+      );
+    }
+
+    return (
+      DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+      DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59),
+    );
+  }
+
+  Future<Map<String, _StaffAttendanceStats>> _loadAttendanceSummary({
+    required DateTime start,
+    required DateTime end,
+  }) async {
+    try {
+      final shopId = await UserService.getCurrentShopId();
+      if (shopId == null || shopId.isEmpty) return <String, _StaffAttendanceStats>{};
+
+      final usersSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('shopId', isEqualTo: shopId)
+          .get();
+
+      final users = usersSnap.docs
+          .where((d) => (d.data()['email'] ?? '').toString().toLowerCase() != 'admin@huluca.com')
+          .map((d) {
+            final data = d.data();
+            final name = (data['name'] ?? '').toString().trim();
+            final email = (data['email'] ?? '').toString().trim();
+            return (
+              id: d.id,
+              name: name.isNotEmpty ? name : (email.isNotEmpty ? email : 'Nhân viên'),
+            );
+          })
+          .toList();
+
+      final startKey = DateFormat('yyyy-MM-dd').format(start);
+      final endKey = DateFormat('yyyy-MM-dd').format(end);
+      final records = await _db.getAttendanceByDateRange(startKey, endKey);
+
+      final map = <String, _StaffAttendanceStats>{};
+      for (final u in users) {
+        map[u.id] = _StaffAttendanceStats(name: u.name);
+      }
+
+      final byUser = <String, List<Attendance>>{};
+      for (final r in records) {
+        byUser.putIfAbsent(r.userId, () => <Attendance>[]).add(r);
+      }
+
+      final totalDays = end.difference(start).inDays + 1;
+      for (final u in users) {
+        final stats = map[u.id]!;
+        final recs = byUser[u.id] ?? const <Attendance>[];
+        final dateKeys = <String>{};
+        for (final r in recs) {
+          if (r.checkInAt != null) {
+            stats.presentDays += 1;
+            if (r.isLate == 1) stats.lateDays += 1;
+            dateKeys.add(r.dateKey);
+          }
+        }
+        stats.absentDays = (totalDays - dateKeys.length).clamp(0, totalDays);
+      }
+
+      try {
+        final swapSnap = await FirebaseFirestore.instance
+            .collection('shift_swap_requests')
+            .where('shopId', isEqualTo: shopId)
+            .where('status', isEqualTo: 'approved')
+            .where('deleted', isEqualTo: false)
+            .where('requestedDate', isGreaterThanOrEqualTo: startKey)
+            .where('requestedDate', isLessThanOrEqualTo: endKey)
+            .get();
+
+        for (final doc in swapSnap.docs) {
+          final data = doc.data();
+          final requesterId = (data['requesterId'] ?? '').toString();
+          final targetUserId = (data['targetUserId'] ?? '').toString();
+          if (requesterId.isNotEmpty && map.containsKey(requesterId)) {
+            map[requesterId]!.swapCount += 1;
+          }
+          if (targetUserId.isNotEmpty && map.containsKey(targetUserId)) {
+            map[targetUserId]!.swapCount += 1;
+          }
+        }
+      } catch (_) {
+        // Ignore shift swap query/index errors; attendance summary still usable.
+      }
+
+      return map;
+    } catch (_) {
+      return <String, _StaffAttendanceStats>{};
+    }
   }
 
   Future<void> _openDebtFlow() async {
@@ -155,7 +401,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     if (_snapshot == null) return;
     
     final rows = <List<dynamic>>[
-      ['BÁO CÁO NGÀY ${_dFmt.format(_selectedDate)} (${_dayNameFmt.format(_selectedDate)})'],
+      ['BÁO CÁO ${_periodSuffix.toUpperCase()} $_rangeLabel'],
       [''],
       ['TỔNG QUAN'],
       ['Doanh thu vào', MoneyUtils.formatVND(_snapshot!.totalIn)],
@@ -182,15 +428,17 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     // Transactions
     if (_snapshot!.transactions.isNotEmpty) {
       rows.add(['GIAO DỊCH']);
-      rows.add(['Thời gian', 'Tiêu đề', 'Chi tiết', 'Loại', 'Hướng', 'Số tiền', 'Nhân viên', 'PT thanh toán']);
+      rows.add(['Thời gian', 'Tiêu đề', 'Chi tiết', 'Loại', 'Hướng', 'Số tiền', 'Vốn', 'Lãi gộp', 'Nhân viên', 'PT thanh toán']);
       for (final tx in _snapshot!.transactions.take(500)) {
         rows.add([
           _dtFmt.format(DateTime.fromMillisecondsSinceEpoch(tx.createdAt)),
-          tx.title,
+          _displayTitle(tx),
           tx.subtitle,
           tx.type,
           tx.isIncome ? 'Vào' : 'Ra',
           MoneyUtils.formatVND(tx.amount),
+          tx.costAmount == null ? '' : MoneyUtils.formatVND(tx.costAmount!),
+          tx.grossProfit == null ? '' : MoneyUtils.formatVND(tx.grossProfit!),
           tx.actorName ?? '',
           tx.paymentMethod ?? '',
         ]);
@@ -253,10 +501,10 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       context,
       sheetName: 'Báo cáo ngày',
       filePrefix: 'BaoCaoNgay',
-      headers: ['Báo cáo ngày ${_dFmt.format(_selectedDate)}'],
+      headers: ['Báo cáo $_periodSuffix $_rangeLabel'],
       rows: rows,
-      start: _selectedDate,
-      end: _selectedDate,
+      start: _resolveRange().$1,
+      end: _resolveRange().$2,
     );
   }
 
@@ -284,7 +532,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       lines.writeln('[C]SDT: ${shopInfo.hotline}');
     }
     lines.writeln('');
-    lines.writeln('[C][B]BAO CAO NGAY');
+    lines.writeln('[C][B]BAO CAO ${_periodSuffix.toUpperCase()}');
     lines.writeln('[C]$_rangeLabel');
     lines.writeln('[C]================================');
     lines.writeln('');
@@ -444,7 +692,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     return Scaffold(
       backgroundColor: FinanceV2Theme.pageBg,
       appBar: AppBar(
-        title: const Text('Báo cáo ngày'),
+        title: Text('Báo cáo $_periodSuffix'),
         automaticallyImplyLeading: false,
         backgroundColor: FinanceV2Theme.accent,
         foregroundColor: Colors.white,
@@ -488,6 +736,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                       const SizedBox(height: 16),
                       _buildSummaryCards(context, net),
                       const SizedBox(height: 16),
+                      _buildCapitalAndGrossProfit(context),
+                      _buildStaffSummary(context),
                       _buildAllAppOverview(context),
                       _buildSaleRepairBreakdown(context),
                       _buildDebtSummary(context),
@@ -546,7 +796,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                   Text(
                     _rangeMode == _ReportRangeMode.day
                         ? _dayNameFmt.format(_selectedDate)
-                        : 'Theo tháng',
+                        : _periodShortLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -604,6 +854,30 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
             _loadReport();
           },
         ),
+        ChoiceChip(
+          label: const Text('Theo năm'),
+          selected: _rangeMode == _ReportRangeMode.year,
+          onSelected: (v) {
+            if (!v) return;
+            setState(() {
+              _rangeMode = _ReportRangeMode.year;
+              _selectedDate = DateTime(_selectedDate.year, 1, 1);
+            });
+            _loadReport();
+          },
+        ),
+        ChoiceChip(
+          label: const Text('Khoảng thời gian'),
+          selected: _rangeMode == _ReportRangeMode.custom,
+          onSelected: (v) {
+            if (!v) return;
+            setState(() {
+              _rangeMode = _ReportRangeMode.custom;
+              _customRange ??= DateTimeRange(start: _selectedDate, end: _selectedDate);
+            });
+            _pickCustomRange();
+          },
+        ),
       ],
     );
   }
@@ -613,80 +887,89 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final sales = txs.where((e) => e.type.toUpperCase() == 'SALE').toList();
     final repairs = txs.where((e) => e.type.toUpperCase() == 'REPAIR').toList();
 
-    final saleMap = <String, int>{};
-    for (final s in sales) {
-      final key = s.title.trim().isEmpty ? 'Bán lẻ' : s.title.trim();
-      saleMap[key] = (saleMap[key] ?? 0) + s.amount;
-    }
-
-    final repairMap = <String, int>{};
-    for (final r in repairs) {
-      final key = r.subtitle.trim().isEmpty ? 'Sửa chữa khác' : r.subtitle.trim();
-      repairMap[key] = (repairMap[key] ?? 0) + r.amount;
-    }
-
-    final saleItems = saleMap.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final repairItems = repairMap.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
-        title: const Text('Tổng hợp chi tiết bán/sửa'),
+        title: const Text('Chi tiết bán hàng và sửa chữa'),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         children: [
-          if (saleItems.isNotEmpty) ...[
+          if (sales.isNotEmpty) ...[
             Text(
-              'Bán gì trong kỳ (${saleItems.length})',
+              'Bán hàng trong kỳ (${sales.length})',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: Colors.green[700],
                   ),
             ),
             const SizedBox(height: 6),
-            ...saleItems.take(8).map((e) => _nameAmountRow(context, e.key, e.value, Colors.green)),
+            ...sales.take(8).map((tx) => _transactionDetailRow(context, tx, Colors.green)),
             const SizedBox(height: 12),
           ],
-          if (repairItems.isNotEmpty) ...[
+          if (repairs.isNotEmpty) ...[
             Text(
-              'Sửa gì trong kỳ (${repairItems.length})',
+              'Sửa chữa trong kỳ (${repairs.length})',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: Colors.blue[700],
                   ),
             ),
             const SizedBox(height: 6),
-            ...repairItems.take(8).map((e) => _nameAmountRow(context, e.key, e.value, Colors.blue)),
+            ...repairs.take(8).map((tx) => _transactionDetailRow(context, tx, Colors.blue)),
           ],
-          if (saleItems.isEmpty && repairItems.isEmpty)
+          if (sales.isEmpty && repairs.isEmpty)
             const Text('Không có dữ liệu bán/sửa trong kỳ đã chọn.'),
         ],
       ),
     );
   }
 
-  Widget _nameAmountRow(BuildContext context, String name, int amount, Color color) {
+  Widget _transactionDetailRow(BuildContext context, FinanceV2Txn tx, Color color) {
+    final staff = (tx.actorName ?? '').trim();
+    final subtitle = tx.subtitle.trim();
+    final base = _displayTitle(tx);
+    final detail = <String>[];
+    if (subtitle.isNotEmpty) detail.add(subtitle);
+    if (staff.isNotEmpty) detail.add('NV: $staff');
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            MoneyUtils.formatCompactCurrency(amount),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: color,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  base,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                MoneyUtils.formatCompactCurrency(tx.amount),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+              ),
+            ],
           ),
+          if (detail.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                detail.join(' · '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.grey[700],
+                    ),
+              ),
+            ),
         ],
       ),
     );
@@ -697,7 +980,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
         initiallyExpanded: true,
-        title: const Text('Tổng hợp toàn app trong ngày'),
+        title: Text('Tổng hợp toàn app theo $_periodSuffix'),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         children: [
           _metricRow(context, 'Doanh thu bán hàng', _snapshot!.incomeFromSales, Colors.green),
@@ -720,7 +1003,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           backgroundColor: Colors.orange.withValues(alpha: 0.1),
           child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.orange),
         ),
-        title: const Text('Tổng quan công nợ trong ngày'),
+        title: Text('Tổng quan công nợ theo $_periodSuffix'),
         subtitle: Text(
           'Phải thu: ${MoneyUtils.formatCompactCurrency(_snapshot!.receivableTotal)} | '
           'Phải trả: ${MoneyUtils.formatCompactCurrency(_snapshot!.payableTotal)}',
@@ -896,7 +1179,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
-        title: const Text('Luồng tiền'),
+        title: Text('Luồng tiền theo $_periodSuffix'),
         initiallyExpanded: true,
         children: [
           Padding(
@@ -916,14 +1199,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                   Text('Không có', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[500]))
                 else
                   Column(
-                    children: inTxs.take(10).map((tx) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(children: [
-                        Expanded(child: Text(tx.title, style: Theme.of(context).textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                        const SizedBox(width: 8),
-                        Text(MoneyUtils.formatCompactCurrency(tx.amount), style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.green)),
-                      ]),
-                    )).toList(),
+                    children: inTxs.take(10).map((tx) => _cashFlowRow(context, tx, Colors.green)).toList(),
                   ),
                 const SizedBox(height: 12),
                 Divider(color: Colors.grey[300], height: 1),
@@ -940,17 +1216,52 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                   Text('Không có', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[500]))
                 else
                   Column(
-                    children: outTxs.take(10).map((tx) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Row(children: [
-                        Expanded(child: Text(tx.title, style: Theme.of(context).textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                        const SizedBox(width: 8),
-                        Text(MoneyUtils.formatCompactCurrency(tx.amount), style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.red)),
-                      ]),
-                    )).toList(),
+                    children: outTxs.take(10).map((tx) => _cashFlowRow(context, tx, Colors.red)).toList(),
                   ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cashFlowRow(BuildContext context, FinanceV2Txn tx, Color color) {
+    final subtitle = tx.subtitle.trim();
+    final staff = (tx.actorName ?? '').trim();
+    final details = <String>[];
+    if (subtitle.isNotEmpty) details.add(subtitle);
+    if (staff.isNotEmpty) details.add('NV: $staff');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _displayTitle(tx),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (details.isNotEmpty)
+                  Text(
+                    details.join(' · '),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            MoneyUtils.formatCompactCurrency(tx.amount),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: color),
           ),
         ],
       ),
@@ -972,17 +1283,23 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                 DataColumn(label: Text('Nhóm')),
                 DataColumn(label: Text('Tiêu đề')),
                 DataColumn(label: Text('Nội dung')),
+                DataColumn(label: Text('Nhân viên')),
                 DataColumn(label: Text('Hướng')),
                 DataColumn(label: Text('Số tiền'), numeric: true),
+                DataColumn(label: Text('Vốn'), numeric: true),
+                DataColumn(label: Text('Lãi gộp'), numeric: true),
               ],
               rows: _snapshot!.transactions
                   .map((tx) => DataRow(cells: [
                         DataCell(Text(_dtFmt.format(DateTime.fromMillisecondsSinceEpoch(tx.createdAt)), style: Theme.of(context).textTheme.bodySmall)),
                         DataCell(Text(_typeLabel(tx), style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600))),
-                        DataCell(Text(tx.title, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        DataCell(Text(_displayTitle(tx), style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis)),
                         DataCell(Text(tx.subtitle, style: Theme.of(context).textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                        DataCell(Text((tx.actorName ?? '').trim().isEmpty ? '-' : (tx.actorName ?? ''), style: Theme.of(context).textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
                         DataCell(Text(tx.isIncome ? 'Vào' : 'Ra', style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: tx.isIncome ? Colors.green[700] : Colors.red[700]))),
                         DataCell(Text(MoneyUtils.formatCompactCurrency(tx.amount), style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: tx.isIncome ? Colors.green[700] : Colors.red[700]))),
+                        DataCell(Text(tx.costAmount == null ? '-' : MoneyUtils.formatCompactCurrency(tx.costAmount!), style: Theme.of(context).textTheme.bodySmall)),
+                        DataCell(Text(tx.grossProfit == null ? '-' : MoneyUtils.formatCompactCurrency(tx.grossProfit!), style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: (tx.grossProfit ?? 0) >= 0 ? Colors.green[700] : Colors.red[700]))),
                       ]))
                   .toList(),
             ),
@@ -990,6 +1307,131 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
         ],
       ),
     );
+  }
+
+  Widget _buildCapitalAndGrossProfit(BuildContext context) {
+    final s = _snapshot!;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        title: const Text('Vốn và lãi gộp bán/sửa'),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          _metricRow(context, 'Vốn bán hàng', s.cogsFromSales, Colors.deepOrange),
+          _metricRow(context, 'Vốn sửa chữa', s.cogsFromRepairs, Colors.orange),
+          _metricRow(context, 'Lãi gộp bán hàng', s.grossProfitFromSales, s.grossProfitFromSales >= 0 ? Colors.green : Colors.red),
+          _metricRow(context, 'Lãi gộp sửa chữa', s.grossProfitFromRepairs, s.grossProfitFromRepairs >= 0 ? Colors.green : Colors.red),
+          const Divider(height: 18),
+          _metricRow(context, 'Tổng lãi gộp', s.grossProfitTotal, s.grossProfitTotal >= 0 ? Colors.green : Colors.red),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStaffSummary(BuildContext context) {
+    final map = <String, _StaffDaySummary>{};
+    for (final tx in _snapshot!.transactions) {
+      final name = (tx.actorName ?? '').trim();
+      if (name.isEmpty) continue;
+      final acc = map.putIfAbsent(name, () => _StaffDaySummary());
+      acc.count += 1;
+      if (tx.isIncome) {
+        acc.income += tx.amount;
+      } else {
+        acc.out += tx.amount;
+      }
+      if (tx.type.toUpperCase() == 'SALE' || tx.type.toUpperCase() == 'REPAIR') {
+        acc.revenue += tx.amount;
+      }
+      if (tx.costAmount != null) {
+        acc.cost += tx.costAmount!;
+      }
+    }
+
+    for (final att in _attendanceByUser.values) {
+      final acc = map.putIfAbsent(att.name, () => _StaffDaySummary());
+      acc.presentDays = att.presentDays;
+      acc.absentDays = att.absentDays;
+      acc.lateDays = att.lateDays;
+      acc.swapCount = att.swapCount;
+    }
+
+    if (map.isEmpty) return const SizedBox.shrink();
+    final entries = map.entries.toList()
+      ..sort((a, b) => b.value.revenue.compareTo(a.value.revenue));
+
+    final totalPresent = entries.fold<int>(0, (sum, e) => sum + e.value.presentDays);
+    final totalAbsent = entries.fold<int>(0, (sum, e) => sum + e.value.absentDays);
+    final totalLate = entries.fold<int>(0, (sum, e) => sum + e.value.lateDays);
+    final totalSwap = entries.fold<int>(0, (sum, e) => sum + e.value.swapCount);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        title: Text('Nhân viên theo $_periodSuffix (${entries.length})'),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Có mặt: $totalPresent · Vắng: $totalAbsent · Đi trễ: $totalLate · Đổi ca: $totalSwap',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          ...entries.map((e) {
+          final gross = e.value.revenue - e.value.cost;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        e.key,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    Text(
+                      '${e.value.count} giao dịch',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Thu: ${MoneyUtils.formatCompactCurrency(e.value.income)} · Chi: ${MoneyUtils.formatCompactCurrency(e.value.out)} · Doanh thu bán/sửa: ${MoneyUtils.formatCompactCurrency(e.value.revenue)} · Lãi gộp: ${MoneyUtils.formatCompactCurrency(gross)}',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                Text(
+                  'Có mặt: ${e.value.presentDays} · Vắng: ${e.value.absentDays} · Đi trễ: ${e.value.lateDays} · Đổi ca: ${e.value.swapCount}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
+                ),
+              ],
+            ),
+          );
+        }),
+        ],
+      ),
+    );
+  }
+
+  String _displayTitle(FinanceV2Txn tx) {
+    final base = (tx.itemName ?? '').trim().isNotEmpty ? tx.itemName!.trim() : tx.title.trim();
+    final customer = (tx.customerName ?? '').trim();
+    if (customer.isNotEmpty && !base.toLowerCase().contains(customer.toLowerCase())) {
+      return '$base · KH: $customer';
+    }
+    return base.isEmpty ? 'Giao dịch' : base;
   }
 
   Widget _buildDebtsList(BuildContext context) {
@@ -1173,4 +1615,26 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   }
 }
 
-enum _ReportRangeMode { day, month }
+enum _ReportRangeMode { day, month, year, custom }
+
+class _StaffAttendanceStats {
+  final String name;
+  int presentDays = 0;
+  int absentDays = 0;
+  int lateDays = 0;
+  int swapCount = 0;
+
+  _StaffAttendanceStats({required this.name});
+}
+
+class _StaffDaySummary {
+  int count = 0;
+  int income = 0;
+  int out = 0;
+  int revenue = 0;
+  int cost = 0;
+  int presentDays = 0;
+  int absentDays = 0;
+  int lateDays = 0;
+  int swapCount = 0;
+}
