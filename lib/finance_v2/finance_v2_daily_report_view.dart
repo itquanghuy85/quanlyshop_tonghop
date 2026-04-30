@@ -445,6 +445,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       backgroundColor: FinanceV2Theme.pageBg,
       appBar: AppBar(
         title: const Text('Báo cáo ngày'),
+        automaticallyImplyLeading: false,
         backgroundColor: FinanceV2Theme.accent,
         foregroundColor: Colors.white,
         actions: [

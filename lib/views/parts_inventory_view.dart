@@ -2979,14 +2979,21 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         },
                       );
 
-                      // Ghi lịch sử nhập hàng từ NCC (để hiển thị trong trang chi tiết NCC)
-                      if (selectedSupplierId != null) {
+                      // Ghi lịch sử nhập kho: luôn lưu khi có tên NCC (kể cả chưa resolve được supplierId)
+                      final effectiveSupplierId =
+                          selectedSupplierId ?? (part?['supplierId'] as int?);
+                      final effectiveSupplierName = _getSupplierName(
+                        effectiveSupplierId,
+                      ).trim().isNotEmpty
+                          ? _getSupplierName(effectiveSupplierId).trim()
+                          : supplierName;
+                      if (effectiveSupplierName.isNotEmpty) {
                         final user = FirebaseAuth.instance.currentUser;
                         final userName =
                             user?.email?.split('@').first.toUpperCase() ?? "NV";
                         final importHistory = {
-                          'supplierId': selectedSupplierId,
-                          'supplierName': supplierName,
+                          'supplierId': effectiveSupplierId,
+                          'supplierName': effectiveSupplierName,
                           'productName': partName,
                           'productBrand': _terms.category3.toUpperCase(),
                           'productModel': modelC.text.toUpperCase(),
@@ -3015,13 +3022,15 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         }
 
                         // Cập nhật thống kê nhà cung cấp
-                        await db.updateSupplierStats(
-                          selectedSupplierId!,
-                          cost * qty,
-                          qty,
-                        );
-                        // Emit event để cập nhật UI nhà cung cấp
-                        EventBus().emit('suppliers_changed');
+                        if (effectiveSupplierId != null) {
+                          await db.updateSupplierStats(
+                            effectiveSupplierId,
+                            cost * qty,
+                            qty,
+                          );
+                          // Emit event để cập nhật UI nhà cung cấp
+                          EventBus().emit('suppliers_changed');
+                        }
                       }
 
                       // Xử lý thanh toán cho nhập hàng
@@ -3438,14 +3447,21 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       },
                     );
 
-                    // 3. Lịch sử nhập hàng NCC
-                    if (selectedSupplierId != null) {
+                    // 3. Lịch sử nhập kho: luôn lưu khi có tên NCC
+                    final effectiveSupplierId =
+                        selectedSupplierId ?? (part['supplierId'] as int?);
+                    final effectiveSupplierName = _getSupplierName(
+                      effectiveSupplierId,
+                    ).trim().isNotEmpty
+                        ? _getSupplierName(effectiveSupplierId).trim()
+                        : supplierName;
+                    if (effectiveSupplierName.isNotEmpty) {
                       final user = FirebaseAuth.instance.currentUser;
                       final userName =
                           user?.email?.split('@').first.toUpperCase() ?? 'NV';
                       final importHistory = {
-                        'supplierId': selectedSupplierId,
-                        'supplierName': supplierName,
+                        'supplierId': effectiveSupplierId,
+                        'supplierName': effectiveSupplierName,
                         'productName': partName,
                         'productBrand': _terms.category3.toUpperCase(),
                         'productModel': part['compatibleModels'] ?? '',
@@ -3470,12 +3486,14 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         );
                       }
 
-                      await db.updateSupplierStats(
-                        selectedSupplierId!,
-                        totalCost,
-                        addQty,
-                      );
-                      EventBus().emit('suppliers_changed');
+                      if (effectiveSupplierId != null) {
+                        await db.updateSupplierStats(
+                          effectiveSupplierId,
+                          totalCost,
+                          addQty,
+                        );
+                        EventBus().emit('suppliers_changed');
+                      }
                     }
 
                     // 4. Tài chính — tạo BẢN GHI MỚI ngày hôm nay

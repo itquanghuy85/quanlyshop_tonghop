@@ -209,6 +209,10 @@ class FinanceV2DataService {
     final sales = await _db.getSalesByDateRange(startMs, endMs);
     final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
     final expenses = await _db.getExpensesByDateRange(startMs, endMs);
+    final repairPartnerPayments = await _db.getRepairPartnerPaymentsByDateRange(
+      startMs,
+      endMs,
+    );
     final debtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs);
     final rawDebts = await _db.getAllDebts();
     // Chỉ lấy công nợ được tạo trong khoảng kỳ đã chọn (fix bug lọc ngày)
@@ -225,6 +229,10 @@ class FinanceV2DataService {
     final previousSales = await _db.getSalesByDateRange(previousStartMs, previousEndMs);
     final previousRepairs = await _db.getDeliveredRepairsByDateRange(previousStartMs, previousEndMs);
     final previousExpenses = await _db.getExpensesByDateRange(previousStartMs, previousEndMs);
+    final previousRepairPartnerPayments = await _db.getRepairPartnerPaymentsByDateRange(
+      previousStartMs,
+      previousEndMs,
+    );
     final suppliers = await _db.getSuppliers();
     final partners = await _db.getRepairPartners();
     final customers = await _db.getCustomers();
@@ -332,6 +340,32 @@ class FinanceV2DataService {
           ),
         );
       }
+      // Chi phí linh kiện/dịch vụ nội bộ (service không qua đối tác, partnerId == null)
+      // Đây là chi phí nhân công/linh kiện tự ghi trong đơn sửa, không trùng với repair_partner_payments
+      final nonPartnerCost = repair.services
+          .where((s) => s.partnerId == null)
+          .fold<int>(0, (sum, s) => sum + s.cost);
+      if (nonPartnerCost > 0) {
+        expenseOut += nonPartnerCost;
+        transactions.add(
+          FinanceV2Txn(
+            id: 'repair_cost_${repair.id ?? repair.firestoreId ?? repair.createdAt}',
+            createdAt: repair.deliveredAt ?? repair.createdAt,
+            type: 'EXPENSE',
+            title: 'Giá vốn: ${repair.customerName}',
+            subtitle:
+                'Chi phí sửa ${repair.model.isNotEmpty ? repair.model : "thiết bị"}'
+                '${repair.issue.isNotEmpty ? " · ${repair.issue}" : ""}',
+            amount: nonPartnerCost,
+            isIncome: false,
+            avatarUrl: customerAvatarByName[_normalizeName(repair.customerName)],
+            actorName: (repair.repairedBy ?? repair.createdBy ?? '').trim().isEmpty
+                ? null
+                : (repair.repairedBy ?? repair.createdBy ?? '').trim(),
+            referenceId: repair.firestoreId ?? repair.id?.toString(),
+          ),
+        );
+      }
     }
 
     for (final e in expenses) {
@@ -362,6 +396,45 @@ class FinanceV2DataService {
               : (e['createdBy'] ?? '').toString().trim(),
           paymentMethod: (e['paymentMethod'] ?? '').toString(),
           referenceId: (e['firestoreId'] ?? e['id'] ?? '').toString(),
+        ),
+      );
+    }
+
+    final expenseFirestoreIds = <String>{
+      ...expenses.map(
+        (e) => (e['firestoreId'] ?? '').toString().trim(),
+      ).where((id) => id.isNotEmpty),
+    };
+    for (final p in repairPartnerPayments) {
+      final paymentFid = (p['firestoreId'] ?? '').toString().trim();
+      if (paymentFid.isEmpty) continue;
+
+      final expectedExpenseFid = paymentFid.startsWith('rpp_')
+          ? 'exp_partner_${paymentFid.substring(4)}'
+          : 'exp_partner_$paymentFid';
+      if (expenseFirestoreIds.contains(expectedExpenseFid)) {
+        continue;
+      }
+
+      final amount = _toInt(p['amount']);
+      if (amount <= 0) continue;
+      final ts = _toInt(p['paidAt']);
+      final partnerName = (p['partnerName'] ?? '').toString().trim();
+      final method = (p['paymentMethod'] ?? '').toString().trim();
+
+      expenseOut += amount;
+      transactions.add(
+        FinanceV2Txn(
+          id: 'partner_payment_${p['id'] ?? paymentFid}',
+          createdAt: ts,
+          type: 'EXPENSE',
+          title: partnerName.isEmpty ? 'Thanh toán đối tác sửa chữa' : partnerName,
+          subtitle:
+              'Chi đối tác sửa chữa${method.isNotEmpty ? ' · $method' : ''}',
+          amount: amount,
+          isIncome: false,
+          paymentMethod: method,
+          referenceId: paymentFid,
         ),
       );
     }
@@ -430,6 +503,12 @@ class FinanceV2DataService {
       if (repair.price > 0) {
         previousRepairIn += repair.price;
       }
+      final prevNonPartnerCost = repair.services
+          .where((s) => s.partnerId == null)
+          .fold<int>(0, (sum, s) => sum + s.cost);
+      if (prevNonPartnerCost > 0) {
+        previousExpenseOut += prevNonPartnerCost;
+      }
     }
 
     for (final e in previousExpenses) {
@@ -438,6 +517,26 @@ class FinanceV2DataService {
       if (type == 'THU') {
         previousExtraIn += amount;
       } else {
+        previousExpenseOut += amount;
+      }
+    }
+
+    final previousExpenseFirestoreIds = <String>{
+      ...previousExpenses.map(
+        (e) => (e['firestoreId'] ?? '').toString().trim(),
+      ).where((id) => id.isNotEmpty),
+    };
+    for (final p in previousRepairPartnerPayments) {
+      final paymentFid = (p['firestoreId'] ?? '').toString().trim();
+      if (paymentFid.isEmpty) continue;
+      final expectedExpenseFid = paymentFid.startsWith('rpp_')
+          ? 'exp_partner_${paymentFid.substring(4)}'
+          : 'exp_partner_$paymentFid';
+      if (previousExpenseFirestoreIds.contains(expectedExpenseFid)) {
+        continue;
+      }
+      final amount = _toInt(p['amount']);
+      if (amount > 0) {
         previousExpenseOut += amount;
       }
     }
@@ -505,6 +604,31 @@ class FinanceV2DataService {
       final amount = _toInt(e['amount']);
       final key = category.isEmpty ? 'Khác' : category;
       expenseByCategory[key] = (expenseByCategory[key] ?? 0) + amount;
+    }
+    for (final p in repairPartnerPayments) {
+      final paymentFid = (p['firestoreId'] ?? '').toString().trim();
+      if (paymentFid.isEmpty) continue;
+      final expectedExpenseFid = paymentFid.startsWith('rpp_')
+          ? 'exp_partner_${paymentFid.substring(4)}'
+          : 'exp_partner_$paymentFid';
+      if (expenseFirestoreIds.contains(expectedExpenseFid)) {
+        continue;
+      }
+      final amount = _toInt(p['amount']);
+      if (amount <= 0) continue;
+      expenseByCategory['Đối tác sửa chữa'] =
+          (expenseByCategory['Đối tác sửa chữa'] ?? 0) + amount;
+    }
+    // Thêm chi phí linh kiện nội bộ (non-partner) vào category stats
+    for (final Repair repair in repairs) {
+      if (repair.paymentMethod.toUpperCase() == 'CÔNG NỢ') continue;
+      final nonPartnerCost = repair.services
+          .where((s) => s.partnerId == null)
+          .fold<int>(0, (sum, s) => sum + s.cost);
+      if (nonPartnerCost > 0) {
+        expenseByCategory['Linh kiện sửa chữa'] =
+            (expenseByCategory['Linh kiện sửa chữa'] ?? 0) + nonPartnerCost;
+      }
     }
     final topExpenseCategories = expenseByCategory.entries
         .map((e) => FinanceV2CategoryStat(label: e.key, amount: e.value))

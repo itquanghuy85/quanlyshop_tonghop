@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firestore_write_helper.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import '../models/payment_request_model.dart';
 import '../models/expense_model.dart';
 import '../data/db_helper.dart';
@@ -20,6 +21,42 @@ class PaymentRequestService {
   static const String _collection = 'payment_requests';
   static int _requestsFetchCount = 0;
   static int _pendingFetchCount = 0;
+
+  static void _warmNetworkImageCache(List<String> urls) {
+    for (final raw in urls) {
+      final url = raw.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) continue;
+      unawaited(_warmSingleNetworkImage(url));
+    }
+  }
+
+  static Future<void> _warmSingleNetworkImage(String url) async {
+    try {
+      final provider = NetworkImage(url);
+      final stream = provider.resolve(const ImageConfiguration());
+      final completer = Completer<void>();
+      late final ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (_, __) {
+          if (!completer.isCompleted) completer.complete();
+          stream.removeListener(listener);
+        },
+        onError: (_, __) {
+          if (!completer.isCompleted) completer.complete();
+          stream.removeListener(listener);
+        },
+      );
+      stream.addListener(listener);
+      await completer.future.timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          stream.removeListener(listener);
+        },
+      );
+    } catch (_) {
+      // Best-effort cache warmup, ignore failures.
+    }
+  }
 
   static bool _isRefreshEvent(String event) {
     return event == 'payment_requests_changed' ||
@@ -231,20 +268,27 @@ class PaymentRequestService {
     List<File> images,
   ) async {
     try {
-      final List<String> urls = [];
-      for (int i = 0; i < images.length; i++) {
-        final url = await StorageService.uploadAndGetUrl(
-          images[i].path,
-          'payment_requests/$shopId',
+      final uploadedResults = await Future.wait<String?>(
+        images.map(
+          (file) => StorageService.uploadAndGetUrl(
+            file.path,
+            'payment_requests/$shopId',
+          ),
+        ),
+      );
+      final urls = uploadedResults
+          .whereType<String>()
+          .map((u) => u.trim())
+          .where((u) => u.isNotEmpty)
+          .toList();
+
+      if (urls.length != images.length) {
+        throw Exception(
+          StorageService.lastUploadErrorMessage ??
+              'Không thể tải toàn bộ ảnh yêu cầu thanh toán lên máy chủ',
         );
-        if (url == null || url.trim().isEmpty) {
-          throw Exception(
-            StorageService.lastUploadErrorMessage ??
-                'Không thể tải ảnh yêu cầu thanh toán lên máy chủ',
-          );
-        }
-        urls.add(url);
       }
+      _warmNetworkImageCache(urls);
       if (urls.isNotEmpty) {
         await _db.collection(_collection).doc(docId).update({
           'imageUrls': FieldValue.arrayUnion(urls),

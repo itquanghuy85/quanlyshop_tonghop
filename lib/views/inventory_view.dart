@@ -949,12 +949,52 @@ class _InventoryViewState extends State<InventoryView>
       final shopId = await UserService.getCurrentShopId() ?? '';
       final service = StockEntryService();
 
+      // Resolve supplierId trước khi tạo stock entry để không bị fail validate canConfirm.
+      String? supplierId;
+      final supplierName = (p.supplier ?? '').trim();
+      if (supplierName.isNotEmpty) {
+        final suppliers = await DBHelper().getSuppliers();
+        final supplier = suppliers.firstWhere(
+          (s) {
+            final name = (s['name'] ?? '').toString().trim();
+            return name.toUpperCase() == supplierName.toUpperCase();
+          },
+          orElse: () {
+            return suppliers.firstWhere(
+              (s) {
+                final name = (s['name'] ?? '').toString().trim();
+                return name.toUpperCase().contains(supplierName.toUpperCase());
+              },
+              orElse: () => <String, dynamic>{},
+            );
+          },
+        );
+
+        final supplierFirestoreId =
+            (supplier['firestoreId'] ?? '').toString().trim();
+        if (supplierFirestoreId.isNotEmpty) {
+          supplierId = supplierFirestoreId;
+        } else {
+          final localId = supplier['id'];
+          if (localId != null) supplierId = localId.toString();
+        }
+      }
+
+      if (supplierId == null || supplierId.trim().isEmpty) {
+        NotificationService.showSnackBar(
+          'Không tìm thấy nhà cung cấp hợp lệ cho sản phẩm này. Vui lòng cập nhật NCC rồi nhập lại.',
+          color: Colors.red,
+        );
+        return;
+      }
+
       // Create a stock entry for audit trail and financial tracking
       final entry = StockEntry(
         shopId: shopId,
         status: StockEntryStatus.draft,
         entryType: StockEntryType.quick,
         paymentMethod: paymentMethod,
+        supplierId: supplierId,
         supplierName: p.supplier,
         items: [
           StockEntryItem(
@@ -3753,7 +3793,7 @@ class _InventoryViewState extends State<InventoryView>
                     .firstOrNull;
                 final supplierId = supplierData?.id;
                 final shopId = await UserService.getCurrentShopId();
-                if (supplierId != null) {
+                if (supplier?.trim().isNotEmpty == true) {
                   final importHistory = {
                     'supplierId': supplierId,
                     'supplierName': supplier,
@@ -3784,39 +3824,33 @@ class _InventoryViewState extends State<InventoryView>
                     );
                   }
 
-                  // Cập nhật thống kê nhà cung cấp
-                  await db.updateSupplierStats(
-                    supplierId,
-                    p.cost * p.quantity,
-                    1,
-                  );
+                  // Chỉ cập nhật dữ liệu NCC khi resolve được supplierId
+                  if (supplierId != null) {
+                    await db.deactivateSupplierProductPrice(
+                      supplierId,
+                      p.name,
+                      p.brand,
+                      p.model,
+                    );
+                    final supplierPrice = {
+                      'supplierId': supplierId,
+                      'productName': p.name,
+                      'productBrand': p.brand,
+                      'productModel': p.model,
+                      'costPrice': p.cost,
+                      'lastUpdated': ts,
+                      'createdAt': ts,
+                      'isActive': 1,
+                      'shopId': shopId,
+                    };
+                    await db.insertSupplierProductPrice(supplierPrice);
 
-                  // Cập nhật giá nhà cung cấp
-                  await db.deactivateSupplierProductPrice(
-                    supplierId,
-                    p.name,
-                    p.brand,
-                    p.model,
-                  );
-                  final supplierPrice = {
-                    'supplierId': supplierId,
-                    'productName': p.name,
-                    'productBrand': p.brand,
-                    'productModel': p.model,
-                    'costPrice': p.cost,
-                    'lastUpdated': ts,
-                    'createdAt': ts,
-                    'isActive': 1,
-                    'shopId': shopId,
-                  };
-                  await db.insertSupplierProductPrice(supplierPrice);
-
-                  // Cập nhật thống kê nhà cung cấp
-                  await db.updateSupplierStats(
-                    supplierId,
-                    p.cost * p.quantity,
-                    p.quantity,
-                  );
+                    await db.updateSupplierStats(
+                      supplierId,
+                      p.cost * p.quantity,
+                      p.quantity,
+                    );
+                  }
                 }
               }
 
@@ -4253,7 +4287,7 @@ class _InventoryViewState extends State<InventoryView>
               final userName =
                   user?.email?.split('@').first.toUpperCase() ?? "NV";
 
-              if (supplierId != null) {
+              if ((selectedSupplier?.trim().isNotEmpty ?? false)) {
                 final importHistory = {
                   'supplierId': supplierId,
                   'supplierName': selectedSupplier,
@@ -4302,12 +4336,14 @@ class _InventoryViewState extends State<InventoryView>
                 };
                 await db.insertSupplierProductPrice(supplierPrice);
 
-                // Cập nhật thống kê nhà cung cấp
-                await db.updateSupplierStats(
-                  supplierId,
-                  cost * p.quantity,
-                  p.quantity,
-                );
+                // Cập nhật thống kê nhà cung cấp khi resolve được supplierId
+                if (supplierId != null) {
+                  await db.updateSupplierStats(
+                    supplierId,
+                    cost * p.quantity,
+                    p.quantity,
+                  );
+                }
               }
 
               // Final sync pass after product + supplier import history are enqueued.

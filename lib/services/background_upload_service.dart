@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sqflite/sqflite.dart';
 import '../data/db_helper.dart';
 import '../services/storage_service.dart';
 import '../services/encryption_service.dart';
+import '../services/event_bus.dart';
 import 'firestore_write_helper.dart';
 
 /// Service to upload images in the background after saving records.
@@ -14,6 +16,42 @@ class BackgroundUploadService {
   BackgroundUploadService._();
 
   static final _db = FirebaseFirestore.instance;
+
+  static void _warmNetworkImageCache(List<String> urls) {
+    for (final raw in urls) {
+      final url = raw.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) continue;
+      unawaited(_warmSingleNetworkImage(url));
+    }
+  }
+
+  static Future<void> _warmSingleNetworkImage(String url) async {
+    try {
+      final provider = NetworkImage(url);
+      final stream = provider.resolve(const ImageConfiguration());
+      final completer = Completer<void>();
+      late final ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (_, __) {
+          if (!completer.isCompleted) completer.complete();
+          stream.removeListener(listener);
+        },
+        onError: (_, __) {
+          if (!completer.isCompleted) completer.complete();
+          stream.removeListener(listener);
+        },
+      );
+      stream.addListener(listener);
+      await completer.future.timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          stream.removeListener(listener);
+        },
+      );
+    } catch (_) {
+      // Best-effort cache warmup, ignore failures.
+    }
+  }
 
   static List<String> _splitPaths(String? csv) {
     if (csv == null) return const [];
@@ -114,18 +152,23 @@ class BackgroundUploadService {
           : const <String>[];
 
       debugPrint('📸 BackgroundUpload: Starting ${images.length} repair image(s)...');
-      final uploadedUrls = <String>[];
-      for (final picked in images) {
-        final url = await StorageService.uploadXFileAndGetUrl(picked, 'repairs');
-        if (url != null && url.isNotEmpty) {
-          uploadedUrls.add(url);
-        }
-      }
+      final uploadedResults = await Future.wait<String?>(
+        images.map(
+          (picked) => StorageService.uploadXFileAndGetUrl(picked, 'repairs'),
+        ),
+      );
+      final uploadedUrls = uploadedResults
+          .whereType<String>()
+          .map((u) => u.trim())
+          .where((u) => u.isNotEmpty)
+          .toList();
 
       if (uploadedUrls.isEmpty) {
         debugPrint('📸 BackgroundUpload: No repair images uploaded');
         return;
       }
+
+      _warmNetworkImageCache(uploadedUrls);
 
       final mergedCloudPaths = _mergeCloudPaths(currentPaths, uploadedUrls);
       final cloudPaths = mergedCloudPaths.join(',');
@@ -161,6 +204,7 @@ class BackgroundUploadService {
         whereArgs: [localRepairId],
       );
 
+      EventBus().emit('repairs_changed');
       debugPrint('📸 BackgroundUpload: Repair images done (${uploadedUrls.length})');
     } catch (e) {
       debugPrint('📸 BackgroundUpload: Error uploading repair images: $e');
@@ -193,6 +237,8 @@ class BackgroundUploadService {
 
       final field = isCheckIn ? 'photoIn' : 'photoOut';
 
+      _warmNetworkImageCache([cloudUrl]);
+
       // Update local DB
       final dbHelper = DBHelper();
       final dbConn = await dbHelper.database;
@@ -214,6 +260,7 @@ class BackgroundUploadService {
         debugPrint('📸 BackgroundUpload: Firestore attendance update failed: $e');
       }
 
+      EventBus().emit('attendance_changed');
       debugPrint('📸 BackgroundUpload: Attendance photo done');
     } catch (e) {
       debugPrint('📸 BackgroundUpload: Error uploading attendance photo: $e');

@@ -5648,13 +5648,14 @@ class _RepairDetailViewState extends State<RepairDetailView> {
   }
 
   Future<void> _showFullImage(List<String> images, int initialIndex) async {
-    final resolvedImages = <String>[];
-    for (final image in images) {
-      final resolved = await _resolveDisplayImagePath(image);
-      if (resolved != null && resolved.isNotEmpty) {
-        resolvedImages.add(resolved);
-      }
-    }
+    final resolvedResults = await Future.wait<String?>(
+      images.map(_resolveDisplayImagePath),
+    );
+    final resolvedImages = resolvedResults
+        .whereType<String>()
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (resolvedImages.isEmpty) return;
     final safeInitialIndex = initialIndex
         .clamp(0, resolvedImages.length - 1)

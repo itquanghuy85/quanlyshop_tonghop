@@ -40,6 +40,7 @@ import 'attendance_view.dart';
 import 'attendance_management_view.dart';
 import 'staff_performance_view.dart';
 import 'staff_directory_view.dart';
+import 'community_view.dart';
 import 'notifications_view.dart';
 import 'notification_settings_view.dart';
 import 'global_search_view.dart';
@@ -52,7 +53,6 @@ import 'cash_closing_view.dart';
 import 'bank_installment_report_view.dart';
 import 'parts_inventory_view.dart';
 import 'salvage_phone_view.dart';
-import 'financial_report_view.dart';
 import 'audit_log_view.dart';
 import 'recent_activity_view.dart';
 import 'firestore_connectivity_test_view.dart';
@@ -102,13 +102,13 @@ import 'fashion/variant_management_view.dart';
 import 'onboarding/business_type_wizard.dart';
 import 'dashboard_settings_view.dart';
 import 'payment_request_chat_view.dart';
-import 'daily_activity_report_view.dart';
 import 'reminders_view.dart';
 import 'staff_self_profile_view.dart';
 import '../services/test_data_service.dart';
 import '../services/social_auth_service.dart';
 import '../services/reminder_service.dart';
 import '../services/dashboard_config_service.dart';
+import '../services/community_service.dart';
 import '../widgets/dashboard_cards.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../expansion/safe_mode/expansion_feature_flags.dart';
@@ -187,6 +187,8 @@ class _HomeViewState extends State<HomeView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _lastTabIndexPrefKey = 'home_last_tab_index_v1';
   static const String _lastTabIdPrefKey = 'home_last_tab_id_v1';
+  static const String _showHomeCommunityCardPrefKey =
+      'home_show_community_dashboard_card_v1';
   static const String _homeTabId = 'home';
   static const String _financeTabId = 'finance';
 
@@ -218,6 +220,9 @@ class _HomeViewState extends State<HomeView>
       this,
     ); // Lifecycle observer for iOS background handling
     _loadSavedTabIndex();
+    unawaited(_loadHomeCommunityDashboardPref());
+    unawaited(_refreshHomeCommunityStream());
+    unawaited(StorageService.retryPendingUploads());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkNotificationStatus();
       _initialSetup();
@@ -256,6 +261,7 @@ class _HomeViewState extends State<HomeView>
           _initialSetup();
           _debouncedLoadStats();
           _debouncedLoadDebtOverview();
+          unawaited(_refreshHomeCommunityStream());
           setState(() {
             _rebuildCounter++; // Force rebuild tabs
           });
@@ -286,6 +292,52 @@ class _HomeViewState extends State<HomeView>
       });
     } catch (e) {
       debugPrint('HomeView: Failed to load saved tab index: $e');
+    }
+  }
+
+  Future<void> _loadHomeCommunityDashboardPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getBool(_showHomeCommunityCardPrefKey);
+      if (!mounted) return;
+      setState(() {
+        _showHomeCommunityCard = saved ?? true;
+      });
+    } catch (e) {
+      debugPrint('HomeView: Failed to load community dashboard pref: $e');
+    }
+  }
+
+  Future<void> _setHomeCommunityDashboardVisible(bool value) async {
+    if (!mounted) return;
+    setState(() {
+      _showHomeCommunityCard = value;
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_showHomeCommunityCardPrefKey, value);
+    } catch (e) {
+      debugPrint('HomeView: Failed to save community dashboard pref: $e');
+    }
+  }
+
+  Future<void> _refreshHomeCommunityStream() async {
+    try {
+      final shopId = (await UserService.getCurrentShopId() ?? '').trim();
+      if (!mounted) return;
+      setState(() {
+        _homeCommunityShopId = shopId;
+        _homeCommunityStream = shopId.isEmpty
+            ? null
+            : CommunityService.streamPosts(shopId: shopId, limit: 5);
+      });
+    } catch (e) {
+      debugPrint('HomeView: Failed to refresh community stream: $e');
+      if (!mounted) return;
+      setState(() {
+        _homeCommunityShopId = '';
+        _homeCommunityStream = null;
+      });
     }
   }
 
@@ -456,6 +508,9 @@ class _HomeViewState extends State<HomeView>
   int _totalReminderCount = 0; // Tổng số nhắc nhở
   String _latestChatMessage = ''; // Tin nhắn mới nhất
   String _latestChatSender = ''; // Người gửi tin mới nhất
+  bool _showHomeCommunityCard = true;
+  String _homeCommunityShopId = '';
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _homeCommunityStream;
   Locale _currentLocale = const Locale('vi');
   bool _tabsInitialized = false;
   bool _notificationWorking = false; // Trạng thái thông báo
@@ -1803,6 +1858,7 @@ class _HomeViewState extends State<HomeView>
           '_loadUserAndShopInfo: FINAL setState - userName=$_userName, shopName=$_shopName, role=$_runtimeRole',
         );
       }
+      unawaited(_refreshHomeCommunityStream());
 
       // Retry: Nếu tên vẫn rỗng (race condition với đăng ký mới), thử lại sau 2s
       if (displayName.trim().isEmpty ||
@@ -3492,34 +3548,36 @@ class _HomeViewState extends State<HomeView>
 
     final hasCover = _shopCoverUrl.trim().isNotEmpty;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 22, 12, 22),
-      decoration: BoxDecoration(
-        image: hasCover
-            ? DecorationImage(
-              image: CachedNetworkImageProvider(_shopCoverUrl),
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-              )
-            : null,
-        gradient: hasCover
-            ? null
-            : LinearGradient(
-                colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.25),
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
+    return GestureDetector(
+      onTap: _openShopSettingsFromGreeting,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.fromLTRB(12, 22, 12, 22),
+        decoration: BoxDecoration(
+          image: hasCover
+              ? DecorationImage(
+                image: CachedNetworkImageProvider(_shopCoverUrl),
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                )
+              : null,
+          gradient: hasCover
+              ? null
+              : LinearGradient(
+                  colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.25),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
           // Dòng lời chào
@@ -3657,6 +3715,7 @@ class _HomeViewState extends State<HomeView>
             ],
           ),
           ],
+        ),
         ),
     );
   }
@@ -3998,139 +4057,409 @@ class _HomeViewState extends State<HomeView>
 
   /// Chat card - hiển thị ngay dưới lời chào với badge tin nhắn chưa đọc
   Widget _buildChatCard() {
-    if (!(hasFullAccess || _permissions['allowViewChat'] == true)) {
+    final canViewChat = hasFullAccess || _permissions['allowViewChat'] == true;
+    if (!canViewChat && !_showHomeCommunityCard) {
       return const SizedBox();
     }
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Card(
-        elevation: 0,
-        color: Colors.cyan.shade50,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: Colors.cyan.shade200),
-        ),
-        child: InkWell(
-          onTap: () => _pushRoute(
-            context,
-            MaterialPageRoute(builder: (_) => const AdvancedChatView()),
-          ),
-          borderRadius: BorderRadius.circular(10),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                // Icon với badge
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.cyan.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.chat_bubble_rounded,
-                        color: Colors.cyan.shade700,
-                        size: 20,
-                      ),
-                    ),
-                    if (unreadChatCount > 0)
-                      Positioned(
-                        right: -6,
-                        top: -6,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          child: Text(
-                            unreadChatCount > 99 ? '99+' : '$unreadChatCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
+
+    return Column(
+      children: [
+        if (canViewChat)
+          Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: Card(
+              elevation: 0,
+              color: Colors.cyan.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.cyan.shade200),
+              ),
+              child: InkWell(
+                onTap: () => _pushRoute(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdvancedChatView()),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  child: Row(
                     children: [
-                      Row(
+                      Stack(
+                        clipBehavior: Clip.none,
                         children: [
-                          Text(
-                            "CHAT NỘI BỘ",
-                            style: AppTextStyles.body2.copyWith(
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.cyan.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.chat_bubble_rounded,
                               color: Colors.cyan.shade700,
-                              fontWeight: FontWeight.bold,
+                              size: 20,
                             ),
                           ),
-                          if (unreadChatCount > 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '$unreadChatCount mới',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                          if (unreadChatCount > 0)
+                            Positioned(
+                              right: -6,
+                              top: -6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                child: Text(
+                                  unreadChatCount > 99
+                                      ? '99+'
+                                      : '$unreadChatCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
                             ),
-                          ],
                         ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _latestChatMessage.isNotEmpty
-                            ? "${_latestChatSender.isNotEmpty ? '$_latestChatSender: ' : ''}${_latestChatMessage.length > 45 ? '${_latestChatMessage.substring(0, 45)}...' : _latestChatMessage}"
-                            : "Chưa có tin nhắn nào",
-                        style: AppTextStyles.caption.copyWith(
-                          color: unreadChatCount > 0
-                              ? Colors.cyan.shade700
-                              : Colors.grey.shade600,
-                          fontWeight: unreadChatCount > 0
-                              ? FontWeight.w500
-                              : FontWeight.normal,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  "CHAT NỘI BỘ",
+                                  style: AppTextStyles.body2.copyWith(
+                                    color: Colors.cyan.shade700,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (unreadChatCount > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      '$unreadChatCount mới',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _latestChatMessage.isNotEmpty
+                                  ? "${_latestChatSender.isNotEmpty ? '$_latestChatSender: ' : ''}${_latestChatMessage.length > 45 ? '${_latestChatMessage.substring(0, 45)}...' : _latestChatMessage}"
+                                  : "Chưa có tin nhắn nào",
+                              style: AppTextStyles.caption.copyWith(
+                                color: unreadChatCount > 0
+                                    ? Colors.cyan.shade700
+                                    : Colors.grey.shade600,
+                                fontWeight: unreadChatCount > 0
+                                    ? FontWeight.w500
+                                    : FontWeight.normal,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 14,
+                        color: Colors.cyan.shade400,
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: Colors.cyan.shade400,
-                ),
-              ],
+              ),
             ),
+          ),
+        _buildHomeCommunityQuickCard(),
+      ],
+    );
+  }
+
+  Widget _buildHomeCommunityQuickCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Card(
+        elevation: 0,
+        color: Colors.pink.shade50,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: Colors.pink.shade200),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.pink.shade100,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.groups_2_outlined,
+                      color: Colors.pink.shade700,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CỘNG ĐỒNG NHANH',
+                          style: AppTextStyles.body2.copyWith(
+                            color: Colors.pink.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          _shopName.trim().isNotEmpty
+                              ? _shopName.trim()
+                              : 'Bảng tin nội bộ',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.pink.shade400,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _showHomeCommunityCard,
+                    onChanged: _setHomeCommunityDashboardVisible,
+                    activeColor: Colors.pink.shade600,
+                  ),
+                ],
+              ),
+              if (!_showHomeCommunityCard)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Đã ẩn thẻ này trên dashboard. Bật lại công tắc để hiển thị.',
+                    style: AppTextStyles.caption.copyWith(
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                )
+              else ...[
+                const SizedBox(height: 8),
+                if (_homeCommunityStream == null || _homeCommunityShopId.isEmpty)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Đang chuẩn bị dữ liệu cộng đồng...',
+                      style: AppTextStyles.caption,
+                    ),
+                  )
+                else
+                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: _homeCommunityStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _friendlyHomeCommunityError(snapshot.error),
+                            style: AppTextStyles.caption.copyWith(
+                              color: Colors.red.shade700,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: LinearProgressIndicator(minHeight: 2),
+                        );
+                      }
+
+                      final docs = (snapshot.data?.docs ?? const [])
+                          .where((d) => d.data()['deleted'] != true)
+                          .toList()
+                        ..sort((a, b) {
+                          final ad =
+                              (a.data()['createdAt'] as Timestamp?)?.toDate();
+                          final bd =
+                              (b.data()['createdAt'] as Timestamp?)?.toDate();
+                          if (ad == null && bd == null) return 0;
+                          if (ad == null) return 1;
+                          if (bd == null) return -1;
+                          return bd.compareTo(ad);
+                        });
+
+                      if (docs.isEmpty) {
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Chưa có bài viết mới trong cộng đồng.',
+                            style: AppTextStyles.caption,
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        children: docs.take(3).map((doc) {
+                          final data = doc.data();
+                          final content =
+                              (data['content'] ?? '').toString().trim();
+                          final author =
+                              (data['authorName'] ?? 'Nhân viên').toString();
+                          final imageUrl =
+                              (data['imageUrl'] ??
+                                      data['photoUrl'] ??
+                                      data['mediaUrl'] ??
+                                      data['image'] ??
+                                      '')
+                                  .toString()
+                                  .trim();
+                          final likeCount =
+                              (data['likeCount'] as num?)?.toInt() ?? 0;
+                          final commentCount =
+                              (data['commentCount'] as num?)?.toInt() ?? 0;
+
+                          return InkWell(
+                            onTap: () => _pushRoute(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CommunityView(
+                                  initialPostId: doc.id,
+                                ),
+                              ),
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 46,
+                                    height: 46,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: imageUrl.isEmpty
+                                          ? Colors.pink.shade100
+                                          : Colors.grey.shade200,
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: imageUrl.isEmpty
+                                        ? Icon(
+                                            Icons.image_outlined,
+                                            color: Colors.pink.shade300,
+                                            size: 20,
+                                          )
+                                        : CachedNetworkImage(
+                                            imageUrl: imageUrl,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_, __, ___) => Icon(
+                                              Icons.broken_image_outlined,
+                                              color: Colors.grey.shade500,
+                                              size: 20,
+                                            ),
+                                          ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          content.isEmpty
+                                              ? '(Bài viết có ảnh)'
+                                              : content,
+                                          style: AppTextStyles.caption.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '$author • ❤ $likeCount • 💬 $commentCount',
+                                          style: AppTextStyles.caption.copyWith(
+                                            color: Colors.grey.shade700,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    'Mở',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: Colors.pink.shade600,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+              ],
+            ],
           ),
         ),
       ),
     );
+  }
+
+  String _friendlyHomeCommunityError(Object? error) {
+    final raw = (error ?? '').toString().toLowerCase();
+    if (raw.contains('permission-denied')) {
+      return 'Bạn chưa có quyền xem bảng tin cộng đồng của shop.';
+    }
+    if (raw.contains('failed-precondition') || raw.contains('index')) {
+      return 'Bảng tin đang tối ưu lần đầu, vui lòng thử lại sau vài giây.';
+    }
+    if (raw.contains('unavailable') || raw.contains('network')) {
+      return 'Mất kết nối mạng. Vui lòng thử lại.';
+    }
+    return 'Không tải được bảng tin lúc này.';
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -4739,7 +5068,7 @@ class _HomeViewState extends State<HomeView>
         case ShortcutType.financialReport:
           return () => _pushRoute(
             context,
-            MaterialPageRoute(builder: (_) => const FinancialReportView()),
+            MaterialPageRoute(builder: (_) => finance_v2.FinanceV2View()),
           );
         case ShortcutType.activityLog:
           return () => _pushRoute(
@@ -4793,7 +5122,9 @@ class _HomeViewState extends State<HomeView>
         case ShortcutType.dailyReport:
           return () => _pushRoute(
             context,
-            MaterialPageRoute(builder: (_) => const DailyActivityReportView()),
+            MaterialPageRoute(
+              builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
+            ),
           );
         case ShortcutType.importHistory:
           return () => _pushRoute(
@@ -6968,6 +7299,20 @@ class _HomeViewState extends State<HomeView>
                     ),
                   ),
                 ),
+                _staffQuickCard(
+                  'Cộng đồng shop',
+                  Icons.groups_2_outlined,
+                  Colors.pink,
+                  _guardedFeatureAction(
+                    featureName: 'Cộng đồng shop',
+                    onAllowed: () => _pushRoute(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CommunityView(),
+                      ),
+                    ),
+                  ),
+                ),
                 _staffQuickCardWithHelp(
                   loc.salaryCalculation,
                   Icons.bar_chart,
@@ -7387,207 +7732,7 @@ class _HomeViewState extends State<HomeView>
   }
 
   Widget _buildFinanceTab() {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: RefreshIndicator(
-        onRefresh: () => _syncNow(),
-        child: ResponsiveCenter(
-          child: ListView(
-            padding: EdgeInsets.symmetric(
-              horizontal: context.responsive.horizontalPadding,
-              vertical: 16,
-            ),
-            children: [
-              // Header Section
-              _buildTabHeader(
-                loc.financialManagement,
-                Icons.account_balance_wallet,
-                Colors.indigo,
-              ),
-              const SizedBox(height: 20),
-
-              // Financial Overview Cards
-              _buildSectionHeader(loc.todayOverview),
-              FinanceSummaryCard(
-                key: const ValueKey('finance_tab_summary'),
-                revenue:
-                    _todaySaleIncome +
-                    _todaySettlementIncome +
-                    _todayRepairIncome,
-                netProfit: _todayNetProfit,
-                currentFund:
-                    _previousClosingTotal + _todayTotalIn - _todayTotalOut,
-                onTap: () => _pushRoute(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CashClosingView()),
-                ),
-              ),
-              _buildDashboardOverview(),
-
-              const SizedBox(height: 16),
-
-              // CÔNG NỢ TỔNG HỢP
-              _buildSectionHeader("CÔNG NỢ"),
-              _buildDebtSummaryCard(),
-
-              const SizedBox(height: 16),
-
-              // THAO TÁC NHANH - Sổ quỹ + Thu Chi
-              _buildSectionHeader(loc.quickActions),
-              Row(
-                children: [
-                  Expanded(
-                    child: _financeQuickCard(
-                      'Sổ quỹ',
-                      Icons.menu_book,
-                      Colors.green,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CashClosingView(),
-                        ),
-                      ),
-                      subtitle: MoneyUtils.formatCompact(
-                        _previousClosingTotal + _todayTotalIn - _todayTotalOut,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (hasFullAccess ||
-                      _permissions['allowViewExpenses'] == true)
-                    Expanded(
-                      child: _financeQuickCard(
-                        'Thu Chi',
-                        Icons.swap_vert,
-                        Colors.blue,
-                        () => _pushRoute(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ExpenseView(),
-                          ),
-                        ),
-                        subtitle:
-                            '+${MoneyUtils.formatCompact(_todayTotalIn)} / -${MoneyUtils.formatCompact(_todayTotalOut)}',
-                      ),
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-              _buildSectionHeader(loc.reportAndAnalysis),
-
-              // Grid responsive - Main financial views
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: context.responsive.isMobile
-                    ? 2
-                    : (context.responsive.isDesktop ? 4 : 3),
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: context.responsive.isMobile ? 2.5 : 3.2,
-                children: [
-                  if (FinanceV2FeatureFlag.showV2Entry)
-                    _financeQuickCard(
-                      FinanceV2FeatureFlag.showV2AsPrimary
-                          ? 'Tài chính V2 (Mặc định)'
-                          : 'Tài chính V2',
-                      Icons.account_balance_wallet_outlined,
-                      const Color(0xFF0D47A1),
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => finance_v2.FinanceV2View(),
-                        ),
-                      ),
-                    ),
-                  if (FinanceV2FeatureFlag.showV2Entry)
-                    _financeQuickCard(
-                      'Báo cáo ngày',
-                      Icons.calendar_today_rounded,
-                      const Color(0xFF5E35B1),
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
-                        ),
-                      ),
-                    ),
-                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
-                    _financeQuickCard(
-                      'Báo cáo doanh thu',
-                      Icons.trending_up,
-                      Colors.blue,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RevenueView()),
-                      ),
-                    ),
-                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries &&
-                      (hasFullAccess || _permissions['allowViewDebts'] == true))
-                    _financeQuickCard(
-                      'Quản lý công nợ',
-                      Icons.account_balance,
-                      Colors.orange,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(builder: (_) => const DebtView()),
-                      ),
-                    ),
-                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
-                    _financeQuickCard(
-                      'Lịch sử tài chính',
-                      Icons.receipt_long,
-                      Colors.indigo,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const CashClosingView(showOnlyTransactions: true),
-                        ),
-                      ),
-                    ),
-                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
-                    _financeQuickCard(
-                      'Nhật ký hệ thống',
-                      Icons.history,
-                      Colors.purple,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AuditLogView()),
-                      ),
-                    ),
-                  if (FinanceV2FeatureFlag.showLegacyFinanceEntries)
-                    _financeQuickCard(
-                      'Lợi nhuận theo tháng',
-                      Icons.bar_chart,
-                      Colors.teal,
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const MonthlyProfitReportView(),
-                        ),
-                      ),
-                    ),
-                  if (hasFullAccess || _permissions['allowViewRevenue'] == true)
-                    _financeQuickCard(
-                      'Báo cáo hoạt động',
-                      Icons.summarize,
-                      const Color(0xFF1565C0),
-                      () => _pushRoute(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const DailyActivityReportView(),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return finance_v2.FinanceV2View();
   }
 
   /// Card nhỏ cho Finance Quick Actions
@@ -9404,7 +9549,9 @@ class _HomeViewState extends State<HomeView>
           borderRadius: BorderRadius.circular(14),
           onTap: () => _pushRoute(
             context,
-            MaterialPageRoute(builder: (_) => const DailyActivityReportView()),
+            MaterialPageRoute(
+              builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -9421,7 +9568,7 @@ class _HomeViewState extends State<HomeView>
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'HOẠT ĐỘNG HÔM NAY',
+                        'BÁO CÁO NGÀY',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFF1565C0),

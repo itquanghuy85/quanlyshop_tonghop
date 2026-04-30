@@ -8,6 +8,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
@@ -38,6 +41,7 @@ class ShopSettingsView extends StatefulWidget {
 
 class _ShopSettingsViewState extends State<ShopSettingsView> {
   final _formKey = GlobalKey<FormState>();
+  bool _isDisposing = false;
   bool _loading = true;
   bool _saving = false;
 
@@ -76,6 +80,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
 
   @override
   void dispose() {
+    _isDisposing = true;
     _nameController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
@@ -85,7 +90,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
   }
 
   void _safeSetState(VoidCallback fn) {
-    if (!mounted) return;
+    if (!mounted || _isDisposing) return;
     setState(fn);
   }
 
@@ -577,15 +582,148 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 92,
-      maxWidth: 2600,
+      maxWidth: 3200,
     );
 
     if (pickedFile != null) {
+      final cropped = await _cropShopCoverToDisplay(File(pickedFile.path));
+      if (cropped == null) return;
       _safeSetState(() {
-        _selectedCover = File(pickedFile.path);
+        _selectedCover = cropped;
         _shopCoverAlignX = 0;
         _shopCoverAlignY = 0;
       });
+    }
+  }
+
+  Future<File?> _cropShopCoverToDisplay(File sourceFile) async {
+    try {
+      final bytes = await sourceFile.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) {
+        NotificationService.showSnackBar(
+          'Không đọc được ảnh đã chọn',
+          color: Colors.red,
+        );
+        return null;
+      }
+
+      const targetAspect = 16 / 9;
+      final imageAspect = decoded.width / decoded.height;
+      double cropTopFactor = 0.5;
+      double cropZoom = 1.0;
+
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return AlertDialog(
+                title: const Text('Crop ảnh bìa shop (16:9)'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AspectRatio(
+                      aspectRatio: targetAspect,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(sourceFile, fit: BoxFit.cover),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      imageAspect > targetAspect
+                          ? 'Ảnh rộng, sẽ crop ngang ở giữa.'
+                          : 'Ảnh cao, kéo thanh để chọn vùng crop.',
+                      style: AppTextStyles.caption,
+                    ),
+                    if (imageAspect <= targetAspect) ...[
+                      const SizedBox(height: 8),
+                      Slider(
+                        value: cropTopFactor,
+                        onChanged: (v) {
+                          setDialogState(() => cropTopFactor = v);
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    const Text('Phóng to vùng crop'),
+                    Slider(
+                      value: cropZoom,
+                      min: 1,
+                      max: 4,
+                      divisions: 30,
+                      onChanged: (v) {
+                        setDialogState(() => cropZoom = v);
+                      },
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Hủy'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Dùng ảnh này'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      if (accepted != true) return null;
+
+      int cropX = 0;
+      int cropY = 0;
+      int cropW = decoded.width;
+      int cropH = decoded.height;
+
+      if (imageAspect > targetAspect) {
+        final baseH = decoded.height;
+        final zoomedH = (baseH / cropZoom).round().clamp(1, decoded.height);
+        cropH = zoomedH;
+        cropW = (cropH * targetAspect).round().clamp(1, decoded.width);
+        cropX = ((decoded.width - cropW) / 2).round();
+        cropY = ((decoded.height - cropH) / 2).round();
+      } else {
+        cropW = (decoded.width / cropZoom).round().clamp(1, decoded.width);
+        cropH = (cropW / targetAspect).round();
+        if (cropH > decoded.height) {
+          cropH = decoded.height;
+          cropW = (cropH * targetAspect).round().clamp(1, decoded.width);
+        }
+        final maxTop = (decoded.height - cropH).clamp(0, decoded.height);
+        cropY = (maxTop * cropTopFactor).round();
+        cropX = ((decoded.width - cropW) / 2).round();
+      }
+
+      final cropped = img.copyCrop(
+        decoded,
+        x: cropX,
+        y: cropY,
+        width: cropW,
+        height: cropH,
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final outPath = p.join(
+        tempDir.path,
+        'shop_cover_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+      final outFile = File(outPath);
+      await outFile.writeAsBytes(img.encodeJpg(cropped, quality: 92), flush: true);
+      return outFile;
+    } catch (e) {
+      NotificationService.showSnackBar(
+        'Không thể crop ảnh bìa: $e',
+        color: Colors.red,
+      );
+      return null;
     }
   }
 
@@ -622,8 +760,49 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       String logoUrl = _shopLogoUrl;
       String coverUrl = _shopCoverUrl;
 
+      // Upload song song logo + cover khi cùng thay đổi để giảm thời gian chờ lưu.
+      if (_selectedLogo != null && _selectedCover != null) {
+        NotificationService.showSnackBar(
+          'Đang tải logo và ảnh bìa lên hệ thống...',
+          color: Colors.blue,
+          duration: const Duration(seconds: 7),
+        );
+        final uploadResults = await Future.wait<List<String>>([
+          StorageService.uploadMultipleImages([
+            _selectedLogo!.path,
+          ], 'shop_logos'),
+          StorageService.uploadMultipleImages([
+            _selectedCover!.path,
+          ], 'shop_logos'),
+        ]);
+
+        final logoUrls = uploadResults[0];
+        final coverUrls = uploadResults[1];
+        if (logoUrls.isNotEmpty) logoUrl = logoUrls.first;
+        if (coverUrls.isNotEmpty) coverUrl = coverUrls.first;
+
+        if (logoUrls.isEmpty || coverUrls.isEmpty) {
+          final denied = StorageService.lastUploadPermissionDenied ||
+              (StorageService.lastUploadErrorMessage ?? '')
+                  .toLowerCase()
+                  .contains('unauthorized') ||
+              (StorageService.lastUploadErrorMessage ?? '')
+                  .toLowerCase()
+                  .contains('permission');
+          if (mounted) {
+            NotificationService.showSnackBar(
+              denied
+                  ? 'Không có quyền tải ảnh lên (lỗi 403). Kiểm tra cấu hình Firebase.'
+                  : 'Một phần ảnh tải lên thất bại. Vui lòng kiểm tra mạng và thử lại.',
+              color: Colors.red,
+              duration: const Duration(seconds: 6),
+            );
+          }
+        }
+      }
+
       // Upload logo if selected
-      if (_selectedLogo != null) {
+      if (_selectedLogo != null && _selectedCover == null) {
         NotificationService.showSnackBar(
           'Đang tải logo lên hệ thống, vui lòng không thoát ứng dụng.',
           color: Colors.blue,
@@ -651,7 +830,7 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
       }
 
       // Upload cover if selected
-      if (_selectedCover != null) {
+      if (_selectedCover != null && _selectedLogo == null) {
         NotificationService.showSnackBar(
           'Đang tải ảnh bìa shop lên hệ thống...',
           color: Colors.blue,

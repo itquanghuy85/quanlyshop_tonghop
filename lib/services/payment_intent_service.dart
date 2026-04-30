@@ -829,6 +829,26 @@ class PaymentIntentService {
             'shopId': UserService.getShopIdSync(),
             'isSynced': 0,
           });
+
+          // Mirror to expenses so Finance V2/V1 expense reports always include
+          // direct partner-service payouts from repair detail.
+          await _db.insertExpense({
+            'firestoreId': 'exp_partner_${intent.id}',
+            'amount': intent.amount,
+            'title': intent.description,
+            'description': intent.description,
+            'note': intent.notes,
+            'paymentMethod': paymentMethod.code,
+            'date': now,
+            'createdAt': now,
+            'createdBy': intent.paidBy,
+            'category': 'ĐỐI TÁC SỬA CHỮA',
+            'type': 'CHI',
+            'scope': 'SHOP',
+            'relatedPartId': partnerId.toString(),
+            'shopId': UserService.getShopIdSync(),
+            'isSynced': 0,
+          });
         }
         break;
 
