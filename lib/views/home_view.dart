@@ -3298,6 +3298,7 @@ class _HomeViewState extends State<HomeView>
       return [
         _buildTodayActivityDashboardCard(),
         _buildChatCard(),
+        _buildHomeCommunityQuickCard(),
         _buildUnifiedShortcuts(),
         _buildAlerts(),
         _buildUserGuideShortcut(),
@@ -3432,6 +3433,8 @@ class _HomeViewState extends State<HomeView>
           break;
       }
     }
+
+    widgets.add(_buildHomeCommunityQuickCard());
 
     return widgets;
   }
@@ -4202,7 +4205,6 @@ class _HomeViewState extends State<HomeView>
               ),
             ),
           ),
-        _buildHomeCommunityQuickCard(),
       ],
     );
   }
@@ -4241,7 +4243,7 @@ class _HomeViewState extends State<HomeView>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'CỘNG ĐỒNG NHANH',
+                          'CỘNG ĐỒNG',
                           style: AppTextStyles.body2.copyWith(
                             color: Colors.pink.shade700,
                             fontWeight: FontWeight.bold,

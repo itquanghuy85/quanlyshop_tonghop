@@ -1039,8 +1039,6 @@ class _CashClosingViewState extends State<CashClosingView>
           const SizedBox(height: 16),
           _buildOpeningBalanceCard(openingCash, openingBank),
           const SizedBox(height: 16),
-          _buildIncomeExpenseChart(totalIncome, totalExpense, analysis),
-          const SizedBox(height: 16),
           _buildSectionCard(
             "SỐ DƯ DỰ KIẾN CUỐI NGÀY",
             Icons.savings,
@@ -3071,8 +3069,6 @@ class _CashClosingViewState extends State<CashClosingView>
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _buildHistoryChart(closings.take(7).toList()),
-            const SizedBox(height: 16),
             Text(
               "LỊCH SỬ CHỐT QUỸ",
               style: TextStyle(
@@ -3491,6 +3487,55 @@ class _CashClosingViewState extends State<CashClosingView>
 
   Future<void> _saveClosing() async {
     try {
+      final isToday = _isSameDay(
+        DateTime.now().millisecondsSinceEpoch,
+        _selectedDate,
+      );
+      if (!isToday) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("❌ Chỉ được chốt quỹ cho ngày hôm nay"),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      if (_todayClosing != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("⚠️ Ngày hôm nay đã chốt quỹ, không thể chốt lại"),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      final analysis = _analyzeTransactions(_selectedDate);
+      final openingCash = _previousDayClosing?['cashEnd'] as int? ?? 0;
+      final openingBank = _previousDayClosing?['bankEnd'] as int? ?? 0;
+      final expectedCash = openingCash + analysis.cashIn - analysis.cashOut;
+      final expectedBank = openingBank + analysis.bankIn - analysis.bankOut;
+      final actualCash = int.tryParse(cashEndCtrl.text) ?? 0;
+      final actualBank = int.tryParse(bankEndCtrl.text) ?? 0;
+      final hasDiff =
+          actualCash != expectedCash || actualBank != expectedBank;
+      if (hasDiff && noteCtrl.text.trim().isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("⚠️ Vui lòng nhập ghi chú khi có chênh lệch"),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
       final dateKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
       final now = DateTime.now().millisecondsSinceEpoch;
       final closedBy = FirebaseAuth.instance.currentUser?.email ?? 'unknown';
@@ -3499,8 +3544,8 @@ class _CashClosingViewState extends State<CashClosingView>
       final shopId = await UserService.getCurrentShopId();
       final localData = {
         'dateKey': dateKey,
-        'cashEnd': int.tryParse(cashEndCtrl.text) ?? 0,
-        'bankEnd': int.tryParse(bankEndCtrl.text) ?? 0,
+        'cashEnd': actualCash,
+        'bankEnd': actualBank,
         'note': noteCtrl.text.trim(),
         'createdAt': now,
         'closedAt': now,
@@ -3549,11 +3594,11 @@ class _CashClosingViewState extends State<CashClosingView>
           entityType: 'CASH_CLOSING',
           entityId: 'closing_${shopId ?? 'local'}_$dateKey',
           summary:
-              'Chốt quỹ ngày $dateKey - Tồn quỹ: ${MoneyUtils.formatCurrency(int.tryParse(cashEndCtrl.text) ?? 0)}đ',
+              'Chốt quỹ ngày $dateKey - Tồn quỹ: ${MoneyUtils.formatCurrency(actualCash)}đ',
           payload: {
             'dateKey': dateKey,
-            'cashEnd': int.tryParse(cashEndCtrl.text) ?? 0,
-            'bankEnd': int.tryParse(bankEndCtrl.text) ?? 0,
+            'cashEnd': actualCash,
+            'bankEnd': actualBank,
             'note': noteCtrl.text.trim(),
           },
         );
