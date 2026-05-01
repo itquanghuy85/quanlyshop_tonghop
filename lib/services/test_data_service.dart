@@ -288,6 +288,7 @@ class TestDataService {
         );
         final fsId = await FirestoreService.addProduct(p);
         p.firestoreId = fsId;
+        p.shopId = shopId; // Ensure shopId is set so inventory view can find it
         await _db.upsertProduct(p);
         final dbProduct = await _db.getProductByImei(p.imei ?? '');
         if (dbProduct != null) p.id = dbProduct.id;

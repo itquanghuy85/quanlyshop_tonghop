@@ -131,6 +131,10 @@ class FinanceV2Snapshot {
   final int previousTotalIn;
   final int previousTotalOut;
   final int previousNetCashflow;
+  final int previousCogsFromSales;
+  final int previousCogsFromRepairs;
+  final int previousGrossProfitFromSales;
+  final int previousGrossProfitFromRepairs;
   final List<FinanceV2MetricCard> dashboardCards;
   final List<FinanceV2CategoryStat> topExpenseCategories;
   final List<FinanceV2Txn> transactions;
@@ -163,6 +167,10 @@ class FinanceV2Snapshot {
     required this.previousTotalIn,
     required this.previousTotalOut,
     required this.previousNetCashflow,
+    required this.previousCogsFromSales,
+    required this.previousCogsFromRepairs,
+    required this.previousGrossProfitFromSales,
+    required this.previousGrossProfitFromRepairs,
     required this.dashboardCards,
     required this.topExpenseCategories,
     required this.transactions,
@@ -528,6 +536,8 @@ class FinanceV2DataService {
     int previousRepairIn = 0;
     int previousExtraIn = 0;
     int previousExpenseOut = 0;
+    int previousSaleCogs = 0;
+    int previousRepairCogs = 0;
 
     for (final SaleOrder sale in previousSales) {
       final bool isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
@@ -541,6 +551,14 @@ class FinanceV2DataService {
       }
       if (actualPaid > 0) {
         previousSaleIn += actualPaid;
+        if (sale.totalCost > 0) {
+          int recognizedCost = sale.finalPrice > 0
+              ? ((sale.totalCost * actualPaid) / sale.finalPrice).round()
+              : sale.totalCost;
+          if (recognizedCost < 0) recognizedCost = 0;
+          if (recognizedCost > actualPaid) recognizedCost = actualPaid;
+          previousSaleCogs += recognizedCost;
+        }
       }
     }
 
@@ -550,6 +568,7 @@ class FinanceV2DataService {
       }
       if (repair.price > 0) {
         previousRepairIn += repair.price;
+        previousRepairCogs += repair.totalCost > 0 ? repair.totalCost : 0;
       }
       final prevNonPartnerCost = repair.services
           .where((s) => s.partnerId == null)
@@ -644,6 +663,8 @@ class FinanceV2DataService {
     final previousTotalIn = previousSaleIn + previousRepairIn + previousExtraIn;
     final previousTotalOut = previousExpenseOut;
     final previousNetCashflow = previousTotalIn - previousTotalOut;
+    final previousGrossProfitFromSales = previousSaleIn - previousSaleCogs;
+    final previousGrossProfitFromRepairs = previousRepairIn - previousRepairCogs;
     final incomeTxCount = transactions.where((t) => t.isIncome).length;
     final avgIncomePerTransaction = incomeTxCount > 0 ? (totalIn ~/ incomeTxCount) : 0;
 
@@ -762,6 +783,10 @@ class FinanceV2DataService {
       previousTotalIn: previousTotalIn,
       previousTotalOut: previousTotalOut,
       previousNetCashflow: previousNetCashflow,
+      previousCogsFromSales: previousSaleCogs,
+      previousCogsFromRepairs: previousRepairCogs,
+      previousGrossProfitFromSales: previousGrossProfitFromSales,
+      previousGrossProfitFromRepairs: previousGrossProfitFromRepairs,
       dashboardCards: cards,
       topExpenseCategories: topExpenseCategories.take(4).toList(),
       transactions: transactions,

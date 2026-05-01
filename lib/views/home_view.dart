@@ -18,7 +18,7 @@ import '../l10n/app_localizations.dart';
 import '../services/event_bus.dart';
 import '../services/current_shop_service.dart';
 import 'order_list_view.dart';
-import 'revenue_view.dart';
+
 import 'monthly_profit_report_view.dart';
 import 'inventory_view.dart';
 import 'fast_inventory_input_view.dart';
@@ -115,7 +115,6 @@ import '../expansion/safe_mode/expansion_feature_flags.dart';
 import '../expansion/safe_mode/branch_service.dart';
 import 'expansion/branch/branch_selector_view.dart';
 import 'expansion/branch/branch_list_view.dart';
-import '../finance_v2/finance_v2_feature_flag.dart';
 import '../finance_v2/finance_v2_view.dart' as finance_v2;
 import '../finance_v2/finance_v2_daily_report_view.dart' as finance_v2_report;
 
@@ -5281,9 +5280,7 @@ class _HomeViewState extends State<HomeView>
             () => _pushRoute(
               context,
               MaterialPageRoute(
-                builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
-                    ? finance_v2.FinanceV2View()
-                    : const RevenueView(),
+                builder: (_) => finance_v2.FinanceV2View(),
               ),
             ),
           ),
@@ -6266,9 +6263,7 @@ class _HomeViewState extends State<HomeView>
                     onTap: () => _pushRoute(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
-                            ? finance_v2.FinanceV2View()
-                            : const RevenueView(),
+                        builder: (_) => finance_v2.FinanceV2View(),
                       ),
                     ),
                     borderRadius: BorderRadius.circular(10),
@@ -6603,9 +6598,7 @@ class _HomeViewState extends State<HomeView>
                   () => _pushRoute(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => FinanceV2FeatureFlag.showV2AsPrimary
-                          ? finance_v2.FinanceV2View()
-                          : const RevenueView(),
+                      builder: (_) => finance_v2.FinanceV2View(),
                     ),
                   ),
                 ),
@@ -8365,6 +8358,10 @@ class _HomeViewState extends State<HomeView>
                 ),
               ],
             ),
+
+            // Nút tạo data demo (chỉ hiện khi chưa có dữ liệu hoặc debug)
+            if (kDebugMode || _isSuperAdmin)
+              _buildTestDataButton(),
 
             // Đăng xuất nằm trong account card ở trên
           ],

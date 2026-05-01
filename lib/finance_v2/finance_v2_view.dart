@@ -265,6 +265,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     Text(val,style:TextStyle(fontSize:14,fontWeight:FontWeight.w700,color:c))]);
 
   String _cmp(int v) => MoneyUtils.formatCompactCurrency(v.abs());
+  String _signedCmp(int v) => v < 0 ? '-${MoneyUtils.formatCompactCurrency(v.abs())}' : MoneyUtils.formatCompactCurrency(v.abs());
   String _full(int v) => MoneyUtils.formatCurrency(v.abs());
   int _ti(dynamic v){ if(v is int) return v; if(v is num) return v.toInt(); if(v is String) return int.tryParse(v)??0; return 0; }
   String _ft(String t) => const<String,String>{'SALE':'Bán hàng','REPAIR':'Sửa chữa','EXPENSE':'Chi phí','INCOME':'Thu phát sinh','DEBT_COLLECT':'Thu nợ','DEBT_PAY':'Trả nợ','CUSTOMER_OWES':'Phải thu','SHOP_OWES':'Phải trả','AUDIT':'Nhật ký'}[t]??t;
@@ -310,7 +311,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
             Expanded(child:_kpi('Nợ phải trả',s.payableTotal,null,FinanceV2Theme.negative,Icons.store_mall_directory_rounded,()=>_goDebt(false))),
           ]),
         ])),
-        const SizedBox(height:12),_compSection(s),const SizedBox(height:12),_incomeSection(s),
+        const SizedBox(height:12),_compSection(s),const SizedBox(height:12),_profitSection(s),const SizedBox(height:12),_incomeSection(s),
         const SizedBox(height:12),_cfSection(s),const SizedBox(height:12),_debtSection(s),
         const SizedBox(height:12),_expCatSection(s),const SizedBox(height:12),_snapCard(s),
         const SizedBox(height:24),
@@ -324,7 +325,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Text('Dòng tiền ròng',style:TextStyle(color:Colors.white.withValues(alpha:0.8),fontSize:13)),
         const SizedBox(height:4),
-        Text(_cmp(s.netCashflow),style:TextStyle(color:s.netCashflow>=0?Colors.white:const Color(0xFFFFB3B0),fontSize:32,fontWeight:FontWeight.w700,letterSpacing:-0.5)),
+        Text(_signedCmp(s.netCashflow),style:TextStyle(color:s.netCashflow>=0?Colors.white:const Color(0xFFFFB3B0),fontSize:32,fontWeight:FontWeight.w700,letterSpacing:-0.5)),
         const SizedBox(height:12),
         SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
           _qc(Icons.remove_circle_outline_rounded,'Ghi chi',()=>_goExp('CHI')),const SizedBox(width:8),
@@ -379,13 +380,45 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         const SizedBox(height:10),
         Row(children:[Expanded(child:_cs('Thu tiền',s.totalIn,s.previousTotalIn)),Expanded(child:_cs('Chi tiền',s.totalOut,s.previousTotalOut)),Expanded(child:_cs('Ròng',s.netCashflow,s.previousNetCashflow,net:true))]),
         if(chg!=null)...[const SizedBox(height:8),Row(children:[Icon(chg>=0?Icons.trending_up_rounded:Icons.trending_down_rounded,size:14,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative),const SizedBox(width:4),Text('${chg>=0?"+":""}${chg.toStringAsFixed(1)}% so với $_compLabel',style:TextStyle(fontSize:11,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))])],
+        const Divider(height:20,thickness:0.5),
+        Row(children:[
+          Expanded(child:_cs('Vốn BH',s.cogsFromSales,s.previousCogsFromSales)),
+          Expanded(child:_cs('Vốn SC',s.cogsFromRepairs,s.previousCogsFromRepairs)),
+          Expanded(child:_cs('Vốn tổng',s.cogsFromSales+s.cogsFromRepairs,s.previousCogsFromSales+s.previousCogsFromRepairs)),
+        ]),
+        const SizedBox(height:8),
+        Row(children:[
+          Expanded(child:_cs('Lãi BH',s.grossProfitFromSales,s.previousGrossProfitFromSales,net:true)),
+          Expanded(child:_cs('Lãi SC',s.grossProfitFromRepairs,s.previousGrossProfitFromRepairs,net:true)),
+          Expanded(child:_cs('Lãi tổng',s.grossProfitTotal,s.previousGrossProfitFromSales+s.previousGrossProfitFromRepairs,net:true)),
+        ]),
       ])));
   }
 
   Widget _cs(String lbl,int cur,int prev,{bool net=false}) {
     final chg=prev>0?((cur-prev)/prev*100.0):null;
     final tc=net?(cur>=0?FinanceV2Theme.positive:FinanceV2Theme.negative):FinanceV2Theme.ink;
-    return Column(children:[Text(lbl,style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk)),const SizedBox(height:2),Text(_cmp(cur),style:TextStyle(fontSize:13,fontWeight:FontWeight.w700,color:tc)),if(chg!=null) Text('${chg>=0?"+":""}${chg.toStringAsFixed(0)}%',style:TextStyle(fontSize:10,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative)) else const Text('-',style:TextStyle(fontSize:10,color:FinanceV2Theme.subInk))]);
+    return Column(children:[Text(lbl,style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk)),const SizedBox(height:2),Text(net?_signedCmp(cur):_cmp(cur),style:TextStyle(fontSize:13,fontWeight:FontWeight.w700,color:tc)),if(chg!=null) Text('${chg>=0?"+":""}${chg.toStringAsFixed(0)}%',style:TextStyle(fontSize:10,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative)) else const Text('-',style:TextStyle(fontSize:10,color:FinanceV2Theme.subInk))]);
+  }
+
+  Widget _profitSection(FinanceV2Snapshot s) {
+    return Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Container(
+      decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('Vốn & Lãi',style:TextStyle(fontWeight:FontWeight.w600,fontSize:13,color:FinanceV2Theme.ink)),
+        const SizedBox(height:10),
+        Row(children:[
+          Expanded(child:_kpi('Vốn BH',s.cogsFromSales,s.previousCogsFromSales>0?s.previousCogsFromSales:null,const Color(0xFF1565C0),Icons.shopping_bag_outlined,null)),
+          const SizedBox(width:8),
+          Expanded(child:_kpi('Vốn SC',s.cogsFromRepairs,s.previousCogsFromRepairs>0?s.previousCogsFromRepairs:null,const Color(0xFF2E7D32),Icons.build_outlined,null)),
+        ]),
+        const SizedBox(height:8),
+        Row(children:[
+          Expanded(child:_kpi('Lãi BH',s.grossProfitFromSales,s.previousGrossProfitFromSales!=0?s.previousGrossProfitFromSales:null,s.grossProfitFromSales>=0?FinanceV2Theme.positive:FinanceV2Theme.negative,Icons.trending_up_rounded,null)),
+          const SizedBox(width:8),
+          Expanded(child:_kpi('Lãi SC',s.grossProfitFromRepairs,s.previousGrossProfitFromRepairs!=0?s.previousGrossProfitFromRepairs:null,s.grossProfitFromRepairs>=0?FinanceV2Theme.positive:FinanceV2Theme.negative,Icons.trending_up_rounded,null)),
+        ]),
+      ])));
   }
 
   Widget _incomeSection(FinanceV2Snapshot s) {

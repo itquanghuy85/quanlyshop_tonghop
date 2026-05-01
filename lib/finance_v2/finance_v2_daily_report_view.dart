@@ -412,7 +412,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       ['TỔNG QUAN'],
       ['Doanh thu vào', MoneyUtils.formatVND(s.totalIn)],
       ['Chi phí ra', MoneyUtils.formatVND(s.totalOut)],
-      ['Ròng', MoneyUtils.formatVND(s.totalIn - s.totalOut)],
+      ['Ròng sổ quỹ', MoneyUtils.formatVND(s.totalIn - s.totalOut)],
+      ['Lợi nhuận thực', MoneyUtils.formatVND(s.grossProfitTotal - s.operatingExpenseOut)],
       ['Số giao dịch', s.transactionCount.toString()],
       ['Doanh thu bán hàng', MoneyUtils.formatVND(s.incomeFromSales)],
       ['Doanh thu sửa chữa', MoneyUtils.formatVND(s.incomeFromRepairs)],
@@ -568,7 +569,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     lines.writeln('[C][B]--- TONG QUAN ---');
     lines.writeln('Doanh thu:  ${MoneyUtils.formatCompactCurrency(s.totalIn)}d');
     lines.writeln('Chi phi:    ${MoneyUtils.formatCompactCurrency(s.totalOut)}d');
-    lines.writeln('Loi nhuan:  ${MoneyUtils.formatCompactCurrency(s.netCashflow)}d');
+    lines.writeln('Rong so quy:  ${MoneyUtils.formatCompactCurrency(s.netCashflow)}d');
+    lines.writeln('Loi nhuan thuc:  ${MoneyUtils.formatCompactCurrency(s.grossProfitTotal - s.operatingExpenseOut)}d');
     lines.writeln('Giao dich:  ${s.transactionCount}');
     lines.writeln('');
 
@@ -723,7 +725,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
 
     lines.writeln('[C]================================');
-    lines.writeln('[C][B]LOI NHUAN: ${MoneyUtils.formatCompactCurrency(s.netCashflow)}d');
+    lines.writeln('[C][B]RONG SO QUY: ${MoneyUtils.formatCompactCurrency(s.netCashflow)}d');
+    lines.writeln('[C][B]LOI NHUAN THUC: ${MoneyUtils.formatCompactCurrency(s.grossProfitTotal - s.operatingExpenseOut)}d');
     lines.writeln('[C]================================');
     lines.writeln('');
     lines.writeln('[C]In luc ${DateFormat('HH:mm dd/MM/yyyy').format(DateTime.now())}');
@@ -746,7 +749,10 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
 
   @override
   Widget build(BuildContext context) {
-    final net = _snapshot?.totalIn == null ? 0 : _snapshot!.totalIn - _snapshot!.totalOut;
+    final netCashflow = _snapshot?.netCashflow ?? 0;
+    final realProfit = _snapshot == null
+        ? 0
+        : (_snapshot!.grossProfitTotal - _snapshot!.operatingExpenseOut);
 
     final body = _loading
         ? const Center(child: CircularProgressIndicator())
@@ -766,7 +772,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                     const SizedBox(height: 8),
                     _buildDateSelector(context),
                     const SizedBox(height: 16),
-                    _buildSummaryCards(context, net),
+                    _buildSummaryCards(context, netCashflow, realProfit),
                     const SizedBox(height: 16),
                     _buildCapitalAndGrossProfit(context),
                     _buildStaffSummary(context),
@@ -1056,7 +1062,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           _metricRow(context, 'Thu khác', _snapshot!.incomeOther, Colors.blue),
           _metricRow(context, 'Tổng thu', _snapshot!.totalIn, Colors.indigo),
           _metricRow(context, 'Tổng chi', _snapshot!.totalOut, Colors.red),
-          _metricRow(context, 'Dòng tiền ròng', _snapshot!.netCashflow, _snapshot!.netCashflow >= 0 ? Colors.green : Colors.orange),
+          _metricRow(context, 'Dòng tiền ròng (sổ quỹ)', _snapshot!.netCashflow, _snapshot!.netCashflow >= 0 ? Colors.green : Colors.orange),
+          _metricRow(context, 'Lợi nhuận thực (lãi gộp - chi vận hành)', _snapshot!.grossProfitTotal - _snapshot!.operatingExpenseOut, (_snapshot!.grossProfitTotal - _snapshot!.operatingExpenseOut) >= 0 ? Colors.green : Colors.red),
           _metricRow(context, 'Doanh thu/GD vào (TB)', _snapshot!.avgIncomePerTransaction, Colors.deepPurple),
         ],
       ),
@@ -1151,30 +1158,50 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     );
   }
 
-  Widget _buildSummaryCards(BuildContext context, int net) {
+  Widget _buildSummaryCards(
+    BuildContext context,
+    int netCashflow,
+    int realProfit,
+  ) {
+    final netDelta = netCashflow - _snapshot!.previousNetCashflow;
+    final netDeltaPrefix = netDelta >= 0 ? '+' : '-';
+    final netDeltaText =
+        '$netDeltaPrefix${MoneyUtils.formatCompactCurrency(netDelta.abs())}';
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
           _buildStatCard(
             context: context,
-            label: 'Doanh thu',
+            label: 'Tiền vào',
             value: MoneyUtils.formatCompactCurrency(_snapshot!.totalIn),
             color: Colors.green,
           ),
           const SizedBox(width: 12),
           _buildStatCard(
             context: context,
-            label: 'Chi phí',
+            label: 'Tiền ra',
             value: MoneyUtils.formatCompactCurrency(_snapshot!.totalOut),
             color: Colors.red,
           ),
           const SizedBox(width: 12),
           _buildStatCard(
             context: context,
-            label: 'Ròng',
-            value: MoneyUtils.formatCompactCurrency(net),
-            color: net >= 0 ? Colors.blue : Colors.orange,
+            label: 'Ròng sổ quỹ',
+            value: MoneyUtils.formatCompactCurrency(netCashflow),
+            color: netCashflow >= 0 ? Colors.blue : Colors.orange,
+            footerText: 'So với kỳ trước: $netDeltaText',
+            footerColor: netDelta >= 0 ? Colors.green[700] : Colors.red[700],
+          ),
+          const SizedBox(width: 12),
+          _buildStatCard(
+            context: context,
+            label: 'Lợi nhuận thực',
+            value: MoneyUtils.formatCompactCurrency(realProfit),
+            color: realProfit >= 0 ? Colors.green : Colors.red,
+            footerText: 'Lãi gộp - chi vận hành',
+            footerColor: Colors.grey[700],
           ),
           const SizedBox(width: 12),
           _buildStatCard(
@@ -1193,6 +1220,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     required String label,
     required String value,
     required Color color,
+    String? footerText,
+    Color? footerColor,
   }) {
     return Container(
       width: 140,
@@ -1233,6 +1262,18 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                   ),
             ),
           ),
+          if (footerText != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              footerText,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: footerColor ?? Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ],
         ],
       ),
     );

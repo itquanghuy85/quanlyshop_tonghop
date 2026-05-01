@@ -2089,6 +2089,21 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                 onPressed: () async {
                   CurrencyTextField.finalizeAll();
                   if (!(formKey.currentState?.validate() ?? false)) return;
+
+                  // Công nợ NCC bắt buộc phải có NCC rõ ràng để không rơi vào debt mồ côi.
+                    final effectiveSupplierForDebt = selectedSupplierId;
+                  if (paymentMethod == 'CÔNG NỢ' &&
+                      effectiveSupplierForDebt == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Vui lòng chọn nhà cung cấp khi nhập công nợ.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
                   try {
                     final now = DateTime.now().millisecondsSinceEpoch;
                     final partName = nameC.text.toUpperCase();
@@ -3502,19 +3517,21 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       if (paymentMethod == 'CÔNG NỢ') {
                         // Công nợ NCC
                         final debtFId =
-                            'debt_part_${now}_${selectedSupplierId ?? 0}';
+                            'debt_part_${now}_${effectiveSupplierId ?? 0}';
                         final debtData = {
                           'firestoreId': debtFId,
-                          'personName': supplierName,
+                          'personName': effectiveSupplierName,
                           'phone': '',
                           'totalAmount': totalCost,
                           'paidAmount': 0,
                           'type': 'SHOP_OWES',
+                          'debtType': 'SHOP_OWES',
                           'status': 'ACTIVE',
                           'createdAt': now,
                           'note':
                               'Nhập thêm ${_terms.category3}: $partName x$addQty',
                           'linkedId': null,
+                          'relatedPartId': partFirestoreId,
                           'isSynced': 0,
                           'shopId': shopId,
                         };
