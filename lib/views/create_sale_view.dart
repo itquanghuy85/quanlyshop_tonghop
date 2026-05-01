@@ -2081,7 +2081,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 ),
               ),
               Text(
-                "${_formatCurrency(_finalPrice)} Đ",
+                MoneyUtils.formatCompactCurrency(_finalPrice),
                 style: AppTextStyles.body1.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.green.shade700,
@@ -2201,7 +2201,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  "TỔNG: ${MoneyUtils.formatCurrency(total)}",
+                                  'TỔNG: ${MoneyUtils.formatCompactCurrency(total)}',
                                   style: AppTextStyles.caption.copyWith(
                                     fontWeight: FontWeight.bold,
                                     color: diff == 0
@@ -2213,8 +2213,8 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                                 if (diff != 0)
                                   Text(
                                     diff > 0
-                                        ? "(Dư ${MoneyUtils.formatCurrency(diff)})"
-                                        : "(Thiếu ${MoneyUtils.formatCurrency(-diff)})",
+                                        ? '(Dư ${MoneyUtils.formatCompactCurrency(diff)})'
+                                        : '(Thiếu ${MoneyUtils.formatCompactCurrency(-diff)})',
                                     style: AppTextStyles.caption.copyWith(
                                       color: Colors.red.shade700,
                                       fontSize: 13,
@@ -2596,7 +2596,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 ),
               ),
               Text(
-                "${_formatCurrency(_finalPrice)} Đ",
+                MoneyUtils.formatCompactCurrency(_finalPrice),
                 style: AppTextStyles.headline6.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Colors.green.shade700,

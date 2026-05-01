@@ -225,6 +225,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       : DateFormat(
           'dd/MM/yyyy',
         ).format(DateTime.fromMillisecondsSinceEpoch(ms));
+  String _money(int amount) => MoneyUtils.formatCompactCurrency(amount);
 
   Future<void> _unlockManager() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -1287,7 +1288,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                     icon: const Icon(Icons.account_balance_wallet_outlined),
                     label: Text(
                       s.settlementReceivedAt != null
-                          ? "CẬP NHẬT TẤT TOÁN (còn ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2 - s.settlementAmount)} đ)"
+                          ? "CẬP NHẬT TẤT TOÁN (còn ${_money(s.loanAmount + s.loanAmount2 - s.settlementAmount)})"
                           : "NHẬN TIỀN TỪ NGÂN HÀNG",
                     ),
                   ),
@@ -1327,8 +1328,8 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                           children: [
                             Text(
                               _allItemsReturned
-                                  ? 'ĐÃ TRẢ TOÀN BỘ — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ'
-                                  : 'ĐÃ TRẢ 1 PHẦN — ${MoneyUtils.formatCurrency(_totalReturnedAmount)}đ (${_allReturns.length} lần)',
+                                  ? 'ĐÃ TRẢ TOÀN BỘ — ${_money(_totalReturnedAmount)}'
+                                  : 'ĐÃ TRẢ 1 PHẦN — ${_money(_totalReturnedAmount)} (${_allReturns.length} lần)',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
@@ -1339,7 +1340,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                             ),
                             ..._allReturns.map(
                               (r) => Text(
-                                '${r.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.returnDate))} • ${MoneyUtils.formatCurrency(r.totalReturnAmount)}đ${r.note != null && r.note!.isNotEmpty ? ' • ${r.note}' : ''}',
+                                '${r.refundMethod} • ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(r.returnDate))} • ${_money(r.totalReturnAmount)}${r.note != null && r.note!.isNotEmpty ? ' • ${r.note}' : ''}',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: _allItemsReturned
@@ -1370,12 +1371,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                     (s.cashAmount > 0 || s.transferAmount > 0)) ...[
                   _item(
                     "💵 Tiền mặt",
-                    "${MoneyUtils.formatCurrency(s.cashAmount)} Đ",
+                    _money(s.cashAmount),
                     color: Colors.green,
                   ),
                   _item(
                     "🏦 Chuyển khoản",
-                    "${MoneyUtils.formatCurrency(s.transferAmount)} Đ",
+                    _money(s.transferAmount),
                     color: Colors.blue,
                   ),
                 ],
@@ -1384,23 +1385,23 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 if (s.discount > 0)
                   _item(
                     "Giảm giá",
-                    "-${MoneyUtils.formatCurrency(s.discount)} Đ",
+                    '-${_money(s.discount)}',
                     color: Colors.orange,
                   ),
                 _item(
                   "Tổng tiền",
-                  "${MoneyUtils.formatCurrency(s.finalPrice)} Đ",
+                  _money(s.finalPrice),
                   color: Colors.red,
                 ),
                 if (_canViewCostPrice && s.totalCost > 0) ...[
                   _item(
                     "Giá vốn",
-                    "${MoneyUtils.formatCurrency(s.totalCost)} Đ",
+                    _money(s.totalCost),
                     color: Colors.orange.shade700,
                   ),
                   _item(
                     "Lợi nhuận",
-                    "${s.finalPrice - s.totalCost >= 0 ? '+' : ''}${MoneyUtils.formatCurrency(s.finalPrice - s.totalCost)} Đ",
+                    '${s.finalPrice - s.totalCost >= 0 ? '+' : ''}${_money(s.finalPrice - s.totalCost)}',
                     color: s.finalPrice - s.totalCost >= 0
                         ? Colors.green.shade700
                         : Colors.red,
@@ -1411,23 +1412,23 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 _card("TRẢ GÓP - NGÂN HÀNG", [
                   _item(
                     "Down payment",
-                    "${MoneyUtils.formatCurrency(s.downPayment)} đ",
+                    _money(s.downPayment),
                   ),
                   _item("NH 1 giải ngân", s.bankName ?? "---"),
                   _item(
                     "Số tiền NH 1",
-                    "${MoneyUtils.formatCurrency(s.loanAmount)} đ",
+                    _money(s.loanAmount),
                   ),
                   if (s.bankName2 != null && s.bankName2!.isNotEmpty) ...[
                     _item("NH 2 giải ngân", s.bankName2!),
                     _item(
                       "Số tiền NH 2",
-                      "${MoneyUtils.formatCurrency(s.loanAmount2)} đ",
+                      _money(s.loanAmount2),
                     ),
                   ],
                   _item(
                     "Tổng vay NH",
-                    "${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
+                    _money(s.loanAmount + s.loanAmount2),
                   ),
                   _item("Ngày dự kiến", _fmtShort(s.settlementPlannedAt)),
                   _item("Mã hồ sơ", s.settlementCode ?? "---"),
@@ -1438,12 +1439,12 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                         ? "Chưa nhận"
                         : s.settlementAmount >= s.loanAmount + s.loanAmount2
                         ? "Đã nhận đủ ${_fmtShort(s.settlementReceivedAt)}"
-                        : "Đã nhận ${MoneyUtils.formatCurrency(s.settlementAmount)} đ / ${MoneyUtils.formatCurrency(s.loanAmount + s.loanAmount2)} đ",
+                        : 'Đã nhận ${_money(s.settlementAmount)} / ${_money(s.loanAmount + s.loanAmount2)}',
                   ),
                   if (s.settlementFee > 0)
                     _item(
                       "Phí NH",
-                      "${MoneyUtils.formatCurrency(s.settlementFee)} đ",
+                      _money(s.settlementFee),
                       color: Colors.orange,
                     ),
                 ]),

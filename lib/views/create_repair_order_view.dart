@@ -877,6 +877,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
         editService.partnerId == null) {
       selectedPartner = null;
     }
+    final partnerSearchCtrl = TextEditingController();
     
     // Thêm payment method đồng bộ với repair_detail_view
     String? selectedPaymentMethod = editService?.paymentMethod ?? 'TIỀN MẶT';
@@ -885,50 +886,91 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => AlertDialog(
-          title: Text(editService != null ? loc.editService : loc.addServiceTitle),
-          content: Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: serviceCtrl,
-                    decoration: InputDecoration(labelText: loc.serviceName),
-                    textCapitalization: TextCapitalization.characters,
-                    validator: (v) => (v ?? '').trim().isEmpty
-                        ? loc.pleaseEnterServiceName
-                        : null,
-                  ),
-                  const SizedBox(height: 10),
-                  if (_canViewCostPrice)
-                    CurrencyTextField(
-                      controller: costCtrl,
-                      label: loc.costVND,
-                      validator: (v) => MoneyUtils.validateAmount(
-                        v ?? '',
-                        min: 1,
-                        fieldName: loc.costVND,
-                      ),
+        builder: (ctx, setS) {
+          final query = partnerSearchCtrl.text.trim();
+          final filteredPartners = _partners.where((p) {
+            if (query.isEmpty) return true;
+            return VietnameseUtils.containsVietnamese(p.name, query) ||
+                (p.phone?.contains(query) ?? false);
+          }).toList();
+          if (selectedPartner != null &&
+              !filteredPartners.any((p) => p.id == selectedPartner?.id)) {
+            filteredPartners.insert(0, selectedPartner!);
+          }
+
+          return AlertDialog(
+            title: Text(editService != null ? loc.editService : loc.addServiceTitle),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: serviceCtrl,
+                      decoration: InputDecoration(labelText: loc.serviceName),
+                      textCapitalization: TextCapitalization.characters,
+                      validator: (v) => (v ?? '').trim().isEmpty
+                          ? loc.pleaseEnterServiceName
+                          : null,
                     ),
-                  const SizedBox(height: 10),
-                  DropdownButtonFormField<RepairPartner>(
-                    decoration: InputDecoration(
-                      labelText: loc.partnerOptional,
+                    const SizedBox(height: 10),
+                    if (_canViewCostPrice)
+                      CurrencyTextField(
+                        controller: costCtrl,
+                        label: loc.costVND,
+                        validator: (v) => MoneyUtils.validateAmount(
+                          v ?? '',
+                          min: 1,
+                          fieldName: loc.costVND,
+                        ),
+                      ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: partnerSearchCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Tìm đối tác',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: query.isEmpty
+                            ? null
+                            : IconButton(
+                                onPressed: () {
+                                  partnerSearchCtrl.clear();
+                                  setS(() {});
+                                },
+                                icon: const Icon(Icons.close),
+                              ),
+                      ),
+                      onChanged: (_) => setS(() {}),
                     ),
-                    value: selectedPartner,
-                    items: [
-                      DropdownMenuItem(
-                        value: null,
-                        child: Text(loc.noPartner),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<RepairPartner>(
+                      decoration: InputDecoration(
+                        labelText: loc.partnerOptional,
+                        helperText: filteredPartners.isEmpty
+                            ? 'Không tìm thấy đối tác phù hợp'
+                            : '${filteredPartners.length} đối tác',
                       ),
-                      ..._partners.map(
-                        (p) => DropdownMenuItem(value: p, child: Text(p.name)),
-                      ),
-                    ],
-                    onChanged: (p) => setS(() => selectedPartner = p),
-                  ),
+                      value: selectedPartner,
+                      items: [
+                        DropdownMenuItem(
+                          value: null,
+                          child: Text(loc.noPartner),
+                        ),
+                        ...filteredPartners.map(
+                          (p) => DropdownMenuItem(
+                            value: p,
+                            child: Text(
+                              p.phone != null && p.phone!.isNotEmpty
+                                  ? '${p.name} • ${p.phone}'
+                                  : p.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (p) => setS(() => selectedPartner = p),
+                    ),
                   // Phương thức thanh toán (chỉ hiện khi có đối tác) - đồng bộ với repair_detail_view
                   if (selectedPartner != null) ...[
                     const SizedBox(height: 10),
@@ -950,45 +992,46 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
                           : null,
                     ),
                   ],
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(loc.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (!(formKey.currentState?.validate() ?? false)) return;
-                // Không nhân 1000 - user đã nhập số đầy đủ với formatter
-                final cost = MoneyUtils.parseCurrency(costCtrl.text);
-                final service = RepairService(
-                  firestoreId: editService?.firestoreId ?? RepairPartnerService.generateServiceFirestoreId(),
-                  serviceName: serviceCtrl.text.trim().toUpperCase(),
-                  cost: cost,
-                  partnerId: selectedPartner?.id,
-                  partnerName: selectedPartner?.name,
-                  paymentMethod: selectedPartner != null ? selectedPaymentMethod : null,
-                );
-                setState(() {
-                  if (editService != null) {
-                    final index = _services.indexOf(editService);
-                    _services[index] = service;
-                  } else {
-                    _services.add(service);
-                  }
-                });
-                EventBus().emit('repair_services_changed');
-                Navigator.pop(ctx);
-              },
-              child: Text(editService != null ? loc.update : loc.add),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(loc.cancel),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (!(formKey.currentState?.validate() ?? false)) return;
+                  // Không nhân 1000 - user đã nhập số đầy đủ với formatter
+                  final cost = MoneyUtils.parseCurrency(costCtrl.text);
+                  final service = RepairService(
+                    firestoreId: editService?.firestoreId ?? RepairPartnerService.generateServiceFirestoreId(),
+                    serviceName: serviceCtrl.text.trim().toUpperCase(),
+                    cost: cost,
+                    partnerId: selectedPartner?.id,
+                    partnerName: selectedPartner?.name,
+                    paymentMethod: selectedPartner != null ? selectedPaymentMethod : null,
+                  );
+                  setState(() {
+                    if (editService != null) {
+                      final index = _services.indexOf(editService);
+                      _services[index] = service;
+                    } else {
+                      _services.add(service);
+                    }
+                  });
+                  EventBus().emit('repair_services_changed');
+                  Navigator.pop(ctx);
+                },
+                child: Text(editService != null ? loc.update : loc.add),
+              ),
+            ],
+          );
+        },
       ),
-    );
+    ).whenComplete(partnerSearchCtrl.dispose);
   }
 
   @override

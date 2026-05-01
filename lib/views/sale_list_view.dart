@@ -558,7 +558,7 @@ class _SaleListViewState extends State<SaleListView> {
       appBar: CustomAppBar.build(
         title: widget.todayOnly ? 'DOANH SỐ HÔM NAY' : 'QUẢN LÝ ĐƠN BÁN',
         subtitle:
-            '$totalSales đơn • ${MoneyUtils.formatCompactCurrency(totalRevenue)}đ',
+            '$totalSales đơn • ${MoneyUtils.formatCompactCurrency(totalRevenue)}',
         accentColor: AppBarAccents.sales,
         centerTitle: false,
         actions: [
@@ -691,12 +691,12 @@ class _SaleListViewState extends State<SaleListView> {
                             ),
                             _summaryItem(
                               'Doanh thu',
-                              '${MoneyUtils.formatCompactCurrency(totalRevenue)}đ',
+                              MoneyUtils.formatCompactCurrency(totalRevenue),
                               AppColors.success,
                             ),
                             _summaryItem(
                               'Còn nợ',
-                              '${MoneyUtils.formatCompactCurrency(totalDebt)}đ',
+                              MoneyUtils.formatCompactCurrency(totalDebt),
                               totalDebt > 0
                                   ? AppColors.error
                                   : AppColors.success,
@@ -748,6 +748,8 @@ class _SaleListViewState extends State<SaleListView> {
                       ),
                     ),
 
+                  _buildSalesLoadInsight(list.length),
+
                   // List
                   Expanded(
                     child: list.isEmpty
@@ -787,6 +789,9 @@ class _SaleListViewState extends State<SaleListView> {
                             itemCount:
                                 list.length +
                                 (_isLoadingMore ? 1 : 0) +
+                                (!_needsFullData && _hasMore && !_isLoadingMore
+                                    ? 1
+                                    : 0) +
                                 (!_hasMore && list.isNotEmpty ? 1 : 0),
                             itemBuilder: (ctx, i) {
                               if (i >= list.length) {
@@ -795,6 +800,21 @@ class _SaleListViewState extends State<SaleListView> {
                                     padding: EdgeInsets.all(16),
                                     child: Center(
                                       child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                if (!_needsFullData && _hasMore) {
+                                  return Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      6,
+                                      12,
+                                      12,
+                                    ),
+                                    child: OutlinedButton.icon(
+                                      onPressed: _loadMoreIfNeeded,
+                                      icon: const Icon(Icons.expand_more),
+                                      label: const Text('Tải thêm đơn bán'),
                                     ),
                                   );
                                 }
@@ -858,11 +878,11 @@ class _SaleListViewState extends State<SaleListView> {
                                   : '';
                               if (_canViewCostPrice && s.totalCost > 0)
                                 metaParts.add(
-                                  'Vốn ${MoneyUtils.formatCompactCurrency(s.totalCost)}đ',
+                                  'Vốn ${MoneyUtils.formatCompactCurrency(s.totalCost)}',
                                 );
                               if (s.finalPrice > 0)
                                 metaParts.add(
-                                  'Bán ${MoneyUtils.formatCompactCurrency(s.finalPrice)}đ',
+                                  'Bán ${MoneyUtils.formatCompactCurrency(s.finalPrice)}',
                                 );
                               if (_canViewCostPrice &&
                                   s.totalCost > 0 &&
@@ -870,21 +890,21 @@ class _SaleListViewState extends State<SaleListView> {
                                 final profit = s.finalPrice - s.totalCost;
                                 metaParts.add(
                                   profit >= 0
-                                      ? 'Lãi ${MoneyUtils.formatCompactCurrency(profit)}đ'
-                                      : 'Lỗ ${MoneyUtils.formatCompactCurrency(profit.abs())}đ',
+                                      ? 'Lãi ${MoneyUtils.formatCompactCurrency(profit)}'
+                                      : 'Lỗ ${MoneyUtils.formatCompactCurrency(profit.abs())}',
                                 );
                               }
                               if (remain > 0)
                                 metaParts.add(
-                                  'Nợ ${MoneyUtils.formatCompactCurrency(remain)}đ',
+                                  'Nợ ${MoneyUtils.formatCompactCurrency(remain)}',
                                 );
                               if (s.sellerName.isNotEmpty)
                                 metaParts.add(s.sellerName);
                               if (returnInfo != null) {
                                 metaParts.add(
                                   isFullyReturned
-                                      ? 'Trả hết ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)}đ'
-                                      : 'Trả ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)}đ (${returnInfo.returnCount} lần)',
+                                    ? 'Trả hết ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)}'
+                                    : 'Trả ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)} (${returnInfo.returnCount} lần)',
                                 );
                               }
                               final secondaryLine = metaParts.join(' • ');
@@ -1144,6 +1164,52 @@ class _SaleListViewState extends State<SaleListView> {
     );
   }
 
+  Widget _buildSalesLoadInsight(int shownCount) {
+    final modeLabel = _needsFullData
+        ? 'Đang lọc: tải toàn bộ dữ liệu'
+        : 'Tải cuộn $_pageSize đơn/lần';
+    final statusLabel = (!_needsFullData && _hasMore)
+        ? 'Còn dữ liệu để tải thêm'
+        : 'Đã tải hết dữ liệu hiện có';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insights, size: 14, color: Color(0xFF2962FF)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '$modeLabel • Đang hiển thị $shownCount đơn',
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            statusLabel,
+            style: AppTextStyles.overline.copyWith(
+              color: (!_needsFullData && _hasMore)
+                  ? Colors.orange.shade700
+                  : Colors.green.shade700,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _activeFilterChip(String label, VoidCallback onRemove) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -1285,7 +1351,7 @@ class _SaleListViewState extends State<SaleListView> {
     if (info.allReturned) {
       return [
         _saleInfoChip(
-          '↩️ Trả hết ${MoneyUtils.formatCompactCurrency(info.totalReturnedAmount)}đ',
+          '↩️ Trả hết ${MoneyUtils.formatCompactCurrency(info.totalReturnedAmount)}',
           Colors.grey.shade300,
         ),
       ];
@@ -1294,7 +1360,7 @@ class _SaleListViewState extends State<SaleListView> {
       GestureDetector(
         onTap: () => _openReturn(s),
         child: _saleInfoChip(
-          '↩️ Trả ${MoneyUtils.formatCompactCurrency(info.totalReturnedAmount)}đ (${info.returnCount} lần)',
+          '↩️ Trả ${MoneyUtils.formatCompactCurrency(info.totalReturnedAmount)} (${info.returnCount} lần)',
           Colors.purple.shade100,
         ),
       ),

@@ -36,6 +36,8 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
   List<String> _bankNames = [];
   bool _hasPermission = false;
 
+  String _money(int value) => MoneyUtils.formatCompactCurrency(value);
+
   @override
   void initState() {
     super.initState();
@@ -478,7 +480,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
               Expanded(
                 child: _summaryCard(
                   'Tổng tiền NH',
-                  '${MoneyUtils.formatCurrency(totals['totalLoanAmount'] ?? 0)}đ',
+                  _money(totals['totalLoanAmount'] ?? 0),
                   Icons.account_balance,
                   Colors.blue,
                 ),
@@ -493,7 +495,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
               Expanded(
                 child: _summaryCard(
                   'Đã nhận từ NH',
-                  '${MoneyUtils.formatCurrency(totals['totalReceived'] ?? 0)}đ',
+                  _money(totals['totalReceived'] ?? 0),
                   Icons.check_circle,
                   Colors.green,
                 ),
@@ -502,7 +504,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
               Expanded(
                 child: _summaryCard(
                   'Chờ NH chuyển',
-                  '${MoneyUtils.formatCurrency(totals['totalPending'] ?? 0)}đ',
+                  _money(totals['totalPending'] ?? 0),
                   Icons.hourglass_empty,
                   Colors.orange,
                 ),
@@ -515,7 +517,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
           if ((totals['totalFee'] ?? 0) > 0)
             _summaryCard(
               'Phí NH đã trừ',
-              '${MoneyUtils.formatCurrency(totals['totalFee'] ?? 0)}đ',
+              _money(totals['totalFee'] ?? 0),
               Icons.money_off,
               Colors.red,
               fullWidth: true,
@@ -667,21 +669,21 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                       Expanded(
                         child: _bankStatItem(
                           'Tổng tiền',
-                          '${MoneyUtils.formatCurrency(data['totalAmount'] ?? 0)}đ',
+                          _money(data['totalAmount'] ?? 0),
                           Colors.blue,
                         ),
                       ),
                       Expanded(
                         child: _bankStatItem(
                           'Đã nhận',
-                          '${MoneyUtils.formatCurrency(data['totalReceived'] ?? 0)}đ',
+                          _money(data['totalReceived'] ?? 0),
                           Colors.green,
                         ),
                       ),
                       Expanded(
                         child: _bankStatItem(
                           'Chờ nhận',
-                          '${MoneyUtils.formatCurrency(data['totalPending'] ?? 0)}đ',
+                          _money(data['totalPending'] ?? 0),
                           Colors.orange,
                         ),
                       ),
@@ -850,7 +852,7 @@ class _BankInstallmentReportViewState extends State<BankInstallmentReportView> {
                             ),
                             const Spacer(),
                             Text(
-                              '${MoneyUtils.formatCurrency(s.loanAmount)}đ',
+                              _money(s.loanAmount),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.indigo.shade700,
