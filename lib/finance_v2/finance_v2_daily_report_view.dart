@@ -16,7 +16,12 @@ import '../data/db_helper.dart';
 import '../views/debt_view.dart';
 
 class FinanceV2DailyReportView extends StatefulWidget {
-  const FinanceV2DailyReportView({super.key});
+  final bool embeddedInTab;
+
+  const FinanceV2DailyReportView({
+    super.key,
+    this.embeddedInTab = false,
+  });
 
   @override
   State<FinanceV2DailyReportView> createState() =>
@@ -743,11 +748,57 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   Widget build(BuildContext context) {
     final net = _snapshot?.totalIn == null ? 0 : _snapshot!.totalIn - _snapshot!.totalOut;
 
+    final body = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _snapshot == null
+            ? Center(
+                child: Text(
+                  'Không có dữ liệu',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              )
+            : RefreshIndicator(
+                onRefresh: () async => _loadReport(),
+                child: ListView(
+                  padding: const EdgeInsets.all(12),
+                  children: [
+                    _buildRangeSelector(context),
+                    const SizedBox(height: 8),
+                    _buildDateSelector(context),
+                    const SizedBox(height: 16),
+                    _buildSummaryCards(context, net),
+                    const SizedBox(height: 16),
+                    _buildCapitalAndGrossProfit(context),
+                    _buildStaffSummary(context),
+                    _buildAllAppOverview(context),
+                    _buildSaleRepairBreakdown(context),
+                    _buildDebtSummary(context),
+                    _buildTopExpenseCategories(context),
+                    if (_snapshot!.transactions.isNotEmpty)
+                      _buildCashFlow(context),
+                    if (_snapshot!.transactions.isNotEmpty)
+                      _buildTransactionsList(context),
+                    if (_snapshot!.receivables.isNotEmpty || _snapshot!.payables.isNotEmpty)
+                      _buildDebtsList(context),
+                    if (_snapshot!.auditLogs.isNotEmpty)
+                      _buildAuditLogs(context),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              );
+
+    if (widget.embeddedInTab) {
+      return ColoredBox(
+        color: FinanceV2Theme.pageBg,
+        child: body,
+      );
+    }
+
     return Scaffold(
       backgroundColor: FinanceV2Theme.pageBg,
       appBar: AppBar(
         title: Text('Báo cáo $_periodSuffix'),
-        automaticallyImplyLeading: false,
+        automaticallyImplyLeading: true,
         backgroundColor: FinanceV2Theme.accent,
         foregroundColor: Colors.white,
         actions: [
@@ -770,44 +821,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _snapshot == null
-              ? Center(
-                  child: Text(
-                    'Không có dữ liệu',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: () async => _loadReport(),
-                  child: ListView(
-                    padding: const EdgeInsets.all(12),
-                    children: [
-                      _buildRangeSelector(context),
-                      const SizedBox(height: 8),
-                      _buildDateSelector(context),
-                      const SizedBox(height: 16),
-                      _buildSummaryCards(context, net),
-                      const SizedBox(height: 16),
-                      _buildCapitalAndGrossProfit(context),
-                      _buildStaffSummary(context),
-                      _buildAllAppOverview(context),
-                      _buildSaleRepairBreakdown(context),
-                      _buildDebtSummary(context),
-                      _buildTopExpenseCategories(context),
-                      if (_snapshot!.transactions.isNotEmpty)
-                        _buildCashFlow(context),
-                      if (_snapshot!.transactions.isNotEmpty)
-                        _buildTransactionsList(context),
-                      if (_snapshot!.receivables.isNotEmpty || _snapshot!.payables.isNotEmpty)
-                        _buildDebtsList(context),
-                      if (_snapshot!.auditLogs.isNotEmpty)
-                        _buildAuditLogs(context),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
+      body: body,
     );
   }
 

@@ -5361,6 +5361,31 @@ return db;
     return db.query('debts', orderBy: 'status ASC, createdAt DESC');
   }
 
+  /// Lấy công nợ được tạo trong khoảng thời gian (by createdAt) — dùng cho Finance V2 thay vì getAllDebts()
+  Future<List<Map<String, dynamic>>> getDebtsByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return db.query(
+        'debts',
+        where:
+            '(shopId = ? OR shopId IS NULL) AND createdAt >= ? AND createdAt <= ? AND (deleted = 0 OR deleted IS NULL)',
+        whereArgs: [shopId, startMs, endMs],
+        orderBy: 'createdAt DESC',
+      );
+    }
+    return db.query(
+      'debts',
+      where:
+          'createdAt >= ? AND createdAt <= ? AND (deleted = 0 OR deleted IS NULL)',
+      whereArgs: [startMs, endMs],
+      orderBy: 'createdAt DESC',
+    );
+  }
+
   Future<List<Map<String, dynamic>>> getPurchaseDebts() async =>
       (await database).query(
         'purchase_orders',

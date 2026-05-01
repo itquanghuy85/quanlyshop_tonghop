@@ -243,12 +243,8 @@ class FinanceV2DataService {
       endMs,
     );
     final debtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs);
-    final rawDebts = await _db.getAllDebts();
-    // Chỉ lấy công nợ được tạo trong khoảng kỳ đã chọn (fix bug lọc ngày)
-    final debts = rawDebts.where((d) {
-      final created = _toInt(d['createdAt']);
-      return created >= startMs && created <= endMs;
-    }).toList();
+    // Chỉ lấy công nợ được tạo trong khoảng kỳ đã chọn — dùng query có date range thay vì tải toàn bộ
+    final debts = await _db.getDebtsByDateRange(startMs, endMs);
     final activities = await _db.getFinancialActivities(
       startDate: startMs,
       endDate: endMs,

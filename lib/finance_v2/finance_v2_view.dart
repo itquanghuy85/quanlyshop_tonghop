@@ -72,19 +72,6 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   void initState() {
     super.initState();
     _tabController = TabController(length: 6, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.index == 5 && !_tabController.indexIsChanging && mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            _tabController.index = 0;
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FinanceV2DailyReportView()),
-            );
-          }
-        });
-      }
-    });
     _txCtrl.addListener(() { if (mounted) setState(() => _txQuery = _txCtrl.text); });
     _tlCtrl.addListener(() { if (mounted) setState(() => _tlQ = _tlCtrl.text); });
     _load();
@@ -710,26 +697,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     await FinanceV2ExcelExport.exportTable(context,sheetName:'Nhật ký',filePrefix:'nhat_ky',headers:['Thời gian','Loại','Tiêu đề','Mô tả','NV','TT','Tiền vào','Tiền ra'],rows:ents.map((e)=>[FinanceV2ExcelExport.fmtDateTime(e.ts),_ft(e.type),e.title,e.subtitle,e.actorName??'',e.paymentMethod??'',e.isIncome?e.amount:0,e.isIncome?0:e.amount]).toList(),start:_start,end:_end);
   }
 
-  // TAB 5 - Báo cáo ngày (navigate to FinanceV2DailyReportView)
+  // TAB 5 - Báo cáo ngày (embedded in Finance tabs)
   Widget _t5() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.summarize_rounded, size: 72, color: FinanceV2Theme.accent.withValues(alpha: 0.6)),
-          const SizedBox(height: 16),
-          const Text('Báo cáo tài chính chi tiết', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: FinanceV2Theme.ink)),
-          const SizedBox(height: 8),
-          const Text('Xem doanh thu, chi phí, lãi gộp và nhân sự\ntheo ngày / tháng / năm / khoảng thời gian', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: FinanceV2Theme.subInk)),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinanceV2DailyReportView())),
-            icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('Mở báo cáo'),
-            style: ElevatedButton.styleFrom(backgroundColor: FinanceV2Theme.accent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14)),
-          ),
-        ],
-      ),
-    );
+    return const FinanceV2DailyReportView(embeddedInTab: true);
   }
 }
