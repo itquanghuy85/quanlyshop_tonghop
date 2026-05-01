@@ -47,7 +47,8 @@ class _SaleListViewState extends State<SaleListView> {
 
   // Filter states
   String _timeFilter = 'today'; // all, today, week, month, custom
-  String _paymentStatusFilter = 'all'; // all, paid, debt
+  String _paymentStatusFilter =
+      'all'; // all, paid, debt, bank_pending, bank_received
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
@@ -301,14 +302,28 @@ class _SaleListViewState extends State<SaleListView> {
           break;
       }
 
-      // Payment status filter - dùng remainingDebt tính đúng nợ thực tế
+      // Payment status filter - tách rõ trạng thái trả góp nhận tiền NH
       final remain = s.remainingDebt;
+      final isInstallment =
+          s.isInstallment || s.paymentMethod.toUpperCase().contains('TRẢ GÓP');
+      final hasBankSettlement =
+          (s.settlementReceivedAt ?? 0) > 0 || s.settlementAmount > 0;
       switch (_paymentStatusFilter) {
         case 'paid':
-          if (remain > 0) return false;
+          if (isInstallment) {
+            if (remain > 0 || !hasBankSettlement) return false;
+          } else {
+            if (remain > 0) return false;
+          }
           break;
         case 'debt':
           if (remain <= 0) return false;
+          break;
+        case 'bank_pending':
+          if (!isInstallment || hasBankSettlement) return false;
+          break;
+        case 'bank_received':
+          if (!isInstallment || !hasBankSettlement) return false;
           break;
       }
 
@@ -473,6 +488,18 @@ class _SaleListViewState extends State<SaleListView> {
                   _filterChip(
                     'Còn nợ',
                     'debt',
+                    _paymentStatusFilter,
+                    (v) => setSheetState(() => _paymentStatusFilter = v),
+                  ),
+                  _filterChip(
+                    'TG chờ NH',
+                    'bank_pending',
+                    _paymentStatusFilter,
+                    (v) => setSheetState(() => _paymentStatusFilter = v),
+                  ),
+                  _filterChip(
+                    'TG đã nhận NH',
+                    'bank_received',
                     _paymentStatusFilter,
                     (v) => setSheetState(() => _paymentStatusFilter = v),
                   ),
@@ -840,6 +867,14 @@ class _SaleListViewState extends State<SaleListView> {
                               final remain = s.remainingDebt;
                               final index = i + 1;
                               final isPaid = s.isPaid;
+                              final isInstallment =
+                                  s.isInstallment ||
+                                  s.paymentMethod
+                                      .toUpperCase()
+                                      .contains('TRẢ GÓP');
+                              final hasBankSettlement =
+                                  (s.settlementReceivedAt ?? 0) > 0 ||
+                                  s.settlementAmount > 0;
                               final returnInfo = s.id != null
                                   ? _returnInfoMap[s.id]
                                   : null;
@@ -847,6 +882,8 @@ class _SaleListViewState extends State<SaleListView> {
                                   returnInfo?.allReturned == true;
                                 final accentColor = isFullyReturned
                                   ? Colors.grey.shade500
+                                  : (isInstallment && !hasBankSettlement)
+                                  ? Colors.orange.shade600
                                   : (isPaid
                                     ? Colors.green.shade600
                                     : Colors.orange.shade600);
@@ -890,6 +927,15 @@ class _SaleListViewState extends State<SaleListView> {
                                 metaParts.add(
                                   'Nợ ${MoneyUtils.formatCompactCurrency(remain)}',
                                 );
+                              if (isInstallment) {
+                                if (hasBankSettlement) {
+                                  metaParts.add(
+                                    'Trả góp: Đã nhận NH ${MoneyUtils.formatCompactCurrency(s.settlementAmount)}',
+                                  );
+                                } else {
+                                  metaParts.add('Trả góp: Chưa nhận tiền NH');
+                                }
+                              }
                               if (s.sellerName.isNotEmpty)
                                 metaParts.add(s.sellerName);
                               if (returnInfo != null) {
@@ -1092,6 +1138,9 @@ class _SaleListViewState extends State<SaleListView> {
                                               child: Text(
                                                 isFullyReturned
                                                     ? 'TRẢ'
+                                                    : (isInstallment &&
+                                                      !hasBankSettlement)
+                                                    ? 'CHỜ NH'
                                                     : (isPaid
                                                           ? 'ĐÃ THU'
                                                           : 'CÒN NỢ'),
@@ -1246,6 +1295,10 @@ class _SaleListViewState extends State<SaleListView> {
         return 'Đã thanh toán';
       case 'debt':
         return 'Còn nợ';
+      case 'bank_pending':
+        return 'Trả góp chờ NH';
+      case 'bank_received':
+        return 'Trả góp đã nhận NH';
       default:
         return '';
     }
