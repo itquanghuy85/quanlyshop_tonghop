@@ -516,10 +516,33 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Widget _txRow(FinanceV2Txn t) {
     final dt=DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(t.createdAt));
     final c=t.isIncome?FinanceV2Theme.positive:FinanceV2Theme.negative;
+    final detailParts = <String>[];
+    if ((t.paymentMethod ?? '').isNotEmpty) {
+      detailParts.add(t.paymentMethod!);
+    }
+    if ((t.actorName ?? '').isNotEmpty) {
+      detailParts.add('NV: ${t.actorName!}');
+    }
+    if ((t.referenceId ?? '').isNotEmpty) {
+      final ref = t.referenceId!.trim();
+      detailParts.add(ref.length > 10 ? 'Mã: ${ref.substring(0, 10)}' : 'Mã: $ref');
+    }
     return ListTile(
       leading:EntityAvatar(imageUrl:t.avatarUrl,name:t.title,radius:20,tappableToView:false),
       title:Text(t.title,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w500,color:FinanceV2Theme.ink),maxLines:1,overflow:TextOverflow.ellipsis),
-      subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(t.subtitle,style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk),maxLines:1,overflow:TextOverflow.ellipsis),if(t.actorName!=null)Text(t.actorName!,style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk))]),
+      subtitle:Column(
+        crossAxisAlignment:CrossAxisAlignment.start,
+        children:[
+          Text(t.subtitle,style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk),maxLines:1,overflow:TextOverflow.ellipsis),
+          if(detailParts.isNotEmpty)
+            Text(
+              detailParts.join(' • '),
+              style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk),
+              maxLines:1,
+              overflow:TextOverflow.ellipsis,
+            ),
+        ],
+      ),
       trailing:Column(crossAxisAlignment:CrossAxisAlignment.end,mainAxisAlignment:MainAxisAlignment.center,children:[Text('${t.isIncome?"+":"-"}${_cmp(t.amount)}',style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:c)),Text(dt,style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk))]),
       onTap:()=>_openTL(_TLEntry(ts:t.createdAt,type:t.type,title:t.title,subtitle:t.subtitle,amount:t.amount,isIncome:t.isIncome,avatarUrl:t.avatarUrl,actorName:t.actorName,paymentMethod:t.paymentMethod,referenceId:t.referenceId)),
     );
@@ -661,7 +684,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     }
     for(final log in s.auditLogs){
       final ts=_ti(log['createdAt']);final ac=(log['action']??'').toString();final actor=(log['createdBy']??log['actorName']??'').toString();final ref=(log['referenceId']??log['firestoreId']??'').toString();
-      ents.add(_TLEntry(ts:ts,type:'AUDIT',title:_fa(ac),subtitle:actor.isNotEmpty?'Bởi: $actor':'Hệ thống',amount:_ti(log['amount']),isIncome:false,actorName:actor.isNotEmpty?actor:null,referenceId:ref.isNotEmpty?ref:null));
+      final title = _fa(ac).trim().isEmpty ? 'Cập nhật dữ liệu' : _fa(ac);
+      ents.add(_TLEntry(ts:ts,type:'AUDIT',title:title,subtitle:'',amount:_ti(log['amount']),isIncome:false,actorName:actor.isNotEmpty?actor:null,referenceId:ref.isNotEmpty?ref:null));
     }
     ents.sort((a,b)=>b.ts.compareTo(a.ts)); return ents;
   }
@@ -672,7 +696,17 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return ListTile(
       leading:isA?CircleAvatar(radius:20,backgroundColor:FinanceV2Theme.accent.withValues(alpha:0.1),child:const Icon(Icons.history_rounded,size:18,color:FinanceV2Theme.accent)):EntityAvatar(imageUrl:e.avatarUrl,name:e.title,radius:20,tappableToView:false),
       title:Row(children:[Expanded(child:Text(e.title,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w500,color:FinanceV2Theme.ink),maxLines:1,overflow:TextOverflow.ellipsis)),if(!isA) _tag(e.type)]),
-      subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(e.subtitle,style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk),maxLines:1,overflow:TextOverflow.ellipsis),if(e.actorName!=null&&!isA)Text(e.actorName!,style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk))]),
+      subtitle:(e.subtitle.trim().isEmpty && (isA || e.actorName==null))
+          ? null
+          : Column(
+              crossAxisAlignment:CrossAxisAlignment.start,
+              children:[
+                if(e.subtitle.trim().isNotEmpty)
+                  Text(e.subtitle,style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk),maxLines:1,overflow:TextOverflow.ellipsis),
+                if(e.actorName!=null&&!isA)
+                  Text(e.actorName!,style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk)),
+              ],
+            ),
       trailing:Column(crossAxisAlignment:CrossAxisAlignment.end,mainAxisAlignment:MainAxisAlignment.center,children:[if(!isA&&e.amount>0)Text('${e.isIncome?"+":"-"}${_cmp(e.amount)}',style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:e.isIncome?FinanceV2Theme.positive:FinanceV2Theme.negative)),Text(dt,style:const TextStyle(fontSize:10,color:FinanceV2Theme.subInk))]),
       onTap:isA?null:()=>_openTL(e),
     );

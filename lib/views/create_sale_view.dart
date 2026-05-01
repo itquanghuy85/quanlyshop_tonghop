@@ -1776,7 +1776,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                               ),
                             ),
                             if (_allInStock.isEmpty) _buildEmptyStockGuidance(),
-                            if (searchProdCtrl.text.isNotEmpty)
+                            if (searchProdCtrl.text.trim().isEmpty)
+                              _buildRecentSuggestions()
+                            else
                               _buildSearchResults(),
                             _buildSelectedItemsList(),
 
@@ -2853,6 +2855,95 @@ class _CreateSaleViewState extends State<CreateSaleView> {
             },
           );
         },
+      ),
+    );
+  }
+
+  List<Product> _recentProductSuggestions() {
+    final selectedIds = _selectedItems
+        .map((e) => (e['product'] as Product).id)
+        .whereType<int>()
+        .toSet();
+
+    final sorted = _allInStock
+        .where((p) => p.quantity > 0)
+        .where((p) => p.id == null || !selectedIds.contains(p.id))
+        .toList()
+      ..sort((a, b) {
+        final aTs = a.updatedAt ?? a.createdAt;
+        final bTs = b.updatedAt ?? b.createdAt;
+        return bTs.compareTo(aTs);
+      });
+
+    return sorted.take(8).toList();
+  }
+
+  Widget _buildRecentSuggestions() {
+    final recent = _recentProductSuggestions();
+    if (recent.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      constraints: const BoxConstraints(maxHeight: 250),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 10)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.history,
+                  size: 16,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Sản phẩm gần đây',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView.builder(
+              itemCount: recent.length,
+              itemBuilder: (ctx, i) {
+                final p = recent[i];
+                return ListTile(
+                  dense: true,
+                  title: Text(
+                    p.name,
+                    style: AppTextStyles.body1.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${_terms.specialField1Label}: ${p.imei ?? 'PK'} - Giá: ${MoneyUtils.formatCurrency(p.price)}',
+                    style: AppTextStyles.caption,
+                  ),
+                  trailing: Text(
+                    'Tồn ${p.quantity}',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onTap: () => _addItem(p),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

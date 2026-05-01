@@ -7,6 +7,7 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/excel_export_helper.dart';
 import '../utils/money_utils.dart';
+import '../constants/product_constants.dart';
 import 'import_order_detail_view.dart';
 
 class ImportHistoryView extends StatefulWidget {
@@ -105,11 +106,23 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
           final cap = row['capacity'] as String? ?? '';
           final clr = row['color'] as String? ?? '';
           final sz = row['size'] as String? ?? '';
-          final parts = <String>[name];
-          if (cap.isNotEmpty) parts.add(cap);
-          if (clr.isNotEmpty) parts.add(clr);
-          if (sz.isNotEmpty) parts.add('Size $sz');
-          final display = qty > 1 ? '${parts.join(' - ')} x$qty' : parts.join(' - ');
+          final cleanedName = ProductConstants.cleanProductName(name);
+          final baseUpper = cleanedName.toUpperCase();
+
+          final parts = <String>[cleanedName];
+          if (cap.isNotEmpty && !baseUpper.contains(cap.toUpperCase())) {
+            parts.add(cap);
+          }
+          if (clr.isNotEmpty && !baseUpper.contains(clr.toUpperCase())) {
+            parts.add(clr);
+          }
+          if (sz.isNotEmpty && !baseUpper.contains(sz.toUpperCase())) {
+            parts.add('Size $sz');
+          }
+
+          final display = qty > 1
+              ? '${parts.join(' - ')} x$qty'
+              : parts.join(' - ');
           result.putIfAbsent(orderId, () => []).add(display);
         }
       }
@@ -366,19 +379,19 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
     final isDebt = order.paymentStatus == 'DEBT';
     final statusColor = isDebt ? AppColors.warning : AppColors.success;
     final paymentLabel = _paymentLabel(order.paymentMethod);
+    final items = order.firestoreId != null
+        ? (_orderItemNames[order.firestoreId] ?? const <String>[])
+        : const <String>[];
+    final previewItems = items.take(3).toList();
+    final remainItems = items.length - previewItems.length;
+    final debtAmount = order.totalAmount - (order.paidAmount ?? 0);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(10),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        side: BorderSide(color: statusColor.withAlpha(40)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -390,245 +403,174 @@ class _ImportHistoryViewState extends State<ImportHistoryView> {
             ),
           );
         },
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: statusColor.withAlpha(15),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: statusColor.withAlpha(30),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.receipt_long,
-                      color: statusColor,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order.orderCode,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        if (date != null)
-                          Text(
-                            DateFormat('HH:mm - dd/MM/yyyy').format(date),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  // Payment badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isDebt
-                          ? AppColors.warning.withAlpha(25)
-                          : AppColors.success.withAlpha(25),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      paymentLabel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: isDebt ? AppColors.warning : AppColors.success,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Body
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Column(
-                children: [
-                  // Row 1: Supplier + Quantity
-                  Row(
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.store,
-                        size: 16,
-                        color: Colors.grey.shade500,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          order.supplierName ?? 'Không rõ NCC',
-                          style: const TextStyle(fontSize: 13),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.info.withAlpha(20),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '${order.totalQuantity} SP',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.info,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Product names
-                  if (order.firestoreId != null &&
-                      _orderItemNames.containsKey(order.firestoreId) &&
-                      _orderItemNames[order.firestoreId]!.isNotEmpty) ...[                    
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _orderItemNames[order.firestoreId]!.join(', '),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade800,
-                          height: 1.4,
-                        ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  // Row 2: Amount + Debt info
-                  Row(
-                    children: [
-                      if (_canViewCostPrice) ...[
-                        Icon(
-                          Icons.payments_outlined,
-                          size: 16,
-                          color: Colors.grey.shade500,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          MoneyUtils.formatCurrency(order.totalAmount),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 16,
                             color: AppColors.primary,
                           ),
-                        ),
-                        if (isDebt) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            '(Nợ: ${MoneyUtils.formatCurrency(order.totalAmount - (order.paidAmount ?? 0))})',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.warning,
-                            ),
-                          ),
-                        ],
-                      ],
-                      const Spacer(),
-                      // Payment method icon
-                      Icon(
-                        order.paymentMethod == 'CHUYỂN KHOẢN'
-                            ? Icons.account_balance
-                            : order.paymentMethod == 'CÔNG NỢ'
-                                ? Icons.schedule
-                                : Icons.payments,
-                        size: 14,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        paymentLabel,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Row 3: Imported by + Notes
-                  if (order.importedBy != null || (order.notes != null && order.notes!.isNotEmpty)) ...[
-                    const SizedBox(height: 6),
-                    const Divider(height: 1),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        if (order.importedBy != null) ...[
-                          Icon(
-                            Icons.person_outline,
-                            size: 14,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            order.importedBy!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                        if (order.notes != null && order.notes!.isNotEmpty) ...[
-                          if (order.importedBy != null)
-                            const SizedBox(width: 12),
-                          Icon(
-                            Icons.notes,
-                            size: 14,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              order.notes!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                                fontStyle: FontStyle.italic,
+                              order.orderCode,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withAlpha(22),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              paymentLabel,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
                         ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${order.supplierName ?? 'Không rõ NCC'} • ${order.totalQuantity} SP',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (previewItems.isNotEmpty) ...[
+                        const SizedBox(height: 5),
+                        Wrap(
+                          spacing: 5,
+                          runSpacing: 4,
+                          children: [
+                            ...previewItems.map(
+                              (it) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueGrey.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  it,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.blueGrey.shade700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            if (remainItems > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '+$remainItems mục',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade700,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
-                    ),
-                  ],
-                ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          if (_canViewCostPrice)
+                            Text(
+                              MoneyUtils.formatCompactCurrency(order.totalAmount),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          if (_canViewCostPrice && isDebt) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              'Nợ ${MoneyUtils.formatCompactCurrency(debtAmount)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.warning,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          const Spacer(),
+                          Text(
+                            date == null
+                                ? '--'
+                                : DateFormat('dd/MM HH:mm').format(date),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if ((order.importedBy ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Bởi: ${order.importedBy!.trim()}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
