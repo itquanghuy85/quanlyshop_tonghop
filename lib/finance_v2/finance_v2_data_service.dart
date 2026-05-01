@@ -331,6 +331,8 @@ class FinanceV2DataService {
       }
 
       if (actualPaid > 0) {
+        // recognizedCost chỉ dùng cho hiển thị per-transaction (cashflow basis).
+        // saleCogs đã được tính theo accrual (toàn bộ totalCost) ở block trên.
         int recognizedCost = 0;
         if (sale.totalCost > 0) {
           if (sale.finalPrice > 0) {
@@ -341,7 +343,6 @@ class FinanceV2DataService {
           if (recognizedCost < 0) recognizedCost = 0;
           if (recognizedCost > actualPaid) recognizedCost = actualPaid;
         }
-        saleCogs += recognizedCost;
         saleIn += actualPaid;
         transactions.add(
           FinanceV2Txn(
