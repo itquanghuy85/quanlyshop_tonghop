@@ -4,6 +4,30 @@ Tất cả thay đổi đáng chú ý của dự án sẽ được ghi lại tro
 
 ---
 
+## [1.0.5] - 2026-05-01
+
+### Cải tiến nghiệp vụ tài chính
+- Chuẩn hóa hiển thị số âm/dương trong Finance V2 để tránh sai dấu ở chỉ số ròng.
+- Bổ sung nhóm thẻ vốn/lãi theo nguồn (bán hàng, sửa chữa) và đối chiếu kỳ trước.
+
+### Sửa lỗi nhập kho linh kiện
+- Sửa luồng nhập thêm linh kiện/phụ kiện để ghi nhận đúng theo phương thức thanh toán:
+	- Tiền mặt/chuyển khoản: ghi expense + nhật ký tài chính + sync queue.
+	- Công nợ NCC: ghi debt SHOP_OWES đầy đủ + sync queue.
+- Bổ sung chặn nghiệp vụ:
+	- Không cho ghi công nợ khi thiếu nhà cung cấp.
+	- Không cho ghi tài chính khi giá vốn không hợp lệ.
+
+### Dọn dẹp vận hành
+- Loại bỏ entry tạo dữ liệu demo khỏi khu Cài đặt/Home để tránh thao tác nhầm trong môi trường thật.
+- Dọn các nhánh điều hướng tài chính V1 không còn dùng trong Home.
+
+### Phát hành
+- Build web release thành công.
+- Deploy Firebase Hosting thành công.
+
+---
+
 ## [1.0.2] - 2026-04-19
 
 ### Nâng cấp lớn cho người dùng (từ mốc v262)

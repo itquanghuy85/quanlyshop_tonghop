@@ -104,7 +104,6 @@ import 'dashboard_settings_view.dart';
 import 'payment_request_chat_view.dart';
 import 'reminders_view.dart';
 import 'staff_self_profile_view.dart';
-import '../services/test_data_service.dart';
 import '../services/social_auth_service.dart';
 import '../services/reminder_service.dart';
 import '../services/dashboard_config_service.dart';
@@ -8359,97 +8358,9 @@ class _HomeViewState extends State<HomeView>
               ],
             ),
 
-            // Nút tạo data demo (chỉ hiện khi chưa có dữ liệu hoặc debug)
-            if (kDebugMode || _isSuperAdmin)
-              _buildTestDataButton(),
-
             // Đăng xuất nằm trong account card ở trên
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTestDataButton() {
-    return Card(
-      color: Colors.orange.shade50,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-        side: BorderSide(color: Colors.orange.shade300),
-      ),
-      child: ListTile(
-        leading: Icon(Icons.science, color: Colors.orange.shade700),
-        title: const Text(
-          '🧪 Tạo Data Demo Toàn Diện',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: const Text(
-          'SP · Bán hàng · Sửa chữa · Công nợ · Chấm công · Lương · NCC · Nhập hàng · Cộng đồng · Chat',
-        ),
-        onTap: () async {
-          final confirm = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: const Text('Tạo Dữ Liệu Demo?'),
-              content: const Text(
-                'Sẽ tạo đầy đủ dữ liệu mẫu:\n'
-                '• 10 sản phẩm (điện thoại, phụ kiện, linh kiện)\n'
-                '• 5 đơn bán hàng + 1 trả hàng\n'
-                '• 5 đơn sửa chữa (các trạng thái)\n'
-                '• 3 công nợ khách hàng (~43tr)\n'
-                '• 8 khoản thu/chi tài chính\n'
-                '• 3 nhân viên với cài đặt lương\n'
-                '• Chấm công 7 ngày (3 nhân viên)\n'
-                '• 3 nhà cung cấp + 3 phiếu nhập hàng\n'
-                '• 5 bài đăng cộng đồng\n'
-                '• 7 tin nhắn chat nội bộ',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Hủy'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Tạo ngay'),
-                ),
-              ],
-            ),
-          );
-          if (confirm != true) return;
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Đang tạo dữ liệu demo, vui lòng đợi... (~30-60s)'),
-              duration: Duration(seconds: 5),
-            ),
-          );
-          try {
-            final result = await TestDataService.seedTestData();
-            if (mounted) {
-              _debouncedLoadStats();
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('✅ Tạo thành công!'),
-                  content: SingleChildScrollView(child: Text(result)),
-                  actions: [
-                    FilledButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-              );
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-              );
-            }
-          }
-        },
       ),
     );
   }

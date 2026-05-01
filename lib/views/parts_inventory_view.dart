@@ -1233,6 +1233,18 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     );
                     return;
                   }
+                  final supplierId = p['supplierId'] as int?;
+                  if (paymentMethod == 'CÔNG NỢ' && supplierId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Vui lòng chọn nhà cung cấp cho linh kiện này trước khi ghi công nợ.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
                   final cost = CurrencyTextField.parseValueWithMultiply(
                     costCtrl.text,
                   );
@@ -1267,6 +1279,27 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       final totalCost = effectiveCost * addQty;
       final firestoreId = p['firestoreId'] as String?;
       final supplierId = p['supplierId'] as int?;
+      final supplierName = _getSupplierName(supplierId);
+      if (totalCost <= 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vui lòng nhập giá vốn hợp lệ (> 0) để ghi nhận tài chính.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (paymentMethod == 'CÔNG NỢ' && supplierId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thiếu nhà cung cấp, không thể ghi công nợ.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
       final now = DateTime.now().millisecondsSinceEpoch;
       final shopId = await UserService.getCurrentShopId();
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -1296,24 +1329,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         }
       }
 
-      // Ghi chi phí nhập kho vào expenses để sổ quỹ và báo cáo ngày nhận đủ số liệu.
-      if (effectiveCost > 0 && paymentMethod != 'CÔNG NỢ') {
-        await db.insertExpense({
-          'firestoreId': 'exp_quick_part_${partId}_$now',
-          'category': 'NHẬP HÀNG',
-          'title': 'Nhập thêm linh kiện',
-          'amount': totalCost,
-          'paymentMethod': paymentMethod,
-          'note': '$partName x$addQty = ${NumberFormat('#,###').format(totalCost)}đ',
-          'date': now,
-          'createdBy': userName,
-          'shopId': shopId,
-          'isSynced': 0,
-        });
-      }
-
       // Log audit
-      final supplierName = _getSupplierName(supplierId);
       await AuditService.logAction(
         action: 'PART_IMPORT',
         entityType: 'repair_part',
@@ -1331,28 +1347,84 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
         },
       );
 
-      // Record financial activity
-      if (effectiveCost > 0) {
-        try {
-          final supplierNameForActivity = _getSupplierName(supplierId);
-          final expFId = 'exp_part_${now}_$partName';
-          await FinancialActivityService.logPurchase(
-            firestoreId: expFId,
-            amount: totalCost,
-            productName: partName,
-            quantity: addQty,
-            paymentMethod: paymentMethod,
-            supplierName: supplierNameForActivity,
+      // Ghi nhận tài chính và công nợ theo phương thức thanh toán
+      if (paymentMethod == 'CÔNG NỢ') {
+        final debtFId = 'debt_quick_part_${now}_${supplierId ?? 0}';
+        final debtData = {
+          'firestoreId': debtFId,
+          'personName': supplierName,
+          'phone': '',
+          'totalAmount': totalCost,
+          'paidAmount': 0,
+          'type': 'SHOP_OWES',
+          'debtType': 'SHOP_OWES',
+          'status': 'ACTIVE',
+          'createdAt': now,
+          'note': 'Nhập thêm ${_terms.category3}: $partName x$addQty',
+          'linkedId': null,
+          'relatedPartId': firestoreId,
+          'isSynced': 0,
+          'shopId': shopId,
+        };
+        final debtId = await db.insertDebt(debtData);
+        if (debtId > 0) {
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.debt,
+            entityId: debtId,
+            firestoreId: debtFId,
+            operation: SyncOperation.create,
+            data: debtData,
           );
-        } catch (e) {
-          debugPrint('⚠️ Financial activity record error: $e');
         }
+        EventBus().emit('debts_changed');
+      } else {
+        final expenseFirestoreId = 'exp_quick_part_${partId}_$now';
+        final expenseData = {
+          'firestoreId': expenseFirestoreId,
+          'category': 'NHẬP HÀNG',
+          'title': 'Nhập thêm linh kiện',
+          'description': 'NCC: $supplierName - SL: $addQty',
+          'amount': totalCost,
+          'paymentMethod': paymentMethod,
+          'note':
+              '$partName x$addQty = ${NumberFormat('#,###').format(totalCost)}đ',
+          'date': now,
+          'createdAt': now,
+          'createdBy': userName,
+          'shopId': shopId,
+          'isSynced': 0,
+        };
+        final expenseId = await db.insertExpense(expenseData);
+        if (expenseId > 0) {
+          await SyncOrchestrator().enqueue(
+            entityType: SyncEntityType.expense,
+            entityId: expenseId,
+            firestoreId: expenseFirestoreId,
+            operation: SyncOperation.create,
+            data: expenseData,
+          );
+        }
+        EventBus().emit('expenses_changed');
+      }
+
+      try {
+        final faId = 'fa_quick_part_${partId}_$now';
+        await FinancialActivityService.logPurchase(
+          firestoreId: faId,
+          amount: totalCost,
+          productName: partName,
+          quantity: addQty,
+          paymentMethod: paymentMethod,
+          supplierName: supplierName,
+        );
+      } catch (e) {
+        debugPrint('⚠️ Financial activity record error: $e');
       }
 
       // Record supplier import history if applicable
       if (supplierId != null && effectiveCost > 0) {
         try {
-          await db.insertSupplierImportHistory({
+          final importHistory = {
             'supplierId': supplierId,
             'supplierName': supplierName,
             'productName': partName,
@@ -1367,7 +1439,17 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
             'notes': 'Nhập thêm vào kho ${_terms.category3}',
             'shopId': shopId,
             'isSynced': 0,
-          });
+          };
+          final importHistoryId = await db.insertSupplierImportHistory(
+            importHistory,
+          );
+          if (importHistoryId > 0) {
+            await SyncOrchestrator().enqueueSupplierImportHistory(
+              importHistoryId,
+              firestoreId: importHistory['firestoreId'] as String?,
+              operation: SyncOperation.create,
+            );
+          }
         } catch (e) {
           debugPrint('⚠️ Supplier import history error: $e');
         }
@@ -1376,7 +1458,6 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       // Refresh and notify
       _refreshParts();
       EventBus().emit('parts_changed');
-      EventBus().emit('expenses_changed');
       EventBus().emit(EventBus.financialChanged);
 
       if (!mounted) return;
@@ -3402,15 +3483,39 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                   if (!(formKey.currentState?.validate() ?? false)) return;
 
                   try {
+                    final effectiveSupplierId =
+                        selectedSupplierId ?? (part['supplierId'] as int?);
+                    if (paymentMethod == 'CÔNG NỢ' && effectiveSupplierId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Vui lòng chọn nhà cung cấp khi ghi công nợ.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
                     final now = DateTime.now().millisecondsSinceEpoch;
                     final addQty = int.tryParse(addQtyC.text.trim()) ?? 0;
                     if (addQty <= 0) return;
                     final cost = CurrencyTextField.parseValueWithMultiply(
                       costC.text,
                     );
+                    if (cost <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Vui lòng nhập giá vốn hợp lệ (> 0) để ghi nhận tài chính.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
                     final totalCost = cost * addQty;
                     final newQty = currentQty + addQty;
-                    final supplierName = _getSupplierName(selectedSupplierId);
+                    final supplierName = _getSupplierName(effectiveSupplierId);
                     final shopId = await UserService.getCurrentShopId();
 
                     // 1. Cập nhật số lượng trong bảng repair_parts
@@ -3463,8 +3568,6 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     );
 
                     // 3. Lịch sử nhập kho: luôn lưu khi có tên NCC
-                    final effectiveSupplierId =
-                        selectedSupplierId ?? (part['supplierId'] as int?);
                     final effectiveSupplierName = _getSupplierName(
                       effectiveSupplierId,
                     ).trim().isNotEmpty
