@@ -199,16 +199,6 @@ class ChatService {
       final docRef = await _db
           .collection(_collectionChats)
           .add(chatMessage.toMap());
-
-      unawaited(
-        AuditService.logAction(
-          action: 'CHAT_IMAGE_SENT',
-          entityType: 'CHAT',
-          entityId: docRef.id,
-          summary: 'Gửi hình ảnh chat',
-          payload: {'imageCount': urls.length},
-        ),
-      );
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Chat sendSystemMessage error: $e');
@@ -262,6 +252,16 @@ class ChatService {
       final docRef = await _db
           .collection(_collectionChats)
           .add(chatMessage.toMap());
+
+      unawaited(
+        AuditService.logAction(
+          action: 'CHAT_IMAGE_SENT',
+          entityType: 'CHAT',
+          entityId: docRef.id,
+          summary: 'Gửi hình ảnh chat',
+          payload: {'imageCount': urls.length},
+        ),
+      );
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Chat sendImageMessage error: $e');
