@@ -152,6 +152,7 @@ class _CommunityViewState extends State<CommunityView> {
   }) async {
     final commentCtrl = TextEditingController();
     bool sending = false;
+    bool sheetClosed = false;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -316,11 +317,13 @@ class _CommunityViewState extends State<CommunityView> {
                                 : () async {
                                     final text = commentCtrl.text.trim();
                                     if (text.isEmpty) return;
+                                    if (sheetClosed || !ctx.mounted) return;
                                     setLocalState(() => sending = true);
                                     final ok = await CommunityService.addComment(
                                       postId: postId,
                                       content: text,
                                     );
+                                    if (sheetClosed || !ctx.mounted) return;
                                     setLocalState(() => sending = false);
                                     if (!ok) return;
                                     commentCtrl.clear();
@@ -348,6 +351,7 @@ class _CommunityViewState extends State<CommunityView> {
       },
     );
 
+    sheetClosed = true;
     commentCtrl.dispose();
   }
 
@@ -724,83 +728,71 @@ class _CommunityViewState extends State<CommunityView> {
                                 ),
                               ),
                             ),
-                            if (imageUrl.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    InkWell(
-                                      onTap: () {
-                                        showDialog<void>(
-                                          context: context,
-                                          builder: (ctx) => Dialog.fullscreen(
-                                            backgroundColor: Colors.black,
-                                            child: Stack(
-                                              children: [
-                                                Positioned.fill(
-                                                  child: InteractiveViewer(
-                                                    maxScale: 5,
-                                                    minScale: 0.8,
-                                                    child: Center(
-                                                      child: Image(
-                                                        image: CachedNetworkImageProvider(
-                                                          imageUrl,
-                                                        ),
-                                                        fit: BoxFit.contain,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                Positioned(
-                                                  top: 16,
-                                                  right: 16,
-                                                  child: IconButton(
-                                                    onPressed: () => Navigator.pop(ctx),
-                                                    icon: const Icon(
-                                                      Icons.close,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(10),
-                                        child: SizedBox(
-                                          width: 108,
-                                          height: 108,
-                                          child: Image(
-                                            image: CachedNetworkImageProvider(imageUrl),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Text(
-                                        content.trim().isEmpty
-                                            ? '(Bài viết hình ảnh)'
-                                            : content,
-                                        style: AppTextStyles.body1,
-                                        maxLines: 6,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            else if (content.trim().isNotEmpty)
+                            if (content.trim().isNotEmpty)
                               Padding(
                                 padding:
                                     const EdgeInsets.fromLTRB(12, 0, 12, 10),
                                 child: Text(
                                   content,
                                   style: AppTextStyles.body1,
+                                ),
+                              ),
+                            if (imageUrl.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                                child: InkWell(
+                                  onTap: () {
+                                    showDialog<void>(
+                                      context: context,
+                                      builder: (ctx) => Dialog.fullscreen(
+                                        backgroundColor: Colors.black,
+                                        child: Stack(
+                                          children: [
+                                            Positioned.fill(
+                                              child: InteractiveViewer(
+                                                maxScale: 5,
+                                                minScale: 0.8,
+                                                child: Center(
+                                                  child: Image(
+                                                    image: CachedNetworkImageProvider(
+                                                      imageUrl,
+                                                    ),
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 16,
+                                              right: 16,
+                                              child: IconButton(
+                                                onPressed: () => Navigator.pop(ctx),
+                                                icon: const Icon(
+                                                  Icons.close,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      width: double.infinity,
+                                      constraints: const BoxConstraints(
+                                        minHeight: 120,
+                                        maxHeight: 320,
+                                      ),
+                                      color: Colors.black.withValues(alpha: 0.04),
+                                      child: Image(
+                                        image: CachedNetworkImageProvider(imageUrl),
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             const Divider(height: 1),

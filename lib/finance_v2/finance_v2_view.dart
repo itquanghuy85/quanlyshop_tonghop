@@ -282,7 +282,6 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         ],
         isScrollable: false,
         accentColor: AppBarAccents.finance, showBackButton: false,
-        actions: const [],
       ),
       body: _loading
           ? const Center(child:CircularProgressIndicator(color:FinanceV2Theme.accent))
