@@ -8383,19 +8383,29 @@ class _HomeViewState extends State<HomeView>
       child: ListTile(
         leading: Icon(Icons.science, color: Colors.orange.shade700),
         title: const Text(
-          '🧪 Tạo Data Test',
+          '🧪 Tạo Data Demo Toàn Diện',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: const Text(
-          'Tạo sản phẩm, đơn bán, chi phí, trả hàng để debug',
+          'SP · Bán hàng · Sửa chữa · Công nợ · Chấm công · Lương · NCC · Nhập hàng · Cộng đồng · Chat',
         ),
         onTap: () async {
           final confirm = await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('Tạo Data Test?'),
+              title: const Text('Tạo Dữ Liệu Demo?'),
               content: const Text(
-                'Sẽ tạo 8 SP, 4 đơn bán, 4 chi phí, 1 trả hàng.\nDữ liệu sẽ hiển thị trên dashboard.',
+                'Sẽ tạo đầy đủ dữ liệu mẫu:\n'
+                '• 10 sản phẩm (điện thoại, phụ kiện, linh kiện)\n'
+                '• 5 đơn bán hàng + 1 trả hàng\n'
+                '• 5 đơn sửa chữa (các trạng thái)\n'
+                '• 3 công nợ khách hàng (~43tr)\n'
+                '• 8 khoản thu/chi tài chính\n'
+                '• 3 nhân viên với cài đặt lương\n'
+                '• Chấm công 7 ngày (3 nhân viên)\n'
+                '• 3 nhà cung cấp + 3 phiếu nhập hàng\n'
+                '• 5 bài đăng cộng đồng\n'
+                '• 7 tin nhắn chat nội bộ',
               ),
               actions: [
                 TextButton(
@@ -8413,8 +8423,8 @@ class _HomeViewState extends State<HomeView>
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Đang tạo data test...'),
-              duration: Duration(seconds: 2),
+              content: Text('Đang tạo dữ liệu demo, vui lòng đợi... (~30-60s)'),
+              duration: Duration(seconds: 5),
             ),
           );
           try {
@@ -8425,7 +8435,7 @@ class _HomeViewState extends State<HomeView>
                 context: context,
                 builder: (ctx) => AlertDialog(
                   title: const Text('✅ Tạo thành công!'),
-                  content: Text(result),
+                  content: SingleChildScrollView(child: Text(result)),
                   actions: [
                     FilledButton(
                       onPressed: () => Navigator.pop(ctx),

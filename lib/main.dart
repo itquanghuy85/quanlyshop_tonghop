@@ -905,11 +905,14 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
           builder: (context, roleSnap) {
             if (roleSnap.connectionState == ConnectionState.waiting) {
               final isSuperAdmin = UserService.isCurrentUserSuperAdmin();
+              final isCreatingNew = UserService.isCreatingNewShopData;
               return _buildLoadingScreen(
                 isSuperAdmin
                     ? 'Đang kiểm tra quyền...'
-                    : 'Đang đồng bộ dữ liệu cửa hàng...',
-                showIntro: !isSuperAdmin, // Hiển thị intro cho user thường
+                    : isCreatingNew
+                        ? 'Đang tạo dữ liệu lần đầu, vui lòng đợi...'
+                        : 'Đang đồng bộ dữ liệu cửa hàng...',
+                showIntro: !isSuperAdmin,
               );
             }
             if (roleSnap.hasError || !roleSnap.hasData) {

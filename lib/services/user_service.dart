@@ -61,6 +61,10 @@ class UserService {
   static String? _cachedUid; // Track which user's shopId is cached
   static String? _adminSelectedShopId; // Shop được super admin chọn để xem
   static bool _cachedIsSuperAdmin = false;
+
+  /// Flag để AuthGate biết đang tạo shop mới lần đầu → hiển thị thông báo khác
+  static bool _isCreatingNewShopData = false;
+  static bool get isCreatingNewShopData => _isCreatingNewShopData;
   static String? _cachedIsSuperAdminUid;
   static bool? _cachedCanViewCostPrice; // Cache permission xem giá vốn
   static DateTime? _cachedCanViewCostPriceTime; // Thời điểm cache
@@ -1003,6 +1007,7 @@ class UserService {
 
           shopId = uid;
           isNewShop = true;
+          _isCreatingNewShopData = true; // AuthGate sẽ hiển thị thông báo lần đầu
           debugPrint(
             '🆕 syncUserInfo: Creating new shop with id=$shopId for user $email',
           );
@@ -1192,6 +1197,7 @@ class UserService {
     }
 
     debugPrint('✅ syncUserInfo: COMPLETE for uid=$uid, shopId=$shopId');
+    _isCreatingNewShopData = false; // Reset sau khi hoàn thành
   }
 
   static bool _isPermissionDeniedError(Object error) {
