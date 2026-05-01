@@ -196,21 +196,98 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     }
   }
 
-  Widget _fbar() {
+  /// Thanh lọc dùng chung cho tất cả tab (trừ tab Báo cáo)
+  Widget _sharedBar() {
     final custom = _mode == _FilterMode.custom;
-    return Container(color:Colors.white, padding:const EdgeInsets.fromLTRB(12,8,12,8),
-      child:Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
-        SingleChildScrollView(scrollDirection:Axis.horizontal,
-          child:Row(children:[
-            _rc('Hôm nay', _mode==_FilterMode.today, _setToday), const SizedBox(width:6),
-            _rc('Tháng này', _mode==_FilterMode.month, _setMonth), const SizedBox(width:6),
-            _rc('Năm nay', _mode==_FilterMode.year, _setYear), const SizedBox(width:6),
-            _rc('Tùy chọn', custom, _pick, icon:Icons.date_range_rounded),
-          ]),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFEEF1F7))),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    _rc('Hôm nay', _mode == _FilterMode.today, _setToday),
+                    const SizedBox(width: 6),
+                    _rc('Tháng này', _mode == _FilterMode.month, _setMonth),
+                    const SizedBox(width: 6),
+                    _rc('Năm nay', _mode == _FilterMode.year, _setYear),
+                    const SizedBox(width: 6),
+                    _rc('Tùy chọn', custom, _pick, icon: Icons.date_range_rounded),
+                  ]),
+                ),
+              ),
+              Container(width: 1, height: 24, color: const Color(0xFFEEF1F7), margin: const EdgeInsets.symmetric(horizontal: 4)),
+              _barIcon(Icons.download_rounded, 'Xuất Excel', _exFromTab),
+              _barIcon(Icons.refresh_rounded, 'Tải lại', _load),
+            ],
+          ),
+          if (custom) ...[
+            const SizedBox(height: 3),
+            GestureDetector(
+              onTap: _pick,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.calendar_today_rounded, size: 11, color: FinanceV2Theme.accent),
+                const SizedBox(width: 4),
+                Text(_sub, style: const TextStyle(fontSize: 11, color: FinanceV2Theme.accent, fontWeight: FontWeight.w500)),
+              ]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _barIcon(IconData icon, String tooltip, VoidCallback? onTap) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(icon, size: 20, color: FinanceV2Theme.accent),
         ),
-        if(custom)...[const SizedBox(height:4),
-          GestureDetector(onTap:_pick,child:Text(_sub,style:const TextStyle(fontSize:12,color:FinanceV2Theme.accent,fontWeight:FontWeight.w500)))],
-      ]));
+      ),
+    );
+  }
+
+  void _exFromTab() {
+    final s = _snap;
+    if (s == null) return;
+    final idx = _tabController.index;
+    switch (idx) {
+      case 1:
+        var tx = s.transactions.toList();
+        if (_txFilter == 'IN') tx = tx.where((t) => t.isIncome).toList();
+        else if (_txFilter == 'OUT') tx = tx.where((t) => !t.isIncome).toList();
+        else if (_txFilter != 'ALL') tx = tx.where((t) => t.type == _txFilter).toList();
+        if (_txPm.isNotEmpty) tx = tx.where((t) => (t.paymentMethod ?? '') == _txPm).toList();
+        _exTx(tx);
+        break;
+      case 2:
+        _exDebt(_showRec ? s.receivables : s.payables);
+        break;
+      case 3:
+        _exRep(s.buckets(_agg));
+        break;
+      case 4:
+        _exTL(_timeline(s));
+        break;
+      default:
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Chuyển sang tab Giao dịch hoặc Nhật ký để xuất Excel')),
+          );
+        }
+    }
   }
 
   Widget _rc(String lbl,bool active,VoidCallback onTap,{IconData? icon}) {
@@ -285,10 +362,22 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         accentColor: AppBarAccents.finance, showBackButton: false,
       ),
       body: _loading
-          ? const Center(child:CircularProgressIndicator(color:FinanceV2Theme.accent))
-          : TabBarView(controller:_tabController, children:[
-              _t0(), _t1(), _t2(), _t3(), _t4(), _t5(),
-            ]),
+          ? const Center(child: CircularProgressIndicator(color: FinanceV2Theme.accent))
+          : Column(
+              children: [
+                AnimatedBuilder(
+                  animation: _tabController,
+                  builder: (_, __) => _tabController.index == 5
+                      ? const SizedBox.shrink()
+                      : _sharedBar(),
+                ),
+                Expanded(
+                  child: TabBarView(controller: _tabController, children: [
+                    _t0(), _t1(), _t2(), _t3(), _t4(), _t5(),
+                  ]),
+                ),
+              ],
+            ),
     );
   }
   // TAB 0
@@ -296,7 +385,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     final s=_snap; if(s==null) return _empty('Không có dữ liệu');
     return ResponsiveCenter(child:RefreshIndicator(onRefresh:_load,color:FinanceV2Theme.accent,
       child:ListView(padding:EdgeInsets.zero,children:[
-        _hero(s),const SizedBox(height:4),_fbar(),const SizedBox(height:12),
+        _hero(s),const SizedBox(height:8),
         _alerts(s),
         Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Column(children:[
           Row(children:[
@@ -527,7 +616,6 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     if(_txPm.isNotEmpty) tx=tx.where((t)=>(t.paymentMethod??'')==_txPm).toList();
     if(_txQuery.isNotEmpty){final q=_txQuery.toLowerCase();tx=tx.where((t)=>t.title.toLowerCase().contains(q)||t.subtitle.toLowerCase().contains(q)||(t.actorName??'').toLowerCase().contains(q)).toList();}
     return ResponsiveCenter(child:Column(children:[
-      _fbar(),
       Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(12,6,12,0),child:_sf(_txCtrl,'Tìm giao dịch...',_txQuery,(){_txCtrl.clear();setState(()=>_txQuery='');})),
       Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(12,8,12,8),child:Wrap(spacing:6,runSpacing:4,children:[
         _chip('ALL','Tất cả',_txFilter,(v)=>setState(()=>_txFilter=v)),
@@ -589,7 +677,6 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     final items=_showRec?s.receivables:s.payables;
     final total=_showRec?s.receivableTotal:s.payableTotal;
     return ResponsiveCenter(child:Column(children:[
-      _fbar(),
       Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(12,8,12,8),child:Row(children:[
         Expanded(child:GestureDetector(onTap:()=>setState(()=>_showRec=true),child:AnimatedContainer(duration:const Duration(milliseconds:200),padding:const EdgeInsets.symmetric(vertical:9),decoration:BoxDecoration(color:_showRec?FinanceV2Theme.warn:const Color(0xFFF0F3F9),borderRadius:BorderRadius.circular(10)),alignment:Alignment.center,child:Text('Phải thu  ${_cmp(s.receivableTotal)}',style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:_showRec?Colors.white:FinanceV2Theme.subInk))))),
         const SizedBox(width:8),
@@ -628,7 +715,6 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     final s=_snap; if(s==null) return _empty('Không có dữ liệu');
     final bkts=s.buckets(_agg);
     return ResponsiveCenter(child:Column(children:[
-      _fbar(),
       Padding(padding:const EdgeInsets.fromLTRB(12,10,12,0),child:Container(decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),child:Row(children:[Expanded(child:_mini('Tiền vào',_cmp(s.totalIn),FinanceV2Theme.positive)),Expanded(child:_mini('Tiền ra',_cmp(s.totalOut),FinanceV2Theme.negative)),Expanded(child:_mini('Lợi nhuận',_signedCmp(s.netCashflow),s.netCashflow>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))]))),
       const Padding(padding:EdgeInsets.fromLTRB(16,8,16,0),child:Text('* Dựa trên tiền mặt thực nhận / thực chi trong kỳ.',style:TextStyle(fontSize:10,color:FinanceV2Theme.subInk,fontStyle:FontStyle.italic))),
       Padding(padding:const EdgeInsets.fromLTRB(12,8,12,0),child:Row(children:[
@@ -686,7 +772,6 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     if(_tlPm.isNotEmpty) ents=ents.where((e)=>e.paymentMethod==_tlPm).toList();
     if(_tlQ.isNotEmpty){final q=_tlQ.toLowerCase();ents=ents.where((e)=>e.title.toLowerCase().contains(q)||e.subtitle.toLowerCase().contains(q)||(e.actorName??'').toLowerCase().contains(q)).toList();}
     return ResponsiveCenter(child:Column(children:[
-      _fbar(),
       Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(12,6,12,0),child:_sf(_tlCtrl,'Tìm trong nhật ký...',_tlQ,(){_tlCtrl.clear();setState(()=>_tlQ='');})),
       Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(12,8,12,4),child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[
         _chip('ALL','Tất cả',_tlSrc,(v)=>setState(()=>_tlSrc=v)),const SizedBox(width:6),
