@@ -4087,6 +4087,7 @@ class _CashClosingViewState extends State<CashClosingView>
       salesReturns: salesReturns,
       enableRepair: _enableRepair,
       logDebug: true,
+      debugLabel: DateFormat('yyyy-MM-dd').format(now),
     );
   }
 }

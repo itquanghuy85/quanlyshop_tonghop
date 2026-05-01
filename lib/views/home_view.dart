@@ -115,7 +115,6 @@ import '../expansion/safe_mode/branch_service.dart';
 import 'expansion/branch/branch_selector_view.dart';
 import 'expansion/branch/branch_list_view.dart';
 import '../finance_v2/finance_v2_view.dart' as finance_v2;
-import '../finance_v2/finance_v2_daily_report_view.dart' as finance_v2_report;
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -2529,6 +2528,8 @@ class _HomeViewState extends State<HomeView>
         repairPartsCostFundRows: repairPartsCostFundRows,
         salesReturns: fSalesReturns,
         enableRepair: _enableRepair,
+        logDebug: true,
+        debugLabel: DateFormat('yyyy-MM-dd').format(todayStart),
       );
 
       // Thống kê số lượng
@@ -3380,22 +3381,6 @@ class _HomeViewState extends State<HomeView>
           // Merged into financeDetail below
           break;
         case DashboardCardType.financeDetail:
-          widgets.add(
-            FinanceSummaryCard(
-              key: const ValueKey('finance_summary'),
-              revenue:
-                  _todaySaleIncome +
-                  _todaySettlementIncome +
-                  _todayRepairIncome,
-              netProfit: _todayNetProfit,
-              currentFund:
-                  _previousClosingTotal + _todayTotalIn - _todayTotalOut,
-              onTap: () => _pushRoute(
-                context,
-                MaterialPageRoute(builder: (_) => const CashClosingView()),
-              ),
-            ),
-          );
           widgets.add(_buildDashboardOverview());
           widgets.add(const SizedBox(height: 10));
           break;
@@ -3427,7 +3412,7 @@ class _HomeViewState extends State<HomeView>
           // Today's operational activity card
           break;
         case DashboardCardType.dailyReport:
-          widgets.add(_buildDailyReportCard());
+          // Removed from Home.
           break;
       }
     }
@@ -5091,7 +5076,7 @@ class _HomeViewState extends State<HomeView>
           return () => _pushRoute(
             context,
             MaterialPageRoute(
-              builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
+              builder: (_) => const finance_v2.FinanceV2View(),
             ),
           );
         case ShortcutType.activityLog:
@@ -5144,12 +5129,7 @@ class _HomeViewState extends State<HomeView>
             MaterialPageRoute(builder: (_) => const PaymentRequestChatView()),
           );
         case ShortcutType.dailyReport:
-          return () => _pushRoute(
-            context,
-            MaterialPageRoute(
-              builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
-            ),
-          );
+          return null;
         case ShortcutType.importHistory:
           return () => _pushRoute(
             context,
@@ -9270,7 +9250,7 @@ class _HomeViewState extends State<HomeView>
             const SizedBox(height: 14),
 
             // ── Bar chart ──
-            if (barMax > 0) ...[
+            if (false) ...[
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -9468,138 +9448,6 @@ class _HomeViewState extends State<HomeView>
         ).then((_) => _loadReminderCount()),
       ),
     ];
-  }
-
-  Widget _buildDailyReportCard() {
-    final totalRevenue =
-        _todaySaleIncome + _todaySettlementIncome + _todayRepairIncome;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _pushRoute(
-            context,
-            MaterialPageRoute(
-              builder: (_) => finance_v2_report.FinanceV2DailyReportView(),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.summarize,
-                      color: const Color(0xFF1565C0),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'BÁO CÁO NGÀY',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1565C0),
-                          fontSize: 13,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey.shade400,
-                      size: 20,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _dailyReportStat(
-                        'Doanh thu',
-                        MoneyUtils.formatCompact(totalRevenue),
-                        Colors.green,
-                        Icons.trending_up,
-                      ),
-                    ),
-                    Expanded(
-                      child: _dailyReportStat(
-                        'Bán hàng',
-                        todaySaleCount.toString(),
-                        Colors.blue,
-                        Icons.shopping_cart,
-                      ),
-                    ),
-                    if (_enableRepair)
-                      Expanded(
-                        child: _dailyReportStat(
-                          'Sửa chữa',
-                          totalPendingRepair.toString(),
-                          Colors.orange,
-                          Icons.build_circle,
-                        ),
-                      ),
-                    Expanded(
-                      child: _dailyReportStat(
-                        'Lợi nhuận',
-                        MoneyUtils.formatCompact(_todayNetProfit),
-                        _todayNetProfit >= 0 ? Colors.teal : Colors.red,
-                        Icons.account_balance_wallet,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _dailyReportStat(
-    String label,
-    String value,
-    Color color,
-    IconData icon,
-  ) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
   }
 
   Widget _buildTodayActivityDashboardCard() {
@@ -10092,24 +9940,6 @@ class _HomeViewState extends State<HomeView>
                   ),
                 ),
               ],
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: _financeShortcutButton(
-                  icon: Icons.history,
-                  label: 'Hoạt động',
-                  color: Colors.deepPurple,
-                  onTap: () => _pushRoute(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const RecentActivityView(),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ],

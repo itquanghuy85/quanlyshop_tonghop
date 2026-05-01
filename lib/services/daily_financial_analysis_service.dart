@@ -70,6 +70,7 @@ class DailyFinancialAnalysisService {
     required List<Map<String, dynamic>> salesReturns,
     required bool enableRepair,
     bool logDebug = false,
+    String? debugLabel,
   }) {
     int cashIn = 0;
     int cashOut = 0;
@@ -342,14 +343,20 @@ class DailyFinancialAnalysisService {
     }
 
     if (logDebug) {
-      debugPrint('=== DAILY FINANCIAL ANALYSIS ===');
+      final label = (debugLabel != null && debugLabel.trim().isNotEmpty)
+          ? debugLabel.trim()
+          : 'N/A';
+      debugPrint('=== DAILY FINANCIAL ANALYSIS [$label] ===');
       debugPrint('💵 cashIn=$cashIn, cashOut=$cashOut');
       debugPrint('🏦 bankIn=$bankIn, bankOut=$bankOut');
       debugPrint('📊 saleIncome=$saleIncome (debt=$saleDebt)');
+      debugPrint('🏦 settlementIncome=$settlementIncome');
       debugPrint('🔧 repairIncome=$repairIncome (debt=$repairDebt)');
+      debugPrint('➕ miscIncome=$miscIncome');
       debugPrint('💳 debtCollected=$debtCollected');
       debugPrint('📤 expenseOut=$expenseOut, importOut=$importOut, supplierPaid=$supplierPaid, partnerPaid=$partnerPaid');
       debugPrint('💰 saleCost=$saleCost, repairCost=$repairCost, repairPartsCostFund=$repairPartsCostFund');
+      debugPrint('🧮 netProfit = saleIncome($saleIncome) + settlementIncome($settlementIncome) + repairIncome($repairIncome) + miscIncome($miscIncome) - expenseOut($expenseOut) - saleCost($saleCost) - repairCost($repairCost) = ${saleIncome + settlementIncome + repairIncome + miscIncome - expenseOut - saleCost - repairCost}');
     }
 
     return DailyFinancialAnalysis(

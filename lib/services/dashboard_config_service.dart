@@ -209,7 +209,7 @@ class DashboardConfigService {
       ),
       DashboardCardConfig(
         type: DashboardCardType.dailyReport,
-        visible: canViewFinanceByDefault,
+        visible: false,
         order: 1,
       ),
       DashboardCardConfig(

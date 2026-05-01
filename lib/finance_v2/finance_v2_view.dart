@@ -358,13 +358,13 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     }).toList()));
   }
 
-  Widget _kpi(String lbl,int amt,int? prev,Color c,IconData icon,VoidCallback? tap) {
+  Widget _kpi(String lbl,int amt,int? prev,Color c,IconData icon,VoidCallback? tap,{bool signedValue=false}) {
     final chg=prev!=null&&prev>0?((amt-prev)/prev)*100.0:null;
     return GestureDetector(onTap:tap,child:Container(
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(12),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         Row(children:[Icon(icon,size:16,color:c),const SizedBox(width:4),Expanded(child:Text(lbl,style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk))),if(tap!=null) const Icon(Icons.chevron_right_rounded,size:14,color:FinanceV2Theme.subInk)]),
-        const SizedBox(height:4),Text(_cmp(amt),style:TextStyle(fontSize:16,fontWeight:FontWeight.w700,color:c)),
+        const SizedBox(height:4),Text(signedValue?_signedCmp(amt):_cmp(amt),style:TextStyle(fontSize:16,fontWeight:FontWeight.w700,color:c)),
         if(chg!=null)...[const SizedBox(height:2),Row(children:[Icon(chg>=0?Icons.arrow_drop_up_rounded:Icons.arrow_drop_down_rounded,size:14,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative),Text('${chg.abs().toStringAsFixed(0)}%',style:TextStyle(fontSize:10,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))])],
       ])));
   }
@@ -416,9 +416,9 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         ]),
         const SizedBox(height:8),
         Row(children:[
-          Expanded(child:_kpi('Lãi BH',s.grossProfitFromSales,s.previousGrossProfitFromSales!=0?s.previousGrossProfitFromSales:null,s.grossProfitFromSales>=0?FinanceV2Theme.positive:FinanceV2Theme.negative,Icons.trending_up_rounded,null)),
+          Expanded(child:_kpi('Lãi BH',s.grossProfitFromSales,s.previousGrossProfitFromSales!=0?s.previousGrossProfitFromSales:null,s.grossProfitFromSales>=0?FinanceV2Theme.positive:FinanceV2Theme.negative,Icons.trending_up_rounded,null,signedValue:true)),
           const SizedBox(width:8),
-          Expanded(child:_kpi('Lãi SC',s.grossProfitFromRepairs,s.previousGrossProfitFromRepairs!=0?s.previousGrossProfitFromRepairs:null,s.grossProfitFromRepairs>=0?FinanceV2Theme.positive:FinanceV2Theme.negative,Icons.trending_up_rounded,null)),
+          Expanded(child:_kpi('Lãi SC',s.grossProfitFromRepairs,s.previousGrossProfitFromRepairs!=0?s.previousGrossProfitFromRepairs:null,s.grossProfitFromRepairs>=0?FinanceV2Theme.positive:FinanceV2Theme.negative,Icons.trending_up_rounded,null,signedValue:true)),
         ]),
       ])));
   }
@@ -629,10 +629,10 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     final bkts=s.buckets(_agg);
     return ResponsiveCenter(child:Column(children:[
       _fbar(),
-      Padding(padding:const EdgeInsets.fromLTRB(12,10,12,0),child:Container(decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),child:Row(children:[Expanded(child:_mini('Tiền vào',_cmp(s.totalIn),FinanceV2Theme.positive)),Expanded(child:_mini('Tiền ra',_cmp(s.totalOut),FinanceV2Theme.negative)),Expanded(child:_mini('Lợi nhuận',_cmp(s.netCashflow),s.netCashflow>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))]))),
+      Padding(padding:const EdgeInsets.fromLTRB(12,10,12,0),child:Container(decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),child:Row(children:[Expanded(child:_mini('Tiền vào',_cmp(s.totalIn),FinanceV2Theme.positive)),Expanded(child:_mini('Tiền ra',_cmp(s.totalOut),FinanceV2Theme.negative)),Expanded(child:_mini('Lợi nhuận',_signedCmp(s.netCashflow),s.netCashflow>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))]))),
       const Padding(padding:EdgeInsets.fromLTRB(16,8,16,0),child:Text('* Dựa trên tiền mặt thực nhận / thực chi trong kỳ.',style:TextStyle(fontSize:10,color:FinanceV2Theme.subInk,fontStyle:FontStyle.italic))),
       Padding(padding:const EdgeInsets.fromLTRB(12,8,12,0),child:Row(children:[
-        _aChip('Ngày',FinanceV2Aggregation.day),const SizedBox(width:6),_aChip('Thang',FinanceV2Aggregation.month),const SizedBox(width:6),_aChip('Nam',FinanceV2Aggregation.year),
+        _aChip('Ngày',FinanceV2Aggregation.day),const SizedBox(width:6),_aChip('Tháng',FinanceV2Aggregation.month),const SizedBox(width:6),_aChip('Năm',FinanceV2Aggregation.year),
         const Spacer(),IconButton(icon:const Icon(Icons.download_rounded,color:FinanceV2Theme.accent,size:20),tooltip:'Xuất Excel',onPressed:()=>_exRep(bkts)),
       ])),
       if(bkts.isNotEmpty) Padding(padding:const EdgeInsets.fromLTRB(12,4,12,0),child:Row(children:[Text('${bkts.length} kỳ',style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk)),const SizedBox(width:12),Text('TB vào: ${_cmp(bkts.isEmpty?0:s.totalIn~/bkts.length)}',style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk))])),
@@ -644,9 +644,9 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Widget _rptRow(FinanceV2PeriodBucket b) {
     final mx=b.totalIn>b.totalOut?b.totalIn:b.totalOut;
     return Padding(padding:const EdgeInsets.fromLTRB(14,10,14,10),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[Text(b.label,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:FinanceV2Theme.ink)),const Spacer(),Text('${b.txCount} GD',style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk)),const SizedBox(width:8),Text(b.net>=0?'+${_cmp(b.net)}':_cmp(b.net),style:TextStyle(fontSize:13,fontWeight:FontWeight.w700,color:b.net>=0?FinanceV2Theme.positive:FinanceV2Theme.negative)),const SizedBox(width:4),const Icon(Icons.chevron_right_rounded,size:16,color:FinanceV2Theme.subInk)]),
+      Row(children:[Text(b.label,style:const TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:FinanceV2Theme.ink)),const Spacer(),Text('${b.txCount} GD',style:const TextStyle(fontSize:11,color:FinanceV2Theme.subInk)),const SizedBox(width:8),Text(_signedCmp(b.net),style:TextStyle(fontSize:13,fontWeight:FontWeight.w700,color:b.net>=0?FinanceV2Theme.positive:FinanceV2Theme.negative)),const SizedBox(width:4),const Icon(Icons.chevron_right_rounded,size:16,color:FinanceV2Theme.subInk)]),
       const SizedBox(height:6),
-      if(mx>0)...[_bRow('Vao',b.totalIn,mx,FinanceV2Theme.positive),const SizedBox(height:4),_bRow('Ra',b.totalOut,mx,FinanceV2Theme.negative)],
+      if(mx>0)...[_bRow('Vào',b.totalIn,mx,FinanceV2Theme.positive),const SizedBox(height:4),_bRow('Ra',b.totalOut,mx,FinanceV2Theme.negative)],
     ]));
   }
 

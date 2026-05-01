@@ -276,6 +276,50 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
   }
 
+  String _rangeModeLabel(_ReportRangeMode mode) {
+    switch (mode) {
+      case _ReportRangeMode.day:
+        return 'Theo ngày';
+      case _ReportRangeMode.month:
+        return 'Theo tháng';
+      case _ReportRangeMode.year:
+        return 'Theo năm';
+      case _ReportRangeMode.custom:
+        return 'Khoảng thời gian';
+    }
+  }
+
+  Future<void> _changeRangeMode(_ReportRangeMode mode) async {
+    if (mode == _rangeMode) {
+      if (mode == _ReportRangeMode.custom) {
+        await _pickCustomRange();
+      }
+      return;
+    }
+
+    setState(() {
+      _rangeMode = mode;
+      if (mode == _ReportRangeMode.month) {
+        _selectedDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
+      } else if (mode == _ReportRangeMode.year) {
+        _selectedDate = DateTime(_selectedDate.year, 1, 1);
+      } else if (mode == _ReportRangeMode.custom) {
+        final normalized = DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+        );
+        _customRange ??= DateTimeRange(start: normalized, end: normalized);
+      }
+    });
+
+    if (mode == _ReportRangeMode.custom) {
+      await _pickCustomRange();
+      return;
+    }
+    _loadReport();
+  }
+
   (DateTime, DateTime) _resolveRange() {
     if (_rangeMode == _ReportRangeMode.month) {
       return (
@@ -768,8 +812,6 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                 child: ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    _buildRangeSelector(context),
-                    const SizedBox(height: 8),
                     _buildDateSelector(context),
                     const SizedBox(height: 16),
                     _buildSummaryCards(context, netCashflow, realProfit),
@@ -796,7 +838,61 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     if (widget.embeddedInTab) {
       return ColoredBox(
         color: FinanceV2Theme.pageBg,
-        child: body,
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  PopupMenuButton<_ReportRangeMode>(
+                    tooltip: 'Chọn kiểu lọc',
+                    onSelected: (mode) {
+                      _changeRangeMode(mode);
+                    },
+                    itemBuilder: (context) => _ReportRangeMode.values
+                        .map(
+                          (mode) => PopupMenuItem<_ReportRangeMode>(
+                            value: mode,
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(_rangeModeLabel(mode))),
+                                if (_rangeMode == mode)
+                                  const Icon(Icons.check_rounded, size: 16),
+                              ],
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    icon: const Icon(Icons.filter_alt_rounded),
+                  ),
+                  if (_snapshot != null)
+                    IconButton(
+                      onPressed: _printReport,
+                      icon: const Icon(Icons.print_rounded),
+                      tooltip: 'In báo cáo',
+                      iconSize: 22,
+                    ),
+                  if (_snapshot != null)
+                    IconButton(
+                      onPressed: _exportReport,
+                      icon: const Icon(Icons.download_rounded),
+                      tooltip: 'Xuất Excel',
+                      iconSize: 22,
+                    ),
+                  IconButton(
+                    onPressed: _loadReport,
+                    icon: const Icon(Icons.refresh_rounded),
+                    tooltip: 'Làm mới',
+                    iconSize: 22,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: body),
+          ],
+        ),
       );
     }
 
@@ -808,6 +904,27 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
         backgroundColor: FinanceV2Theme.accent,
         foregroundColor: Colors.white,
         actions: [
+          PopupMenuButton<_ReportRangeMode>(
+            tooltip: 'Chọn kiểu lọc',
+            onSelected: (mode) {
+              _changeRangeMode(mode);
+            },
+            itemBuilder: (context) => _ReportRangeMode.values
+                .map(
+                  (mode) => PopupMenuItem<_ReportRangeMode>(
+                    value: mode,
+                    child: Row(
+                      children: [
+                        Expanded(child: Text(_rangeModeLabel(mode))),
+                        if (_rangeMode == mode)
+                          const Icon(Icons.check_rounded, size: 16),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
+            icon: const Icon(Icons.filter_alt_rounded),
+          ),
           if (_snapshot != null)
             IconButton(
               onPressed: _printReport,
@@ -899,60 +1016,6 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildRangeSelector(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        ChoiceChip(
-          label: const Text('Theo ngày'),
-          selected: _rangeMode == _ReportRangeMode.day,
-          onSelected: (v) {
-            if (!v) return;
-            setState(() => _rangeMode = _ReportRangeMode.day);
-            _loadReport();
-          },
-        ),
-        ChoiceChip(
-          label: const Text('Theo tháng'),
-          selected: _rangeMode == _ReportRangeMode.month,
-          onSelected: (v) {
-            if (!v) return;
-            setState(() {
-              _rangeMode = _ReportRangeMode.month;
-              _selectedDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
-            });
-            _loadReport();
-          },
-        ),
-        ChoiceChip(
-          label: const Text('Theo năm'),
-          selected: _rangeMode == _ReportRangeMode.year,
-          onSelected: (v) {
-            if (!v) return;
-            setState(() {
-              _rangeMode = _ReportRangeMode.year;
-              _selectedDate = DateTime(_selectedDate.year, 1, 1);
-            });
-            _loadReport();
-          },
-        ),
-        ChoiceChip(
-          label: const Text('Khoảng thời gian'),
-          selected: _rangeMode == _ReportRangeMode.custom,
-          onSelected: (v) {
-            if (!v) return;
-            setState(() {
-              _rangeMode = _ReportRangeMode.custom;
-              _customRange ??= DateTimeRange(start: _selectedDate, end: _selectedDate);
-            });
-            _pickCustomRange();
-          },
-        ),
-      ],
     );
   }
 
