@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'notification_service.dart';
 import 'storage_service.dart';
 import 'user_service.dart';
+import 'audit_service.dart';
 
 class CommunityService {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -69,7 +70,7 @@ class CommunityService {
       final role = (userInfo['role'] ?? 'employee').toString();
       final photoUrl = (userInfo['photoUrl'] ?? '').toString().trim();
 
-      await _postsRef.add({
+      final docRef = await _postsRef.add({
         'shopId': shopId,
         'authorUid': currentUser.uid,
         'authorName': displayName.isEmpty
@@ -86,6 +87,13 @@ class CommunityService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      await AuditService.logAction(
+        action: 'COMMUNITY_POST_CREATED',
+        entityType: 'COMMUNITY_POST',
+        entityId: docRef.id,
+        summary: trimmed.isEmpty ? 'Đăng bài cộng đồng (chỉ ảnh)' : 'Đăng bài cộng đồng',
+      );
 
       return true;
     } catch (e) {
@@ -166,6 +174,13 @@ class CommunityService {
         'commentCount': FieldValue.increment(1),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      await AuditService.logAction(
+        action: 'COMMUNITY_COMMENT_CREATED',
+        entityType: 'COMMUNITY_POST',
+        entityId: postId,
+        summary: 'Thêm bình luận cộng đồng',
+      );
 
       return true;
     } catch (e) {

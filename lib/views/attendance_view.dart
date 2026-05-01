@@ -13,6 +13,7 @@ import '../services/attendance_approval_service.dart';
 import '../services/encryption_service.dart';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../services/audit_service.dart';
 import '../services/background_upload_service.dart';
 import '../services/osm_map_service.dart';
 import '../services/firestore_write_helper.dart';
@@ -379,6 +380,20 @@ class _AttendanceViewState extends State<AttendanceView>
       await _syncAttendanceToCloud(attendance, shopId);
 
       await _refreshAttendanceData();
+
+      await AuditService.logAction(
+        action: isIn ? 'ATTENDANCE_CHECKIN' : 'ATTENDANCE_CHECKOUT',
+        entityType: 'ATTENDANCE',
+        entityId: firestoreId,
+        summary: isIn
+            ? 'Nhân viên chấm công vào'
+            : 'Nhân viên chấm công ra',
+        payload: {
+          'dateKey': attendance.dateKey,
+          'staffName': attendance.name,
+          'location': attendance.location,
+        },
+      );
 
       // Send attendance notification
       try {

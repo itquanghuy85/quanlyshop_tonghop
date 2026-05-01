@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../services/user_service.dart';
 import '../services/notification_service.dart';
+import '../services/audit_service.dart';
 import '../services/storage_service.dart';
 import '../services/data_migration_service.dart';
 import '../services/sync_service.dart';
@@ -941,6 +942,23 @@ class _ShopSettingsViewState extends State<ShopSettingsView> {
         _selectedLogo = null;
         _selectedCover = null;
       });
+
+      await AuditService.logAction(
+        action: 'SHOP_SETTINGS_UPDATED',
+        entityType: 'SHOP',
+        entityId: shopId,
+        summary: 'Cập nhật cấu hình nhạy cảm của cửa hàng',
+        payload: {
+          'requireLocationForAttendance': _requireLocationForAttendance,
+          'hasLogo': logoUrl.trim().isNotEmpty,
+          'hasCover': coverUrl.trim().isNotEmpty,
+          'saveMode': savedToMainShopDoc
+              ? 'main_doc'
+              : (savedViaCallable
+                  ? 'callable'
+                  : (savedToFallbackProfile ? 'fallback' : 'unknown')),
+        },
+      );
 
       NotificationService.showSnackBar(
         savedToMainShopDoc

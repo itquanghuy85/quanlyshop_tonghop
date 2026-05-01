@@ -29,9 +29,13 @@ class FinancialActivityLogView extends StatefulWidget {
 
 class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
   final db = DBHelper();
+  static const int _pageSize = 120;
 
   List<FinancialActivity> _activities = [];
   bool _loading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _offset = 0;
   bool _hasPermission = false;
 
   String _searchQuery = '';
@@ -89,12 +93,34 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
 
   Future<void> _loadActivities() async {
     setState(() => _loading = true);
-    final data = await db.getFinancialActivities(limit: 500);
+    final data = await db.getFinancialActivities(limit: _pageSize, offset: 0);
     if (!mounted) return;
     setState(() {
       _activities = data.map(FinancialActivity.fromMap).toList();
+      _offset = data.length;
+      _hasMore = data.length >= _pageSize;
+      _isLoadingMore = false;
       _loading = false;
     });
+  }
+
+  Future<void> _loadMoreActivities() async {
+    if (_loading || _isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final data = await db.getFinancialActivities(
+        limit: _pageSize,
+        offset: _offset,
+      );
+      if (!mounted) return;
+      setState(() {
+        _activities.addAll(data.map(FinancialActivity.fromMap));
+        _offset += data.length;
+        _hasMore = data.length >= _pageSize;
+      });
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
   }
 
   @override
@@ -130,7 +156,7 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
         title: 'NHẬT KÝ HỆ THỐNG',
-        subtitle: '${_filteredActivities.length} giao dịch',
+        subtitle: '${_filteredActivities.length}/${_activities.length} giao dịch',
         accentColor: AppBarAccents.finance,
         actions: [
           IconButton(
@@ -338,9 +364,29 @@ class _FinancialActivityLogViewState extends State<FinancialActivityLogView> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) =>
-                      _buildActivityCard(filtered[index], index + 1),
+                  itemCount: filtered.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == filtered.length) {
+                      if (_isLoadingMore) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+                      if (!_hasMore) return const SizedBox(height: 8);
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: OutlinedButton.icon(
+                            onPressed: _loadMoreActivities,
+                            icon: const Icon(Icons.expand_more_rounded),
+                            label: const Text('Tải thêm'),
+                          ),
+                        ),
+                      );
+                    }
+                    return _buildActivityCard(filtered[index], index + 1);
+                  },
                 ),
         ),
       ],

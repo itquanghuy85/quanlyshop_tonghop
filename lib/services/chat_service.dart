@@ -9,6 +9,7 @@ import '../models/chat_message_model.dart';
 import 'user_service.dart';
 import 'notification_service.dart';
 import 'storage_service.dart';
+import 'audit_service.dart';
 
 /// Service quản lý Chat nâng cao với đầy đủ tính năng
 class ChatService {
@@ -92,6 +93,15 @@ class ChatService {
           .collection(_collectionChats)
           .add(chatMessage.toMap());
 
+      unawaited(
+        AuditService.logAction(
+          action: 'CHAT_MESSAGE_SENT',
+          entityType: 'CHAT',
+          entityId: docRef.id,
+          summary: 'Gửi tin nhắn chat',
+        ),
+      );
+
       // Stop typing indicator
       await setTypingStatus(false);
 
@@ -146,6 +156,19 @@ class ChatService {
       final docRef = await _db
           .collection(_collectionChats)
           .add(chatMessage.toMap());
+
+      unawaited(
+        AuditService.logAction(
+          action: 'CHAT_LINKED_MESSAGE_SENT',
+          entityType: linkedType.toUpperCase(),
+          entityId: linkedKey,
+          summary: 'Gửi tin nhắn liên kết đơn hàng',
+          payload: {
+            'chatMessageId': docRef.id,
+            'linkedSummary': linkedSummary,
+          },
+        ),
+      );
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Chat sendLinkedMessage error: $e');
@@ -176,6 +199,16 @@ class ChatService {
       final docRef = await _db
           .collection(_collectionChats)
           .add(chatMessage.toMap());
+
+      unawaited(
+        AuditService.logAction(
+          action: 'CHAT_IMAGE_SENT',
+          entityType: 'CHAT',
+          entityId: docRef.id,
+          summary: 'Gửi hình ảnh chat',
+          payload: {'imageCount': urls.length},
+        ),
+      );
       return docRef.id;
     } catch (e) {
       debugPrint('❌ Chat sendSystemMessage error: $e');

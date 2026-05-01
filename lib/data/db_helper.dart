@@ -6352,9 +6352,40 @@ return db;
     }, firestoreId);
   }
 
-  Future<List<Map<String, dynamic>>> getAuditLogs() async {
+  Future<List<Map<String, dynamic>>> getAuditLogs({
+    int limit = 100,
+    int offset = 0,
+    String? shopId,
+    String? searchQuery,
+  }) async {
     final db = await database;
-    return await db.query('audit_logs', orderBy: 'createdAt DESC', limit: 100);
+    final effectiveShopId = shopId ?? UserService.getShopIdSync();
+
+    final conditions = <String>[];
+    final args = <dynamic>[];
+
+    if (effectiveShopId != null && effectiveShopId.isNotEmpty) {
+      conditions.add('(shopId = ? OR shopId IS NULL)');
+      args.add(effectiveShopId);
+    }
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = '%${searchQuery.trim()}%';
+      conditions.add(
+        '(action LIKE ? OR userName LIKE ? OR description LIKE ? OR targetType LIKE ? OR targetId LIKE ?)',
+      );
+      args.addAll([q, q, q, q, q]);
+    }
+
+    final whereClause = conditions.isEmpty ? null : conditions.join(' AND ');
+    return await db.query(
+      'audit_logs',
+      where: whereClause,
+      whereArgs: whereClause == null ? null : args,
+      orderBy: 'createdAt DESC',
+      limit: limit,
+      offset: offset,
+    );
   }
 
   /// Lấy các audit logs chưa sync lên cloud

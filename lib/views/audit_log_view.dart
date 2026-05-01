@@ -14,8 +14,12 @@ class AuditLogView extends StatefulWidget {
 
 class _AuditLogViewState extends State<AuditLogView> {
   final db = DBHelper();
+  static const int _pageSize = 60;
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _offset = 0;
   bool _hasPermission = false;
 
   @override
@@ -33,12 +37,31 @@ class _AuditLogViewState extends State<AuditLogView> {
 
   Future<void> _refresh() async {
     setState(() => _loading = true);
-    final data = await db.getAuditLogs();
+    final data = await db.getAuditLogs(limit: _pageSize, offset: 0);
     if (!mounted) return;
     setState(() {
       _logs = data;
+      _offset = data.length;
+      _hasMore = data.length >= _pageSize;
+      _isLoadingMore = false;
       _loading = false;
     });
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || _isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    try {
+      final data = await db.getAuditLogs(limit: _pageSize, offset: _offset);
+      if (!mounted) return;
+      setState(() {
+        _logs.addAll(data);
+        _offset += data.length;
+        _hasMore = data.length >= _pageSize;
+      });
+    } finally {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
   }
 
   @override
@@ -63,7 +86,7 @@ class _AuditLogViewState extends State<AuditLogView> {
       backgroundColor: const Color(0xFFF0F4F8),
       appBar: CustomAppBar.build(
         title: 'NHẬT KÝ HỆ THỐNG',
-        subtitle: '${_logs.length} ghi chép',
+        subtitle: '${_logs.length} ghi chép đã tải',
         accentColor: AppBarAccents.finance,
         actions: [
           IconButton(
@@ -80,8 +103,31 @@ class _AuditLogViewState extends State<AuditLogView> {
             ? _buildEmpty()
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: _logs.length,
-                itemBuilder: (ctx, i) => _buildLogCard(_logs[i], i + 1),
+                itemCount: _logs.length + 1,
+                itemBuilder: (ctx, i) {
+                  if (i == _logs.length) {
+                    if (_isLoadingMore) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (!_hasMore) {
+                      return const SizedBox(height: 8);
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Center(
+                        child: OutlinedButton.icon(
+                          onPressed: _loadMore,
+                          icon: const Icon(Icons.expand_more_rounded),
+                          label: const Text('Tải thêm'),
+                        ),
+                      ),
+                    );
+                  }
+                  return _buildLogCard(_logs[i], i + 1);
+                },
               ),
       ),
     );
