@@ -406,6 +406,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
         const Text('Vốn & Lãi',style:TextStyle(fontWeight:FontWeight.w600,fontSize:13,color:FinanceV2Theme.ink)),
+        const SizedBox(height:4),
+        const Text('Bán hàng tính theo ngày bán (accrual)',style:TextStyle(fontSize:11,color:FinanceV2Theme.subInk)),
         const SizedBox(height:10),
         Row(children:[
           Expanded(child:_kpi('Vốn BH',s.cogsFromSales,s.previousCogsFromSales>0?s.previousCogsFromSales:null,const Color(0xFF1565C0),Icons.shopping_bag_outlined,null)),

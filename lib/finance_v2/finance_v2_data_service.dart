@@ -323,6 +323,13 @@ class FinanceV2DataService {
       } else {
         actualPaid = sale.finalPrice;
       }
+
+      // Vốn/Lãi bán hàng theo accrual: ghi nhận theo ngày bán, độc lập với thời điểm NH giải ngân.
+      final int accrualRevenue = sale.finalPrice > 0 ? sale.finalPrice : 0;
+      if (accrualRevenue > 0) {
+        saleCogs += sale.totalCost > 0 ? sale.totalCost : 0;
+      }
+
       if (actualPaid > 0) {
         int recognizedCost = 0;
         if (sale.totalCost > 0) {
@@ -549,16 +556,14 @@ class FinanceV2DataService {
       } else {
         actualPaid = sale.finalPrice;
       }
+
+      final int accrualRevenue = sale.finalPrice > 0 ? sale.finalPrice : 0;
+      if (accrualRevenue > 0) {
+        previousSaleCogs += sale.totalCost > 0 ? sale.totalCost : 0;
+      }
+
       if (actualPaid > 0) {
         previousSaleIn += actualPaid;
-        if (sale.totalCost > 0) {
-          int recognizedCost = sale.finalPrice > 0
-              ? ((sale.totalCost * actualPaid) / sale.finalPrice).round()
-              : sale.totalCost;
-          if (recognizedCost < 0) recognizedCost = 0;
-          if (recognizedCost > actualPaid) recognizedCost = actualPaid;
-          previousSaleCogs += recognizedCost;
-        }
       }
     }
 
@@ -657,13 +662,22 @@ class FinanceV2DataService {
     final totalOut = expenseOut;
     final operatingExpenseOut = expenseOut - debtRepayOut; // chi vận hành thuần (không tính trả nợ NCC)
     final netCashflow = totalIn - totalOut;
-    final grossProfitFromSales = saleIn - saleCogs;
+    final recognizedSalesRevenue = sales.fold<int>(
+      0,
+      (sum, sale) => sum + (sale.finalPrice > 0 ? sale.finalPrice : 0),
+    );
+    final grossProfitFromSales = recognizedSalesRevenue - saleCogs;
     final grossProfitFromRepairs = repairIn - repairCogs;
     final grossProfitTotal = grossProfitFromSales + grossProfitFromRepairs;
     final previousTotalIn = previousSaleIn + previousRepairIn + previousExtraIn;
     final previousTotalOut = previousExpenseOut;
     final previousNetCashflow = previousTotalIn - previousTotalOut;
-    final previousGrossProfitFromSales = previousSaleIn - previousSaleCogs;
+    final previousRecognizedSalesRevenue = previousSales.fold<int>(
+      0,
+      (sum, sale) => sum + (sale.finalPrice > 0 ? sale.finalPrice : 0),
+    );
+    final previousGrossProfitFromSales =
+        previousRecognizedSalesRevenue - previousSaleCogs;
     final previousGrossProfitFromRepairs = previousRepairIn - previousRepairCogs;
     final incomeTxCount = transactions.where((t) => t.isIncome).length;
     final avgIncomePerTransaction = incomeTxCount > 0 ? (totalIn ~/ incomeTxCount) : 0;
