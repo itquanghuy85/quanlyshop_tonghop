@@ -275,7 +275,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Scaffold(
       backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.buildWithTabs(
-        title: 'Tài chính', tabController: _tabController,
+        title: '', tabController: _tabController,
         tabs: [
           _tab2('Tổng\nquan'), _tab2('Giao\ndịch'), _tab2('Công\nnợ'),
           _tab2('Phân\ntích'), _tab2('Nhật\nký'), _tab2('Báo\ncáo'),

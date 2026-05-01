@@ -9,6 +9,7 @@ import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../theme/app_colors.dart';
+import '../constants/product_constants.dart';
 
 /// View to create a sales return from a specific sale order
 class CreateSalesReturnView extends StatefulWidget {
@@ -206,7 +207,7 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
             ..._items.where((i) => i.isSelected && i.returnQuantity > 0).map((i) =>
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text('• ${i.name} x${i.returnQuantity} — ${MoneyUtils.formatCurrency(i.pricePerUnit * i.returnQuantity)}đ'),
+                child: Text('• ${ProductConstants.cleanProductName(i.name)} x${i.returnQuantity} — ${MoneyUtils.formatCurrency(i.pricePerUnit * i.returnQuantity)}đ'),
               ),
             ),
             const Divider(),
@@ -447,7 +448,13 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                    Text(
+                      ProductConstants.cleanProductName(item.name),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
                     if (isPhone)
                       Text('IMEI: ${item.imei}', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
                     Text(

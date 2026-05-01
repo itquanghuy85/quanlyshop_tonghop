@@ -30,6 +30,7 @@ import '../models/payment_intent_model.dart';
 import '../models/shop_settings_model.dart';
 import '../models/printer_types.dart';
 import '../constants/financial_constants.dart';
+import '../constants/product_constants.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../theme/app_colors.dart';
@@ -348,7 +349,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
   }
 
   String _resolvePricingTierLabel() {
-    final names = s.productNames.toUpperCase();
+    final names = s.productNamesDisplay.toUpperCase();
     final hasVip = names.contains('[VIP]');
     final hasWholesale = names.contains('[SỈ]') || names.contains('[SI]');
     if (hasVip && hasWholesale) return 'VIP + SỈ';
@@ -366,7 +367,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       'customerPhone': s.phone,
       'customerAddress': s.address,
       'pricingTierLabel': pricingTierLabel,
-      'productNames': s.productNames,
+      'productNames': s.productNamesDisplay,
       'productImeis': s.productImeis,
       'warranty': s.warranty.isNotEmpty ? s.warranty : 'KO BH',
       'sellerName': s.sellerName,
@@ -558,7 +559,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
     final name = TextEditingController(text: s.customerName);
     final phone = TextEditingController(text: s.phone);
     final address = TextEditingController(text: s.address);
-    final products = TextEditingController(text: s.productNames);
+    final products = TextEditingController(text: s.productNamesDisplay);
     final imeis = TextEditingController(text: s.productImeis);
     final notes = TextEditingController(text: s.notes ?? "");
     final warranties = ["KO BH", "1 THÁNG", "3 THÁNG", "6 THÁNG", "12 THÁNG"];
@@ -658,7 +659,9 @@ class _SaleDetailViewState extends State<SaleDetailView> {
       s.customerName = name.text.trim().toUpperCase();
       s.phone = phone.text.trim();
       s.address = address.text.trim().toUpperCase();
-      s.productNames = products.text.trim().toUpperCase();
+      s.productNames = ProductConstants.cleanCompositeProductNames(
+        products.text.trim().toUpperCase(),
+      );
       s.productImeis = imeis.text.trim().toUpperCase();
       // Không cho phép sửa số tiền để bảo vệ dữ liệu tài chính
       s.warranty = warranty;
@@ -819,7 +822,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Đơn hàng: ${s.productNames}',
+              'Đơn hàng: ${s.productNamesDisplay}',
               style: const TextStyle(fontWeight: FontWeight.bold),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -1039,10 +1042,10 @@ class _SaleDetailViewState extends State<SaleDetailView> {
           direction: 'OUT',
           paymentMethod: s.paymentMethod,
           title: 'HỦY ĐƠN BÁN',
-          description: 'Hủy đơn: ${s.productNames}. KH: ${s.customerName}',
+          description: 'Hủy đơn: ${s.productNamesDisplay}. KH: ${s.customerName}',
           customerName: s.customerName,
           phone: s.walkInPhone ?? s.phone,
-          productInfo: s.productNames,
+          productInfo: s.productNamesDisplay,
           referenceType: 'sale',
           referenceId: s.firestoreId,
         );
@@ -1076,7 +1079,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
         action: 'DELETE_SALE',
         entityType: 'sale',
         entityId: saleRef,
-        summary: '${s.customerName} - ${s.productNames}',
+        summary: '${s.customerName} - ${s.productNamesDisplay}',
         payload: {
           'totalPrice': s.totalPrice,
           'finalPrice': finalPrice,
@@ -1360,7 +1363,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
                 _item("Khách hàng", s.customerName),
                 _item("Số điện thoại", s.phone),
                 _item("Địa chỉ", s.address.isEmpty ? "---" : s.address),
-                _item("Sản phẩm", s.productNames),
+                _item("Sản phẩm", s.productNamesDisplay),
                 _item("IMEI", s.productImeis),
                 _item("Bảo hành", s.warranty.isNotEmpty ? s.warranty : "KO BH"),
                 _item("Nhân viên", s.sellerName),
@@ -1586,7 +1589,7 @@ class _SaleDetailViewState extends State<SaleDetailView> {
 
     final customer = s.customerName.isNotEmpty ? s.customerName : phone;
     final body =
-        "SHOP $_shopName xin chào $customer, cảm ơn anh/chị đã mua ${s.productNames}. Tổng thanh toán ${MoneyUtils.formatCurrency(s.finalPrice)}đ. Khi cần bảo hành vui lòng liên hệ $_shopPhone.";
+        "SHOP $_shopName xin chào $customer, cảm ơn anh/chị đã mua ${s.productNamesDisplay}. Tổng thanh toán ${MoneyUtils.formatCurrency(s.finalPrice)}đ. Khi cần bảo hành vui lòng liên hệ $_shopPhone.";
 
     await Clipboard.setData(ClipboardData(text: body));
 

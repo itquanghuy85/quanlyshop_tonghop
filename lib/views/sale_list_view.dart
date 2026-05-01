@@ -935,19 +935,21 @@ class _SaleListViewState extends State<SaleListView> {
                                     HapticFeedback.mediumImpact();
                                     _openReturn(s);
                                   },
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(10),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
-                                      horizontal: 7,
-                                      vertical: 3,
+                                      horizontal: 8,
+                                      vertical: 6,
                                     ),
-                                    child: Row(
-                                      children: [
+                                    child: IntrinsicHeight(
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
                                         Container(
-                                          width: 3,
-                                          height: 44,
+                                          width: 4,
                                           margin: const EdgeInsets.only(
-                                            right: 5,
+                                            right: 6,
                                           ),
                                           decoration: BoxDecoration(
                                             color: isFullyReturned
@@ -955,8 +957,9 @@ class _SaleListViewState extends State<SaleListView> {
                                                 : (isPaid
                                                       ? Colors.green.shade500
                                                       : Colors.orange),
-                                            borderRadius: BorderRadius.circular(
-                                              3,
+                                            borderRadius: const BorderRadius.only(
+                                              topLeft: Radius.circular(8),
+                                              bottomLeft: Radius.circular(8),
                                             ),
                                           ),
                                         ),
@@ -999,7 +1002,7 @@ class _SaleListViewState extends State<SaleListView> {
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Text(
-                                                s.productNames,
+                                                s.productNamesDisplay,
                                                 style: AppTextStyles.body2
                                                     .copyWith(
                                                       fontSize: 13,
@@ -1130,6 +1133,7 @@ class _SaleListViewState extends State<SaleListView> {
                                           ],
                                         ),
                                       ],
+                                    ),
                                     ),
                                   ),
                                 ),

@@ -8,6 +8,7 @@ import '../utils/money_utils.dart';
 import '../services/bluetooth_printer_service.dart';
 import '../services/unified_printer_service.dart';
 import '../widgets/printer_selection_dialog.dart';
+import '../constants/product_constants.dart';
 
 class SaleInvoicePreviewView extends StatefulWidget {
   final Map<String, dynamic> saleData;
@@ -97,7 +98,7 @@ class _SaleInvoicePreviewViewState extends State<SaleInvoicePreviewView> {
       'customerAddress': widget.saleData['customerAddress']?.toString() ?? '',
       'pricingTierLabel':
           widget.saleData['pricingTierLabel']?.toString() ?? 'THƯỜNG',
-      'products': names.join(', '),
+        'products': ProductConstants.cleanCompositeProductNames(names.join(', ')),
       'imeis': imeis.where((e) => e.trim().isNotEmpty).join(', '),
       'warranty': widget.saleData['warranty']?.toString() ?? '',
       'total': MoneyUtils.formatVND(priceValue),

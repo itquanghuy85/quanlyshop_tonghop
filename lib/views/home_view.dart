@@ -4225,43 +4225,69 @@ class _HomeViewState extends State<HomeView>
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.pink.shade100,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.groups_2_outlined,
-                      color: Colors.pink.shade700,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'CỘNG ĐỒNG',
-                          style: AppTextStyles.body2.copyWith(
-                            color: Colors.pink.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    child: InkWell(
+                      onTap: () => _pushRoute(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CommunityView(),
                         ),
-                        Text(
-                          _shopName.trim().isNotEmpty
-                              ? _shopName.trim()
-                              : 'Bảng tin nội bộ',
-                          style: AppTextStyles.caption.copyWith(
-                            color: Colors.pink.shade400,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.pink.shade100,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.groups_2_outlined,
+                                color: Colors.pink.shade700,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'CỘNG ĐỒNG',
+                                    style: AppTextStyles.body2.copyWith(
+                                      color: Colors.pink.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    _shopName.trim().isNotEmpty
+                                        ? _shopName.trim()
+                                        : 'Bảng tin nội bộ',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: Colors.pink.shade400,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              'Mở',
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.pink.shade600,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Switch.adaptive(
                     value: _showHomeCommunityCard,
                     onChanged: _setHomeCommunityDashboardVisible,

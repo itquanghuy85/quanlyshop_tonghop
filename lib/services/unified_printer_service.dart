@@ -19,6 +19,7 @@ import 'user_service.dart';
 import '../models/label_template_model.dart';
 import '../models/product_model.dart';
 import '../models/repair_model.dart';
+import '../constants/product_constants.dart';
 
 import '../models/printer_types.dart';
 
@@ -2203,7 +2204,9 @@ class UnifiedPrinterService {
         'customerName': saleData['customerName']?.toString() ?? 'Khach le',
         'customerPhone': saleData['customerPhone']?.toString() ?? '',
         'customerAddress': saleData['customerAddress']?.toString() ?? '',
-        'products': names.join(', '),
+        'products': ProductConstants.cleanCompositeProductNames(
+          names.join(', '),
+        ),
         'imeis': imeis.where((e) => e.trim().isNotEmpty).join(', '),
         'warranty': saleData['warranty']?.toString() ?? '',
         'sellerName': saleData['sellerName']?.toString() ?? '',
@@ -2401,7 +2404,7 @@ class UnifiedPrinterService {
     }
 
     for (int i = 0; i < names.length; i++) {
-      final productName = names[i];
+      final productName = ProductConstants.cleanProductNameWithSuffix(names[i]);
       final imei = i < imeis.length ? imeis[i] : '';
 
       bytes.addAll(

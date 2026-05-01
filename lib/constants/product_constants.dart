@@ -412,6 +412,35 @@ class ProductConstants {
     return result.join(' ');
   }
 
+  /// Làm sạch chuỗi tên sản phẩm dạng danh sách (phân tách bởi dấu phẩy)
+  /// và giữ nguyên các hậu tố như "x2", "(Tặng)", "[SỈ]".
+  static String cleanCompositeProductNames(String names) {
+    if (names.trim().isEmpty) return names;
+    return names
+        .split(RegExp(r',\s*'))
+        .map(cleanProductNameWithSuffix)
+        .where((e) => e.trim().isNotEmpty)
+        .join(', ');
+  }
+
+  /// Làm sạch 1 dòng tên sản phẩm, vẫn giữ phần số lượng/nhãn phụ ở cuối.
+  static String cleanProductNameWithSuffix(String line) {
+    final raw = line.trim();
+    if (raw.isEmpty) return raw;
+
+    final qtyMatch = RegExp(r'\s[xX]\d+\b').firstMatch(raw);
+    if (qtyMatch == null) {
+      return cleanProductName(raw);
+    }
+
+    final splitAt = qtyMatch.start;
+    final baseName = raw.substring(0, splitAt).trim();
+    final suffix = raw.substring(splitAt).trim();
+    final cleanedBase = cleanProductName(baseName);
+
+    return suffix.isEmpty ? cleanedBase : '$cleanedBase $suffix';
+  }
+
   /// Chuẩn hóa từ để so sánh duplicate
   static String _normalizeWord(String word) {
     // Với số có/không có đuôi GB

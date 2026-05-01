@@ -39,6 +39,7 @@ class _CommunityViewState extends State<CommunityView> {
   bool _posting = false;
   File? _pickedImage;
   Stream<QuerySnapshot<Map<String, dynamic>>>? _postsStream;
+  int _visiblePostCount = 12;
   DateTime _streamStartedAt = DateTime.now();
   String _lastBuildSig = '';
 
@@ -60,7 +61,10 @@ class _CommunityViewState extends State<CommunityView> {
 
   Future<void> _bootstrap() async {
     if (mounted) {
-      setState(() => _loading = true);
+      setState(() {
+        _loading = true;
+        _visiblePostCount = 12;
+      });
     }
     _rt('bootstrap:start');
     try {
@@ -93,7 +97,10 @@ class _CommunityViewState extends State<CommunityView> {
       }
       _postsStream = _shopId.isEmpty
           ? null
-          : CommunityService.streamPosts(shopId: _shopId);
+          : CommunityService.streamPosts(
+            shopId: _shopId,
+            limit: _visiblePostCount + 8,
+          );
       _streamStartedAt = DateTime.now();
     } catch (e) {
       _rt('bootstrap:error $e');
@@ -604,13 +611,38 @@ class _CommunityViewState extends State<CommunityView> {
                     );
                   }
 
-                  return ListView.separated(
+                  final visibleDocs = docs.take(_visiblePostCount).toList();
+                  final hasMore = docs.length > visibleDocs.length;
+
+                  return ListView.builder(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                    itemCount: docs.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemCount: visibleDocs.length + (hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
+                      if (hasMore && index == visibleDocs.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _visiblePostCount += 12;
+                                _postsStream = _shopId.isEmpty
+                                    ? null
+                                    : CommunityService.streamPosts(
+                                        shopId: _shopId,
+                                        limit: _visiblePostCount + 8,
+                                      );
+                              });
+                            },
+                            icon: const Icon(Icons.expand_more_rounded),
+                            label: Text(
+                              'Tải thêm bài viết (${docs.length - visibleDocs.length})',
+                            ),
+                          ),
+                        );
+                      }
+
                       try {
-                        final doc = docs[index];
+                        final doc = visibleDocs[index];
                         final data = doc.data();
 
                         final authorUid = _safeString(data['authorUid']);
@@ -635,6 +667,7 @@ class _CommunityViewState extends State<CommunityView> {
 
                         final isTarget = targetPostId.isNotEmpty && doc.id == targetPostId;
                         return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
@@ -691,66 +724,83 @@ class _CommunityViewState extends State<CommunityView> {
                                 ),
                               ),
                             ),
-                            if (content.trim().isNotEmpty)
+                            if (imageUrl.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    InkWell(
+                                      onTap: () {
+                                        showDialog<void>(
+                                          context: context,
+                                          builder: (ctx) => Dialog.fullscreen(
+                                            backgroundColor: Colors.black,
+                                            child: Stack(
+                                              children: [
+                                                Positioned.fill(
+                                                  child: InteractiveViewer(
+                                                    maxScale: 5,
+                                                    minScale: 0.8,
+                                                    child: Center(
+                                                      child: Image(
+                                                        image: CachedNetworkImageProvider(
+                                                          imageUrl,
+                                                        ),
+                                                        fit: BoxFit.contain,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                Positioned(
+                                                  top: 16,
+                                                  right: 16,
+                                                  child: IconButton(
+                                                    onPressed: () => Navigator.pop(ctx),
+                                                    icon: const Icon(
+                                                      Icons.close,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: SizedBox(
+                                          width: 108,
+                                          height: 108,
+                                          child: Image(
+                                            image: CachedNetworkImageProvider(imageUrl),
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        content.trim().isEmpty
+                                            ? '(Bài viết hình ảnh)'
+                                            : content,
+                                        style: AppTextStyles.body1,
+                                        maxLines: 6,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else if (content.trim().isNotEmpty)
                               Padding(
                                 padding:
                                     const EdgeInsets.fromLTRB(12, 0, 12, 10),
                                 child: Text(
                                   content,
                                   style: AppTextStyles.body1,
-                                ),
-                              ),
-                            if (imageUrl.isNotEmpty)
-                              InkWell(
-                                onTap: () {
-                                  showDialog<void>(
-                                    context: context,
-                                    builder: (ctx) => Dialog.fullscreen(
-                                      backgroundColor: Colors.black,
-                                      child: Stack(
-                                        children: [
-                                          Positioned.fill(
-                                            child: InteractiveViewer(
-                                              maxScale: 5,
-                                              minScale: 0.8,
-                                              child: Center(
-                                                child: Image(
-                                                  image: CachedNetworkImageProvider(
-                                                    imageUrl,
-                                                  ),
-                                                  fit: BoxFit.contain,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          Positioned(
-                                            top: 16,
-                                            right: 16,
-                                            child: IconButton(
-                                              onPressed: () => Navigator.pop(ctx),
-                                              icon: const Icon(
-                                                Icons.close,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Container(
-                                    margin: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                                    constraints:
-                                      const BoxConstraints(maxHeight: 140),
-                                    width: double.infinity,
-                                    child: Image(
-                                      image: CachedNetworkImageProvider(imageUrl),
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
                                 ),
                               ),
                             const Divider(height: 1),

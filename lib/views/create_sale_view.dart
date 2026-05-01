@@ -994,7 +994,9 @@ class _CreateSaleViewState extends State<CreateSaleView> {
         address: addressCtrl.text.trim().toUpperCase(),
         productNames: _selectedItems
             .map((e) {
-              final name = (e['product'] as Product).name;
+              final name = ProductConstants.cleanProductName(
+                (e['product'] as Product).name,
+              );
               final qty = e['quantity'] as int;
               final isGift = e['isGift'] as bool? ?? false;
               final pricingTag = _pricingTypeTag(e['pricingType'] as PricingRuleType?);

@@ -1,4 +1,5 @@
 import '../services/encryption_service.dart';
+import '../constants/product_constants.dart';
 
 class SaleOrder {
   int? id;
@@ -85,6 +86,10 @@ class SaleOrder {
 
   /// Giá cuối sau giảm giá
   int get finalPrice => totalPrice - discount > 0 ? totalPrice - discount : 0;
+
+  /// Tên sản phẩm hiển thị an toàn (loại bỏ trùng dung lượng/màu)
+  String get productNamesDisplay =>
+      ProductConstants.cleanCompositeProductNames(productNames);
   
   /// Số tiền còn nợ thực tế (không tính tiền vay NH vì NH sẽ tất toán)
   /// = Giá cuối - Trả trước - Vay NH1 - Vay NH2
