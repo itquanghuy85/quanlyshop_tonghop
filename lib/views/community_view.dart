@@ -158,15 +158,21 @@ class _CommunityViewState extends State<CommunityView> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
-        return Padding(
+        return AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(ctx).viewInsets.bottom,
           ),
-          child: SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.8,
+          child: FractionallySizedBox(
+            heightFactor: 0.8,
             child: StatefulBuilder(
-              builder: (context, setLocalState) {
-                return Column(
+              builder: (sheetContext, setLocalState) {
+                return PopScope(
+                  onPopInvokedWithResult: (_, __) {
+                    sheetClosed = true;
+                  },
+                  child: Column(
                   children: [
                     Container(
                       width: 42,
@@ -317,16 +323,21 @@ class _CommunityViewState extends State<CommunityView> {
                                 : () async {
                                     final text = commentCtrl.text.trim();
                                     if (text.isEmpty) return;
-                                    if (sheetClosed || !ctx.mounted) return;
+                                    if (sheetClosed || !sheetContext.mounted) return;
                                     setLocalState(() => sending = true);
-                                    final ok = await CommunityService.addComment(
-                                      postId: postId,
-                                      content: text,
-                                    );
-                                    if (sheetClosed || !ctx.mounted) return;
-                                    setLocalState(() => sending = false);
-                                    if (!ok) return;
-                                    commentCtrl.clear();
+                                    try {
+                                      final ok = await CommunityService.addComment(
+                                        postId: postId,
+                                        content: text,
+                                      );
+                                      if (sheetClosed || !sheetContext.mounted) return;
+                                      if (!ok) return;
+                                      commentCtrl.clear();
+                                    } finally {
+                                      if (!sheetClosed && sheetContext.mounted) {
+                                        setLocalState(() => sending = false);
+                                      }
+                                    }
                                   },
                             child: sending
                                 ? const SizedBox(
@@ -343,16 +354,22 @@ class _CommunityViewState extends State<CommunityView> {
                       ),
                     ),
                   ],
-                );
+                ));
               },
             ),
           ),
         );
       },
-    );
-
-    sheetClosed = true;
-    commentCtrl.dispose();
+    ).whenComplete(() {
+      sheetClosed = true;
+      // Dispose after route pop animation/frame teardown to avoid
+      // "TextEditingController was used after being disposed".
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future<void>.delayed(const Duration(milliseconds: 260), () {
+          commentCtrl.dispose();
+        });
+      });
+    });
   }
 
   Future<void> _openUserProfile(String uid) async {

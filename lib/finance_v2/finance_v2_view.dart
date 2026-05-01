@@ -684,7 +684,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     }
     for(final log in s.auditLogs){
       final ts=_ti(log['createdAt']);final ac=(log['action']??'').toString();final actor=(log['createdBy']??log['actorName']??'').toString();final ref=(log['referenceId']??log['firestoreId']??'').toString();
-      final title = _fa(ac).trim().isEmpty ? 'Cập nhật dữ liệu' : _fa(ac);
+      final title = _fa(ac).trim();
+      if (title.isEmpty) continue;
       ents.add(_TLEntry(ts:ts,type:'AUDIT',title:title,subtitle:'',amount:_ti(log['amount']),isIncome:false,actorName:actor.isNotEmpty?actor:null,referenceId:ref.isNotEmpty?ref:null));
     }
     ents.sort((a,b)=>b.ts.compareTo(a.ts)); return ents;
