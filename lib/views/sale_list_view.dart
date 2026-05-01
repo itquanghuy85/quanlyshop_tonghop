@@ -845,31 +845,23 @@ class _SaleListViewState extends State<SaleListView> {
                                   : null;
                               final isFullyReturned =
                                   returnInfo?.allReturned == true;
-                              final borderColor = isFullyReturned
-                                  ? Colors.grey.shade300
+                                final accentColor = isFullyReturned
+                                  ? Colors.grey.shade500
                                   : (isPaid
-                                        ? Colors.green.shade200
-                                        : Colors.orange.shade300);
-                              final isAltRow = index.isEven;
-                              final cardBgColor = isFullyReturned
-                                  ? (isAltRow
-                                        ? Colors.grey.shade50
-                                        : Colors.grey.shade100)
-                                  : (isAltRow
-                                        ? Colors.white
-                                        : const Color(0xFFEFF4FF));
-                              final customerBgColor = isFullyReturned
-                                  ? Colors.grey.shade100
-                                  : Colors.indigo.shade50;
-                              final secondaryBgColor = remain > 0
-                                  ? Colors.orange.shade50
-                                  : Colors.blueGrey.shade50;
-                              final customerTextColor = isFullyReturned
-                                  ? Colors.blueGrey.shade600
-                                  : Colors.indigo.shade700;
-                              final secondaryTextColor = remain > 0
-                                  ? Colors.orange.shade800
-                                  : Colors.blueGrey.shade700;
+                                    ? Colors.green.shade600
+                                    : Colors.orange.shade600);
+                                final borderColor = accentColor.withValues(
+                                alpha: 0.22,
+                                );
+                                final cardBgColor = Colors.white;
+                                final customerBgColor = accentColor.withValues(
+                                alpha: 0.08,
+                                );
+                                final secondaryBgColor = accentColor.withValues(
+                                alpha: 0.12,
+                                );
+                                final customerTextColor = accentColor;
+                                final secondaryTextColor = accentColor;
 
                               // Chi tiết tài chính + khách hàng
                               final metaParts = <String>[];
@@ -910,16 +902,16 @@ class _SaleListViewState extends State<SaleListView> {
                               final secondaryLine = metaParts.join(' • ');
 
                               return Card(
-                                margin: const EdgeInsets.only(bottom: 6),
+                                margin: const EdgeInsets.only(bottom: 8),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(12),
                                   side: BorderSide(
                                     color: borderColor,
                                     width: 1,
                                   ),
                                 ),
-                                elevation: 1.8,
-                                shadowColor: borderColor.withOpacity(0.25),
+                                elevation: 1,
+                                shadowColor: accentColor.withValues(alpha: 0.18),
                                 color: cardBgColor,
                                 child: InkWell(
                                   onTap: () {
@@ -935,7 +927,7 @@ class _SaleListViewState extends State<SaleListView> {
                                     HapticFeedback.mediumImpact();
                                     _openReturn(s);
                                   },
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
@@ -952,11 +944,7 @@ class _SaleListViewState extends State<SaleListView> {
                                             right: 6,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: isFullyReturned
-                                                ? Colors.grey.shade400
-                                                : (isPaid
-                                                      ? Colors.green.shade500
-                                                      : Colors.orange),
+                                            color: accentColor,
                                             borderRadius: const BorderRadius.only(
                                               topLeft: Radius.circular(8),
                                               bottomLeft: Radius.circular(8),
@@ -1097,13 +1085,7 @@ class _SaleListViewState extends State<SaleListView> {
                                                     vertical: 0,
                                                   ),
                                               decoration: BoxDecoration(
-                                                color: isFullyReturned
-                                                    ? Colors.grey.shade400
-                                                    : (isPaid
-                                                          ? Colors
-                                                                .green
-                                                                .shade500
-                                                          : Colors.orange),
+                                                color: accentColor,
                                                 borderRadius:
                                                     BorderRadius.circular(3),
                                               ),
