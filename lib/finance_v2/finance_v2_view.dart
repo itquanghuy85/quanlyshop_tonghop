@@ -1,4 +1,6 @@
 // ignore_for_file: prefer_const_constructors, use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -14,6 +16,7 @@ import '../views/sale_detail_view.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/entity_avatar.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../services/event_bus.dart';
 import 'finance_v2_data_service.dart';
 import 'finance_v2_excel_export.dart';
 import 'finance_v2_theme.dart';
@@ -76,6 +79,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   bool _tlHigh = false;
   String _tlActor = '';
   String _tlPm = '';
+  StreamSubscription<String>? _eventSub;
 
   @override
   void initState() {
@@ -83,11 +87,20 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     _tabController = TabController(length: 6, vsync: this);
     _txCtrl.addListener(() { if (mounted) setState(() => _txQuery = _txCtrl.text); });
     _tlCtrl.addListener(() { if (mounted) setState(() => _tlQ = _tlCtrl.text); });
+    _eventSub = EventBus().stream.where((event) =>
+      event == EventBus.shopChanged ||
+      event == EventBus.financialChanged ||
+      event == EventBus.syncComplete
+    ).listen((_) {
+      if (!mounted) return;
+      _load();
+    });
     _load();
   }
 
   @override
   void dispose() {
+    _eventSub?.cancel();
     _tabController.dispose();
     _txCtrl.dispose();
     _tlCtrl.dispose();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +13,7 @@ import 'finance_v2_theme.dart';
 import 'finance_v2_excel_export.dart';
 import '../services/label_settings_service.dart';
 import '../services/user_service.dart';
+import '../services/event_bus.dart';
 import '../data/db_helper.dart';
 import '../views/debt_view.dart';
 
@@ -37,6 +39,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   _ReportRangeMode _rangeMode = _ReportRangeMode.day;
   final DBHelper _db = DBHelper();
   Map<String, _StaffAttendanceStats> _attendanceByUser = <String, _StaffAttendanceStats>{};
+  StreamSubscription<String>? _eventSub;
 
   final _dtFmt = DateFormat('dd/MM/yyyy HH:mm');
   final _dFmt = DateFormat('dd/MM/yyyy');
@@ -81,7 +84,21 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   @override
   void initState() {
     super.initState();
+    _eventSub = EventBus().stream.where((event) =>
+      event == EventBus.shopChanged ||
+      event == EventBus.financialChanged ||
+      event == EventBus.syncComplete
+    ).listen((_) {
+      if (!mounted) return;
+      _loadReport();
+    });
     _loadReport();
+  }
+
+  @override
+  void dispose() {
+    _eventSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadReport() async {
@@ -510,11 +527,29 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   }
 
   Future<void> _exportReport() async {
-    if (_snapshot == null) return;
-    
-    final s = _snapshot!;
+    final range = _resolveRange();
+    final start = range.$1;
+    final end = range.$2;
+
+    // Always refresh snapshot before export to avoid stale data after shop switch.
+    final s = await _service.loadSnapshot(start: start, end: end);
+    final attendance = await _loadAttendanceSummary(start: start, end: end);
+    if (mounted) {
+      setState(() {
+        _snapshot = s;
+        _attendanceByUser = attendance;
+      });
+    }
+
+    final shopInfo = await LabelSettingsService().getShopLabelSettings();
+    final shopId = await UserService.getCurrentShopId();
+    final generatedAt = DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
+
     final rows = <List<dynamic>>[
       ['BÁO CÁO ${_periodSuffix.toUpperCase()} $_rangeLabel'],
+      ['Cửa hàng', shopInfo.shopName.isNotEmpty ? shopInfo.shopName : 'N/A'],
+      ['Shop ID', (shopId == null || shopId.isEmpty) ? 'N/A' : shopId],
+      ['Xuất lúc', generatedAt],
       [''],
       ['TỔNG QUAN'],
       ['Doanh thu vào', MoneyUtils.formatVND(s.totalIn)],
@@ -569,10 +604,10 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
 
     // Staff attendance
-    if (_attendanceByUser.isNotEmpty) {
+    if (attendance.isNotEmpty) {
       rows.add(['NHÂN SỰ - CHẤM CÔNG']);
       rows.add(['Nhân viên', 'Có mặt', 'Vắng mặt', 'Đi trễ', 'Đổi ca']);
-      final entries = _attendanceByUser.entries.toList()
+      final entries = attendance.entries.toList()
         ..sort((a, b) => a.value.name.compareTo(b.value.name));
       for (final e in entries) {
         final st = e.value;
@@ -638,8 +673,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       filePrefix: 'BaoCaoNgay',
       headers: ['Báo cáo $_periodSuffix $_rangeLabel'],
       rows: rows,
-      start: _resolveRange().$1,
-      end: _resolveRange().$2,
+      start: start,
+      end: end,
     );
   }
 
