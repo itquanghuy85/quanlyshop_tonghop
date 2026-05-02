@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
 /// Widget AppBar và TabBar - Thiết kế Compact & Modern với Gradient
@@ -10,7 +9,7 @@ class CustomAppBar {
   // ========== CONSTANTS - ULTRA COMPACT ==========
   static const double kAppBarHeight = 44.0;
   static const double kAppBarElevation = 0.0;
-  static const double kTabBarHeight = 32.0;
+  static const double kTabBarHeight = 36.0;
   static const double kTitleFontSize = 14.0;
   static const double kSubtitleFontSize = 10.0;
 
@@ -244,10 +243,16 @@ class CustomAppBar {
   }) {
     final accent = accentColor ?? kPrimaryColor;
 
+    // Khi title rỗng và không có back button → ẩn toolbar để không tạo khoảng trống thừa
+    final double resolvedToolbarHeight =
+        (title.isEmpty && !showBackButton && (actions == null || actions.isEmpty))
+            ? 0.0
+            : kAppBarHeight;
+
     // Gradient style
     if (useGradient) {
       return AppBar(
-        toolbarHeight: kAppBarHeight,
+        toolbarHeight: resolvedToolbarHeight,
         elevation: kAppBarElevation,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
@@ -566,8 +571,8 @@ class CustomTabBar {
       child: TabBar(
         controller: controller,
         isScrollable: isScrollable,
-        labelColor: Colors.white,
-        unselectedLabelColor: Colors.white70,
+        labelColor: const Color(0xFF143E82),
+        unselectedLabelColor: Colors.white.withValues(alpha: 0.82),
         labelStyle: TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: AppTextStyles.subtitle1.fontSize,
@@ -576,9 +581,19 @@ class CustomTabBar {
           fontWeight: FontWeight.w400,
           fontSize: AppTextStyles.subtitle1.fontSize,
         ),
-        indicatorSize: TabBarIndicatorSize.label,
-        indicatorWeight: 2,
-        indicatorColor: Colors.white,
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        indicatorPadding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
         dividerColor: Colors.transparent,
         padding: padding ?? const EdgeInsets.symmetric(horizontal: 4),
         labelPadding: const EdgeInsets.symmetric(horizontal: 12),

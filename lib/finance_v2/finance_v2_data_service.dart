@@ -328,15 +328,9 @@ class FinanceV2DataService {
         actualPaid = sale.finalPrice;
       }
 
-      // Vốn/Lãi bán hàng theo accrual: ghi nhận theo ngày bán, độc lập với thời điểm NH giải ngân.
-      final int accrualRevenue = sale.finalPrice > 0 ? sale.finalPrice : 0;
-      if (accrualRevenue > 0) {
-        saleCogs += sale.totalCost > 0 ? sale.totalCost : 0;
-      }
-
       if (actualPaid > 0) {
-        // recognizedCost chỉ dùng cho hiển thị per-transaction (cashflow basis).
-        // saleCogs đã được tính theo accrual (toàn bộ totalCost) ở block trên.
+        // Vốn bán hàng theo cash basis: tỉ lệ actualPaid/finalPrice nhất quán với cột Vốn từng dòng giao dịch.
+        // Đơn trả góp chỉ ghi vốn theo phần đã thu, không ghi toàn bộ totalCost.
         int recognizedCost = 0;
         if (sale.totalCost > 0) {
           if (sale.finalPrice > 0) {
@@ -347,6 +341,7 @@ class FinanceV2DataService {
           if (recognizedCost < 0) recognizedCost = 0;
           if (recognizedCost > actualPaid) recognizedCost = actualPaid;
         }
+        saleCogs += recognizedCost;
         saleIn += actualPaid;
         transactions.add(
           FinanceV2Txn(
@@ -378,12 +373,13 @@ class FinanceV2DataService {
       final amount = repair.price;
       if (amount > 0) {
         final repairCost = repair.totalCost > 0 ? repair.totalCost : 0;
-        repairCogs += repairCost;
         recognizedRepairRevenue += amount;
 
         final bool isCongNo = repair.paymentMethod.toUpperCase() == 'CÔNG NỢ';
         if (!isCongNo) {
           repairIn += amount;
+          // Vốn sửa chữa theo cash basis — nhất quán với repairIn (chỉ tính đơn đã thanh toán, loại CÔNG NỢ chưa thu)
+          repairCogs += repairCost;
         }
 
         if (!isCongNo) {
@@ -568,12 +564,19 @@ class FinanceV2DataService {
         actualPaid = sale.finalPrice;
       }
 
-      final int accrualRevenue = sale.finalPrice > 0 ? sale.finalPrice : 0;
-      if (accrualRevenue > 0) {
-        previousSaleCogs += sale.totalCost > 0 ? sale.totalCost : 0;
-      }
-
       if (actualPaid > 0) {
+        // Vốn bán hàng kỳ trước theo cash basis tỉ lệ — nhất quán với current period.
+        int prevRecognizedCost = 0;
+        if (sale.totalCost > 0) {
+          if (sale.finalPrice > 0) {
+            prevRecognizedCost = ((sale.totalCost * actualPaid) / sale.finalPrice).round();
+          } else {
+            prevRecognizedCost = sale.totalCost;
+          }
+          if (prevRecognizedCost < 0) prevRecognizedCost = 0;
+          if (prevRecognizedCost > actualPaid) prevRecognizedCost = actualPaid;
+        }
+        previousSaleCogs += prevRecognizedCost;
         previousSaleIn += actualPaid;
       }
     }
@@ -583,8 +586,9 @@ class FinanceV2DataService {
         previousRecognizedRepairRevenue += repair.price;
         if (repair.paymentMethod.toUpperCase() != 'CÔNG NỢ') {
           previousRepairIn += repair.price;
+          // Vốn sửa chữa kỳ trước theo cash basis
+          previousRepairCogs += repair.totalCost > 0 ? repair.totalCost : 0;
         }
-        previousRepairCogs += repair.totalCost > 0 ? repair.totalCost : 0;
       }
       final prevNonPartnerCost = repair.services
           .where((s) => s.partnerId == null)
@@ -687,24 +691,17 @@ class FinanceV2DataService {
     final totalOut = expenseOut;
     final operatingExpenseOut = expenseOut - debtRepayOut; // chi vận hành thuần (không tính trả nợ NCC)
     final netCashflow = totalIn - totalOut;
-    final recognizedSalesRevenue = sales.fold<int>(
-      0,
-      (sum, sale) => sum + (sale.finalPrice > 0 ? sale.finalPrice : 0),
-    );
-    final grossProfitFromSales = recognizedSalesRevenue - saleCogs;
-    final grossProfitFromRepairs = recognizedRepairRevenue - repairCogs;
+    // Lãi gộp bán hàng theo cash basis — nhất quán với incomeFromSales (saleIn)
+    final grossProfitFromSales = saleIn - saleCogs;
+    // Lãi gộp sửa chữa theo cash basis — nhất quán với incomeFromRepairs (repairIn)
+    final grossProfitFromRepairs = repairIn - repairCogs;
     final grossProfitTotal = grossProfitFromSales + grossProfitFromRepairs;
     final previousTotalIn = previousSaleIn + previousRepairIn + previousExtraIn;
     final previousTotalOut = previousExpenseOut;
     final previousNetCashflow = previousTotalIn - previousTotalOut;
-    final previousRecognizedSalesRevenue = previousSales.fold<int>(
-      0,
-      (sum, sale) => sum + (sale.finalPrice > 0 ? sale.finalPrice : 0),
-    );
-    final previousGrossProfitFromSales =
-        previousRecognizedSalesRevenue - previousSaleCogs;
-    final previousGrossProfitFromRepairs =
-      previousRecognizedRepairRevenue - previousRepairCogs;
+    final previousGrossProfitFromSales = previousSaleIn - previousSaleCogs;
+    // Lãi gộp sửa chữa kỳ trước theo cash basis — nhất quán với previousRepairIn
+    final previousGrossProfitFromRepairs = previousRepairIn - previousRepairCogs;
     final incomeTxCount = transactions.where((t) => t.isIncome).length;
     final avgIncomePerTransaction = incomeTxCount > 0 ? (totalIn ~/ incomeTxCount) : 0;
 
@@ -717,6 +714,7 @@ class FinanceV2DataService {
       final key = category.isEmpty ? 'Khác' : category;
       expenseByCategory[key] = (expenseByCategory[key] ?? 0) + amount;
     }
+    int partnerPaymentsForCategory = 0;
     for (final p in repairPartnerPayments) {
       final paymentFid = (p['firestoreId'] ?? '').toString().trim();
       if (paymentFid.isEmpty) continue;
@@ -728,19 +726,15 @@ class FinanceV2DataService {
       }
       final amount = _toInt(p['amount']);
       if (amount <= 0) continue;
+      partnerPaymentsForCategory += amount;
       expenseByCategory['Đối tác sửa chữa'] =
           (expenseByCategory['Đối tác sửa chữa'] ?? 0) + amount;
     }
-    // Thêm chi phí linh kiện nội bộ (non-partner) vào category stats
-    for (final Repair repair in repairs) {
-      if (repair.paymentMethod.toUpperCase() == 'CÔNG NỢ') continue;
-      final nonPartnerCost = repair.services
-          .where((s) => s.partnerId == null)
-          .fold<int>(0, (sum, s) => sum + s.cost);
-      if (nonPartnerCost > 0) {
-        expenseByCategory['Linh kiện sửa chữa'] =
-            (expenseByCategory['Linh kiện sửa chữa'] ?? 0) + nonPartnerCost;
-      }
+    // Linh kiện sửa chữa = vốn SC (cash) − chi phí đối tác được ghi riêng
+    // Dùng repairCogs thay vì repair.services vì services thường không được load đầy đủ từ local DB
+    final linhKienCost = repairCogs - partnerPaymentsForCategory;
+    if (linhKienCost > 0) {
+      expenseByCategory['Linh kiện sửa chữa'] = linhKienCost;
     }
     final topExpenseCategories = expenseByCategory.entries
         .map((e) => FinanceV2CategoryStat(label: e.key, amount: e.value))
@@ -828,7 +822,7 @@ class FinanceV2DataService {
       previousGrossProfitFromSales: previousGrossProfitFromSales,
       previousGrossProfitFromRepairs: previousGrossProfitFromRepairs,
       dashboardCards: cards,
-      topExpenseCategories: topExpenseCategories.take(4).toList(),
+      topExpenseCategories: topExpenseCategories.toList(),
       transactions: transactions,
       receivables: receivables,
       payables: payables,

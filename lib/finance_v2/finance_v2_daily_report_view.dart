@@ -54,20 +54,26 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     );
   }
 
-  Widget _topActionButton({
+  Widget _topIconAction({
     required IconData icon,
-    required String label,
+    required String tooltip,
     required VoidCallback onTap,
   }) {
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 18),
-      label: Text(label, style: FinanceV2Theme.meta),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        foregroundColor: FinanceV2Theme.accent,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        minimumSize: const Size(0, 32),
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F7FD),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE1E9F7)),
+          ),
+          child: Icon(icon, size: 18, color: FinanceV2Theme.accent),
+        ),
       ),
     );
   }
@@ -319,6 +325,33 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
   }
 
+  Widget _rangeModeChip(_ReportRangeMode mode) {
+    final selected = _rangeMode == mode;
+    return ChoiceChip(
+      label: Text(
+        _rangeModeLabel(mode),
+        style: FinanceV2Theme.meta.copyWith(
+          color: selected ? Colors.white : FinanceV2Theme.subInk,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      selected: selected,
+      onSelected: (_) {
+        _changeRangeMode(mode);
+      },
+      showCheckmark: false,
+      selectedColor: FinanceV2Theme.accent,
+      backgroundColor: const Color(0xFFF3F6FB),
+      side: BorderSide(
+        color: selected ? FinanceV2Theme.accent : const Color(0xFFE3EAF6),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    );
+  }
+
   Future<void> _changeRangeMode(_ReportRangeMode mode) async {
     if (mode == _rangeMode) {
       if (mode == _ReportRangeMode.custom) {
@@ -518,7 +551,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     if (s.transactions.isNotEmpty) {
       rows.add(['GIAO DỊCH']);
       rows.add(['Thời gian', 'Tiêu đề', 'Chi tiết', 'Loại', 'Hướng', 'Số tiền', 'Vốn', 'Lãi gộp', 'Nhân viên', 'PT thanh toán']);
-      for (final tx in s.transactions.take(500)) {
+      for (final tx in s.transactions) {
         rows.add([
           _dtFmt.format(DateTime.fromMillisecondsSinceEpoch(tx.createdAt)),
           _displayTitle(tx),
@@ -872,72 +905,60 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           children: [
             Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              // Dùng Row ngoài để buttons không bị unbounded width trong SingleChildScrollView
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               child: Row(
                 children: [
                   Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6F8FC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE4EAF6)),
+                      ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          PopupMenuButton<_ReportRangeMode>(
-                            tooltip: 'Chọn kiểu lọc',
-                            onSelected: (mode) {
-                              _changeRangeMode(mode);
-                            },
-                            itemBuilder: (context) => _ReportRangeMode.values
-                                .map(
-                                  (mode) => PopupMenuItem<_ReportRangeMode>(
-                                    value: mode,
-                                    child: Row(
-                                      children: [
-                                        Expanded(child: Text(_rangeModeLabel(mode))),
-                                        if (_rangeMode == mode)
-                                          const Icon(Icons.check_rounded, size: 16),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.filter_alt_rounded, size: 18, color: FinanceV2Theme.accent),
-                                SizedBox(width: 4),
-                                Text('Bộ lọc', style: FinanceV2Theme.meta),
-                              ],
+                          const Icon(Icons.filter_alt_rounded, size: 18, color: FinanceV2Theme.accent),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _rangeModeLabel(_rangeMode),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: FinanceV2Theme.meta.copyWith(
+                                color: FinanceV2Theme.accent,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                    if (_snapshot != null) ...[
-                      const SizedBox(width: 2),
-                      _topActionButton(
-                        icon: Icons.print_rounded,
-                        label: 'In',
-                        onTap: _printReport,
-                      ),
-                    ],
-                    if (_snapshot != null) ...[
-                      const SizedBox(width: 2),
-                      _topActionButton(
-                        icon: Icons.download_rounded,
-                        label: 'Xuất Excel',
-                        onTap: _exportReport,
-                      ),
-                    ],
-                    const SizedBox(width: 2),
-                    _topActionButton(
-                      icon: Icons.refresh_rounded,
-                      label: 'Làm mới',
-                      onTap: _loadReport,
+                  const SizedBox(width: 6),
+                  if (_snapshot != null) ...[
+                    _topIconAction(
+                      icon: Icons.print_rounded,
+                      tooltip: 'In',
+                      onTap: _printReport,
                     ),
+                    const SizedBox(width: 6),
                   ],
-                ),
+                  if (_snapshot != null) ...[
+                    _topIconAction(
+                      icon: Icons.download_rounded,
+                      tooltip: 'Xuất Excel',
+                      onTap: _exportReport,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  _topIconAction(
+                    icon: Icons.refresh_rounded,
+                    tooltip: 'Làm mới',
+                    onTap: _loadReport,
+                  ),
+                ],
+              ),
             ),
             Expanded(child: body),
           ],
@@ -953,27 +974,6 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
         backgroundColor: FinanceV2Theme.accent,
         foregroundColor: Colors.white,
         actions: [
-          PopupMenuButton<_ReportRangeMode>(
-            tooltip: 'Chọn kiểu lọc',
-            onSelected: (mode) {
-              _changeRangeMode(mode);
-            },
-            itemBuilder: (context) => _ReportRangeMode.values
-                .map(
-                  (mode) => PopupMenuItem<_ReportRangeMode>(
-                    value: mode,
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(_rangeModeLabel(mode))),
-                        if (_rangeMode == mode)
-                          const Icon(Icons.check_rounded, size: 16),
-                      ],
-                    ),
-                  ),
-                )
-                .toList(),
-            icon: const Icon(Icons.filter_alt_rounded),
-          ),
           if (_snapshot != null)
             IconButton(
               onPressed: _printReport,
@@ -1011,56 +1011,75 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          IconButton(
-            onPressed: _goPreviousDay,
-            icon: const Icon(Icons.chevron_left_rounded),
-            tooltip: 'Ngày trước',
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTap: _pickDate,
-              child: Column(
-                children: [
-                  Text(
-                    _rangeLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: FinanceV2Theme.titleMd.copyWith(
-                      color: FinanceV2Theme.accent,
-                    ),
-                  ),
-                  Text(
-                    _rangeMode == _ReportRangeMode.day
-                        ? _dayNameFmt.format(_selectedDate)
-                        : _periodShortLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: FinanceV2Theme.subInk,
-                        ),
-                  ),
-                  if (_isToday)
-                    Text(
-                      'Hôm nay',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: Colors.blue[700],
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                ],
+          Row(
+            children: [
+              IconButton(
+                onPressed: _goPreviousDay,
+                icon: const Icon(Icons.chevron_left_rounded),
+                tooltip: 'Ngày trước',
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
               ),
-            ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: _pickDate,
+                  child: Column(
+                    children: [
+                      Text(
+                        _rangeLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: FinanceV2Theme.titleMd.copyWith(
+                          color: FinanceV2Theme.accent,
+                        ),
+                      ),
+                      Text(
+                        _rangeMode == _ReportRangeMode.day
+                            ? _dayNameFmt.format(_selectedDate)
+                            : _periodShortLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: FinanceV2Theme.subInk,
+                            ),
+                      ),
+                      if (_isToday)
+                        Text(
+                          'Hôm nay',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _isToday ? null : _goNextDay,
+                icon: const Icon(Icons.chevron_right_rounded),
+                tooltip: 'Ngày sau',
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              ),
+            ],
           ),
-          IconButton(
-            onPressed: _isToday ? null : _goNextDay,
-            icon: const Icon(Icons.chevron_right_rounded),
-            tooltip: 'Ngày sau',
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _rangeModeChip(_ReportRangeMode.day),
+                const SizedBox(width: 6),
+                _rangeModeChip(_ReportRangeMode.month),
+                const SizedBox(width: 6),
+                _rangeModeChip(_ReportRangeMode.year),
+                const SizedBox(width: 6),
+                _rangeModeChip(_ReportRangeMode.custom),
+              ],
+            ),
           ),
         ],
       ),

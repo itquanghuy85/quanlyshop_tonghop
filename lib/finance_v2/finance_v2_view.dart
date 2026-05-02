@@ -45,6 +45,15 @@ class FinanceV2View extends StatefulWidget {
 
 class _FinanceV2ViewState extends State<FinanceV2View>
     with SingleTickerProviderStateMixin {
+  static const List<String> _tabLabels = <String>[
+    'Tổng quan',
+    'Giao dịch',
+    'Công nợ',
+    'Phân tích',
+    'Nhật ký',
+    'Báo cáo',
+  ];
+
   late TabController _tabController;
   final FinanceV2DataService _service = FinanceV2DataService();
   final DBHelper _db = DBHelper();
@@ -204,113 +213,95 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   /// Thanh lọc dùng chung cho tất cả tab (trừ tab Báo cáo)
   Widget _sharedBar() {
     final custom = _mode == _FilterMode.custom;
+    final int currentTab = _tabController.index.clamp(0, _tabLabels.length - 1);
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Color(0xFFEEF1F7))),
       ),
-      padding: EdgeInsets.fromLTRB(_hPad, 4, _hPad, 4),
+      padding: EdgeInsets.fromLTRB(_hPad, 8, _hPad, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6F8FC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE4EAF6)),
+                  ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      PopupMenuButton<String>(
-                        tooltip: 'Chọn bộ lọc thời gian',
-                        onSelected: (value) {
-                          switch (value) {
-                            case 'today':
-                              _setToday();
-                              break;
-                            case 'month':
-                              _setMonth();
-                              break;
-                            case 'year':
-                              _setYear();
-                              break;
-                            case 'custom':
-                              _pick();
-                              break;
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          PopupMenuItem<String>(
-                            value: 'today',
-                            child: Row(
-                              children: [
-                                const Expanded(child: Text('Hôm nay')),
-                                if (_mode == _FilterMode.today)
-                                  const Icon(Icons.check_rounded, size: 16),
-                              ],
-                            ),
+                      const Icon(Icons.calendar_month_rounded, size: 18, color: FinanceV2Theme.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _sub,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: FinanceV2Theme.meta.copyWith(
+                            color: FinanceV2Theme.accent,
+                            fontWeight: FontWeight.w700,
                           ),
-                          PopupMenuItem<String>(
-                            value: 'month',
-                            child: Row(
-                              children: [
-                                const Expanded(child: Text('Tháng này')),
-                                if (_mode == _FilterMode.month)
-                                  const Icon(Icons.check_rounded, size: 16),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'year',
-                            child: Row(
-                              children: [
-                                const Expanded(child: Text('Năm nay')),
-                                if (_mode == _FilterMode.year)
-                                  const Icon(Icons.check_rounded, size: 16),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem<String>(
-                            value: 'custom',
-                            child: Row(
-                              children: [
-                                const Expanded(child: Text('Tùy chọn')),
-                                if (_mode == _FilterMode.custom)
-                                  const Icon(Icons.check_rounded, size: 16),
-                              ],
-                            ),
-                          ),
-                        ],
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.filter_alt_rounded, size: 18, color: FinanceV2Theme.accent),
-                            const SizedBox(width: 4),
-                            Text(_sub, style: FinanceV2Theme.meta.copyWith(color: FinanceV2Theme.accent)),
-                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(width: 2),
-              _barActionButton(Icons.print_rounded, 'In', _printFromTab),
-              const SizedBox(width: 2),
-              _barActionButton(Icons.download_rounded, 'Xuất Excel', _exFromTab),
-              const SizedBox(width: 2),
-              _barActionButton(Icons.refresh_rounded, 'Làm mới', _load),
+              const SizedBox(width: 8),
+              _barIconAction(Icons.print_rounded, 'In', _printFromTab),
+              const SizedBox(width: 6),
+              _barIconAction(Icons.download_rounded, 'Xuất Excel', _exFromTab),
+              const SizedBox(width: 6),
+              _barIconAction(Icons.refresh_rounded, 'Làm mới', _load),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _modeChip('Hôm nay', _mode == _FilterMode.today, _setToday),
+              _modeChip('Tháng', _mode == _FilterMode.month, _setMonth),
+              _modeChip('Năm', _mode == _FilterMode.year, _setYear),
+              _modeChip('Tùy chọn', _mode == _FilterMode.custom, _pick),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: FinanceV2Theme.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Đang xem: ${_tabLabels[currentTab]}',
+                  style: FinanceV2Theme.micro.copyWith(
+                    color: FinanceV2Theme.accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
             ],
           ),
           if (custom) ...[
-            const SizedBox(height: 2),
-            GestureDetector(
+            const SizedBox(height: 6),
+            InkWell(
               onTap: _pick,
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.calendar_today_rounded, size: 11, color: FinanceV2Theme.accent),
-                const SizedBox(width: 4),
-                Text(_sub, style: FinanceV2Theme.micro.copyWith(color: FinanceV2Theme.accent)),
-              ]),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: FinanceV2Theme.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.calendar_today_rounded, size: 12, color: FinanceV2Theme.accent),
+                  const SizedBox(width: 4),
+                  Text(_sub, style: FinanceV2Theme.micro.copyWith(color: FinanceV2Theme.accent)),
+                ]),
+              ),
             ),
           ],
         ],
@@ -318,17 +309,47 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     );
   }
 
-  Widget _barActionButton(IconData icon, String label, VoidCallback? onTap) {
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 18),
-      label: Text(label, style: FinanceV2Theme.meta),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        foregroundColor: FinanceV2Theme.accent,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        minimumSize: const Size(0, 32),
+  Widget _barIconAction(IconData icon, String tooltip, VoidCallback onTap) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F7FD),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE1E9F7)),
+          ),
+          child: Icon(icon, size: 18, color: FinanceV2Theme.accent),
+        ),
       ),
+    );
+  }
+
+  Widget _modeChip(String label, bool selected, VoidCallback onTap) {
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: FinanceV2Theme.meta.copyWith(
+          color: selected ? Colors.white : FinanceV2Theme.subInk,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      showCheckmark: false,
+      selectedColor: FinanceV2Theme.accent,
+      backgroundColor: const Color(0xFFF3F6FB),
+      side: BorderSide(
+        color: selected ? FinanceV2Theme.accent : const Color(0xFFE3EAF6),
+      ),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     );
   }
 
@@ -535,7 +556,15 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       ])));
   }
 
-  Tab _tab2(String text) => Tab(height: 38, child: Text(text, maxLines: 1, textAlign: TextAlign.center, style: FinanceV2Theme.meta.copyWith(fontWeight: FontWeight.w600, color: FinanceV2Theme.ink)));
+  Tab _tab2(String text) => Tab(
+        height: CustomAppBar.kTabBarHeight,
+        child: Text(
+          text,
+          maxLines: 1,
+          textAlign: TextAlign.center,
+          style: FinanceV2Theme.meta.copyWith(fontWeight: FontWeight.w600),
+        ),
+      );
 
   Widget _compSection(FinanceV2Snapshot s) {
     final chg=s.previousNetCashflow==0?null:((s.netCashflow-s.previousNetCashflow)/s.previousNetCashflow)*100.0;
@@ -564,7 +593,18 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Widget _cs(String lbl,int cur,int prev,{bool net=false}) {
     final chg=prev>0?((cur-prev)/prev*100.0):null;
     final tc=net?(cur>=0?FinanceV2Theme.positive:FinanceV2Theme.negative):FinanceV2Theme.ink;
-    return Column(children:[Text(lbl,style:FinanceV2Theme.caption),const SizedBox(height:2),Text(net?_signedCmp(cur):_cmp(cur),style:FinanceV2Theme.amountMd.copyWith(color:tc)),if(chg!=null) Text('${chg>=0?"+":""}${chg.toStringAsFixed(0)}%',style:FinanceV2Theme.caption.copyWith(color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative)) else Text('-',style:FinanceV2Theme.caption)]);
+    return Column(children:[
+      Text(lbl,style:FinanceV2Theme.caption),
+      const SizedBox(height:2),
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(net?_signedCmp(cur):_cmp(cur),style:FinanceV2Theme.amountMd.copyWith(color:tc)),
+      ),
+      if(chg!=null)
+        Text('${chg>=0?"+":""}${chg.toStringAsFixed(0)}%',style:FinanceV2Theme.caption.copyWith(color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))
+      else
+        Text('-',style:FinanceV2Theme.caption)
+    ]);
   }
 
   Widget _profitSection(FinanceV2Snapshot s) {
@@ -755,9 +795,9 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     final total=_showRec?s.receivableTotal:s.payableTotal;
     return ResponsiveCenter(child:Column(children:[
       Container(color:Colors.white,padding:EdgeInsets.fromLTRB(_hPad,8,_hPad,8),child:Row(children:[
-        Expanded(child:GestureDetector(onTap:()=>setState(()=>_showRec=true),child:AnimatedContainer(duration:const Duration(milliseconds:200),padding:const EdgeInsets.symmetric(vertical:9),decoration:BoxDecoration(color:_showRec?FinanceV2Theme.warn:const Color(0xFFF0F3F9),borderRadius:BorderRadius.circular(10)),alignment:Alignment.center,child:Text('Phải thu  ${_cmp(s.receivableTotal)}',style:FinanceV2Theme.bodyMd.copyWith(fontWeight:FontWeight.w600,color:_showRec?Colors.white:FinanceV2Theme.subInk))))),
+        Expanded(child:GestureDetector(onTap:()=>setState(()=>_showRec=true),child:AnimatedContainer(duration:const Duration(milliseconds:200),padding:const EdgeInsets.symmetric(vertical:9,horizontal:8),decoration:BoxDecoration(color:_showRec?FinanceV2Theme.warn:const Color(0xFFF0F3F9),borderRadius:BorderRadius.circular(10)),alignment:Alignment.center,child:Text('Phải thu  ${_cmp(s.receivableTotal)}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:FinanceV2Theme.bodyMd.copyWith(fontWeight:FontWeight.w600,color:_showRec?Colors.white:FinanceV2Theme.subInk))))),
         const SizedBox(width:8),
-        Expanded(child:GestureDetector(onTap:()=>setState(()=>_showRec=false),child:AnimatedContainer(duration:const Duration(milliseconds:200),padding:const EdgeInsets.symmetric(vertical:9),decoration:BoxDecoration(color:!_showRec?FinanceV2Theme.negative:const Color(0xFFF0F3F9),borderRadius:BorderRadius.circular(10)),alignment:Alignment.center,child:Text('Phải trả  ${_cmp(s.payableTotal)}',style:FinanceV2Theme.bodyMd.copyWith(fontWeight:FontWeight.w600,color:!_showRec?Colors.white:FinanceV2Theme.subInk))))),
+        Expanded(child:GestureDetector(onTap:()=>setState(()=>_showRec=false),child:AnimatedContainer(duration:const Duration(milliseconds:200),padding:const EdgeInsets.symmetric(vertical:9,horizontal:8),decoration:BoxDecoration(color:!_showRec?FinanceV2Theme.negative:const Color(0xFFF0F3F9),borderRadius:BorderRadius.circular(10)),alignment:Alignment.center,child:Text('Phải trả  ${_cmp(s.payableTotal)}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:FinanceV2Theme.bodyMd.copyWith(fontWeight:FontWeight.w600,color:!_showRec?Colors.white:FinanceV2Theme.subInk))))),
       ])),
       if(_showRec&&s.totalDebtAging>0) Container(color:Colors.white,padding:const EdgeInsets.fromLTRB(12,0,12,10),child:Row(children:[
         Expanded(child:_aging('0-30 ngày',s.debtAging['0-30']??0,FinanceV2Theme.positive)),const SizedBox(width:6),
@@ -807,7 +847,21 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Widget _rptRow(FinanceV2PeriodBucket b) {
     final mx=b.totalIn>b.totalOut?b.totalIn:b.totalOut;
     return Padding(padding:const EdgeInsets.fromLTRB(14,10,14,10),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[Text(b.label,style:FinanceV2Theme.bodyMd.copyWith(fontWeight:FontWeight.w600)),const Spacer(),Text('${b.txCount} GD',style:FinanceV2Theme.micro),const SizedBox(width:8),Text(_signedCmp(b.net),style:FinanceV2Theme.amountMd.copyWith(color:b.net>=0?FinanceV2Theme.positive:FinanceV2Theme.negative)),const SizedBox(width:4),const Icon(Icons.chevron_right_rounded,size:16,color:FinanceV2Theme.subInk)]),
+      Row(children:[
+        Expanded(child:Text(b.label,style:FinanceV2Theme.bodyMd.copyWith(fontWeight:FontWeight.w600),maxLines:1,overflow:TextOverflow.ellipsis)),
+        const SizedBox(width:8),
+        Text('${b.txCount} GD',style:FinanceV2Theme.micro),
+        const SizedBox(width:8),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(_signedCmp(b.net),style:FinanceV2Theme.amountMd.copyWith(color:b.net>=0?FinanceV2Theme.positive:FinanceV2Theme.negative)),
+          ),
+        ),
+        const SizedBox(width:4),
+        const Icon(Icons.chevron_right_rounded,size:16,color:FinanceV2Theme.subInk)
+      ]),
       const SizedBox(height:6),
       if(mx>0)...[_bRow('Vào',b.totalIn,mx,FinanceV2Theme.positive),const SizedBox(height:4),_bRow('Ra',b.totalOut,mx,FinanceV2Theme.negative)],
     ]));

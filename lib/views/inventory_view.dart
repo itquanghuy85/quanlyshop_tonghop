@@ -148,6 +148,13 @@ class _InventoryViewState extends State<InventoryView>
   // Variant Service for fashion products
   final VariantService _variantService = VariantService();
 
+  int _safeToInt(dynamic value, [int fallback = 0]) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? fallback;
+    return fallback;
+  }
+
   /// Terminology động theo ngành
   BusinessTerminology get _terms =>
       BusinessTypeHelper.instance.getTerminology(_shopSettings);
@@ -1872,7 +1879,7 @@ class _InventoryViewState extends State<InventoryView>
     // Load repair parts count for category chip
     final parts = await db.getAllParts();
     final partsCount = parts
-        .where((p) => (p['quantity'] as int? ?? 0) > 0 || _showOutOfStock)
+      .where((p) => _safeToInt(p['quantity']) > 0 || _showOutOfStock)
         .length;
 
     // ALWAYS load total summary from DB first (for correct totals)
