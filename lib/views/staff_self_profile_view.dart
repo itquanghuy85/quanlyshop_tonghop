@@ -66,6 +66,18 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
   List<SaleOrder> _monthlySales = const [];
   List<Repair> _monthlyRepairs = const [];
 
+  String _friendlyFirestoreError(Object error) {
+    if (error is FirebaseException) {
+      if (error.code == 'permission-denied') {
+        return 'Bạn chưa có quyền truy cập một số dữ liệu hồ sơ trên cloud. Ứng dụng sẽ dùng dữ liệu cục bộ.';
+      }
+      if (error.code == 'unavailable') {
+        return 'Không kết nối được máy chủ hồ sơ. Vui lòng thử lại sau.';
+      }
+    }
+    return 'Lỗi tải hồ sơ nhân viên: $error';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -108,10 +120,14 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
       final shopId = await UserService.getCurrentShopId();
       _shopId = (shopId ?? '').trim();
       if (_shopId.isNotEmpty) {
-        final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(_shopId).get();
-        if (shopDoc.exists) {
-          final data = shopDoc.data() ?? const <String, dynamic>{};
-          _shopName = (data['name'] ?? '').toString().trim();
+        try {
+          final shopDoc = await FirebaseFirestore.instance.collection('shops').doc(_shopId).get();
+          if (shopDoc.exists) {
+            final data = shopDoc.data() ?? const <String, dynamic>{};
+            _shopName = (data['name'] ?? '').toString().trim();
+          }
+        } catch (e) {
+          debugPrint('StaffSelfProfileView: cannot load shop from cloud: $e');
         }
       }
 
@@ -121,7 +137,7 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
 
       await _loadStatsAndSchedule();
     } catch (e) {
-      NotificationService.showSnackBar('Lỗi tải hồ sơ nhân viên: $e', color: Colors.red);
+      NotificationService.showSnackBar(_friendlyFirestoreError(e), color: Colors.orange);
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -164,12 +180,19 @@ class _StaffSelfProfileViewState extends State<StaffSelfProfileView> {
     _salesCount = monthlySales.length;
 
     if (_shopId.isNotEmpty) {
-      final doc = await FirebaseFirestore.instance.collection('work_schedules').doc('staff_${_uid}_$_shopId').get();
       Map<String, dynamic>? schedule;
-      if (doc.exists) {
-        schedule = doc.data();
-        await _db.upsertWorkSchedule(_uid, schedule!);
+      try {
+        final doc = await FirebaseFirestore.instance.collection('work_schedules').doc('staff_${_uid}_$_shopId').get();
+        if (doc.exists) {
+          schedule = doc.data();
+          if (schedule != null) {
+            await _db.upsertWorkSchedule(_uid, schedule);
+          }
+        }
+      } catch (e) {
+        debugPrint('StaffSelfProfileView: cannot load work schedule from cloud: $e');
       }
+
       schedule ??= await _db.getWorkSchedule(_uid);
       if (schedule != null) {
         final start = (schedule['startTime'] ?? '08:00').toString();
