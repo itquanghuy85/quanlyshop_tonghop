@@ -115,6 +115,7 @@ import '../expansion/safe_mode/branch_service.dart';
 import 'expansion/branch/branch_selector_view.dart';
 import 'expansion/branch/branch_list_view.dart';
 import '../finance_v2/finance_v2_view.dart' as finance_v2;
+import '../finance_v2/finance_v2_data_service.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -191,6 +192,7 @@ class _HomeViewState extends State<HomeView>
 
   final db = DBHelper();
   final _debtSummaryService = DebtSummaryService();
+  final FinanceV2DataService _financeV2DataService = FinanceV2DataService();
   int totalPendingRepair = 0;
   int todaySaleCount = 0;
   int _currentIndex = 0; // Bottom navigation index
@@ -2532,110 +2534,35 @@ class _HomeViewState extends State<HomeView>
         debugLabel: DateFormat('yyyy-MM-dd').format(todayStart),
       );
 
-      // Keep Home dashboard metrics consistent with Finance V2 / Excel export
-      // to avoid cross-screen mismatch for the same selected day.
-      int saleIncomeConsistent = 0;
-      int repairIncomeConsistent = 0;
-      int miscIncomeConsistent = 0;
-      int expenseOutConsistent = 0;
-      int debtCollectedConsistent = 0;
-      int debtPaidConsistent = 0;
+      // Source of truth for Home totals: same Finance V2 snapshot used by Finance tab/export.
+      final financeSnapshot = await _financeV2DataService.loadSnapshot(
+        start: todayStart,
+        end: now,
+      );
+      final txs = financeSnapshot.transactions;
+      final debtCollectedConsistent = txs
+          .where((t) => t.isIncome && t.type.toUpperCase() == 'DEBT_COLLECT')
+          .fold<int>(0, (v, t) => v + t.amount);
+      final debtPaidConsistent = txs
+          .where((t) => !t.isIncome && t.type.toUpperCase() == 'DEBT_PAY')
+          .fold<int>(0, (v, t) => v + t.amount);
+
       int importOutConsistent = 0;
-      int partnerPaidExtraConsistent = 0;
-
-      int toInt(dynamic value) {
-        if (value == null) return 0;
-        if (value is int) return value;
-        if (value is num) return value.round();
-        return int.tryParse(value.toString()) ?? 0;
-      }
-
-      String toUpper(dynamic value) => value?.toString().trim().toUpperCase() ?? '';
-
-      bool isShopOwes(Map<String, dynamic> row) {
-        final resolvedType =
-            (row['resolvedDebtType'] ?? row['debtType'] ?? 'CUSTOMER_OWES')
-                .toString();
-        return resolvedType == 'SHOP_OWES' ||
-            resolvedType == 'OTHER_SHOP_OWES' ||
-            resolvedType == 'OWED';
-      }
-
-      for (final sale in fSales) {
-        final paymentMethod = toUpper(sale['paymentMethod']);
-        final isInstallment = (sale['isInstallment'] is bool)
-            ? sale['isInstallment'] as bool
-            : toInt(sale['isInstallment']) == 1;
-        final totalPrice = toInt(sale['totalPrice']);
-        final discount = toInt(sale['discount']);
-        final finalPrice = (totalPrice - discount).clamp(0, 1 << 31);
-
-        if (isInstallment) {
-          saleIncomeConsistent +=
-              toInt(sale['downPayment']) + toInt(sale['settlementAmount']);
-        } else if (paymentMethod != 'CÔNG NỢ') {
-          saleIncomeConsistent += finalPrice;
-        }
-      }
-
-      for (final repair in fRepairs) {
-        if (toUpper(repair['paymentMethod']) == 'CÔNG NỢ') continue;
-        repairIncomeConsistent += toInt(repair['price']);
-      }
-
-      final expenseFirestoreIds = <String>{
-        ...fExpenses.map((e) => (e['firestoreId'] ?? '').toString().trim()).where((id) => id.isNotEmpty),
-      };
-
       for (final expense in fExpenses) {
-        final amount = toInt(expense['amount']);
-        final type = toUpper(expense['type']).isEmpty ? 'CHI' : toUpper(expense['type']);
-        if (type == 'THU') {
-          miscIncomeConsistent += amount;
-          continue;
-        }
-
-        expenseOutConsistent += amount;
-
-        final category = toUpper(expense['category']);
-        final isImport = category.contains('NHẬP') ||
+        final category = (expense['category'] ?? '').toString().toUpperCase();
+        final type = (expense['type'] ?? 'CHI').toString().toUpperCase();
+        if (type == 'THU') continue;
+        if (category.contains('NHẬP') ||
             category.contains('LINH KIỆN') ||
-            category.contains('PURCHASE');
-        if (isImport) {
+            category.contains('PURCHASE')) {
+          final amount = (expense['amount'] as num?)?.toInt() ??
+              int.tryParse((expense['amount'] ?? '0').toString()) ??
+              0;
           importOutConsistent += amount;
         }
       }
 
-      for (final payment in debtPayments) {
-        final amount = toInt(payment['amount']);
-        if (amount <= 0) continue;
-        if (isShopOwes(payment)) {
-          debtPaidConsistent += amount;
-        } else {
-          debtCollectedConsistent += amount;
-        }
-      }
-
-      for (final payment in partnerPayments) {
-        final paymentFid = (payment['firestoreId'] ?? '').toString().trim();
-        if (paymentFid.isEmpty) continue;
-        final expectedExpenseFid = paymentFid.startsWith('rpp_')
-            ? 'exp_partner_${paymentFid.substring(4)}'
-            : 'exp_partner_$paymentFid';
-        if (expenseFirestoreIds.contains(expectedExpenseFid)) {
-          continue;
-        }
-        final amount = toInt(payment['amount']);
-        if (amount > 0) {
-          partnerPaidExtraConsistent += amount;
-        }
-      }
-
-      final totalInConsistent =
-          saleIncomeConsistent + repairIncomeConsistent + miscIncomeConsistent + debtCollectedConsistent;
-      final totalOutConsistent =
-          expenseOutConsistent + debtPaidConsistent + partnerPaidExtraConsistent;
-      final netProfitConsistent = totalInConsistent - totalOutConsistent;
+        final partnerPaidExtraConsistent = analysis.partnerPaid;
 
       // Thống kê số lượng
       doneT = fRepairs.length;
@@ -2745,9 +2672,9 @@ class _HomeViewState extends State<HomeView>
           _supplierDebtRemain = suppDebt;
           _partnerDebtRemain = partDebt;
           expiringWarranties = expW;
-          _todayTotalIn = totalInConsistent;
-          _todayTotalOut = totalOutConsistent;
-          _todayNetProfit = netProfitConsistent;
+          _todayTotalIn = financeSnapshot.totalIn;
+          _todayTotalOut = financeSnapshot.totalOut;
+          _todayNetProfit = financeSnapshot.netCashflow;
           _todaySalesProfit = analysis.saleProfit;
           _todayRepairProfit = analysis.repairProfit;
           _todayRepairCount = fRepairs.length;
@@ -2757,11 +2684,11 @@ class _HomeViewState extends State<HomeView>
               .length;
           _todayStockInCost = analysis.importOut;
           _todayDebtPaidToSupplier = debtPaidConsistent;
-          _todayExpenseOnly = expenseOutConsistent;
-          _todaySaleIncome = saleIncomeConsistent;
-          _todayRepairIncome = repairIncomeConsistent;
+          _todayExpenseOnly = financeSnapshot.operatingExpenseOut;
+          _todaySaleIncome = financeSnapshot.incomeFromSales;
+          _todayRepairIncome = financeSnapshot.incomeFromRepairs;
           _todayDebtCollected = debtCollectedConsistent;
-          _todayMiscIncome = miscIncomeConsistent;
+          _todayMiscIncome = financeSnapshot.incomeOther;
           _todayImportOut = importOutConsistent;
           _todayPartnerPaid = partnerPaidExtraConsistent;
           _todayRepairPartsCostFund = analysis.repairPartsCostFund;

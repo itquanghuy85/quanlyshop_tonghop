@@ -57,30 +57,6 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     );
   }
 
-  Widget _topIconAction({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF4F7FD),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE1E9F7)),
-          ),
-          child: Icon(icon, size: 18, color: FinanceV2Theme.accent),
-        ),
-      ),
-    );
-  }
-
   @override
   void initState() {
     super.initState();
@@ -729,6 +705,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       }
     }
 
+    if (!mounted) return;
     await FinanceV2ExcelExport.exportTable(
       context,
       sheetName: 'Báo cáo ngày',
@@ -788,7 +765,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     }
     // Thu nợ (DEBT_COLLECT)
     final debtCollectTxs = s.transactions.where((t) => t.type.toUpperCase() == 'DEBT_COLLECT');
-    final totalDebtCollect = debtCollectTxs.fold(0, (sum, t) => sum + t.amount);
+    final totalDebtCollect = debtCollectTxs.fold(0, (acc, t) => acc + t.amount);
     if (totalDebtCollect > 0) {
       lines.writeln('Thu no:     +${MoneyUtils.formatCompactCurrency(totalDebtCollect)}d');
     }
@@ -836,7 +813,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     // Chi phí
     final expenseTxs = s.transactions.where((t) => t.type.toUpperCase() == 'EXPENSE').toList();
     if (expenseTxs.isNotEmpty) {
-      final totalExp = expenseTxs.fold(0, (sum, t) => sum + t.amount);
+      final totalExp = expenseTxs.fold(0, (acc, t) => acc + t.amount);
       lines.writeln('[C][B]--- CHI PHI (${expenseTxs.length}) ---');
       lines.writeln('Tong chi: ${MoneyUtils.formatCompactCurrency(totalExp)}d');
       for (final tx in expenseTxs.take(10)) {
@@ -870,7 +847,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           lines.writeln('  $name: ${MoneyUtils.formatCompactCurrency(tx.amount)}d');
         }
       }
-      final totalDebtPay = debtPayTxs.fold(0, (sum, t) => sum + t.amount);
+      final totalDebtPay = debtPayTxs.fold(0, (acc, t) => acc + t.amount);
       if (totalDebtPay > 0) {
         lines.writeln('Tra no NCC: -${MoneyUtils.formatCompactCurrency(totalDebtPay)}d (${debtPayTxs.length})');
         for (final tx in debtPayTxs.take(5)) {
@@ -996,71 +973,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
               );
 
     if (widget.embeddedInTab) {
-      return ColoredBox(
-        color: FinanceV2Theme.pageBg,
-        child: Column(
-          children: [
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6F8FC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE4EAF6)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.filter_alt_rounded, size: 18, color: FinanceV2Theme.accent),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _rangeModeLabel(_rangeMode),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: FinanceV2Theme.meta.copyWith(
-                                color: FinanceV2Theme.accent,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  if (_snapshot != null) ...[
-                    _topIconAction(
-                      icon: Icons.print_rounded,
-                      tooltip: 'In',
-                      onTap: _printReport,
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  if (_snapshot != null) ...[
-                    _topIconAction(
-                      icon: Icons.download_rounded,
-                      tooltip: 'Xuất Excel',
-                      onTap: _exportReport,
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  _topIconAction(
-                    icon: Icons.refresh_rounded,
-                    tooltip: 'Làm mới',
-                    onTap: _loadReport,
-                  ),
-                ],
-              ),
-            ),
-            Expanded(child: body),
-          ],
-        ),
-      );
+      return ColoredBox(color: FinanceV2Theme.pageBg, child: body);
     }
 
     return Scaffold(
@@ -1505,8 +1418,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   Widget _buildCashFlow(BuildContext context) {
     final inTxs = _snapshot!.transactions.where((t) => t.isIncome).toList();
     final outTxs = _snapshot!.transactions.where((t) => !t.isIncome).toList();
-    final totalIn = inTxs.fold(0, (sum, tx) => sum + tx.amount);
-    final totalOut = outTxs.fold(0, (sum, tx) => sum + tx.amount);
+    final totalIn = inTxs.fold(0, (acc, tx) => acc + tx.amount);
+    final totalOut = outTxs.fold(0, (acc, tx) => acc + tx.amount);
 
     return _panel(
       child: ExpansionTile(
@@ -1690,10 +1603,10 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final entries = map.entries.toList()
       ..sort((a, b) => b.value.revenue.compareTo(a.value.revenue));
 
-    final totalPresent = entries.fold<int>(0, (sum, e) => sum + e.value.presentDays);
-    final totalAbsent = entries.fold<int>(0, (sum, e) => sum + e.value.absentDays);
-    final totalLate = entries.fold<int>(0, (sum, e) => sum + e.value.lateDays);
-    final totalSwap = entries.fold<int>(0, (sum, e) => sum + e.value.swapCount);
+    final totalPresent = entries.fold<int>(0, (acc, e) => acc + e.value.presentDays);
+    final totalAbsent = entries.fold<int>(0, (acc, e) => acc + e.value.absentDays);
+    final totalLate = entries.fold<int>(0, (acc, e) => acc + e.value.lateDays);
+    final totalSwap = entries.fold<int>(0, (acc, e) => acc + e.value.swapCount);
 
     return _panel(
       child: ExpansionTile(

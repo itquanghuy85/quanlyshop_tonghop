@@ -151,6 +151,38 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     });
   }
 
+  int _toInt(dynamic value, [int fallback = 0]) {
+    if (value == null) return fallback;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim()) ?? fallback;
+  }
+
+  int? _toNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString().trim());
+  }
+
+  Map<String, dynamic> _normalizePartMap(Map<String, dynamic> row) {
+    final mapped = Map<String, dynamic>.from(row);
+    mapped['id'] = _toNullableInt(mapped['id']);
+    mapped['supplierId'] = _toNullableInt(mapped['supplierId']);
+    mapped['quantity'] = _toInt(mapped['quantity']);
+    mapped['cost'] = _toInt(mapped['cost']);
+    mapped['price'] = _toInt(mapped['price']);
+    mapped['createdAt'] = _toNullableInt(mapped['createdAt']);
+    mapped['updatedAt'] = _toNullableInt(mapped['updatedAt']);
+    return mapped;
+  }
+
+  Map<String, dynamic> _normalizeSupplierMap(Map<String, dynamic> row) {
+    final mapped = Map<String, dynamic>.from(row);
+    mapped['id'] = _toNullableInt(mapped['id']);
+    return mapped;
+  }
+
   Future<void> _refreshParts() async {
     if (!mounted) return;
     debugPrint('🔧 [PartsInventoryView] Bắt đầu tải linh kiện từ local DB...');
@@ -182,7 +214,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
 
       if (!mounted) return;
       setState(() {
-        _parts = data;
+        _parts = data.map(_normalizePartMap).toList();
         _applyFilter();
         _isLoading = false;
       });
@@ -198,7 +230,11 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       final suppliers = await SupplierService().getSuppliers();
       if (suppliers.isNotEmpty) {
         if (!mounted) return;
-        setState(() => _suppliers = suppliers.map((s) => s.toMap()).toList());
+        setState(
+          () => _suppliers = suppliers
+              .map((s) => _normalizeSupplierMap(s.toMap()))
+              .toList(),
+        );
         return;
       }
     } catch (e) {
@@ -210,7 +246,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     try {
       final s = await db.getSuppliers();
       if (!mounted) return;
-      setState(() => _suppliers = s);
+      setState(() => _suppliers = s.map(_normalizeSupplierMap).toList());
     } catch (e) {
       debugPrint(
         'PartsInventoryViewContent: Error loading suppliers from DB: $e',
