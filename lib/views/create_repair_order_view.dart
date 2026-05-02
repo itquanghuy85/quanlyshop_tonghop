@@ -88,7 +88,7 @@ class _CreateRepairOrderViewState extends State<CreateRepairOrderView> {
   ShopSettings? _shopSettings;
   BusinessTerminology get _terms => BusinessTypeHelper.instance.getTerminology(_shopSettings);
 
-  final List<String> brands = ["IPHONE", "SAMSUNG", "OPPO", "REDMI", "VIVO"];
+  final List<String> brands = ["IPHONE ", "SAMSUNG ", "OPPO ", "REDMI ", "VIVO "];
   List<String> get commonIssues => [
     loc.replacePin,
     loc.pressGlass,

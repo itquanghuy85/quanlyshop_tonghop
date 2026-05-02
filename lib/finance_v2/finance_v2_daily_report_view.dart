@@ -42,6 +42,36 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   final _dFmt = DateFormat('dd/MM/yyyy');
   final _dayNameFmt = DateFormat('EEEE', 'vi_VN');
 
+  Widget _panel({required Widget child, EdgeInsetsGeometry? margin}) {
+    return Container(
+      margin: margin ?? const EdgeInsets.only(bottom: 12),
+      decoration: FinanceV2Theme.elevatedPanel(),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(FinanceV2Theme.radiusPanel),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _topActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: FinanceV2Theme.meta),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        foregroundColor: FinanceV2Theme.accent,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        minimumSize: const Size(0, 32),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -842,53 +872,72 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
           children: [
             Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              // Dùng Row ngoài để buttons không bị unbounded width trong SingleChildScrollView
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  PopupMenuButton<_ReportRangeMode>(
-                    tooltip: 'Chọn kiểu lọc',
-                    onSelected: (mode) {
-                      _changeRangeMode(mode);
-                    },
-                    itemBuilder: (context) => _ReportRangeMode.values
-                        .map(
-                          (mode) => PopupMenuItem<_ReportRangeMode>(
-                            value: mode,
-                            child: Row(
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          PopupMenuButton<_ReportRangeMode>(
+                            tooltip: 'Chọn kiểu lọc',
+                            onSelected: (mode) {
+                              _changeRangeMode(mode);
+                            },
+                            itemBuilder: (context) => _ReportRangeMode.values
+                                .map(
+                                  (mode) => PopupMenuItem<_ReportRangeMode>(
+                                    value: mode,
+                                    child: Row(
+                                      children: [
+                                        Expanded(child: Text(_rangeModeLabel(mode))),
+                                        if (_rangeMode == mode)
+                                          const Icon(Icons.check_rounded, size: 16),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Expanded(child: Text(_rangeModeLabel(mode))),
-                                if (_rangeMode == mode)
-                                  const Icon(Icons.check_rounded, size: 16),
+                                Icon(Icons.filter_alt_rounded, size: 18, color: FinanceV2Theme.accent),
+                                SizedBox(width: 4),
+                                Text('Bộ lọc', style: FinanceV2Theme.meta),
                               ],
                             ),
                           ),
-                        )
-                        .toList(),
-                    icon: const Icon(Icons.filter_alt_rounded),
-                  ),
-                  if (_snapshot != null)
-                    IconButton(
-                      onPressed: _printReport,
-                      icon: const Icon(Icons.print_rounded),
-                      tooltip: 'In báo cáo',
-                      iconSize: 22,
+                        ],
+                      ),
                     ),
-                  if (_snapshot != null)
-                    IconButton(
-                      onPressed: _exportReport,
-                      icon: const Icon(Icons.download_rounded),
-                      tooltip: 'Xuất Excel',
-                      iconSize: 22,
-                    ),
-                  IconButton(
-                    onPressed: _loadReport,
-                    icon: const Icon(Icons.refresh_rounded),
-                    tooltip: 'Làm mới',
-                    iconSize: 22,
                   ),
-                ],
-              ),
+                    if (_snapshot != null) ...[
+                      const SizedBox(width: 2),
+                      _topActionButton(
+                        icon: Icons.print_rounded,
+                        label: 'In',
+                        onTap: _printReport,
+                      ),
+                    ],
+                    if (_snapshot != null) ...[
+                      const SizedBox(width: 2),
+                      _topActionButton(
+                        icon: Icons.download_rounded,
+                        label: 'Xuất Excel',
+                        onTap: _exportReport,
+                      ),
+                    ],
+                    const SizedBox(width: 2),
+                    _topActionButton(
+                      icon: Icons.refresh_rounded,
+                      label: 'Làm mới',
+                      onTap: _loadReport,
+                    ),
+                  ],
+                ),
             ),
             Expanded(child: body),
           ],
@@ -953,12 +1002,12 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(FinanceV2Theme.radiusControl),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF0F1F3D).withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -979,10 +1028,9 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                     _rangeLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: FinanceV2Theme.accent,
-                        ),
+                    style: FinanceV2Theme.titleMd.copyWith(
+                      color: FinanceV2Theme.accent,
+                    ),
                   ),
                   Text(
                     _rangeMode == _ReportRangeMode.day
@@ -991,7 +1039,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
+                        color: FinanceV2Theme.subInk,
                         ),
                   ),
                   if (_isToday)
@@ -1024,8 +1072,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final sales = txs.where((e) => e.type.toUpperCase() == 'SALE').toList();
     final repairs = txs.where((e) => e.type.toUpperCase() == 'REPAIR').toList();
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         title: const Text('Chi tiết bán hàng và sửa chữa'),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -1113,8 +1160,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   }
 
   Widget _buildAllAppOverview(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         initiallyExpanded: true,
         title: Text('Tổng hợp toàn app theo $_periodSuffix'),
@@ -1134,8 +1180,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   }
 
   Widget _buildDebtSummary(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Colors.orange.withValues(alpha: 0.1),
@@ -1156,8 +1201,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     if (_snapshot!.topExpenseCategories.isEmpty) {
       return const SizedBox.shrink();
     }
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         title: const Text('Top danh mục chi phí'),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -1287,11 +1331,11 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     Color? footerColor,
   }) {
     return Container(
-      width: 140,
+      width: 156,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(FinanceV2Theme.radiusControl),
         border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         boxShadow: [
           BoxShadow(
@@ -1348,8 +1392,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final totalIn = inTxs.fold(0, (sum, tx) => sum + tx.amount);
     final totalOut = outTxs.fold(0, (sum, tx) => sum + tx.amount);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         title: Text('Luồng tiền theo $_periodSuffix'),
         initiallyExpanded: true,
@@ -1441,8 +1484,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
   }
 
   Widget _buildTransactionsList(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         title: Text('Giao dịch (${_snapshot!.transactions.length})'),
         initiallyExpanded: false,
@@ -1483,8 +1525,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
 
   Widget _buildCapitalAndGrossProfit(BuildContext context) {
     final s = _snapshot!;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         initiallyExpanded: true,
         title: const Text('Vốn và lãi gộp bán/sửa'),
@@ -1538,8 +1579,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final totalLate = entries.fold<int>(0, (sum, e) => sum + e.value.lateDays);
     final totalSwap = entries.fold<int>(0, (sum, e) => sum + e.value.swapCount);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         title: Text('Nhân viên theo $_periodSuffix (${entries.length})'),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -1610,8 +1650,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final receivables = _snapshot!.receivables;
     final payables = _snapshot!.payables;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         title: Text('Công nợ (${receivables.length + payables.length})'),
         initiallyExpanded: false,
@@ -1685,8 +1724,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
 
   Widget _buildAuditLogs(BuildContext context) {
     final logs = _snapshot!.auditLogs;
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return _panel(
       child: ExpansionTile(
         title: Text('Nhật ký tài chính (${logs.length})'),
         initiallyExpanded: false,

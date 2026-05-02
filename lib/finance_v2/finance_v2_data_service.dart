@@ -251,8 +251,7 @@ class FinanceV2DataService {
       endMs,
     );
     final debtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs);
-    // Chỉ lấy công nợ được tạo trong khoảng kỳ đã chọn — dùng query có date range thay vì tải toàn bộ
-    final debts = await _db.getDebtsByDateRange(startMs, endMs);
+    final debts = await _db.getDebtsForFinanceSnapshot();
     final activities = await _db.getFinancialActivities(
       startDate: startMs,
       endDate: endMs,
@@ -263,6 +262,10 @@ class FinanceV2DataService {
     final previousRepairs = await _db.getDeliveredRepairsByDateRange(previousStartMs, previousEndMs);
     final previousExpenses = await _db.getExpensesByDateRange(previousStartMs, previousEndMs);
     final previousRepairPartnerPayments = await _db.getRepairPartnerPaymentsByDateRange(
+      previousStartMs,
+      previousEndMs,
+    );
+    final previousDebtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(
       previousStartMs,
       previousEndMs,
     );
@@ -310,6 +313,7 @@ class FinanceV2DataService {
     int extraIn = 0;
     int saleCogs = 0;
     int repairCogs = 0;
+    int recognizedRepairRevenue = 0;
 
     final transactions = <FinanceV2Txn>[];
 
@@ -371,14 +375,18 @@ class FinanceV2DataService {
     }
 
     for (final Repair repair in repairs) {
-      if (repair.paymentMethod.toUpperCase() == 'CÔNG NỢ') {
-        continue;
-      }
       final amount = repair.price;
       if (amount > 0) {
         final repairCost = repair.totalCost > 0 ? repair.totalCost : 0;
         repairCogs += repairCost;
-        repairIn += amount;
+        recognizedRepairRevenue += amount;
+
+        final bool isCongNo = repair.paymentMethod.toUpperCase() == 'CÔNG NỢ';
+        if (!isCongNo) {
+          repairIn += amount;
+        }
+
+        if (!isCongNo) {
         transactions.add(
           FinanceV2Txn(
             id: 'repair_${repair.id ?? repair.firestoreId ?? repair.createdAt}',
@@ -403,6 +411,7 @@ class FinanceV2DataService {
             grossProfit: amount - repairCost,
           ),
         );
+        }
       }
       // Chi phí linh kiện/dịch vụ nội bộ (service không qua đối tác, partnerId == null)
       // Đây là chi phí nhân công/linh kiện tự ghi trong đơn sửa, không trùng với repair_partner_payments
@@ -546,6 +555,7 @@ class FinanceV2DataService {
     int previousExpenseOut = 0;
     int previousSaleCogs = 0;
     int previousRepairCogs = 0;
+    int previousRecognizedRepairRevenue = 0;
 
     for (final SaleOrder sale in previousSales) {
       final bool isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
@@ -569,11 +579,11 @@ class FinanceV2DataService {
     }
 
     for (final Repair repair in previousRepairs) {
-      if (repair.paymentMethod.toUpperCase() == 'CÔNG NỢ') {
-        continue;
-      }
       if (repair.price > 0) {
-        previousRepairIn += repair.price;
+        previousRecognizedRepairRevenue += repair.price;
+        if (repair.paymentMethod.toUpperCase() != 'CÔNG NỢ') {
+          previousRepairIn += repair.price;
+        }
         previousRepairCogs += repair.totalCost > 0 ? repair.totalCost : 0;
       }
       final prevNonPartnerCost = repair.services
@@ -581,6 +591,20 @@ class FinanceV2DataService {
           .fold<int>(0, (sum, s) => sum + s.cost);
       if (prevNonPartnerCost > 0) {
         previousExpenseOut += prevNonPartnerCost;
+      }
+    }
+
+    for (final p in previousDebtPayments) {
+      final amount = _toInt(p['amount']);
+      if (amount <= 0) continue;
+      final resolvedType = (p['resolvedDebtType'] ?? p['debtType'] ?? 'CUSTOMER_OWES').toString();
+      final isShopOwes = resolvedType == 'SHOP_OWES' ||
+          resolvedType == 'OTHER_SHOP_OWES' ||
+          resolvedType == 'OWED';
+      if (isShopOwes) {
+        previousExpenseOut += amount;
+      } else {
+        previousExtraIn += amount;
       }
     }
 
@@ -668,7 +692,7 @@ class FinanceV2DataService {
       (sum, sale) => sum + (sale.finalPrice > 0 ? sale.finalPrice : 0),
     );
     final grossProfitFromSales = recognizedSalesRevenue - saleCogs;
-    final grossProfitFromRepairs = repairIn - repairCogs;
+    final grossProfitFromRepairs = recognizedRepairRevenue - repairCogs;
     final grossProfitTotal = grossProfitFromSales + grossProfitFromRepairs;
     final previousTotalIn = previousSaleIn + previousRepairIn + previousExtraIn;
     final previousTotalOut = previousExpenseOut;
@@ -679,7 +703,8 @@ class FinanceV2DataService {
     );
     final previousGrossProfitFromSales =
         previousRecognizedSalesRevenue - previousSaleCogs;
-    final previousGrossProfitFromRepairs = previousRepairIn - previousRepairCogs;
+    final previousGrossProfitFromRepairs =
+      previousRecognizedRepairRevenue - previousRepairCogs;
     final incomeTxCount = transactions.where((t) => t.isIncome).length;
     final avgIncomePerTransaction = incomeTxCount > 0 ? (totalIn ~/ incomeTxCount) : 0;
 

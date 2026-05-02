@@ -4158,14 +4158,26 @@ return db;
     int startMs,
     int endMs,
   ) async {
+    final shopId = UserService.getShopIdSync();
     final db = await database;
-    final maps = await db.query(
-      'repairs',
-      where:
-          'COALESCE(deliveredAt, createdAt) >= ? AND COALESCE(deliveredAt, createdAt) <= ? AND status = 4 AND deleted = 0',
-      whereArgs: [startMs, endMs],
-      orderBy: 'createdAt DESC',
-    );
+    final List<Map<String, dynamic>> maps;
+    if (shopId != null && shopId.isNotEmpty) {
+      maps = await db.query(
+        'repairs',
+        where:
+            '(shopId = ? OR shopId IS NULL) AND COALESCE(deliveredAt, createdAt) >= ? AND COALESCE(deliveredAt, createdAt) <= ? AND status = 4 AND deleted = 0',
+        whereArgs: [shopId, startMs, endMs],
+        orderBy: 'createdAt DESC',
+      );
+    } else {
+      maps = await db.query(
+        'repairs',
+        where:
+            'COALESCE(deliveredAt, createdAt) >= ? AND COALESCE(deliveredAt, createdAt) <= ? AND status = 4 AND deleted = 0',
+        whereArgs: [startMs, endMs],
+        orderBy: 'createdAt DESC',
+      );
+    }
     return List.generate(maps.length, (i) => Repair.fromMap(maps[i]));
   }
 
@@ -5382,6 +5394,26 @@ return db;
       where:
           'createdAt >= ? AND createdAt <= ? AND (deleted = 0 OR deleted IS NULL)',
       whereArgs: [startMs, endMs],
+      orderBy: 'createdAt DESC',
+    );
+  }
+
+  /// Snapshot công nợ cho Finance: lấy toàn bộ công nợ còn trong hệ thống (không giới hạn createdAt),
+  /// sau đó tầng service sẽ tự tính remaining và phân loại phải thu/phải trả.
+  Future<List<Map<String, dynamic>>> getDebtsForFinanceSnapshot() async {
+    final shopId = UserService.getShopIdSync();
+    final db = await database;
+    if (shopId != null && shopId.isNotEmpty) {
+      return db.query(
+        'debts',
+        where: '(shopId = ? OR shopId IS NULL) AND (deleted = 0 OR deleted IS NULL)',
+        whereArgs: [shopId],
+        orderBy: 'createdAt DESC',
+      );
+    }
+    return db.query(
+      'debts',
+      where: '(deleted = 0 OR deleted IS NULL)',
       orderBy: 'createdAt DESC',
     );
   }
