@@ -545,6 +545,68 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final shopId = await UserService.getCurrentShopId();
     final generatedAt = DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
 
+    // Recompute key KPI from transactions for export consistency.
+    // This prevents summary/transaction mismatch when old cached logic leaks into KPI fields.
+    final txs = s.transactions;
+    final int totalIn = txs.isNotEmpty
+      ? txs.where((t) => t.isIncome).fold<int>(0, (v, t) => v + t.amount)
+      : s.totalIn;
+    final int totalOut = txs.isNotEmpty
+      ? txs.where((t) => !t.isIncome).fold<int>(0, (v, t) => v + t.amount)
+      : s.totalOut;
+    final int txCount = txs.isNotEmpty ? txs.length : s.transactionCount;
+
+    final int incomeFromSales = txs.isNotEmpty
+      ? txs
+        .where((t) => t.isIncome && t.type.toUpperCase() == 'SALE')
+        .fold<int>(0, (v, t) => v + t.amount)
+      : s.incomeFromSales;
+    final int incomeFromRepairs = txs.isNotEmpty
+      ? txs
+        .where((t) => t.isIncome && t.type.toUpperCase() == 'REPAIR')
+        .fold<int>(0, (v, t) => v + t.amount)
+      : s.incomeFromRepairs;
+    final int incomeOther = txs.isNotEmpty
+      ? txs
+        .where(
+          (t) =>
+            t.isIncome &&
+            t.type.toUpperCase() != 'SALE' &&
+            t.type.toUpperCase() != 'REPAIR',
+        )
+        .fold<int>(0, (v, t) => v + t.amount)
+      : s.incomeOther;
+
+    final int cogsFromSales = txs.isNotEmpty
+      ? txs
+        .where((t) => t.isIncome && t.type.toUpperCase() == 'SALE')
+        .fold<int>(0, (v, t) => v + (t.costAmount ?? 0))
+      : s.cogsFromSales;
+    final int cogsFromRepairs = txs.isNotEmpty
+      ? txs
+        .where((t) => t.isIncome && t.type.toUpperCase() == 'REPAIR')
+        .fold<int>(0, (v, t) => v + (t.costAmount ?? 0))
+      : s.cogsFromRepairs;
+
+    final int grossProfitFromSales = txs.isNotEmpty
+      ? txs
+        .where((t) => t.isIncome && t.type.toUpperCase() == 'SALE')
+        .fold<int>(0, (v, t) => v + (t.grossProfit ?? 0))
+      : s.grossProfitFromSales;
+    final int grossProfitFromRepairs = txs.isNotEmpty
+      ? txs
+        .where((t) => t.isIncome && t.type.toUpperCase() == 'REPAIR')
+        .fold<int>(0, (v, t) => v + (t.grossProfit ?? 0))
+      : s.grossProfitFromRepairs;
+    final int grossProfitTotal = grossProfitFromSales + grossProfitFromRepairs;
+
+    final int operatingExpenseOut = txs.isNotEmpty
+      ? txs
+        .where((t) => !t.isIncome && t.type.toUpperCase() == 'EXPENSE')
+        .fold<int>(0, (v, t) => v + t.amount)
+      : s.operatingExpenseOut;
+    final int realProfit = grossProfitTotal - operatingExpenseOut;
+
     final rows = <List<dynamic>>[
       ['BÁO CÁO ${_periodSuffix.toUpperCase()} $_rangeLabel'],
       ['Cửa hàng', shopInfo.shopName.isNotEmpty ? shopInfo.shopName : 'N/A'],
@@ -552,24 +614,24 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
       ['Xuất lúc', generatedAt],
       [''],
       ['TỔNG QUAN'],
-      ['Doanh thu vào', MoneyUtils.formatVND(s.totalIn)],
-      ['Chi phí ra', MoneyUtils.formatVND(s.totalOut)],
-      ['Ròng sổ quỹ', MoneyUtils.formatVND(s.totalIn - s.totalOut)],
-      ['Lợi nhuận thực', MoneyUtils.formatVND(s.grossProfitTotal - s.operatingExpenseOut)],
-      ['Số giao dịch', s.transactionCount.toString()],
-      ['Doanh thu bán hàng', MoneyUtils.formatVND(s.incomeFromSales)],
-      ['Doanh thu sửa chữa', MoneyUtils.formatVND(s.incomeFromRepairs)],
-      ['Thu khác', MoneyUtils.formatVND(s.incomeOther)],
+      ['Doanh thu vào', MoneyUtils.formatVND(totalIn)],
+      ['Chi phí ra', MoneyUtils.formatVND(totalOut)],
+      ['Ròng sổ quỹ', MoneyUtils.formatVND(totalIn - totalOut)],
+      ['Lợi nhuận thực', MoneyUtils.formatVND(realProfit)],
+      ['Số giao dịch', txCount.toString()],
+      ['Doanh thu bán hàng', MoneyUtils.formatVND(incomeFromSales)],
+      ['Doanh thu sửa chữa', MoneyUtils.formatVND(incomeFromRepairs)],
+      ['Thu khác', MoneyUtils.formatVND(incomeOther)],
       ['Phải thu', MoneyUtils.formatVND(s.receivableTotal)],
       ['Phải trả', MoneyUtils.formatVND(s.payableTotal)],
       [''],
       ['LÃI GỘP & VỐN'],
-      ['Vốn bán hàng', MoneyUtils.formatVND(s.cogsFromSales)],
-      ['Vốn sửa chữa', MoneyUtils.formatVND(s.cogsFromRepairs)],
-      ['Tổng vốn', MoneyUtils.formatVND(s.cogsFromSales + s.cogsFromRepairs)],
-      ['Lãi gộp bán hàng', MoneyUtils.formatVND(s.grossProfitFromSales)],
-      ['Lãi gộp sửa chữa', MoneyUtils.formatVND(s.grossProfitFromRepairs)],
-      ['Tổng lãi gộp', MoneyUtils.formatVND(s.grossProfitTotal)],
+      ['Vốn bán hàng', MoneyUtils.formatVND(cogsFromSales)],
+      ['Vốn sửa chữa', MoneyUtils.formatVND(cogsFromRepairs)],
+      ['Tổng vốn', MoneyUtils.formatVND(cogsFromSales + cogsFromRepairs)],
+      ['Lãi gộp bán hàng', MoneyUtils.formatVND(grossProfitFromSales)],
+      ['Lãi gộp sửa chữa', MoneyUtils.formatVND(grossProfitFromRepairs)],
+      ['Tổng lãi gộp', MoneyUtils.formatVND(grossProfitTotal)],
       [''],
     ];
 

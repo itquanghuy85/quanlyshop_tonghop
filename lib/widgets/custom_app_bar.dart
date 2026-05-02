@@ -9,7 +9,7 @@ class CustomAppBar {
   // ========== CONSTANTS - ULTRA COMPACT ==========
   static const double kAppBarHeight = 44.0;
   static const double kAppBarElevation = 0.0;
-  static const double kTabBarHeight = 40.0;
+  static const double kTabBarHeight = 44.0;
   static const double kTitleFontSize = 14.0;
   static const double kSubtitleFontSize = 10.0;
 
