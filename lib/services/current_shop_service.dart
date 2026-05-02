@@ -136,6 +136,20 @@ class CurrentShopService {
           debugPrint(
             'CurrentShopService: Updated UserService cache with $_activeShopId',
           );
+
+          // Also persist selection to user profile so app reinstall/new device keeps same active shop.
+          try {
+            await _db.collection('users').doc(currentUid).set({
+              'activeShopId': _activeShopId,
+              // Keep shopId aligned for legacy flows that still read only shopId.
+              'shopId': _activeShopId,
+              'lastShopSwitchedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (e) {
+            debugPrint(
+              'CurrentShopService: failed to persist active shop during init: $e',
+            );
+          }
         }
       } else {
         // User khác → clear
@@ -307,6 +321,20 @@ class CurrentShopService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_prefKey, newShopId);
       await prefs.setString(_prefKeyUid, currentUser.uid);
+
+      // 2.1 Persist active shop on user profile so reinstall/new device still uses the selected shop
+      try {
+        await _db.collection('users').doc(currentUser.uid).set({
+          'activeShopId': newShopId,
+          // Keep shopId aligned for legacy flows that still read only shopId.
+          'shopId': newShopId,
+          'lastShopSwitchedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint(
+          'CurrentShopService: failed to persist activeShopId on user profile: $e',
+        );
+      }
 
       // 3. Update UserService cache (for backward compatibility)
       UserService.updateCachedShopId(newShopId);

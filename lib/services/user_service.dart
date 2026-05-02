@@ -552,7 +552,17 @@ class UserService {
       debugPrint("getCurrentShopId: lấy dữ liệu user ${currentUser.uid}");
       final doc = await _db.collection('users').doc(currentUser.uid).get();
       final data = doc.data();
-      String? shopId = data != null ? data['shopId'] as String? : null;
+      String? shopId;
+      if (data != null) {
+        final activeShopId = data['activeShopId'] as String?;
+        final profileShopId = data['shopId'] as String?;
+        final normalizedActive = activeShopId?.trim();
+        final normalizedProfile = profileShopId?.trim();
+        shopId =
+            (normalizedActive != null && normalizedActive.isNotEmpty)
+                ? normalizedActive
+                : normalizedProfile;
+      }
 
       // Auto-heal 1: nếu user doc thiếu shopId, ưu tiên lấy từ custom claims.
       if (shopId == null || shopId.trim().isEmpty) {
