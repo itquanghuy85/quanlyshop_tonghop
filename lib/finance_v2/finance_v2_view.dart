@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:intl/intl.dart';
 
 import '../data/db_helper.dart';
@@ -14,8 +15,12 @@ import '../views/expense_view.dart';
 import '../views/repair_detail_view.dart';
 import '../views/sale_detail_view.dart';
 import '../widgets/entity_avatar.dart';
+import '../widgets/printer_selection_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/event_bus.dart';
+import '../services/label_settings_service.dart';
+import '../services/unified_printer_service.dart';
+import '../models/printer_types.dart';
 import 'finance_v2_data_service.dart';
 import 'finance_v2_excel_export.dart';
 import 'finance_v2_theme.dart';
@@ -360,18 +365,10 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         _exTL(_timeline(s));
         break;
       case 4:
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tab Báo cáo có nút Xuất Excel riêng trong nội dung tab')),
-          );
-        }
+        _exDailyReportPhone(s);
         break;
       default:
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Không thể xuất ở tab hiện tại')),
-          );
-        }
+        break;
     }
   }
 
@@ -462,12 +459,130 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   double get _hPad => FinanceV2Theme.contentHPad(_vw);
   double get _cardPad => FinanceV2Theme.cardPad(_vw);
 
-  void _printFromTab() {
-    _exFromTab();
+  Future<void> _printFromTab() async {
+    final s = _snap;
+    if (s == null) return;
+
+    final printerConfig = await showPrinterSelectionDialog(context);
+    if (printerConfig == null) return;
+
+    final printerType = printerConfig['type'] as PrinterType?;
+    final bluetoothPrinter = printerConfig['bluetoothPrinter'];
+    final wifiIp = printerConfig['wifiIp'] as String?;
+
+    final lines = await _buildPrintLinesForTab(s, _tabController.index);
+    final ok = await UnifiedPrinterService.printTextReceipt(
+      lines,
+      paper: PaperSize.mm58,
+      printerType: printerType,
+      bluetoothPrinter: bluetoothPrinter,
+      wifiIp: wifiIp,
+    );
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đã xuất dữ liệu, bạn có thể in từ file vừa tạo')),
+      SnackBar(
+        content: Text(ok ? 'Đã gửi lệnh in' : 'Không thể in, vui lòng kiểm tra máy in'),
+        backgroundColor: ok ? Colors.green : Colors.red,
+      ),
     );
+  }
+
+  Future<String> _buildPrintLinesForTab(FinanceV2Snapshot s, int idx) async {
+    final shopInfo = await LabelSettingsService().getShopLabelSettings();
+    final b = StringBuffer();
+
+    if (shopInfo.shopName.isNotEmpty) {
+      b.writeln('[C][B]${shopInfo.shopName}');
+    }
+    if (shopInfo.address.isNotEmpty) {
+      b.writeln('[C]${shopInfo.address}');
+    }
+    if (shopInfo.hotline.isNotEmpty) {
+      b.writeln('[C]SDT: ${shopInfo.hotline}');
+    }
+    b.writeln('[C]==============================');
+    b.writeln('[C][B]TAI CHINH V2');
+    b.writeln('[C]$_sub');
+    b.writeln('[C]${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}');
+    b.writeln('');
+
+    if (idx == 0 || idx == 4) {
+      b.writeln('[L][B]TONG QUAN');
+      b.writeln('Thu vao : ${_cmp(s.totalIn)}');
+      b.writeln('Chi ra  : ${_cmp(s.totalOut)}');
+      b.writeln('Rong quy: ${_signedCmp(s.netCashflow)}');
+      b.writeln('Giao dich: ${s.transactionCount}');
+      b.writeln('Phai thu : ${_cmp(s.receivableTotal)}');
+      b.writeln('Phai tra : ${_cmp(s.payableTotal)}');
+      b.writeln('');
+    }
+
+    if (idx == 1) {
+      b.writeln('[L][B]GIAO DICH');
+      var tx = s.transactions.toList();
+      if (_txFilter == 'IN') {
+        tx = tx.where((t) => t.isIncome).toList();
+      } else if (_txFilter == 'OUT') {
+        tx = tx.where((t) => !t.isIncome).toList();
+      } else if (_txFilter != 'ALL') {
+        tx = tx.where((t) => t.type == _txFilter).toList();
+      }
+      if (_txPm.isNotEmpty) {
+        tx = tx.where((t) => (t.paymentMethod ?? '') == _txPm).toList();
+      }
+      for (final t in tx.take(25)) {
+        final sign = t.isIncome ? '+' : '-';
+        b.writeln('${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(t.createdAt))} ${_ft(t.type)}');
+        b.writeln('  $sign${_cmp(t.amount)} | ${t.title}');
+      }
+      if (tx.length > 25) {
+        b.writeln('... +${tx.length - 25} giao dich');
+      }
+      b.writeln('');
+    }
+
+    if (idx == 2) {
+      b.writeln('[L][B]CONG NO');
+      final items = _showRec ? s.receivables : s.payables;
+      for (final d in items.take(20)) {
+        b.writeln('${d.name}: ${_cmp(d.remaining)}');
+      }
+      if (items.length > 20) {
+        b.writeln('... +${items.length - 20} khoan');
+      }
+      b.writeln('');
+    }
+
+    if (idx == 3) {
+      b.writeln('[L][B]NHAT KY');
+      final ents = _timelineCache;
+      for (final e in ents.take(25)) {
+        b.writeln('${DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(e.ts))} ${_ft(e.type)}');
+        if (e.amount > 0) {
+          b.writeln('  ${e.isIncome ? '+' : '-'}${_cmp(e.amount)} | ${e.title}');
+        } else {
+          b.writeln('  ${e.title}');
+        }
+      }
+      if (ents.length > 25) {
+        b.writeln('... +${ents.length - 25} muc');
+      }
+      b.writeln('');
+    }
+
+    if (idx == 4) {
+      b.writeln('[L][B]BAO CAO NHANH');
+      b.writeln('Doanh thu BH: ${_cmp(s.incomeFromSales)}');
+      b.writeln('Doanh thu SC: ${_cmp(s.incomeFromRepairs)}');
+      b.writeln('Thu khac    : ${_cmp(s.incomeOther)}');
+      b.writeln('Lai gop tong: ${_cmp(s.grossProfitTotal)}');
+      b.writeln('');
+    }
+
+    b.writeln('[C]==============================');
+    b.writeln('[C]Ket thuc');
+    return b.toString();
   }
 
   void _onToolbarAction(_ToolbarAction action) {
@@ -1145,6 +1260,48 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Future<void> _exTL(List<_TLEntry> ents) async {
     if(!mounted) return;
     await FinanceV2ExcelExport.exportTable(context,sheetName:'Nhật ký',filePrefix:'nhat_ky',headers:['Thời gian','Loại','Tiêu đề','Mô tả','NV','TT','Tiền vào','Tiền ra'],rows:ents.map((e)=>[FinanceV2ExcelExport.fmtDateTime(e.ts),_ft(e.type),e.title,e.subtitle,e.actorName??'',e.paymentMethod??'',e.isIncome?e.amount:0,e.isIncome?0:e.amount]).toList(),start:_start,end:_end);
+  }
+
+  Future<void> _exDailyReportPhone(FinanceV2Snapshot s) async {
+    if (!mounted) return;
+
+    final rows = <List<dynamic>>[
+      ['BÁO CÁO KỲ', _sub],
+      ['Thu vào', MoneyUtils.formatVND(s.totalIn)],
+      ['Chi ra', MoneyUtils.formatVND(s.totalOut)],
+      ['Ròng sổ quỹ', MoneyUtils.formatVND(s.netCashflow)],
+      ['Lợi nhuận thực', MoneyUtils.formatVND(s.grossProfitTotal - s.operatingExpenseOut)],
+      ['Số giao dịch', s.transactionCount.toString()],
+      [''],
+      ['CƠ CẤU DOANH THU', ''],
+      ['Bán hàng', MoneyUtils.formatVND(s.incomeFromSales)],
+      ['Sửa chữa', MoneyUtils.formatVND(s.incomeFromRepairs)],
+      ['Thu khác', MoneyUtils.formatVND(s.incomeOther)],
+      [''],
+      ['CÔNG NỢ', ''],
+      ['Phải thu', MoneyUtils.formatVND(s.receivableTotal)],
+      ['Phải trả', MoneyUtils.formatVND(s.payableTotal)],
+    ];
+
+    if (s.topExpenseCategories.isNotEmpty) {
+      rows.addAll([
+        [''],
+        ['TOP CHI PHÍ', ''],
+      ]);
+      for (final c in s.topExpenseCategories.take(10)) {
+        rows.add([c.label, MoneyUtils.formatVND(c.amount)]);
+      }
+    }
+
+    await FinanceV2ExcelExport.exportTable(
+      context,
+      sheetName: 'Báo cáo ngày',
+      filePrefix: 'BaoCaoNgay_DienThoai',
+      headers: const ['Mục', 'Giá trị'],
+      rows: rows,
+      start: _start,
+      end: _end,
+    );
   }
 
   // TAB 5 - Báo cáo ngày (embedded in Finance tabs)
