@@ -7,6 +7,8 @@ import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:intl/intl.dart';
 
 import '../data/db_helper.dart';
+import '../models/product_model.dart';
+import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../utils/money_utils.dart';
 import '../views/cash_closing_view.dart';
@@ -1214,6 +1216,468 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     );
   }
 
+  static const List<String> _auditLogHeaders = <String>[
+    'timestamp',
+    'action_type',
+    'module',
+    'reference_id',
+    'product_name',
+    'imei',
+    'quantity',
+    'price',
+    'cost',
+    'cash_in',
+    'cash_out',
+    'transfer_in',
+    'transfer_out',
+    'payment_method',
+    'debt_customer_change',
+    'debt_supplier_change',
+    'inventory_change',
+    'actor_name',
+    'description',
+  ];
+
+  String _auditPaymentMethod(String? method) {
+    final normalized = (method ?? '').trim().toUpperCase();
+    if (normalized.contains('TIỀN MẶT')) return 'CASH';
+    if (normalized.contains('CHUYỂN')) return 'TRANSFER';
+    if (normalized.contains('CÔNG NỢ')) return 'DEBT';
+    if (normalized.contains('KẾT HỢP')) return 'MIXED';
+    if (normalized.contains('TRẢ GÓP')) return 'INSTALLMENT';
+    return normalized;
+  }
+
+  String _auditModule(String actionType) {
+    switch (actionType) {
+      case 'IMPORT':
+      case 'ADJUST':
+        return 'kho';
+      case 'SALE':
+      case 'RETURN':
+        return 'bán hàng';
+      case 'REPAIR':
+        return 'sửa chữa';
+      default:
+        return 'tài chính';
+    }
+  }
+
+  bool _isImportExpense(Map<String, dynamic> expense) {
+    final title = (expense['title'] ?? '').toString().toUpperCase();
+    final category = (expense['category'] ?? '').toString().toUpperCase();
+    return category.contains('NHẬP') ||
+        category.contains('LINH KIỆN') ||
+        title.contains('NHẬP') ||
+        category.contains('PURCHASE');
+  }
+
+  bool _isSalvageExpense(Map<String, dynamic> expense) {
+    final title = (expense['title'] ?? '').toString().toUpperCase();
+    final category = (expense['category'] ?? '').toString().toUpperCase();
+    return title.contains('MÁY XÁC') || category.contains('MÁY XÁC');
+  }
+
+  String _cleanSaleName(String input) {
+    var value = input.trim();
+    final qtyMatch = RegExp(r'^(.+?)\s+[xX]\d+').firstMatch(value);
+    if (qtyMatch != null) {
+      value = qtyMatch.group(1)!.trim();
+    }
+    value = value.replaceAll(RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false), '');
+    value = value.replaceAll(RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false), '');
+    return value.trim();
+  }
+
+  Future<List<Map<String, dynamic>>> _saleAuditLines(SaleOrder sale) async {
+    final names = sale.productNames.split(RegExp(r',\s*'));
+    final imeis = sale.productImeis.split(RegExp(r',\s*'));
+    final lines = <Map<String, dynamic>>[];
+    int totalQty = 0;
+
+    for (int i = 0; i < names.length; i++) {
+      final rawName = names[i].trim();
+      if (rawName.isEmpty) continue;
+      final imei = i < imeis.length ? imeis[i].trim() : '';
+      int qty = 1;
+      final qtyMatch = RegExp(r'^(.+?)\s+[xX](\d+)').firstMatch(rawName);
+      if (qtyMatch != null) {
+        qty = int.tryParse(qtyMatch.group(2)!) ?? 1;
+      }
+      if (imei.toUpperCase().startsWith('PKX')) {
+        qty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? qty;
+      }
+      final cleanName = _cleanSaleName(rawName);
+      lines.add({
+        'product_name': cleanName,
+        'imei': imei,
+        'quantity': qty,
+        'reference_price': 0,
+        'reference_cost': 0,
+      });
+      totalQty += qty;
+    }
+
+    for (final line in lines) {
+      Product? product;
+      final imei = (line['imei'] ?? '').toString();
+      if (imei.isNotEmpty && !imei.toUpperCase().startsWith('PKX') && imei != 'NO_IMEI') {
+        product = await _db.getProductByImei(imei);
+      }
+      product ??= await _db.getProductByName((line['product_name'] ?? '').toString());
+      product ??= await _db.getProductByNameFlexible((line['product_name'] ?? '').toString());
+      if (product != null) {
+        line['reference_price'] = product.price;
+        line['reference_cost'] = product.cost;
+      }
+    }
+
+    int totalWeightPrice = 0;
+    int totalWeightCost = 0;
+    for (final line in lines) {
+      final qty = (line['quantity'] as int?) ?? 1;
+      final refPrice = ((line['reference_price'] as int?) ?? 0) > 0 ? (line['reference_price'] as int) : 1;
+      final refCost = ((line['reference_cost'] as int?) ?? 0) > 0 ? (line['reference_cost'] as int) : 1;
+      totalWeightPrice += refPrice * qty;
+      totalWeightCost += refCost * qty;
+    }
+
+    int distributedPrice = 0;
+    int distributedCost = 0;
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      final qty = (line['quantity'] as int?) ?? 1;
+      final refPrice = ((line['reference_price'] as int?) ?? 0) > 0 ? (line['reference_price'] as int) : 1;
+      final refCost = ((line['reference_cost'] as int?) ?? 0) > 0 ? (line['reference_cost'] as int) : 1;
+
+      int linePrice;
+      int lineCost;
+      if (i == lines.length - 1) {
+        linePrice = sale.finalPrice - distributedPrice;
+        lineCost = sale.totalCost - distributedCost;
+      } else {
+        linePrice = (sale.finalPrice * (refPrice * qty) / (totalWeightPrice == 0 ? totalQty : totalWeightPrice)).round();
+        lineCost = (sale.totalCost * (refCost * qty) / (totalWeightCost == 0 ? totalQty : totalWeightCost)).round();
+      }
+      distributedPrice += linePrice;
+      distributedCost += lineCost;
+      line['price'] = qty > 0 ? (linePrice / qty).round() : 0;
+      line['cost'] = qty > 0 ? (lineCost / qty).round() : 0;
+    }
+
+    return lines;
+  }
+
+  List<dynamic> _auditRow({
+    required int timestamp,
+    required String actionType,
+    required String referenceId,
+    String productName = '',
+    String imei = '',
+    int quantity = 0,
+    int price = 0,
+    int cost = 0,
+    int cashIn = 0,
+    int cashOut = 0,
+    int transferIn = 0,
+    int transferOut = 0,
+    String paymentMethod = '',
+    int debtCustomerChange = 0,
+    int debtSupplierChange = 0,
+    int inventoryChange = 0,
+    String actorName = '',
+    String description = '',
+  }) {
+    return <dynamic>[
+      FinanceV2ExcelExport.fmtDateTime(timestamp),
+      actionType,
+      _auditModule(actionType),
+      referenceId,
+      productName,
+      imei,
+      quantity,
+      price,
+      cost,
+      cashIn,
+      cashOut,
+      transferIn,
+      transferOut,
+      paymentMethod,
+      debtCustomerChange,
+      debtSupplierChange,
+      inventoryChange,
+      actorName,
+      description,
+    ];
+  }
+
+  Future<List<List<dynamic>>> _buildDetailedAuditLogRows() async {
+    final startMs = _start.millisecondsSinceEpoch;
+    final endMs = DateTime(_end.year, _end.month, _end.day, 23, 59, 59).millisecondsSinceEpoch;
+    final sales = await _db.getSalesByDateRange(startMs, endMs);
+    final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
+    final expenses = await _db.getExpensesByDateRange(startMs, endMs);
+    final debtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs);
+    final salesReturns = await _db.getSalesReturnsByDateRange(startMs, endMs);
+    final importHistory = await _db.getAllImportHistoryByDateRange(startMs, endMs);
+
+    final rowsWithTs = <Map<String, dynamic>>[];
+
+    for (final sale in sales) {
+      final lines = await _saleAuditLines(sale);
+      final method = _auditPaymentMethod(sale.paymentMethod);
+      for (final line in lines) {
+        final qty = (line['quantity'] as int?) ?? 0;
+        final unitPrice = (line['price'] as int?) ?? 0;
+        final lineAmount = unitPrice * qty;
+        final lineCost = ((line['cost'] as int?) ?? 0);
+        int cashIn = 0;
+        int transferIn = 0;
+        int debtCustomerChange = 0;
+        if (method == 'CASH') {
+          cashIn = lineAmount;
+        } else if (method == 'TRANSFER') {
+          transferIn = lineAmount;
+        } else if (method == 'MIXED') {
+          final total = sale.finalPrice <= 0 ? 1 : sale.finalPrice;
+          cashIn = ((lineAmount * sale.cashAmount) / total).round();
+          transferIn = lineAmount - cashIn;
+        } else if (method == 'DEBT') {
+          debtCustomerChange = lineAmount;
+        }
+        rowsWithTs.add({
+          'ts': sale.soldAt,
+          'row': _auditRow(
+            timestamp: sale.soldAt,
+            actionType: 'SALE',
+            referenceId: sale.firestoreId ?? (sale.id?.toString() ?? ''),
+            productName: (line['product_name'] ?? '').toString(),
+            imei: (line['imei'] ?? '').toString(),
+            quantity: qty,
+            price: unitPrice,
+            cost: lineCost,
+            cashIn: cashIn,
+            transferIn: transferIn,
+            paymentMethod: method,
+            debtCustomerChange: debtCustomerChange,
+            inventoryChange: -qty,
+            actorName: sale.sellerName,
+            description: 'Bán hàng cho ${sale.customerName}',
+          ),
+        });
+      }
+    }
+
+    for (final ret in salesReturns) {
+      final salesReturnId = (ret['id'] as num?)?.toInt();
+      if (salesReturnId == null) continue;
+      final items = await _db.getSalesReturnItems(salesReturnId);
+      final method = _auditPaymentMethod((ret['refundMethod'] ?? '').toString());
+      final ts = (ret['returnDate'] as num?)?.toInt() ?? (ret['createdAt'] as num?)?.toInt() ?? 0;
+      final ref = (ret['firestoreId'] ?? ret['id'] ?? '').toString();
+      final customer = (ret['customerName'] ?? '').toString();
+      final note = (ret['note'] ?? '').toString();
+      for (final item in items) {
+        final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+        final unitPrice = (item['price'] as num?)?.toInt() ?? 0;
+        final unitCost = (item['cost'] as num?)?.toInt() ?? 0;
+        final amount = (item['amount'] as num?)?.toInt() ?? unitPrice * qty;
+        int cashOut = 0;
+        int transferOut = 0;
+        int debtCustomerChange = 0;
+        if (method == 'CASH') {
+          cashOut = amount;
+        } else if (method == 'TRANSFER') {
+          transferOut = amount;
+        } else if (method == 'DEBT') {
+          debtCustomerChange = -amount;
+        }
+        rowsWithTs.add({
+          'ts': ts,
+          'row': _auditRow(
+            timestamp: ts,
+            actionType: 'RETURN',
+            referenceId: ref,
+            productName: (item['productName'] ?? '').toString(),
+            imei: (item['productImei'] ?? '').toString(),
+            quantity: qty,
+            price: unitPrice,
+            cost: unitCost,
+            cashOut: cashOut,
+            transferOut: transferOut,
+            paymentMethod: method,
+            debtCustomerChange: debtCustomerChange,
+            inventoryChange: qty,
+            actorName: (ret['createdBy'] ?? '').toString(),
+            description: 'Trả hàng ${note.isNotEmpty ? '- $note' : ''} | KH: $customer',
+          ),
+        });
+      }
+    }
+
+    for (final repair in repairs) {
+      final method = _auditPaymentMethod(repair.paymentMethod);
+      int cashIn = 0;
+      int transferIn = 0;
+      int debtCustomerChange = 0;
+      if (method == 'CASH') {
+        cashIn = repair.price;
+      } else if (method == 'TRANSFER') {
+        transferIn = repair.price;
+      } else if (method == 'DEBT') {
+        debtCustomerChange = repair.price;
+      }
+      rowsWithTs.add({
+        'ts': repair.deliveredAt ?? repair.createdAt,
+        'row': _auditRow(
+          timestamp: repair.deliveredAt ?? repair.createdAt,
+          actionType: 'REPAIR',
+          referenceId: repair.firestoreId ?? (repair.id?.toString() ?? ''),
+          productName: repair.model,
+          quantity: 1,
+          price: repair.price,
+          cost: repair.totalCost,
+          cashIn: cashIn,
+          transferIn: transferIn,
+          paymentMethod: method,
+          debtCustomerChange: debtCustomerChange,
+          actorName: (repair.repairedBy ?? repair.createdBy ?? '').trim(),
+          description: 'Sửa chữa: ${repair.issue}',
+        ),
+      });
+    }
+
+    for (final item in importHistory) {
+      final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+      final costPrice = (item['costPrice'] as num?)?.toInt() ?? 0;
+      final totalAmount = (item['totalAmount'] as num?)?.toInt() ?? costPrice * qty;
+      final method = _auditPaymentMethod((item['paymentMethod'] ?? '').toString());
+      int cashOut = 0;
+      int transferOut = 0;
+      int debtSupplierChange = 0;
+      if (method == 'CASH') {
+        cashOut = totalAmount;
+      } else if (method == 'TRANSFER') {
+        transferOut = totalAmount;
+      } else if (method == 'DEBT') {
+        debtSupplierChange = totalAmount;
+      }
+      rowsWithTs.add({
+        'ts': (item['importDate'] as num?)?.toInt() ?? (item['createdAt'] as num?)?.toInt() ?? 0,
+        'row': _auditRow(
+          timestamp: (item['importDate'] as num?)?.toInt() ?? (item['createdAt'] as num?)?.toInt() ?? 0,
+          actionType: 'IMPORT',
+          referenceId: (item['referenceId'] ?? item['firestoreId'] ?? item['id'] ?? '').toString(),
+          productName: (item['productName'] ?? '').toString(),
+          imei: (item['imei'] ?? '').toString(),
+          quantity: qty,
+          price: 0,
+          cost: costPrice,
+          cashOut: cashOut,
+          transferOut: transferOut,
+          paymentMethod: method,
+          debtSupplierChange: debtSupplierChange,
+          inventoryChange: qty,
+          actorName: (item['importedBy'] ?? '').toString(),
+          description: 'Nhập kho từ ${item['supplierName'] ?? 'NCC'}',
+        ),
+      });
+    }
+
+    for (final expense in expenses) {
+      final type = (expense['type'] ?? 'CHI').toString().toUpperCase();
+      if (_isImportExpense(expense) && !_isSalvageExpense(expense)) {
+        continue;
+      }
+      final method = _auditPaymentMethod((expense['paymentMethod'] ?? '').toString());
+      final amount = (expense['amount'] as num?)?.toInt() ?? 0;
+      int cashIn = 0;
+      int cashOut = 0;
+      int transferIn = 0;
+      int transferOut = 0;
+      if (type == 'THU') {
+        if (method == 'CASH') {
+          cashIn = amount;
+        } else {
+          transferIn = amount;
+        }
+      } else {
+        if (method == 'CASH') {
+          cashOut = amount;
+        } else {
+          transferOut = amount;
+        }
+      }
+      final actionType = type == 'THU'
+          ? 'PAYMENT'
+          : (_isSalvageExpense(expense) ? 'IMPORT' : 'EXPENSE');
+      rowsWithTs.add({
+        'ts': (expense['date'] as num?)?.toInt() ?? (expense['createdAt'] as num?)?.toInt() ?? 0,
+        'row': _auditRow(
+          timestamp: (expense['date'] as num?)?.toInt() ?? (expense['createdAt'] as num?)?.toInt() ?? 0,
+          actionType: actionType,
+          referenceId: (expense['firestoreId'] ?? expense['id'] ?? '').toString(),
+          productName: _isSalvageExpense(expense) ? (expense['title'] ?? '').toString() : '',
+          quantity: _isSalvageExpense(expense) ? 1 : 0,
+          cost: _isSalvageExpense(expense) ? amount : 0,
+          cashIn: cashIn,
+          cashOut: cashOut,
+          transferIn: transferIn,
+          transferOut: transferOut,
+          paymentMethod: method,
+          inventoryChange: _isSalvageExpense(expense) ? 1 : 0,
+          actorName: (expense['createdBy'] ?? '').toString(),
+          description: ((expense['title'] ?? '').toString().isNotEmpty ? expense['title'] : expense['category']).toString(),
+        ),
+      });
+    }
+
+    for (final payment in debtPayments) {
+      final amount = (payment['amount'] as num?)?.toInt() ?? 0;
+      final method = _auditPaymentMethod((payment['paymentMethod'] ?? '').toString());
+      final debtType = (payment['resolvedDebtType'] ?? payment['debtType'] ?? '').toString().toUpperCase();
+      final isSupplier = debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED';
+      int cashIn = 0;
+      int cashOut = 0;
+      int transferIn = 0;
+      int transferOut = 0;
+      if (method == 'CASH') {
+        if (isSupplier) {
+          cashOut = amount;
+        } else {
+          cashIn = amount;
+        }
+      } else {
+        if (isSupplier) {
+          transferOut = amount;
+        } else {
+          transferIn = amount;
+        }
+      }
+      rowsWithTs.add({
+        'ts': (payment['paidAt'] as num?)?.toInt() ?? 0,
+        'row': _auditRow(
+          timestamp: (payment['paidAt'] as num?)?.toInt() ?? 0,
+          actionType: 'PAYMENT',
+          referenceId: (payment['firestoreId'] ?? payment['id'] ?? '').toString(),
+          cashIn: cashIn,
+          cashOut: cashOut,
+          transferIn: transferIn,
+          transferOut: transferOut,
+          paymentMethod: method,
+          debtCustomerChange: isSupplier ? 0 : -amount,
+          debtSupplierChange: isSupplier ? -amount : 0,
+          description: isSupplier
+              ? 'Trả nợ ${payment['debtPersonName'] ?? ''}'
+              : 'Thu nợ ${payment['debtPersonName'] ?? ''}',
+        ),
+      });
+    }
+
+    rowsWithTs.sort((a, b) => (b['ts'] as int).compareTo(a['ts'] as int));
+    return rowsWithTs.map((e) => e['row'] as List<dynamic>).toList();
+  }
+
   // EXPORT
   Future<void> _exOverview(FinanceV2Snapshot s, {bool silent = false}) async {
     if (!mounted) return;
@@ -1259,7 +1723,20 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   }
   Future<void> _exTL(List<_TLEntry> ents) async {
     if(!mounted) return;
-    await FinanceV2ExcelExport.exportTable(context,sheetName:'Nhật ký',filePrefix:'nhat_ky',headers:['Thời gian','Loại','Tiêu đề','Mô tả','NV','TT','Tiền vào','Tiền ra'],rows:ents.map((e)=>[FinanceV2ExcelExport.fmtDateTime(e.ts),_ft(e.type),e.title,e.subtitle,e.actorName??'',e.paymentMethod??'',e.isIncome?e.amount:0,e.isIncome?0:e.amount]).toList(),start:_start,end:_end);
+    final rows = await _buildDetailedAuditLogRows();
+    await FinanceV2ExcelExport.exportWorkbook(
+      context,
+      filePrefix:'nhat_ky_chi_tiet',
+      sheets: <FinanceV2ExcelSheet>[
+        FinanceV2ExcelSheet(
+          sheetName:'activity_log',
+          headers:_auditLogHeaders,
+          rows:rows,
+        ),
+      ],
+      start:_start,
+      end:_end,
+    );
   }
 
   Future<void> _exDailyReportPhone(FinanceV2Snapshot s) async {

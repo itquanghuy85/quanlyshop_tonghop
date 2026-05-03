@@ -100,6 +100,31 @@ class FinanceV2ExcelExport {
     await _saveAndShare(excel, fileName, context);
   }
 
+  static Future<void> exportWorkbook(
+    BuildContext context, {
+    required String filePrefix,
+    required List<FinanceV2ExcelSheet> sheets,
+    DateTime? start,
+    DateTime? end,
+  }) async {
+    final excel = xl.Excel.createExcel();
+
+    for (final spec in sheets) {
+      final sheet = excel[spec.sheetName];
+      _writeHeaders(sheet, spec.headers);
+      for (int i = 0; i < spec.rows.length; i++) {
+        _writeDataRow(sheet, i + 1, spec.rows[i]);
+      }
+    }
+
+    if (excel.sheets.containsKey('Sheet1') && sheets.every((s) => s.sheetName != 'Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final fileName = _buildFileName(filePrefix, start, end);
+    await _saveAndShare(excel, fileName, context);
+  }
+
   // ─────────────────────────────────────────────────────
   //  Format helpers (public for use by callers)
   // ─────────────────────────────────────────────────────
@@ -245,4 +270,16 @@ class FinanceV2ExcelExport {
       }
     }
   }
+}
+
+class FinanceV2ExcelSheet {
+  final String sheetName;
+  final List<String> headers;
+  final List<List<dynamic>> rows;
+
+  const FinanceV2ExcelSheet({
+    required this.sheetName,
+    required this.headers,
+    required this.rows,
+  });
 }

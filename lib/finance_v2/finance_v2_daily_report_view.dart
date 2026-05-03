@@ -16,6 +16,7 @@ import '../services/user_service.dart';
 import '../services/event_bus.dart';
 import '../data/db_helper.dart';
 import '../views/debt_view.dart';
+import '../services/daily_financial_analysis_service.dart';
 
 class FinanceV2DailyReportView extends StatefulWidget {
   final bool embeddedInTab;
@@ -520,197 +521,205 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final shopInfo = await LabelSettingsService().getShopLabelSettings();
     final shopId = await UserService.getCurrentShopId();
     final generatedAt = DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now());
+    final analysis = await _buildAuditAnalysis(start, end);
+    final inventory = await _buildInventoryAudit(start, end, s, analysis);
 
-    // Recompute key KPI from transactions for export consistency.
-    // This prevents summary/transaction mismatch when old cached logic leaks into KPI fields.
-    final txs = s.transactions;
-    final int totalIn = txs.isNotEmpty
-      ? txs.where((t) => t.isIncome).fold<int>(0, (v, t) => v + t.amount)
-      : s.totalIn;
-    final int totalOut = txs.isNotEmpty
-      ? txs.where((t) => !t.isIncome).fold<int>(0, (v, t) => v + t.amount)
-      : s.totalOut;
-    final int txCount = txs.isNotEmpty ? txs.length : s.transactionCount;
+    final totalRevenue = s.incomeFromSales + s.incomeFromRepairs + s.incomeOther;
+    final totalCost = s.cogsFromSales + s.cogsFromRepairs + s.operatingExpenseOut;
+    final totalProfit = totalRevenue - totalCost;
 
-    final int incomeFromSales = txs.isNotEmpty
-      ? txs
-        .where((t) => t.isIncome && t.type.toUpperCase() == 'SALE')
-        .fold<int>(0, (v, t) => v + t.amount)
-      : s.incomeFromSales;
-    final int incomeFromRepairs = txs.isNotEmpty
-      ? txs
-        .where((t) => t.isIncome && t.type.toUpperCase() == 'REPAIR')
-        .fold<int>(0, (v, t) => v + t.amount)
-      : s.incomeFromRepairs;
-    final int incomeOther = txs.isNotEmpty
-      ? txs
-        .where(
-          (t) =>
-            t.isIncome &&
-            t.type.toUpperCase() != 'SALE' &&
-            t.type.toUpperCase() != 'REPAIR',
-        )
-        .fold<int>(0, (v, t) => v + t.amount)
-      : s.incomeOther;
-
-    final int cogsFromSales = txs.isNotEmpty
-      ? txs
-        .where((t) => t.isIncome && t.type.toUpperCase() == 'SALE')
-        .fold<int>(0, (v, t) => v + (t.costAmount ?? 0))
-      : s.cogsFromSales;
-    final int cogsFromRepairs = txs.isNotEmpty
-      ? txs
-        .where((t) => t.isIncome && t.type.toUpperCase() == 'REPAIR')
-        .fold<int>(0, (v, t) => v + (t.costAmount ?? 0))
-      : s.cogsFromRepairs;
-
-    final int grossProfitFromSales = txs.isNotEmpty
-      ? txs
-        .where((t) => t.isIncome && t.type.toUpperCase() == 'SALE')
-        .fold<int>(0, (v, t) => v + (t.grossProfit ?? 0))
-      : s.grossProfitFromSales;
-    final int grossProfitFromRepairs = txs.isNotEmpty
-      ? txs
-        .where((t) => t.isIncome && t.type.toUpperCase() == 'REPAIR')
-        .fold<int>(0, (v, t) => v + (t.grossProfit ?? 0))
-      : s.grossProfitFromRepairs;
-    final int grossProfitTotal = grossProfitFromSales + grossProfitFromRepairs;
-
-    final int operatingExpenseOut = txs.isNotEmpty
-      ? txs
-        .where((t) => !t.isIncome && t.type.toUpperCase() == 'EXPENSE')
-        .fold<int>(0, (v, t) => v + t.amount)
-      : s.operatingExpenseOut;
-    final int realProfit = grossProfitTotal - operatingExpenseOut;
-
-    final rows = <List<dynamic>>[
-      ['BÁO CÁO ${_periodSuffix.toUpperCase()} $_rangeLabel'],
-      ['Cửa hàng', shopInfo.shopName.isNotEmpty ? shopInfo.shopName : 'N/A'],
-      ['Shop ID', (shopId == null || shopId.isEmpty) ? 'N/A' : shopId],
-      ['Xuất lúc', generatedAt],
-      [''],
-      ['TỔNG QUAN'],
-      ['Doanh thu vào', MoneyUtils.formatVND(totalIn)],
-      ['Chi phí ra', MoneyUtils.formatVND(totalOut)],
-      ['Ròng sổ quỹ', MoneyUtils.formatVND(totalIn - totalOut)],
-      ['Lợi nhuận thực', MoneyUtils.formatVND(realProfit)],
-      ['Số giao dịch', txCount.toString()],
-      ['Doanh thu bán hàng', MoneyUtils.formatVND(incomeFromSales)],
-      ['Doanh thu sửa chữa', MoneyUtils.formatVND(incomeFromRepairs)],
-      ['Thu khác', MoneyUtils.formatVND(incomeOther)],
-      ['Phải thu', MoneyUtils.formatVND(s.receivableTotal)],
-      ['Phải trả', MoneyUtils.formatVND(s.payableTotal)],
-      [''],
-      ['LÃI GỘP & VỐN'],
-      ['Vốn bán hàng', MoneyUtils.formatVND(cogsFromSales)],
-      ['Vốn sửa chữa', MoneyUtils.formatVND(cogsFromRepairs)],
-      ['Tổng vốn', MoneyUtils.formatVND(cogsFromSales + cogsFromRepairs)],
-      ['Lãi gộp bán hàng', MoneyUtils.formatVND(grossProfitFromSales)],
-      ['Lãi gộp sửa chữa', MoneyUtils.formatVND(grossProfitFromRepairs)],
-      ['Tổng lãi gộp', MoneyUtils.formatVND(grossProfitTotal)],
-      [''],
+    final summaryRows = <List<dynamic>>[
+      ['generated_at', generatedAt, 'Thời điểm xuất file'],
+      ['shop_name', shopInfo.shopName.isNotEmpty ? shopInfo.shopName : 'N/A', 'Tên cửa hàng'],
+      ['shop_id', (shopId == null || shopId.isEmpty) ? 'N/A' : shopId, 'Mã cửa hàng'],
+      ['period_label', _rangeLabel, 'Kỳ báo cáo'],
+      ['total_revenue', totalRevenue, 'Doanh thu thuần = bán hàng + sửa chữa + thu khác'],
+      ['total_cost', totalCost, 'Tổng giá vốn + chi phí vận hành'],
+      ['total_profit', totalProfit, 'Lợi nhuận = total_revenue - total_cost'],
+      ['cash_in', analysis.cashIn, 'Tiền mặt vào'],
+      ['cash_out', analysis.cashOut, 'Tiền mặt ra'],
+      ['net_cash', analysis.cashIn - analysis.cashOut, 'Dòng tiền mặt ròng'],
+      ['transfer_in', analysis.bankIn, 'Chuyển khoản vào'],
+      ['transfer_out', analysis.bankOut, 'Chuyển khoản ra'],
+      ['net_total_flow', s.netCashflow, 'Dòng tiền ròng toàn hệ thống'],
+      ['debt_customer_total', s.receivableTotal, 'Tổng phải thu khách hàng cuối kỳ'],
+      ['debt_supplier_total', s.payableTotal, 'Tổng phải trả nhà cung cấp cuối kỳ'],
+      ['inventory_open', inventory['open'], 'Tồn kho đầu kỳ ước tính = cuối kỳ - biến động'],
+      ['inventory_change', inventory['change'], 'Biến động tồn kho trong kỳ'],
+      ['inventory_close', inventory['close'], 'Tồn kho cuối kỳ tại thời điểm xuất'],
+      ['transactions_count', s.transactionCount, 'Số giao dịch dùng để tổng hợp'],
     ];
 
-    if (s.topExpenseCategories.isNotEmpty) {
-      rows.add(['CHI PHÍ THEO DANH MỤC']);
-      rows.add(['Danh mục', 'Số tiền']);
-      for (final c in s.topExpenseCategories) {
-        rows.add([c.label, MoneyUtils.formatVND(c.amount)]);
-      }
-      rows.add(['']);
-    }
+    final cashflowRows = <List<dynamic>>[
+      ['sale_income', analysis.saleIncome],
+      ['settlement_income', analysis.settlementIncome],
+      ['repair_income', analysis.repairIncome],
+      ['debt_collected', analysis.debtCollected],
+      ['misc_income', analysis.miscIncome],
+      ['expense_out', analysis.expenseOut],
+      ['import_out', analysis.importOut],
+      ['supplier_paid', analysis.supplierPaid],
+      ['partner_paid', analysis.partnerPaid],
+      ['repair_parts_cost_fund', analysis.repairPartsCostFund],
+      ['refund_out', analysis.refundOut],
+      ['return_cost', analysis.returnCost],
+    ];
 
-    if (s.transactions.isNotEmpty) {
-      rows.add(['GIAO DỊCH']);
-      rows.add(['Thời gian', 'Tiêu đề', 'Chi tiết', 'Loại', 'Hướng', 'Số tiền', 'Vốn', 'Lãi gộp', 'Nhân viên', 'PT thanh toán']);
-      for (final tx in s.transactions) {
-        rows.add([
-          _dtFmt.format(DateTime.fromMillisecondsSinceEpoch(tx.createdAt)),
-          _displayTitle(tx),
-          tx.subtitle,
-          tx.type,
-          tx.isIncome ? 'Vào' : 'Ra',
-          MoneyUtils.formatVND(tx.amount),
-          tx.costAmount == null ? '' : MoneyUtils.formatVND(tx.costAmount!),
-          tx.grossProfit == null ? '' : MoneyUtils.formatVND(tx.grossProfit!),
-          tx.actorName ?? '',
-          tx.paymentMethod ?? '',
-        ]);
-      }
-      rows.add(['']);
-    }
+    final debtRows = <List<dynamic>>[
+      ...s.receivables.map((d) => <dynamic>['customer_receivable', d.id, d.name, d.phone ?? '', d.total, d.paid, d.remaining, FinanceV2ExcelExport.fmtDate(d.createdAt)]),
+      ...s.payables.map((d) => <dynamic>['supplier_payable', d.id, d.name, d.phone ?? '', d.total, d.paid, d.remaining, FinanceV2ExcelExport.fmtDate(d.createdAt)]),
+    ];
 
-    if (attendance.isNotEmpty) {
-      rows.add(['NHÂN SỰ - CHẤM CÔNG']);
-      rows.add(['Nhân viên', 'Có mặt', 'Vắng mặt', 'Đi trễ', 'Đổi ca']);
-      final entries = attendance.entries.toList()
-        ..sort((a, b) => a.value.name.compareTo(b.value.name));
-      for (final e in entries) {
-        final st = e.value;
-        rows.add([st.name, st.presentDays, st.absentDays, st.lateDays, st.swapCount]);
-      }
-      rows.add(['']);
-    }
+    final inventoryRows = <List<dynamic>>[
+      ['inventory_import_value', inventory['imports']],
+      ['inventory_return_in_value', inventory['returns']],
+      ['inventory_sale_out_value', inventory['salesOut']],
+      ['inventory_repair_out_value', inventory['repairsOut']],
+      ['inventory_salvage_in_value', inventory['salvageIn']],
+      ['inventory_close_products', inventory['productsClose']],
+      ['inventory_close_repair_parts', inventory['repairPartsClose']],
+      ['inventory_close_salvage', inventory['salvageClose']],
+      ['inventory_formula', 'open + imports + returns + salvage - salesOut - repairsOut = close'],
+    ];
 
-    if (s.receivables.isNotEmpty) {
-      rows.add(['CÔNG NỢ PHẢI THU']);
-      rows.add(['Tên', 'SĐT', 'Tổng (đ)', 'Đã TT (đ)', 'Còn lại (đ)']);
-      for (final debt in s.receivables) {
-        rows.add([
-          debt.name,
-          debt.phone ?? '',
-          MoneyUtils.formatVND(debt.total),
-          MoneyUtils.formatVND(debt.paid),
-          MoneyUtils.formatVND(debt.remaining),
-        ]);
-      }
-      rows.add(['']);
-    }
-
-    if (s.payables.isNotEmpty) {
-      rows.add(['CÔNG NỢ PHẢI TRẢ']);
-      rows.add(['Tên', 'SĐT', 'Tổng (đ)', 'Đã TT (đ)', 'Còn lại (đ)']);
-      for (final debt in s.payables) {
-        rows.add([
-          debt.name,
-          debt.phone ?? '',
-          MoneyUtils.formatVND(debt.total),
-          MoneyUtils.formatVND(debt.paid),
-          MoneyUtils.formatVND(debt.remaining),
-        ]);
-      }
-    }
-
-    if (s.auditLogs.isNotEmpty) {
-      rows.add(['']);
-      rows.add(['NHẬT KÝ TÀI CHÍNH']);
-      rows.add(['Thời gian', 'Loại', 'Hướng', 'Tiêu đề', 'Mô tả', 'Số tiền']);
-      for (final log in s.auditLogs.take(300)) {
-        final createdAt = (log['createdAt'] as num?)?.toInt() ?? 0;
-        final ts = createdAt > 0
-            ? _dtFmt.format(DateTime.fromMillisecondsSinceEpoch(createdAt))
-            : '';
-        rows.add([
-          ts,
-          (log['activityType'] ?? '').toString(),
-          (log['direction'] ?? '').toString(),
-          (log['title'] ?? '').toString(),
-          (log['description'] ?? '').toString(),
-          MoneyUtils.formatVND((log['amount'] as num?)?.toInt() ?? 0),
-        ]);
-      }
-    }
+    final breakdownRows = <List<dynamic>>[
+      ...s.topExpenseCategories.map((c) => <dynamic>['expense_category', c.label, c.amount]),
+      ...s.transactions.map((tx) => <dynamic>[
+            FinanceV2ExcelExport.fmtDateTime(tx.createdAt),
+            tx.type,
+            tx.isIncome ? 'IN' : 'OUT',
+            tx.amount,
+            tx.costAmount ?? 0,
+            tx.grossProfit ?? 0,
+            tx.paymentMethod ?? '',
+            tx.referenceId ?? '',
+            tx.title,
+            tx.subtitle,
+          ]),
+    ];
 
     if (!mounted) return;
-    await FinanceV2ExcelExport.exportTable(
+    await FinanceV2ExcelExport.exportWorkbook(
       context,
-      sheetName: 'Báo cáo ngày',
-      filePrefix: 'BaoCaoNgay',
-      headers: ['Báo cáo $_periodSuffix $_rangeLabel'],
-      rows: rows,
+      filePrefix: 'BaoCaoNgay_Audit',
+      sheets: <FinanceV2ExcelSheet>[
+        FinanceV2ExcelSheet(
+          sheetName: 'summary',
+          headers: const ['metric', 'value', 'note'],
+          rows: summaryRows,
+        ),
+        FinanceV2ExcelSheet(
+          sheetName: 'cashflow',
+          headers: const ['metric', 'value'],
+          rows: cashflowRows,
+        ),
+        FinanceV2ExcelSheet(
+          sheetName: 'debts',
+          headers: const ['debt_type', 'reference_id', 'name', 'phone', 'total_amount', 'paid_amount', 'remaining_amount', 'created_date'],
+          rows: debtRows,
+        ),
+        FinanceV2ExcelSheet(
+          sheetName: 'inventory',
+          headers: const ['metric', 'value'],
+          rows: inventoryRows,
+        ),
+        FinanceV2ExcelSheet(
+          sheetName: 'breakdown',
+          headers: const ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10'],
+          rows: breakdownRows,
+        ),
+      ],
       start: start,
       end: end,
     );
+  }
+
+  Future<DailyFinancialAnalysis> _buildAuditAnalysis(DateTime start, DateTime end) async {
+    final startMs = DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+    final endMs = DateTime(end.year, end.month, end.day, 23, 59, 59).millisecondsSinceEpoch;
+    final sales = await _db.getSalesByDateRange(startMs, endMs);
+    final settlementSales = sales
+        .where((sale) => sale.isInstallment && sale.settlementReceivedAt != null && sale.settlementReceivedAt! >= startMs && sale.settlementReceivedAt! <= endMs)
+        .map((sale) => sale.toMap())
+        .toList();
+    final repairs = (await _db.getDeliveredRepairsByDateRange(startMs, endMs)).map((r) => r.toMap()).toList();
+    final expenses = await _db.getExpensesByDateRange(startMs, endMs);
+    final debtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs);
+    final supplierPayments = await _db.getSupplierPaymentsByDateRange(startMs, endMs);
+    final repairPartnerPayments = await _db.getRepairPartnerPaymentsByDateRange(startMs, endMs);
+    final supplierImports = await _db.getAllImportHistoryByDateRange(startMs, endMs);
+    final salesReturns = await _db.getSalesReturnsByDateRange(startMs, endMs);
+    final repairPartsCostFundRows = (await _db.getDeliveredRepairsByDateRange(startMs, endMs))
+        .where((repair) => repair.costRecordedInFund && repair.costRecordedAt != null && repair.costRecordedAt! >= startMs && repair.costRecordedAt! <= endMs)
+        .map((repair) => <String, dynamic>{
+              'costRecordedAmount': repair.costRecordedAmount,
+              'totalCost': repair.totalCost,
+              'costPaymentMethod': repair.costPaymentMethod,
+            })
+        .toList();
+
+    return DailyFinancialAnalysisService.analyze(
+      sales: sales.map((e) => e.toMap()).toList(),
+      settlementSales: settlementSales,
+      repairs: repairs,
+      expenses: expenses,
+      debtPayments: debtPayments,
+      supplierPayments: supplierPayments,
+      repairPartnerPayments: repairPartnerPayments,
+      supplierImports: supplierImports,
+      repairPartsCostFundRows: repairPartsCostFundRows,
+      salesReturns: salesReturns,
+      enableRepair: true,
+    );
+  }
+
+  Future<Map<String, int>> _buildInventoryAudit(
+    DateTime start,
+    DateTime end,
+    FinanceV2Snapshot snapshot,
+    DailyFinancialAnalysis analysis,
+  ) async {
+    final startMs = DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+    final endMs = DateTime(end.year, end.month, end.day, 23, 59, 59).millisecondsSinceEpoch;
+    final products = await _db.getInStockProducts();
+    final repairParts = await _db.getRepairPartsAsProducts();
+    final salvage = await _db.getAllSalvagePhones();
+    final imports = await _db.getAllImportHistoryByDateRange(startMs, endMs);
+    final returns = await _db.getSalesReturnsByDateRange(startMs, endMs);
+
+    final productsClose = products.fold<int>(0, (total, p) => total + (p.cost * p.quantity));
+    final repairPartsClose = repairParts.fold<int>(0, (total, p) => total + (p.cost * p.quantity));
+    final salvageClose = salvage
+        .where((e) => (e['status'] ?? 'STORED').toString().toUpperCase() == 'STORED')
+      .fold<int>(0, (total, e) => total + ((e['cost'] as num?)?.toInt() ?? 0));
+
+    final importValue = imports.fold<int>(0, (total, e) => total + ((e['totalAmount'] as num?)?.toInt() ?? 0));
+    final returnValue = returns.fold<int>(0, (total, e) => total + ((e['totalReturnCost'] as num?)?.toInt() ?? 0));
+    final salvageIn = salvage
+        .where((e) {
+          final createdAt = (e['createdAt'] as num?)?.toInt() ?? 0;
+          return createdAt >= startMs && createdAt <= endMs;
+        })
+      .fold<int>(0, (total, e) => total + ((e['cost'] as num?)?.toInt() ?? 0));
+
+    final repairInventoryOut = analysis.repairPartsCostFund > 0 ? analysis.repairPartsCostFund : snapshot.cogsFromRepairs;
+    final change = importValue + returnValue + salvageIn - snapshot.cogsFromSales - repairInventoryOut;
+    final close = productsClose + repairPartsClose + salvageClose;
+    final open = close - change;
+
+    return <String, int>{
+      'open': open,
+      'change': change,
+      'close': close,
+      'imports': importValue,
+      'returns': returnValue,
+      'salesOut': snapshot.cogsFromSales,
+      'repairsOut': repairInventoryOut,
+      'salvageIn': salvageIn,
+      'productsClose': productsClose,
+      'repairPartsClose': repairPartsClose,
+      'salvageClose': salvageClose,
+    };
   }
 
   Future<void> _printReport() async {
