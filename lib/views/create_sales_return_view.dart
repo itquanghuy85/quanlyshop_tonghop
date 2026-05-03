@@ -23,7 +23,7 @@ class CreateSalesReturnView extends StatefulWidget {
 class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
   final _db = DBHelper();
   final _noteController = TextEditingController();
-  String _refundMethod = 'TIỀN MẶT';
+  late String _refundMethod;
   bool _isLoading = false;
 
   // Parsed items from sale
@@ -34,6 +34,8 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
   @override
   void initState() {
     super.initState();
+    // Nếu đơn gốc là công nợ (chưa thanh toán), mặc định giảm nợ (không chi tiền mặt)
+    _refundMethod = widget.sale.paymentMethod == 'CÔNG NỢ' ? 'CÔNG NỢ' : 'TIỀN MẶT';
     _parseItems();
   }
 

@@ -6,6 +6,8 @@ import '../models/product_model.dart';
 import '../models/sales_return_model.dart';
 import '../services/user_service.dart';
 import '../services/financial_activity_service.dart';
+import '../services/audit_service.dart';
+import '../utils/money_utils.dart';
 import '../services/encryption_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/event_bus.dart';
@@ -208,7 +210,15 @@ class SalesReturnService {
       // 4. Sync to Firestore
       await _syncReturnToFirestore(returnHeader, normalizedItems, returnId);
 
-      // 5. Emit event for UI refresh
+      // 5. Ghi nhật ký hệ thống
+      await AuditService.logAction(
+        action: 'sales_return',
+        entityType: 'sales_return',
+        entityId: returnFirestoreId,
+        summary: 'Trả hàng: ${normalizedItems.map((i) => '${i.productName} x${i.quantity}').join(', ')} | KH: $customerName | ${MoneyUtils.formatVND(totalReturnAmount)} | $refundMethod',
+      );
+
+      // 6. Emit event for UI refresh
       EventBus().emit('sales_returns_changed');
       EventBus().emit('financial_activity_changed');
 
