@@ -8841,6 +8841,27 @@ return db;
     );
   }
 
+  /// Lấy phiếu trả hàng theo khoảng thời gian (dùng cho Finance V2)
+  Future<List<Map<String, dynamic>>> getSalesReturnsByDateRange(
+    int startMs,
+    int endMs,
+  ) async {
+    final db = await database;
+    final shopId = UserService.getShopIdSync();
+    final where = shopId != null && shopId.isNotEmpty
+        ? 'returnDate >= ? AND returnDate <= ? AND shopId = ?'
+        : 'returnDate >= ? AND returnDate <= ?';
+    final args = shopId != null && shopId.isNotEmpty
+        ? [startMs, endMs, shopId]
+        : [startMs, endMs];
+    return db.query(
+      'sales_returns',
+      where: where,
+      whereArgs: args,
+      orderBy: 'returnDate DESC',
+    );
+  }
+
   /// Lấy phiếu trả hàng theo đơn bán gốc
   Future<List<Map<String, dynamic>>> getSalesReturnsBySalesOrderId(
     int salesOrderId,

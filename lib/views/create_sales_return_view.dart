@@ -45,16 +45,17 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
     super.dispose();
   }
 
-  /// Parse productNames + productImeis into returnable items
+  /// Parse productNames + productImeis into returnable items.
+  /// QUAN TRỌNG: phân bổ giá trên TOÀN BỘ sản phẩm gốc TRƯỚC, sau đó mới
+  /// trừ số lượng đã trả. Điều này đảm bảo giá đơn vị đúng khi trả 1 phần.
   Future<void> _parseItems() async {
     final names = widget.sale.productNames.split(RegExp(r',\s*'));
     final imeis = widget.sale.productImeis.split(RegExp(r',\s*'));
     final totalPrice = widget.sale.finalPrice;
     final totalCost = widget.sale.totalCost;
 
-    // First pass: count total items
     int totalQty = 0;
-    final parsedItems = <_ReturnableItem>[];
+    final allItems = <_ReturnableItem>[];
 
     for (int i = 0; i < names.length; i++) {
       final nameEntry = names[i].trim();
@@ -64,46 +65,39 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       int qty = 1;
       String cleanName = nameEntry;
 
-      // Parse "Product x3" format
       final qtyMatch = RegExp(r'^(.+?)\s+[xX](\d+)').firstMatch(nameEntry);
       if (qtyMatch != null) {
         cleanName = qtyMatch.group(1)!.trim();
         qty = int.tryParse(qtyMatch.group(2)!) ?? 1;
       }
 
-      // Parse PKxN format for accessory IMEI
-      int imeiQty = 1;
       if (imei.toUpperCase().startsWith('PKX')) {
-        imeiQty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
-        qty = imeiQty;
+        qty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
       }
 
-      // Remove gift/discount markers
       cleanName = cleanName.replaceAll(RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false), '');
       cleanName = cleanName.replaceAll(RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false), '');
       cleanName = cleanName.trim();
 
-      parsedItems.add(_ReturnableItem(
+      allItems.add(_ReturnableItem(
         name: cleanName,
         imei: imei,
         maxQuantity: qty,
         returnQuantity: 0,
         isSelected: false,
       ));
-
       totalQty += qty;
     }
 
-    // Tạm phân bổ theo số lượng để có dữ liệu hiển thị ngay,
-    // sau đó sẽ phân bổ lại chính xác hơn theo giá sản phẩm trong _loadProductDetails.
-    if (parsedItems.isNotEmpty && totalQty > 0) {
+    // BƯỚC 1: Phân bổ giá đều theo số lượng trên TOÀN BỘ sản phẩm
+    if (allItems.isNotEmpty && totalQty > 0) {
       int distributed = 0;
       int distributedCost = 0;
-      for (int i = 0; i < parsedItems.length; i++) {
-        final item = parsedItems[i];
-        if (i == parsedItems.length - 1) {
-          item.pricePerUnit = ((totalPrice - distributed) / item.maxQuantity).round();
-          item.costPerUnit = ((totalCost - distributedCost) / item.maxQuantity).round();
+      for (int i = 0; i < allItems.length; i++) {
+        final item = allItems[i];
+        if (i == allItems.length - 1) {
+          item.pricePerUnit = totalPrice > 0 ? ((totalPrice - distributed) / item.maxQuantity).round() : 0;
+          item.costPerUnit = totalCost > 0 ? ((totalCost - distributedCost) / item.maxQuantity).round() : 0;
         } else {
           final linePrice = (totalPrice * item.maxQuantity / totalQty).round();
           final lineCost = (totalCost * item.maxQuantity / totalQty).round();
@@ -115,10 +109,31 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       }
     }
 
-    // Subtract already-returned quantities
+    // BƯỚC 2: Nạp thông tin sản phẩm (productId, referencePrice) cho TOÀN BỘ
+    for (final item in allItems) {
+      Product? product;
+      if (item.imei.isNotEmpty &&
+          !item.imei.toUpperCase().startsWith('PKX') &&
+          item.imei != 'NO_IMEI') {
+        product = await _db.getProductByImei(item.imei);
+      }
+      product ??= await _db.getProductByName(item.name);
+      if (product != null) {
+        item.productId = product.id;
+        item.productFirestoreId = product.firestoreId;
+        if (product.price > 0) item.referencePrice = product.price;
+        if (product.cost > 0) item.referenceCost = product.cost;
+      }
+    }
+
+    // BƯỚC 3: Cân bằng lại giá theo referencePrice trên TOÀN BỘ sản phẩm gốc
+    _rebalancePrices(allItems, totalPrice, totalCost);
+
+    // BƯỚC 4: Trừ số lượng đã trả và xóa các sản phẩm đã trả hết
+    // (giá đã được tính đúng ở bước 3, không bị ảnh hưởng khi xóa item)
     if (widget.sale.id != null && widget.sale.id! > 0) {
       final returnedMap = await _db.getReturnedQuantitiesForSale(widget.sale.id!);
-      for (final item in parsedItems) {
+      for (final item in allItems) {
         final isPhone = item.imei.isNotEmpty &&
             !item.imei.toUpperCase().startsWith('PKX') &&
             item.imei != 'NO_IMEI';
@@ -126,60 +141,25 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
         final alreadyReturned = returnedMap[key] ?? 0;
         item.maxQuantity = (item.maxQuantity - alreadyReturned).clamp(0, item.maxQuantity);
       }
-      // Remove fully-returned items
-      parsedItems.removeWhere((item) => item.maxQuantity <= 0);
+      allItems.removeWhere((item) => item.maxQuantity <= 0);
     }
 
-    setState(() {
-      _items = parsedItems;
-      _loadingItems = false;
-    });
-
-    // Try to load actual product info for better price data
-    _loadProductDetails();
-  }
-
-  /// Load actual product data for linking (keep sale prices, don't overwrite)
-  Future<void> _loadProductDetails() async {
-    for (final item in _items) {
-      Product? product;
-
-      if (item.imei.isNotEmpty &&
-          !item.imei.toUpperCase().startsWith('PKX') &&
-          item.imei != 'NO_IMEI') {
-        product = await _db.getProductByImei(item.imei);
-      }
-
-      if (product == null) {
-        product = await _db.getProductByName(item.name);
-      }
-
-      if (product != null) {
-        item.productId = product.id;
-        item.productFirestoreId = product.firestoreId;
-        if (product.price > 0) {
-          item.referencePrice = product.price;
-        }
-        if (product.cost > 0) {
-          item.referenceCost = product.cost;
-        }
-      }
+    if (mounted) {
+      setState(() {
+        _items = allItems;
+        _loadingItems = false;
+      });
     }
-
-    _rebalanceUnitPriceAndCost();
-    if (mounted) setState(() {});
   }
 
-  void _rebalanceUnitPriceAndCost() {
-    if (_items.isEmpty) return;
+  /// Cân bằng giá trên danh sách items dựa theo referencePrice (tỉ lệ theo giá vốn thực tế).
+  /// Gọi trên TOÀN BỘ items TRƯỚC khi trừ số lượng đã trả.
+  void _rebalancePrices(List<_ReturnableItem> items, int targetTotalPrice, int targetTotalCost) {
+    if (items.isEmpty) return;
 
-    final targetTotalPrice = widget.sale.finalPrice;
-    final targetTotalCost = widget.sale.totalCost;
-
-    // Ưu tiên dùng giá sản phẩm thực tế để phân bổ, tránh chia đều sai nghiệp vụ.
     int totalWeightPrice = 0;
     int totalWeightCost = 0;
-    for (final item in _items) {
+    for (final item in items) {
       final qty = item.maxQuantity <= 0 ? 1 : item.maxQuantity;
       final refPrice = item.referencePrice > 0 ? item.referencePrice : 1;
       final refCost = item.referenceCost > 0 ? item.referenceCost : 1;
@@ -189,15 +169,15 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
 
     int distributedPrice = 0;
     int distributedCost = 0;
-    for (int i = 0; i < _items.length; i++) {
-      final item = _items[i];
+    for (int i = 0; i < items.length; i++) {
+      final item = items[i];
       final qty = item.maxQuantity <= 0 ? 1 : item.maxQuantity;
       final refPrice = item.referencePrice > 0 ? item.referencePrice : 1;
       final refCost = item.referenceCost > 0 ? item.referenceCost : 1;
 
       int linePrice;
       int lineCost;
-      if (i == _items.length - 1) {
+      if (i == items.length - 1) {
         linePrice = (targetTotalPrice - distributedPrice).clamp(0, targetTotalPrice);
         lineCost = (targetTotalCost - distributedCost).clamp(0, targetTotalCost);
       } else {

@@ -251,6 +251,7 @@ class FinanceV2DataService {
       endMs,
     );
     final debtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs);
+    final salesReturns = await _db.getSalesReturnsByDateRange(startMs, endMs);
     final debts = await _db.getDebtsForFinanceSnapshot();
     final activities = await _db.getFinancialActivities(
       startDate: startMs,
@@ -683,6 +684,36 @@ class FinanceV2DataService {
         receivableTotal += remaining;
         receivables.add(item);
       }
+    }
+
+    // Trả hàng (sales_returns) — chỉ phương thức tiền mặt/CK mới ảnh hưởng dòng tiền
+    for (final ret in salesReturns) {
+      final method = (ret['refundMethod'] as String? ?? 'TIỀN MẶT').toString().trim().toUpperCase();
+      if (method == 'CÔNG NỢ') continue; // chỉ giảm nợ, không ảnh hưởng quỹ
+      final amount = _toInt(ret['totalReturnAmount']);
+      if (amount <= 0) continue;
+      final cost = _toInt(ret['totalReturnCost']);
+      final ts = _toInt(ret['returnDate'] > 0 ? ret['returnDate'] : (ret['createdAt'] ?? 0));
+      final custName = (ret['customerName'] as String? ?? '').toString().trim();
+      final note = (ret['note'] as String? ?? '').toString().trim();
+      final fid = (ret['firestoreId'] ?? ret['id'] ?? ts).toString();
+
+      // Doanh thu ròng = doanh thu bán - hoàn trả; vốn cũng được thu hồi
+      saleIn = (saleIn - amount).clamp(0, saleIn > 0 ? saleIn : amount);
+      saleCogs = (saleCogs - cost).clamp(0, saleCogs > 0 ? saleCogs : cost);
+
+      transactions.add(FinanceV2Txn(
+        id: 'refund_$fid',
+        createdAt: ts,
+        type: 'REFUND',
+        title: 'Trả hàng: ${note.isNotEmpty ? note : (custName.isNotEmpty ? custName : 'Hoàn tiền khách')}',
+        subtitle: 'KH: ${custName.isNotEmpty ? custName : 'Khách lẻ'} · ${method == 'CHUYEN_KHOAN' ? 'Chuyển khoản' : method}',
+        amount: amount,
+        isIncome: false,
+        paymentMethod: method,
+        customerName: custName,
+        referenceId: fid,
+      ));
     }
 
     transactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));

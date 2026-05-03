@@ -1844,6 +1844,8 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
         return 'Sửa chữa';
       case 'EXPENSE':
         return 'Chi phí';
+      case 'REFUND':
+        return 'Trả hàng';
       default:
         return type.isEmpty ? 'Hoạt động tài chính' : type;
     }
