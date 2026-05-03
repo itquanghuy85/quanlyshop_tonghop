@@ -4980,6 +4980,49 @@ return db;
     return res.isNotEmpty ? Product.fromMap(res.first) : null;
   }
 
+  /// Tìm sản phẩm theo tên linh hoạt hơn cho luồng trả hàng.
+  /// Ưu tiên: exact -> bỏ khoảng trắng -> contains (2 chiều).
+  Future<Product?> getProductByNameFlexible(String name) async {
+    final shopId = await _getScopedShopId('getProductByNameFlexible');
+    if (shopId == null) return null;
+
+    final cleaned = name.trim();
+    if (cleaned.isEmpty) return null;
+
+    final compact = cleaned.replaceAll(RegExp(r'\s+'), '');
+    final like = '%${cleaned.toUpperCase()}%';
+    final db = await database;
+
+    final res = await db.rawQuery(
+      '''
+      SELECT *
+      FROM products
+      WHERE shopId = ?
+        AND (deleted IS NULL OR deleted != 1)
+        AND (
+          UPPER(name) = UPPER(?)
+          OR UPPER(REPLACE(name, ' ', '')) = UPPER(?)
+          OR UPPER(name) LIKE ?
+          OR UPPER(?) LIKE '%' || UPPER(name) || '%'
+        )
+      ORDER BY
+        CASE
+          WHEN UPPER(name) = UPPER(?) THEN 0
+          WHEN UPPER(REPLACE(name, ' ', '')) = UPPER(?) THEN 1
+          WHEN UPPER(name) LIKE ? THEN 2
+          ELSE 3
+        END,
+        quantity DESC,
+        updatedAt DESC,
+        createdAt DESC
+      LIMIT 1
+      ''',
+      [shopId, cleaned, compact.toUpperCase(), like, cleaned.toUpperCase(), cleaned, compact.toUpperCase(), like],
+    );
+
+    return res.isNotEmpty ? Product.fromMap(res.first) : null;
+  }
+
   // --- CUSTOMERS & SUPPLIERS ---
   Future<List<Map<String, dynamic>>>
   getCustomerSuggestions() async => (await database).rawQuery(

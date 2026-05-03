@@ -375,6 +375,7 @@ class SalesReturnService {
       if (product == null) {
         product = await _db.getProductByName(item.productName);
       }
+      product ??= await _db.getProductByNameFlexible(item.productName);
 
       if (product != null) {
         await _db.addProductQuantity(product.id!, item.quantity);

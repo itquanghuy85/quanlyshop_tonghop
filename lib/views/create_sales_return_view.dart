@@ -118,6 +118,7 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
         product = await _db.getProductByImei(item.imei);
       }
       product ??= await _db.getProductByName(item.name);
+      product ??= await _db.getProductByNameFlexible(item.name);
       if (product != null) {
         item.productId = product.id;
         item.productFirestoreId = product.firestoreId;

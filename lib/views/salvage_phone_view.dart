@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -874,15 +875,26 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
                                 duration: const Duration(seconds: 7),
                               );
                             }
+                            final beforeUploadCount = allUrls.length;
                             for (final img in newImages) {
                               final url =
                                   await StorageService.uploadXFileAndGetUrl(
                                     img,
-                                    'salvage_phones',
+                                    'products',
                                   );
                               if (url != null && url.isNotEmpty) {
                                 allUrls.add(url);
+                              } else {
+                                final reason = StorageService.lastUploadErrorMessage;
+                                throw Exception(
+                                  reason == null || reason.trim().isEmpty
+                                      ? 'Upload ảnh thất bại. Vui lòng kiểm tra mạng và quyền truy cập ảnh/camera.'
+                                      : 'Upload ảnh thất bại: $reason',
+                                );
                               }
+                            }
+                            if (newImages.isNotEmpty && allUrls.length == beforeUploadCount) {
+                              throw Exception('Không có ảnh nào được tải lên thành công.');
                             }
 
                             final now =
@@ -1049,11 +1061,17 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
             if (canAdd && !kIsWeb)
               IconButton(
                 onPressed: () async {
-                  final f = await ImagePicker().pickImage(
-                    source: ImageSource.camera,
-                    imageQuality: 40,
-                  );
-                  if (f != null) setDlg(() => newImages.add(f));
+                  try {
+                    final f = await ImagePicker().pickImage(
+                      source: ImageSource.camera,
+                      imageQuality: 40,
+                    );
+                    if (f != null) setDlg(() => newImages.add(f));
+                  } on PlatformException catch (e) {
+                    _showSnack('Không thể chụp ảnh: ${e.message ?? e.code}');
+                  } catch (e) {
+                    _showSnack('Không thể chụp ảnh: $e');
+                  }
                 },
                 icon: const Icon(Icons.camera_alt, size: 20),
                 tooltip: 'Chụp ảnh',
@@ -1063,11 +1081,17 @@ class _SalvagePhoneViewState extends State<SalvagePhoneView> {
             if (canAdd)
               IconButton(
                 onPressed: () async {
-                  final f = await ImagePicker().pickImage(
-                    source: ImageSource.gallery,
-                    imageQuality: 40,
-                  );
-                  if (f != null) setDlg(() => newImages.add(f));
+                  try {
+                    final f = await ImagePicker().pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 40,
+                    );
+                    if (f != null) setDlg(() => newImages.add(f));
+                  } on PlatformException catch (e) {
+                    _showSnack('Không thể chọn ảnh: ${e.message ?? e.code}');
+                  } catch (e) {
+                    _showSnack('Không thể chọn ảnh: $e');
+                  }
                 },
                 icon: const Icon(Icons.photo_library, size: 20),
                 tooltip: 'Thư viện',
