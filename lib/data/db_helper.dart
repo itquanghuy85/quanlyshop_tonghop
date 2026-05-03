@@ -8772,7 +8772,24 @@ return db;
     insertData.remove('_encrypted');
     insertData.remove('deleted');
     insertData.remove('updatedAt');
-    return await db.insert('sales_returns', insertData);
+    final firestoreId = (insertData['firestoreId'] as String?)?.trim();
+    if (firestoreId != null && firestoreId.isNotEmpty) {
+      final existing = await db.query(
+        'sales_returns',
+        columns: ['id'],
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        return (existing.first['id'] as num?)?.toInt() ?? 0;
+      }
+    }
+    return await db.insert(
+      'sales_returns',
+      insertData,
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
   }
 
   /// Cập nhật phiếu trả hàng
@@ -8846,7 +8863,24 @@ return db;
     insertData.remove('_encrypted');
     insertData.remove('deleted');
     insertData.remove('updatedAt');
-    return await db.insert('sales_return_items', insertData);
+    final firestoreId = (insertData['firestoreId'] as String?)?.trim();
+    if (firestoreId != null && firestoreId.isNotEmpty) {
+      final existing = await db.query(
+        'sales_return_items',
+        columns: ['id'],
+        where: 'firestoreId = ?',
+        whereArgs: [firestoreId],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        return (existing.first['id'] as num?)?.toInt() ?? 0;
+      }
+    }
+    return await db.insert(
+      'sales_return_items',
+      insertData,
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
   }
 
   /// Lấy chi tiết sản phẩm trả hàng theo phiếu trả
@@ -8948,22 +8982,27 @@ return db;
     final db = await database;
     final rows = await db.rawQuery(
       '''
-      SELECT sri.productImei, sri.productName, SUM(sri.quantity) as totalQty
+      SELECT
+        CASE
+          WHEN sri.productImei IS NOT NULL
+               AND TRIM(sri.productImei) != ''
+               AND UPPER(TRIM(sri.productImei)) != 'NO_IMEI'
+               AND UPPER(TRIM(sri.productImei)) NOT LIKE 'PKX%'
+          THEN UPPER(TRIM(sri.productImei))
+          ELSE UPPER(TRIM(sri.productName))
+        END AS returnKey,
+        SUM(sri.quantity) as totalQty
       FROM sales_return_items sri
       INNER JOIN sales_returns sr ON sr.id = sri.salesReturnId
       WHERE sr.salesOrderId = ? AND sr.status != 'CANCELLED'
-      GROUP BY COALESCE(UPPER(sri.productImei), UPPER(sri.productName))
+      GROUP BY returnKey
     ''',
       [salesOrderId],
     );
     final result = <String, int>{};
     for (final row in rows) {
-      final imei = (row['productImei'] as String?)?.toUpperCase() ?? '';
-      final name = (row['productName'] as String?)?.toUpperCase() ?? '';
-      final key =
-          imei.isNotEmpty && imei != 'NO_IMEI' && !imei.startsWith('PKX')
-          ? imei
-          : name;
+      final key = (row['returnKey'] as String?)?.trim().toUpperCase() ?? '';
+      if (key.isEmpty) continue;
       result[key] =
           (result[key] ?? 0) + ((row['totalQty'] as num?)?.toInt() ?? 0);
     }

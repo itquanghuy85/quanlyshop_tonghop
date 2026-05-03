@@ -50,7 +50,6 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
     final totalPrice = widget.sale.finalPrice;
     final totalCost = widget.sale.totalCost;
 
-    // Calculate per-item price proportionally
     // First pass: count total items
     int totalQty = 0;
     final parsedItems = <_ReturnableItem>[];
@@ -93,7 +92,8 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       totalQty += qty;
     }
 
-    // Distribute price proportionally (simple: equal split)
+    // Tạm phân bổ theo số lượng để có dữ liệu hiển thị ngay,
+    // sau đó sẽ phân bổ lại chính xác hơn theo giá sản phẩm trong _loadProductDetails.
     if (parsedItems.isNotEmpty && totalQty > 0) {
       int distributed = 0;
       int distributedCost = 0;
@@ -103,8 +103,10 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
           item.pricePerUnit = ((totalPrice - distributed) / item.maxQuantity).round();
           item.costPerUnit = ((totalCost - distributedCost) / item.maxQuantity).round();
         } else {
-          item.pricePerUnit = (totalPrice * item.maxQuantity / totalQty / item.maxQuantity).round();
-          item.costPerUnit = (totalCost * item.maxQuantity / totalQty / item.maxQuantity).round();
+          final linePrice = (totalPrice * item.maxQuantity / totalQty).round();
+          final lineCost = (totalCost * item.maxQuantity / totalQty).round();
+          item.pricePerUnit = (linePrice / item.maxQuantity).round();
+          item.costPerUnit = (lineCost / item.maxQuantity).round();
           distributed += item.pricePerUnit * item.maxQuantity;
           distributedCost += item.costPerUnit * item.maxQuantity;
         }
@@ -153,16 +155,61 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       if (product != null) {
         item.productId = product.id;
         item.productFirestoreId = product.firestoreId;
-        // Only use product price if sale-derived price is 0 (fallback)
-        if (item.pricePerUnit <= 0 && product.price > 0) {
-          item.pricePerUnit = product.price;
+        if (product.price > 0) {
+          item.referencePrice = product.price;
         }
-        if (item.costPerUnit <= 0 && product.cost > 0) {
-          item.costPerUnit = product.cost;
+        if (product.cost > 0) {
+          item.referenceCost = product.cost;
         }
       }
     }
+
+    _rebalanceUnitPriceAndCost();
     if (mounted) setState(() {});
+  }
+
+  void _rebalanceUnitPriceAndCost() {
+    if (_items.isEmpty) return;
+
+    final targetTotalPrice = widget.sale.finalPrice;
+    final targetTotalCost = widget.sale.totalCost;
+
+    // Ưu tiên dùng giá sản phẩm thực tế để phân bổ, tránh chia đều sai nghiệp vụ.
+    int totalWeightPrice = 0;
+    int totalWeightCost = 0;
+    for (final item in _items) {
+      final qty = item.maxQuantity <= 0 ? 1 : item.maxQuantity;
+      final refPrice = item.referencePrice > 0 ? item.referencePrice : 1;
+      final refCost = item.referenceCost > 0 ? item.referenceCost : 1;
+      totalWeightPrice += refPrice * qty;
+      totalWeightCost += refCost * qty;
+    }
+
+    int distributedPrice = 0;
+    int distributedCost = 0;
+    for (int i = 0; i < _items.length; i++) {
+      final item = _items[i];
+      final qty = item.maxQuantity <= 0 ? 1 : item.maxQuantity;
+      final refPrice = item.referencePrice > 0 ? item.referencePrice : 1;
+      final refCost = item.referenceCost > 0 ? item.referenceCost : 1;
+
+      int linePrice;
+      int lineCost;
+      if (i == _items.length - 1) {
+        linePrice = (targetTotalPrice - distributedPrice).clamp(0, targetTotalPrice);
+        lineCost = (targetTotalCost - distributedCost).clamp(0, targetTotalCost);
+      } else {
+        linePrice = (targetTotalPrice * (refPrice * qty) / (totalWeightPrice == 0 ? 1 : totalWeightPrice)).round();
+        lineCost = (targetTotalCost * (refCost * qty) / (totalWeightCost == 0 ? 1 : totalWeightCost)).round();
+      }
+      distributedPrice += linePrice;
+      distributedCost += lineCost;
+
+      item.pricePerUnit = (linePrice / qty).round();
+      item.costPerUnit = (lineCost / qty).round();
+      if (item.pricePerUnit < 0) item.pricePerUnit = 0;
+      if (item.costPerUnit < 0) item.costPerUnit = 0;
+    }
   }
 
   int get _totalRefund {
@@ -188,6 +235,9 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
   bool get _hasSelection => _items.any((i) => i.isSelected && i.returnQuantity > 0);
 
   Future<void> _processReturn() async {
+    if (_isLoading) {
+      return;
+    }
     if (!_hasSelection) {
       NotificationService.showSnackBar('Vui lòng chọn sản phẩm cần trả', color: Colors.red);
       return;
@@ -630,9 +680,11 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       width: double.infinity,
       height: 50,
       child: FilledButton.icon(
-        onPressed: _hasSelection ? _processReturn : null,
+        onPressed: (_hasSelection && !_isLoading) ? _processReturn : null,
         icon: const Icon(Icons.assignment_return),
-        label: Text(_hasSelection
+        label: Text(_isLoading
+            ? 'Đang xử lý...'
+            : _hasSelection
             ? 'Xác nhận trả hàng — ${MoneyUtils.formatCurrency(_totalRefund)}đ'
             : 'Chọn sản phẩm để trả'),
         style: FilledButton.styleFrom(
@@ -654,6 +706,8 @@ class _ReturnableItem {
   bool isSelected;
   int pricePerUnit;
   int costPerUnit;
+  int referencePrice;
+  int referenceCost;
   int? productId;
   String? productFirestoreId;
 
@@ -665,6 +719,8 @@ class _ReturnableItem {
     required this.isSelected,
     this.pricePerUnit = 0,
     this.costPerUnit = 0,
+    this.referencePrice = 0,
+    this.referenceCost = 0,
     this.productId,
     this.productFirestoreId,
   });

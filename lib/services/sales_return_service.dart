@@ -8,8 +8,8 @@ import '../services/user_service.dart';
 import '../services/financial_activity_service.dart';
 import '../services/encryption_service.dart';
 import '../services/sync_orchestrator.dart';
-import '../services/audit_service.dart';
 import '../services/event_bus.dart';
+import '../models/sale_order_model.dart';
 
 /// Service for processing sales returns:
 /// 1. Create return record (header + items)
@@ -19,6 +19,7 @@ import '../services/event_bus.dart';
 class SalesReturnService {
   static final _db = DBHelper();
   static final _firestore = FirebaseFirestore.instance;
+  static final Set<String> _activeReturnLocks = <String>{};
 
   /// Process a full sales return
   /// Returns {success: bool, returnId: int?, error: String?}
@@ -31,36 +32,97 @@ class SalesReturnService {
     required List<SalesReturnItem> items,
     String? note,
   }) async {
+    final lockKey = (salesOrderFirestoreId != null && salesOrderFirestoreId.isNotEmpty)
+        ? 'sale_fid_$salesOrderFirestoreId'
+        : 'sale_id_$salesOrderId';
+    if (_activeReturnLocks.contains(lockKey)) {
+      return {
+        'success': false,
+        'error': 'Yêu cầu trả hàng đang được xử lý, vui lòng chờ.',
+      };
+    }
+    _activeReturnLocks.add(lockKey);
+
     try {
       final shopId = UserService.getShopIdSync();
+      if (shopId == null || shopId.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Không có shopId hợp lệ, vui lòng đăng nhập lại.',
+        };
+      }
       final userName = await UserService.getCurrentUserName();
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final returnFirestoreId = 'sr_$now';
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final nowUs = DateTime.now().microsecondsSinceEpoch;
+      final returnFirestoreId = 'sr_$nowUs';
 
-      // Validate: check for already-returned quantities
-      if (salesOrderId > 0) {
-        final returnedMap = await _db.getReturnedQuantitiesForSale(salesOrderId);
-        for (final item in items) {
-          final isPhone = item.productImei != null &&
-              item.productImei!.isNotEmpty &&
-              !item.productImei!.toUpperCase().startsWith('PKX') &&
-              item.productImei != 'NO_IMEI';
-          final key = isPhone ? item.productImei!.toUpperCase() : item.productName.toUpperCase();
-          final alreadyReturned = returnedMap[key] ?? 0;
-          // We don't block — just cap quantity to remaining
-          final maxRemaining = (item.quantity + alreadyReturned) > item.quantity
-              ? item.quantity
-              : item.quantity;
-          if (alreadyReturned > 0) {
-            debugPrint('⚠️ Item ${item.productName}: already returned $alreadyReturned');
-          }
+      if (items.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Không có sản phẩm nào để trả.',
+        };
+      }
+
+      final normalizedItems = items
+          .where((i) => i.quantity > 0)
+          .map((i) {
+            i.productName = i.productName.trim();
+            return i;
+          })
+          .toList();
+
+      if (normalizedItems.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Số lượng trả không hợp lệ.',
+        };
+      }
+
+      // Validate against original sold quantities: remainingQty = soldQty - returnedQty
+      final soldQtyMap = await _buildSoldQtyMap(
+        salesOrderId: salesOrderId,
+        salesOrderFirestoreId: salesOrderFirestoreId,
+      );
+      if (soldQtyMap.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Không xác định được dữ liệu đơn gốc để trả hàng.',
+        };
+      }
+
+      final returnedMap = await _getReturnedQtyMap(
+        salesOrderId: salesOrderId,
+        salesOrderFirestoreId: salesOrderFirestoreId,
+      );
+
+      final requestByKey = <String, int>{};
+      for (final item in normalizedItems) {
+        final key = _itemKey(item.productImei, item.productName);
+        requestByKey[key] = (requestByKey[key] ?? 0) + item.quantity;
+      }
+
+      for (final entry in requestByKey.entries) {
+        final soldQty = soldQtyMap[entry.key] ?? 0;
+        final returnedQty = returnedMap[entry.key] ?? 0;
+        final remainingQty = soldQty - returnedQty;
+        if (remainingQty <= 0) {
+          return {
+            'success': false,
+            'error': 'Sản phẩm đã được trả hết trước đó: ${entry.key}',
+          };
+        }
+        if (entry.value > remainingQty) {
+          return {
+            'success': false,
+            'error': 'Số lượng trả vượt quá còn lại ($remainingQty) cho ${entry.key}.',
+          };
         }
       }
 
       // Calculate totals
       int totalReturnAmount = 0;
       int totalReturnCost = 0;
-      for (final item in items) {
+      for (final item in normalizedItems) {
         item.amount = item.price * item.quantity;
         totalReturnAmount += item.amount;
         totalReturnCost += item.cost * item.quantity;
@@ -73,15 +135,15 @@ class SalesReturnService {
         salesOrderFirestoreId: salesOrderFirestoreId,
         customerName: customerName,
         customerPhone: customerPhone,
-        returnDate: now,
+        returnDate: nowMs,
         totalReturnAmount: totalReturnAmount,
         totalReturnCost: totalReturnCost,
         refundMethod: refundMethod,
         note: note,
-        createdAt: now,
+        createdAt: nowMs,
         createdBy: userName,
         approvedBy: userName,
-        approvedAt: now,
+        approvedAt: nowMs,
         status: 'APPROVED',
         shopId: shopId,
       );
@@ -90,14 +152,17 @@ class SalesReturnService {
       debugPrint('✅ SalesReturn header created: id=$returnId, firestoreId=$returnFirestoreId');
 
       // 2. Create return items + restore stock
-      for (final item in items) {
-        final itemFirestoreId = '${returnFirestoreId}_item_${item.productImei ?? item.productName}';
+      for (var i = 0; i < normalizedItems.length; i++) {
+        final item = normalizedItems[i];
+        final suffixBase = '${item.productId ?? 0}_${item.productFirestoreId ?? ''}_${item.productImei ?? ''}_${item.productName}'.toUpperCase();
+        final itemFirestoreId = '${returnFirestoreId}_item_${i + 1}_${suffixBase.hashCode.abs()}';
         item.salesReturnId = returnId;
         item.salesReturnFirestoreId = returnFirestoreId;
         item.firestoreId = itemFirestoreId;
         item.shopId = shopId;
 
-        await _db.insertSalesReturnItem(item.toMap());
+        final insertedItemId = await _db.insertSalesReturnItem(item.toMap());
+        item.id = insertedItemId;
 
         // Restore stock
         await _restoreStock(item);
@@ -110,11 +175,11 @@ class SalesReturnService {
           amount: totalReturnAmount,
           direction: 'OUT',
           paymentMethod: refundMethod,
-          title: 'HOÀN TIỀN TRẢ HÀNG: ${items.map((i) => i.productName).join(', ')}',
+          title: 'HOÀN TIỀN TRẢ HÀNG: ${normalizedItems.map((i) => i.productName).join(', ')}',
           description: 'KH: $customerName ($customerPhone). Lý do: ${note ?? "Trả hàng"}',
           customerName: customerName,
           phone: customerPhone,
-          productInfo: items.map((i) => '${i.productName} x${i.quantity}').join(', '),
+          productInfo: normalizedItems.map((i) => '${i.productName} x${i.quantity}').join(', '),
           referenceType: 'sales_return',
           referenceId: returnFirestoreId,
           createdBy: userName,
@@ -125,11 +190,11 @@ class SalesReturnService {
           amount: totalReturnAmount,
           direction: 'DEBT',
           paymentMethod: 'CÔNG NỢ',
-          title: 'TRẢ HÀNG GIẢM NỢ: ${items.map((i) => i.productName).join(', ')}',
+          title: 'TRẢ HÀNG GIẢM NỢ: ${normalizedItems.map((i) => i.productName).join(', ')}',
           description: 'Giảm công nợ $customerName. Lý do: ${note ?? "Trả hàng"}',
           customerName: customerName,
           phone: customerPhone,
-          productInfo: items.map((i) => '${i.productName} x${i.quantity}').join(', '),
+          productInfo: normalizedItems.map((i) => '${i.productName} x${i.quantity}').join(', '),
           referenceType: 'sales_return',
           referenceId: returnFirestoreId,
           createdBy: userName,
@@ -141,17 +206,9 @@ class SalesReturnService {
       await _reduceDebt(salesOrderFirestoreId, totalReturnAmount);
 
       // 4. Sync to Firestore
-      await _syncReturnToFirestore(returnHeader, items, returnId);
+      await _syncReturnToFirestore(returnHeader, normalizedItems, returnId);
 
-      // 5. Audit log
-      await AuditService.logAction(
-        action: 'SALES_RETURN',
-        entityType: 'sales_return',
-        entityId: returnFirestoreId,
-        summary: 'Trả hàng: $customerName - ${items.map((i) => i.productName).join(', ')} - ${_formatMoney(totalReturnAmount)}đ',
-      );
-
-      // 6. Emit event for UI refresh
+      // 5. Emit event for UI refresh
       EventBus().emit('sales_returns_changed');
       EventBus().emit('financial_activity_changed');
 
@@ -166,6 +223,112 @@ class SalesReturnService {
     } catch (e) {
       debugPrint('❌ SalesReturnService.processReturn error: $e');
       return {'success': false, 'error': e.toString()};
+    } finally {
+      _activeReturnLocks.remove(lockKey);
+    }
+  }
+
+  static String _itemKey(String? productImei, String productName) {
+    final imei = (productImei ?? '').trim().toUpperCase();
+    final isPhone = imei.isNotEmpty && !imei.startsWith('PKX') && imei != 'NO_IMEI';
+    return isPhone ? imei : productName.trim().toUpperCase();
+  }
+
+  static Future<Map<String, int>> _buildSoldQtyMap({
+    required int salesOrderId,
+    required String? salesOrderFirestoreId,
+  }) async {
+    try {
+      SaleOrder? sale;
+      if (salesOrderFirestoreId != null && salesOrderFirestoreId.isNotEmpty) {
+        sale = await _db.getSaleByFirestoreId(salesOrderFirestoreId);
+      }
+
+      if (sale == null && salesOrderId > 0) {
+        final database = await _db.database;
+        final rows = await database.query(
+          'sales',
+          where: 'id = ?',
+          whereArgs: [salesOrderId],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          sale = SaleOrder.fromMap(rows.first);
+        }
+      }
+
+      if (sale == null) return <String, int>{};
+
+      final names = sale.productNames.split(RegExp(r',\s*'));
+      final imeis = sale.productImeis.split(RegExp(r',\s*'));
+      final result = <String, int>{};
+      for (var i = 0; i < names.length; i++) {
+        final rawName = names[i].trim();
+        if (rawName.isEmpty) continue;
+        final rawImei = i < imeis.length ? imeis[i].trim() : '';
+
+        var qty = 1;
+        var cleanName = rawName;
+        final qtyMatch = RegExp(r'^(.+?)\s+[xX](\d+)').firstMatch(rawName);
+        if (qtyMatch != null) {
+          cleanName = qtyMatch.group(1)!.trim();
+          qty = int.tryParse(qtyMatch.group(2)!) ?? 1;
+        }
+        if (rawImei.toUpperCase().startsWith('PKX')) {
+          qty = int.tryParse(rawImei.toUpperCase().replaceAll('PKX', '')) ?? qty;
+        }
+
+        final key = _itemKey(rawImei, cleanName);
+        result[key] = (result[key] ?? 0) + qty;
+      }
+      return result;
+    } catch (e) {
+      debugPrint('❌ _buildSoldQtyMap error: $e');
+      return <String, int>{};
+    }
+  }
+
+  static Future<Map<String, int>> _getReturnedQtyMap({
+    required int salesOrderId,
+    required String? salesOrderFirestoreId,
+  }) async {
+    try {
+      if (salesOrderId > 0) {
+        return await _db.getReturnedQuantitiesForSale(salesOrderId);
+      }
+      if (salesOrderFirestoreId == null || salesOrderFirestoreId.isEmpty) {
+        return <String, int>{};
+      }
+      final database = await _db.database;
+      final rows = await database.rawQuery(
+        '''
+        SELECT
+          CASE
+            WHEN sri.productImei IS NOT NULL
+                 AND TRIM(sri.productImei) != ''
+                 AND UPPER(TRIM(sri.productImei)) != 'NO_IMEI'
+                 AND UPPER(TRIM(sri.productImei)) NOT LIKE 'PKX%'
+            THEN UPPER(TRIM(sri.productImei))
+            ELSE UPPER(TRIM(sri.productName))
+          END AS returnKey,
+          SUM(sri.quantity) as totalQty
+        FROM sales_return_items sri
+        INNER JOIN sales_returns sr ON sr.id = sri.salesReturnId
+        WHERE sr.salesOrderFirestoreId = ? AND sr.status != 'CANCELLED'
+        GROUP BY returnKey
+      ''',
+        [salesOrderFirestoreId],
+      );
+      final map = <String, int>{};
+      for (final row in rows) {
+        final key = (row['returnKey'] as String?)?.trim().toUpperCase() ?? '';
+        if (key.isEmpty) continue;
+        map[key] = (map[key] ?? 0) + ((row['totalQty'] as num?)?.toInt() ?? 0);
+      }
+      return map;
+    } catch (e) {
+      debugPrint('❌ _getReturnedQtyMap error: $e');
+      return <String, int>{};
     }
   }
 
@@ -180,6 +343,19 @@ class SalesReturnService {
           !item.productImei!.toUpperCase().startsWith('PKX') &&
           item.productImei != 'NO_IMEI') {
         product = await _db.getProductByImei(item.productImei!);
+      }
+
+      if (product == null && item.productId != null && item.productId! > 0) {
+        final database = await _db.database;
+        final rows = await database.query(
+          'products',
+          where: 'id = ?',
+          whereArgs: [item.productId],
+          limit: 1,
+        );
+        if (rows.isNotEmpty) {
+          product = Product.fromMap(rows.first);
+        }
       }
 
       if (product == null && item.productFirestoreId != null) {
@@ -225,9 +401,11 @@ class SalesReturnService {
         debugPrint('✅ Stock restored: ${product.name} +${item.quantity} (total: ${product.quantity})');
       } else {
         debugPrint('⚠️ Product not found for stock restore: ${item.productName} (${item.productImei})');
+        throw Exception('Không tìm thấy sản phẩm để hoàn kho: ${item.productName}');
       }
     } catch (e) {
       debugPrint('❌ _restoreStock error: $e');
+      rethrow;
     }
   }
 
@@ -334,7 +512,7 @@ class SalesReturnService {
         if (item.salesReturnId != null) {
           await SyncOrchestrator().enqueue(
             entityType: SyncEntityType.salesReturnItem,
-            entityId: item.salesReturnId!,
+            entityId: item.id ?? item.salesReturnId!,
             firestoreId: item.firestoreId,
             operation: SyncOperation.create,
             data: item.toMap(),
