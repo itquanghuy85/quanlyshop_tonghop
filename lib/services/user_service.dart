@@ -73,6 +73,9 @@ class UserService {
   static String? _cachedPermissionsShopKey;
   static DateTime? _cachedPermissionsTime;
   static const Duration _permissionsCacheTtl = Duration(minutes: 10);
+  static Map<String, int>? _cachedShopUserCounts;
+  static DateTime? _cachedShopUserCountsAt;
+  static const Duration _shopUserCountsTtl = Duration(minutes: 5);
 
   static String? _currentPermissionsShopKey(User? user) {
     if (user == null) return null;
@@ -379,16 +382,29 @@ class UserService {
         data['id'] = doc.id;
         shops.add(data);
       }
-      // Fetch user counts in parallel (non-blocking)
+      // Fetch user counts with short-lived cache to avoid repeated full-scan reads.
       try {
-        final allUsers = await _db.collection('users').get();
+        final now = DateTime.now();
+        final canUseCachedCounts =
+            _cachedShopUserCounts != null &&
+            _cachedShopUserCountsAt != null &&
+            now.difference(_cachedShopUserCountsAt!) < _shopUserCountsTtl;
+
         final countMap = <String, int>{};
-        for (final userDoc in allUsers.docs) {
-          final sid = userDoc.data()['shopId'] as String?;
-          if (sid != null) {
-            countMap[sid] = (countMap[sid] ?? 0) + 1;
+        if (canUseCachedCounts) {
+          countMap.addAll(_cachedShopUserCounts!);
+        } else {
+          final allUsers = await _db.collection('users').get();
+          for (final userDoc in allUsers.docs) {
+            final sid = userDoc.data()['shopId'] as String?;
+            if (sid != null && sid.trim().isNotEmpty) {
+              countMap[sid] = (countMap[sid] ?? 0) + 1;
+            }
           }
+          _cachedShopUserCounts = Map<String, int>.from(countMap);
+          _cachedShopUserCountsAt = now;
         }
+
         for (final shop in shops) {
           shop['userCount'] = countMap[shop['id']] ?? 0;
         }
@@ -400,8 +416,9 @@ class UserService {
         try {
           final aTime = a['createdAt'];
           final bTime = b['createdAt'];
-          if (aTime is Timestamp && bTime is Timestamp)
+          if (aTime is Timestamp && bTime is Timestamp) {
             return bTime.compareTo(aTime);
+          }
           if (aTime is Timestamp) return -1;
           if (bTime is Timestamp) return 1;
         } catch (_) {}
@@ -712,12 +729,16 @@ class UserService {
 
   static Stream<QuerySnapshot> _pollQuerySnapshots(Query query) async* {
     QuerySnapshot? lastSnapshot;
+    DateTime? lastFetchAt;
+    const minRefreshGap = Duration(milliseconds: 1200);
 
     Future<QuerySnapshot> fetchOnce(String reason) async {
       debugPrint(
         '[SYNC][FETCH] collection=users_query reason=$reason limit=20',
       );
-      return query.get();
+      final snapshot = await query.get();
+      lastFetchAt = DateTime.now();
+      return snapshot;
     }
 
     try {
@@ -739,6 +760,13 @@ class UserService {
     }
 
     await for (final event in EventBus().stream.where(shouldRefresh)) {
+      final now = DateTime.now();
+      if (lastFetchAt != null && now.difference(lastFetchAt!) < minRefreshGap) {
+        debugPrint(
+          'UserService users stream skip refresh (cooldown) event=$event',
+        );
+        continue;
+      }
       try {
         lastSnapshot = await fetchOnce(event);
         yield lastSnapshot;
