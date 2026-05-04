@@ -83,18 +83,42 @@ class ShopsTab extends StatefulWidget {
 
 class _ShopsTabState extends State<ShopsTab> {
   bool _isSyncingClaims = false;
+  late final Stream<QuerySnapshot> _shopsStream;
+  final Map<String, List<QueryDocumentSnapshot>> _shopMembersCache = {};
+  final Set<String> _loadingShopMembers = <String>{};
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _shopMembersPollingStream(
-    String shopId,
-  ) async* {
-    final query = FirebaseFirestore.instance
-        .collection('users')
-        .where('shopId', isEqualTo: shopId)
-        .limit(20);
-    yield await query.get();
-    yield* Stream.periodic(
-      const Duration(seconds: 30),
-    ).asyncMap((_) => query.get());
+  @override
+  void initState() {
+    super.initState();
+    _shopsStream = UserService.getAllShopsStreamForSuperAdmin();
+  }
+
+  Future<void> _loadShopMembers(String shopId, {bool force = false}) async {
+    if (_loadingShopMembers.contains(shopId)) return;
+    if (!force && _shopMembersCache.containsKey(shopId)) return;
+
+    setState(() => _loadingShopMembers.add(shopId));
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .where('shopId', isEqualTo: shopId)
+          .limit(20)
+          .get();
+      if (!mounted) return;
+      setState(() {
+        _shopMembersCache[shopId] = snap.docs;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _shopMembersCache[shopId] = const [];
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loadingShopMembers.remove(shopId));
+      }
+    }
   }
 
   Future<void> _syncAllClaims() async {
@@ -149,7 +173,7 @@ class _ShopsTabState extends State<ShopsTab> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: UserService.getAllShopsStreamForSuperAdmin(),
+      stream: _shopsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -244,6 +268,11 @@ class _ShopsTabState extends State<ShopsTab> {
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: ExpansionTile(
+                  onExpansionChanged: (expanded) {
+                    if (expanded) {
+                      _loadShopMembers(shopId);
+                    }
+                  },
                   leading: Icon(
                     appLocked ? Icons.lock : Icons.store_mall_directory,
                     color: appLocked ? Colors.red : Colors.blueAccent,
@@ -423,31 +452,42 @@ class _ShopsTabState extends State<ShopsTab> {
   }
 
   Widget _buildShopMembersList(String shopId) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _shopMembersPollingStream(shopId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(8),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          );
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              'Không có thành viên',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: AppTextStyles.subtitle1.fontSize,
-              ),
-            ),
-          );
-        }
+    final isLoading = _loadingShopMembers.contains(shopId);
+    final members = _shopMembersCache[shopId];
 
-        final members = snapshot.data!.docs;
-        return Column(
-          children: members.map((doc) {
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(8),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    if (members == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: TextButton.icon(
+          onPressed: () => _loadShopMembers(shopId, force: true),
+          icon: const Icon(Icons.refresh, size: 16),
+          label: const Text('Tải thành viên'),
+        ),
+      );
+    }
+
+    if (members.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Text(
+          'Không có thành viên',
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: AppTextStyles.subtitle1.fontSize,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: members.map((doc) {
             final userData = doc.data() as Map<String, dynamic>;
             final email = userData['email'] ?? 'Không có email';
             final displayName = userData['displayName'] ?? '';
@@ -562,8 +602,6 @@ class _ShopsTabState extends State<ShopsTab> {
               ),
             );
           }).toList(),
-        );
-      },
     );
   }
 
@@ -779,13 +817,26 @@ class _ShopsTabState extends State<ShopsTab> {
   }
 }
 
-class UsersTab extends StatelessWidget {
+class UsersTab extends StatefulWidget {
   const UsersTab({super.key});
+
+  @override
+  State<UsersTab> createState() => _UsersTabState();
+}
+
+class _UsersTabState extends State<UsersTab> {
+  late final Stream<QuerySnapshot> _usersStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _usersStream = UserService.getAllUsersStream();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: UserService.getAllUsersStream(),
+      stream: _usersStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
