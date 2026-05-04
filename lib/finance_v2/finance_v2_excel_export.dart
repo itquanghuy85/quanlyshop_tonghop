@@ -283,3 +283,215 @@ class FinanceV2ExcelSheet {
     required this.rows,
   });
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+//  Detailed daily report export — "Chi Tiết Ngày" sheet
+// ──────────────────────────────────────────────────────────────────────────
+
+class FinanceV2DetailedDailySection {
+  final String title;
+  final List<String> colHeaders;
+  final List<List<dynamic>> rows;
+
+  const FinanceV2DetailedDailySection({
+    required this.title,
+    required this.colHeaders,
+    required this.rows,
+  });
+}
+
+extension FinanceV2ExcelDetailed on FinanceV2ExcelExport {
+  // Expose save/share for external callers that build their own excel.
+  static Future<void> saveAndOpen(
+    BuildContext context,
+    xl.Excel excel,
+    String filePrefix, {
+    DateTime? start,
+    DateTime? end,
+  }) {
+    final fileName = _buildFileNameStatic(filePrefix, start, end);
+    return FinanceV2ExcelExport._saveAndShare(excel, fileName, context);
+  }
+
+  static String _buildFileNameStatic(
+      String prefix, DateTime? start, DateTime? end) {
+    final fmt = DateFormat('ddMMyyyy');
+    if (start != null && end != null) {
+      return '${prefix}_${fmt.format(start)}_${fmt.format(end)}.xlsx';
+    }
+    return '${prefix}_${fmt.format(DateTime.now())}.xlsx';
+  }
+}
+
+class FinanceV2DetailedExporter {
+  static xl.Border get _thin => xl.Border(
+        borderColorHex: xl.ExcelColor.fromHexString('#BFBFBF'),
+        borderStyle: xl.BorderStyle.Thin,
+      );
+
+  /// Section title style: dark blue #1565C0, white bold
+  static xl.CellStyle _sectionTitleStyle() => xl.CellStyle(
+        bold: true,
+        backgroundColorHex: xl.ExcelColor.fromHexString('#1565C0'),
+        fontColorHex: xl.ExcelColor.fromHexString('#FFFFFF'),
+        horizontalAlign: xl.HorizontalAlign.Left,
+        topBorder: _thin,
+        bottomBorder: _thin,
+        leftBorder: _thin,
+        rightBorder: _thin,
+      );
+
+  /// Column header style: lighter blue, white bold, centered
+  static xl.CellStyle _colHeaderStyle() => xl.CellStyle(
+        bold: true,
+        backgroundColorHex: xl.ExcelColor.fromHexString('#1E88E5'),
+        fontColorHex: xl.ExcelColor.fromHexString('#FFFFFF'),
+        horizontalAlign: xl.HorizontalAlign.Center,
+        topBorder: _thin,
+        bottomBorder: _thin,
+        leftBorder: _thin,
+        rightBorder: _thin,
+      );
+
+  /// Alternating data row: even = light gray, odd = white
+  static xl.CellStyle _dataRowStyle(int relIndex) => xl.CellStyle(
+        backgroundColorHex: relIndex.isEven
+            ? xl.ExcelColor.fromHexString('#F5F5F5')
+            : xl.ExcelColor.fromHexString('#FFFFFF'),
+        topBorder: _thin,
+        bottomBorder: _thin,
+        leftBorder: _thin,
+        rightBorder: _thin,
+      );
+
+  /// Write a section title spanning [colCount] columns at [row] (merged via repeated writes)
+  static void _writeSectionTitle(
+      xl.Sheet sheet, int row, String title, int colCount) {
+    final style = _sectionTitleStyle();
+    for (int c = 0; c < colCount; c++) {
+      final cell = sheet.cell(
+          xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row));
+      cell.value = c == 0 ? xl.TextCellValue(title) : xl.TextCellValue('');
+      cell.cellStyle = style;
+    }
+  }
+
+  /// Write column headers at [row]
+  static void _writeColHeaders(
+      xl.Sheet sheet, int row, List<String> headers) {
+    final style = _colHeaderStyle();
+    for (int c = 0; c < headers.length; c++) {
+      final cell = sheet.cell(
+          xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row));
+      cell.value = xl.TextCellValue(headers[c]);
+      cell.cellStyle = style;
+    }
+  }
+
+  /// Write a data row at [row], [relIndex] controls alternating color
+  static void _writeDataRow(
+      xl.Sheet sheet, int row, int relIndex, List<dynamic> values) {
+    final style = _dataRowStyle(relIndex);
+    for (int c = 0; c < values.length; c++) {
+      final cell = sheet.cell(
+          xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row));
+      final v = values[c];
+      if (v is int) {
+        cell.value = xl.IntCellValue(v);
+      } else if (v is double) {
+        cell.value = xl.DoubleCellValue(v);
+      } else {
+        cell.value = xl.TextCellValue(v?.toString() ?? '');
+      }
+      cell.cellStyle = style;
+    }
+  }
+
+  /// Write blank rows at [row]
+  static void _writeBlankRows(xl.Sheet sheet, int row, int count) {
+    for (int r = 0; r < count; r++) {
+      sheet.cell(xl.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row + r))
+          .value = xl.TextCellValue('');
+    }
+  }
+
+  /// Build and export the "Chi Tiết Ngày" workbook (all sections in one sheet).
+  /// Returns after saving/sharing.
+  static Future<void> exportDetailedDailyReport(
+    BuildContext context, {
+    required List<FinanceV2DetailedDailySection> sections,
+    required String filePrefix,
+    DateTime? start,
+    DateTime? end,
+    List<FinanceV2ExcelSheet>? extraSheets,
+  }) async {
+    final excel = xl.Excel.createExcel();
+
+    // ── Extra summary sheets (added first) ──────────────────────────
+    if (extraSheets != null) {
+      for (final extra in extraSheets) {
+        final ws = excel[extra.sheetName];
+        int row = 0;
+        // Header row
+        for (int c = 0; c < extra.headers.length; c++) {
+          ws.cell(xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row))
+            .value = xl.TextCellValue(extra.headers[c]);
+        }
+        row++;
+        // Data rows
+        for (final dataRow in extra.rows) {
+          for (int c = 0; c < dataRow.length; c++) {
+            final v = dataRow[c];
+            final cell = ws.cell(xl.CellIndex.indexByColumnRow(columnIndex: c, rowIndex: row));
+            if (v is int) {
+              cell.value = xl.IntCellValue(v);
+            } else if (v is double) {
+              cell.value = xl.DoubleCellValue(v);
+            } else {
+              cell.value = xl.TextCellValue(v?.toString() ?? '');
+            }
+          }
+          row++;
+        }
+      }
+    }
+
+    final sheet = excel['Chi Tiết Ngày'];
+
+    // Find max col count
+    final maxCols = sections.fold<int>(
+        4, (m, s) => s.colHeaders.length > m ? s.colHeaders.length : m);
+
+    int currentRow = 0;
+    for (int si = 0; si < sections.length; si++) {
+      final sec = sections[si];
+      // Section title
+      _writeSectionTitle(sheet, currentRow, sec.title, maxCols);
+      currentRow++;
+      // Column headers
+      _writeColHeaders(sheet, currentRow, sec.colHeaders);
+      currentRow++;
+      // Data rows
+      for (int ri = 0; ri < sec.rows.length; ri++) {
+        _writeDataRow(sheet, currentRow, ri, sec.rows[ri]);
+        currentRow++;
+      }
+      // 2 blank rows between sections (except after last)
+      if (si < sections.length - 1) {
+        _writeBlankRows(sheet, currentRow, 2);
+        currentRow += 2;
+      }
+    }
+
+    if (excel.sheets.containsKey('Sheet1')) {
+      excel.delete('Sheet1');
+    }
+
+    final fmt = DateFormat('ddMMyyyy');
+    final fileName = (start != null && end != null)
+        ? '${filePrefix}_${fmt.format(start)}_${fmt.format(end)}.xlsx'
+        : '${filePrefix}_${fmt.format(DateTime.now())}.xlsx';
+
+    await FinanceV2ExcelExport._saveAndShare(excel, fileName, context);
+  }
+}
