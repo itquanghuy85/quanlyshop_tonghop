@@ -952,7 +952,8 @@ class _SaleListViewState extends State<SaleListView> {
                                     _openReturn(s);
                                   },
                                   borderRadius: BorderRadius.circular(10),
-                                  child: Row(
+                                  child: IntrinsicHeight(
+                                    child: Row(
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
                                       // Left accent bar
@@ -1151,6 +1152,7 @@ class _SaleListViewState extends State<SaleListView> {
                                         ),
                                       ),
                                     ],
+                                  ),
                                   ),
                                 ),
                               );
