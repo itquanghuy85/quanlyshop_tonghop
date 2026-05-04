@@ -7,7 +7,6 @@ import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
 import 'package:intl/intl.dart';
 
 import '../data/db_helper.dart';
-import '../models/product_model.dart';
 import '../models/sale_order_model.dart';
 import '../models/repair_model.dart';
 import '../utils/money_utils.dart';
@@ -25,6 +24,7 @@ import '../services/unified_printer_service.dart';
 import '../models/printer_types.dart';
 import 'finance_v2_data_service.dart';
 import 'finance_v2_excel_export.dart';
+import 'finance_v2_reconciliation.dart';
 import 'finance_v2_theme.dart';
 import 'finance_v2_daily_report_view.dart';
 
@@ -472,7 +472,9 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     final bluetoothPrinter = printerConfig['bluetoothPrinter'];
     final wifiIp = printerConfig['wifiIp'] as String?;
 
-    final lines = await _buildPrintLinesForTab(s, _tabController.index);
+    final lines = _tabController.index == 4
+      ? await _buildDetailedDailyPrintLines(s)
+      : await _buildPrintLinesForTab(s, _tabController.index);
     final ok = await UnifiedPrinterService.printTextReceipt(
       lines,
       paper: PaperSize.mm58,
@@ -585,6 +587,94 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     b.writeln('[C]==============================');
     b.writeln('[C]Ket thuc');
     return b.toString();
+  }
+
+  Future<String> _buildDetailedDailyPrintLines(FinanceV2Snapshot s) async {
+    final shopInfo = await LabelSettingsService().getShopLabelSettings();
+    final lines = StringBuffer();
+    String fmt(int v) => MoneyUtils.formatCompactCurrency(v);
+
+    final debtCollectTxs = s.transactions.where((t) => t.type.toUpperCase() == 'DEBT_COLLECT').toList();
+    final debtPayTxs = s.transactions.where((t) => t.type.toUpperCase() == 'DEBT_PAY').toList();
+    final saleTxs = s.transactions.where((t) => t.type.toUpperCase() == 'SALE').toList();
+    final repairTxs = s.transactions.where((t) => t.type.toUpperCase() == 'REPAIR').toList();
+    final importTxs = s.transactions.where((t) => t.type.toUpperCase() == 'IMPORT').toList();
+    final debtCollected = debtCollectTxs.fold<int>(0, (a, e) => a + e.amount);
+    final debtPaid = debtPayTxs.fold<int>(0, (a, e) => a + e.amount);
+    final importOut = importTxs.where((t) => !t.isIncome).fold<int>(0, (a, e) => a + e.amount);
+
+    if (shopInfo.shopName.isNotEmpty) {
+      lines.writeln('[C][B]${shopInfo.shopName}');
+    }
+    lines.writeln('[C][B]BAO CAO NGAY ${DateFormat('dd/MM/yyyy').format(_start)}');
+    lines.writeln('[C]In luc ${DateFormat('HH:mm').format(DateTime.now())}');
+    lines.writeln('[C]================================');
+    lines.writeln('THU VAO:     ${fmt(s.totalIn)}');
+    lines.writeln('CHI RA:      ${fmt(s.totalOut)}');
+    lines.writeln('RONG:        ${s.netCashflow >= 0 ? '+' : '-'}${fmt(s.netCashflow.abs())}');
+    lines.writeln('[C]================================');
+
+    final totalIn = s.totalIn > 0 ? s.totalIn : 1;
+    final totalOut = s.totalOut > 0 ? s.totalOut : 1;
+    lines.writeln('[C][B]CO CAU THU');
+    lines.writeln('Ban hang:    ${fmt(s.incomeFromSales)}  (${((s.incomeFromSales / totalIn) * 100).round()}%)');
+    lines.writeln('Sua chua:    ${fmt(s.incomeFromRepairs)}  (${((s.incomeFromRepairs / totalIn) * 100).round()}%)');
+    lines.writeln('Thu no KH:   ${fmt(debtCollected)}  (${((debtCollected / totalIn) * 100).round()}%)');
+    lines.writeln('Thu khac:    ${fmt(s.incomeOther)}  (${((s.incomeOther / totalIn) * 100).round()}%)');
+    lines.writeln('[C]--------------------------------');
+    lines.writeln('[C][B]CO CAU CHI');
+    lines.writeln('Nhap hang:   ${fmt(importOut)}  (${((importOut / totalOut) * 100).round()}%)');
+    lines.writeln('Tra no NCC:  ${fmt(debtPaid)}  (${((debtPaid / totalOut) * 100).round()}%)');
+    lines.writeln('Chi phi:     ${fmt(s.operatingExpenseOut)}  (${((s.operatingExpenseOut / totalOut) * 100).round()}%)');
+    lines.writeln('[C]================================');
+
+    lines.writeln('[C][B]DON BAN HANG (${saleTxs.length} don)');
+    for (final t in saleTxs.take(30)) {
+      final tm = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(t.createdAt));
+      lines.writeln('$tm ${t.title}');
+      if (t.subtitle.isNotEmpty) lines.writeln('  ${t.subtitle}');
+      lines.writeln('  Ban: ${fmt(t.amount)} | Von: ${fmt(t.costAmount ?? 0)}');
+      lines.writeln('  Lai: ${fmt(t.grossProfit ?? 0)} | ${t.paymentMethod ?? ''}');
+      lines.writeln('[C]--------------------------------');
+    }
+    lines.writeln('[C]================================');
+
+    lines.writeln('[C][B]DON SUA CHUA (${repairTxs.length} don)');
+    for (final t in repairTxs.take(30)) {
+      final tm = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(t.createdAt));
+      lines.writeln('$tm ${t.title}');
+      if (t.subtitle.isNotEmpty) lines.writeln('  Loi: ${t.subtitle}');
+      lines.writeln('  Gia: ${fmt(t.amount)} | CP: ${fmt(t.costAmount ?? 0)}');
+      lines.writeln('  ${t.paymentMethod ?? ''}');
+      lines.writeln('[C]--------------------------------');
+    }
+    lines.writeln('[C]================================');
+
+    if (importTxs.isNotEmpty) {
+      lines.writeln('[C][B]NHAP KHO');
+      for (final t in importTxs.take(30)) {
+        final tm = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(t.createdAt));
+        lines.writeln('$tm ${t.title}');
+        lines.writeln('  NCC: ${t.subtitle} | ${fmt(t.amount)}');
+      }
+      lines.writeln('[C]================================');
+    }
+
+    lines.writeln('[C][B]CONG NO CUOI NGAY');
+    lines.writeln('Phai thu KH:  ${fmt(s.receivableTotal)}');
+    lines.writeln('Phai tra NCC: ${fmt(s.payableTotal)}');
+    lines.writeln('[C]================================');
+    lines.writeln('[C][B]VON & LAI');
+    lines.writeln('Von BH:   ${fmt(s.cogsFromSales)}');
+    lines.writeln('Lai BH:   ${fmt(s.grossProfitFromSales)}');
+    lines.writeln('Von SC:   ${fmt(s.cogsFromRepairs)}');
+    lines.writeln('Lai SC:   ${fmt(s.grossProfitFromRepairs)}');
+    lines.writeln('Lai tong: ${fmt(s.grossProfitTotal)}');
+    lines.writeln('[C]================================');
+    lines.writeln('[C]KY XAC NHAN: ____________');
+    lines.writeln('[C]================================');
+
+    return lines.toString();
   }
 
   void _onToolbarAction(_ToolbarAction action) {
@@ -793,23 +883,89 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         _hero(s),const SizedBox(height:8),
         _alerts(s),
         Padding(padding:EdgeInsets.symmetric(horizontal:_hPad),child:Column(children:[
-          Row(children:[
-            Expanded(child:_kpi('Tiền thu vào',s.totalIn,s.previousTotalIn,FinanceV2Theme.positive,Icons.arrow_downward_rounded,()=>_goTx('IN'))),
-            const SizedBox(width:8),
-            Expanded(child:_kpi('Tiền chi ra',s.totalOut,s.previousTotalOut,FinanceV2Theme.negative,Icons.arrow_upward_rounded,()=>_goTx('OUT'))),
-          ]),
+          _cashQuickSection(s),
           const SizedBox(height:8),
-          Row(children:[
-            Expanded(child:_kpi('Nợ phải thu',s.receivableTotal,null,FinanceV2Theme.warn,Icons.people_alt_rounded,()=>_goDebt(true))),
-            const SizedBox(width:8),
-            Expanded(child:_kpi('Nợ phải trả',s.payableTotal,null,FinanceV2Theme.negative,Icons.store_mall_directory_rounded,()=>_goDebt(false))),
-          ]),
+          _debtQuickSection(s),
         ])),
         const SizedBox(height:12),_compSection(s),const SizedBox(height:12),_profitSection(s),const SizedBox(height:12),_incomeSection(s),
         const SizedBox(height:12),_cfSection(s),const SizedBox(height:12),_debtSection(s),
         const SizedBox(height:12),_expCatSection(s),const SizedBox(height:12),_snapCard(s),
         const SizedBox(height:24),
       ])));
+  }
+
+  Widget _cashQuickSection(FinanceV2Snapshot s) {
+    return Container(
+      decoration: FinanceV2Theme.elevatedPanel(),
+      padding: EdgeInsets.all(_cardPad),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('1) Tiền (cash)', 'Tiền = tiền đã thu/chi thực tế trong kỳ, bao gồm tiền mặt và chuyển khoản.'),
+          const SizedBox(height:8),
+          Row(children:[
+            Expanded(child:_kpi('Tiền thu vào',s.totalIn,s.previousTotalIn,FinanceV2Theme.positive,Icons.arrow_downward_rounded,()=>_goTx('IN'))),
+            const SizedBox(width:8),
+            Expanded(child:_kpi('Tiền chi ra',s.totalOut,s.previousTotalOut,FinanceV2Theme.negative,Icons.arrow_upward_rounded,()=>_goTx('OUT'))),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _debtQuickSection(FinanceV2Snapshot s) {
+    return Container(
+      decoration: FinanceV2Theme.elevatedPanel(),
+      padding: EdgeInsets.all(_cardPad),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle('3) Công nợ', 'Công nợ = khoản chưa thu từ khách hoặc chưa trả cho nhà cung cấp.'),
+          const SizedBox(height:8),
+          Row(children:[
+            Expanded(child:_kpi('Nợ phải thu',s.receivableTotal,null,FinanceV2Theme.warn,Icons.people_alt_rounded,()=>_goDebt(true))),
+            const SizedBox(width:8),
+            Expanded(child:_kpi('Nợ phải trả',s.payableTotal,null,FinanceV2Theme.negative,Icons.store_mall_directory_rounded,()=>_goDebt(false))),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title, String hint) {
+    return Row(
+      children: [
+        Text(title, style: FinanceV2Theme.titleMd),
+        const SizedBox(width:6),
+        Tooltip(
+          message: hint,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => _showSectionHint(title, hint),
+            child: const Padding(
+              padding: EdgeInsets.all(2),
+              child: Icon(Icons.info_outline_rounded, size: 16, color: FinanceV2Theme.subInk),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showSectionHint(String title, String hint) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title, style: FinanceV2Theme.titleMd),
+        content: Text(hint, style: FinanceV2Theme.bodyMd),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Đã hiểu'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _hero(FinanceV2Snapshot s) {
@@ -868,11 +1024,17 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Padding(padding:EdgeInsets.symmetric(horizontal:_hPad),child:Container(
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('So sánh $_compLabel',style:FinanceV2Theme.titleMd),
+        Text('So sánh theo nhóm • $_compLabel',style:FinanceV2Theme.titleMd),
+        const SizedBox(height:6),
+        Text('Tiền và lợi nhuận được tách riêng để tránh hiểu nhầm.',style:FinanceV2Theme.micro),
         const SizedBox(height:10),
+        _sectionTitle('Tiền (cash)','So sánh số tiền thực thu/thực chi so với kỳ trước.'),
+        const SizedBox(height:8),
         Row(children:[Expanded(child:_cs('Thu tiền',s.totalIn,s.previousTotalIn)),Expanded(child:_cs('Chi tiền',s.totalOut,s.previousTotalOut)),Expanded(child:_cs('Ròng',s.netCashflow,s.previousNetCashflow,net:true))]),
         if(chg!=null)...[const SizedBox(height:8),Row(children:[Icon(chg>=0?Icons.trending_up_rounded:Icons.trending_down_rounded,size:14,color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative),const SizedBox(width:4),Text('${chg>=0?"+":""}${chg.toStringAsFixed(1)}% so với $_compLabel',style:FinanceV2Theme.micro.copyWith(color:chg>=0?FinanceV2Theme.positive:FinanceV2Theme.negative))])],
         const Divider(height:20,thickness:0.5),
+        _sectionTitle('Lợi nhuận (profit)','So sánh vốn và lãi theo giao dịch (accrual), có thể khác dòng tiền.'),
+        const SizedBox(height:8),
         Row(children:[
           Expanded(child:_cs('Vốn BH',s.cogsFromSales,s.previousCogsFromSales)),
           Expanded(child:_cs('Vốn SC',s.cogsFromRepairs,s.previousCogsFromRepairs)),
@@ -908,9 +1070,9 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Padding(padding:EdgeInsets.symmetric(horizontal:_hPad),child:Container(
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Vốn & Lãi',style:FinanceV2Theme.titleMd),
+        _sectionTitle('2) Lợi nhuận (profit)','Lợi nhuận = lời từ giao dịch, có thể chưa thu tiền ngay nếu là đơn công nợ.'),
         const SizedBox(height:4),
-        Text('Bán hàng tính theo ngày bán (accrual)',style:FinanceV2Theme.micro),
+        Text('Lợi nhuận theo giao dịch (accrual), không đồng nghĩa với tiền đang có trong quỹ.',style:FinanceV2Theme.micro),
         const SizedBox(height:10),
         Row(children:[
           Expanded(child:_kpi('Vốn BH',s.cogsFromSales,s.previousCogsFromSales>0?s.previousCogsFromSales:null,const Color(0xFF1565C0),Icons.shopping_bag_outlined,null)),
@@ -931,10 +1093,12 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Padding(padding:EdgeInsets.symmetric(horizontal:_hPad),child:Container(
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Cơ cấu doanh thu',style:FinanceV2Theme.titleMd),const SizedBox(height:10),
-        if(s.incomeFromSales>0) _ir('Bán hàng',s.incomeFromSales,s.totalIn,const Color(0xFF1565C0),()=>_goTx('SALE')),
-        if(s.incomeFromRepairs>0) _ir('Sửa chữa',s.incomeFromRepairs,s.totalIn,const Color(0xFF2E7D32),()=>_goTx('REPAIR')),
-        if(s.incomeOther>0) _ir('Khác',s.incomeOther,s.totalIn,const Color(0xFF6A1B9A),()=>_goTx('IN')),
+        Text('Cơ cấu tiền thu vào',style:FinanceV2Theme.titleMd),const SizedBox(height:4),
+        Text('Phân bổ theo nguồn tiền đã thu thực tế trong kỳ.',style:FinanceV2Theme.micro),
+        const SizedBox(height:10),
+        if(s.incomeFromSales>0) _ir('Thu từ bán hàng',s.incomeFromSales,s.totalIn,const Color(0xFF1565C0),()=>_goTx('SALE')),
+        if(s.incomeFromRepairs>0) _ir('Thu từ sửa chữa',s.incomeFromRepairs,s.totalIn,const Color(0xFF2E7D32),()=>_goTx('REPAIR')),
+        if(s.incomeOther>0) _ir('Thu khác',s.incomeOther,s.totalIn,const Color(0xFF6A1B9A),()=>_goTx('IN')),
       ])));
   }
 
@@ -951,7 +1115,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Padding(padding:EdgeInsets.symmetric(horizontal:_hPad),child:Container(
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Dòng tiền',style:FinanceV2Theme.titleMd),const SizedBox(height:10),
+        _sectionTitle('Dòng tiền (cashflow)','Tiền vào/ra là dòng tiền thực, không phải lợi nhuận kế toán.'),const SizedBox(height:10),
         if(tot==0) Text('Chưa có giao dịch trong kỳ',style:FinanceV2Theme.bodySm.copyWith(color:FinanceV2Theme.subInk)) else _cfBar(s),
       ])));
   }
@@ -974,7 +1138,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return Padding(padding:EdgeInsets.symmetric(horizontal:_hPad),child:Container(
       decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
       child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Công nợ tổng quan',style:FinanceV2Theme.titleMd),const SizedBox(height:10),
+        _sectionTitle('Công nợ chi tiết','Theo dõi các khoản chưa thu/chưa trả để tránh nhầm với tiền đang có.'),const SizedBox(height:10),
         Row(children:[
           if(s.receivableTotal>0) Expanded(child:_dTile('Phải thu',s.receivableTotal,FinanceV2Theme.warn,()=>_goDebt(true))),
           if(s.receivableTotal>0&&s.payableTotal>0) const SizedBox(width:8),
@@ -1058,9 +1222,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     final dt=DateFormat('dd/MM HH:mm').format(DateTime.fromMillisecondsSinceEpoch(t.createdAt));
     final c=t.isIncome?FinanceV2Theme.positive:FinanceV2Theme.negative;
     final detailParts = <String>[];
-    if ((t.paymentMethod ?? '').isNotEmpty) {
-      detailParts.add(t.paymentMethod!);
-    }
+    final methodRaw = (t.paymentMethod ?? '').trim();
     if ((t.actorName ?? '').isNotEmpty) {
       detailParts.add('NV: ${t.actorName!}');
     }
@@ -1068,6 +1230,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       final ref = t.referenceId!.trim();
       detailParts.add(ref.length > 10 ? 'Mã: ${ref.substring(0, 10)}' : 'Mã: $ref');
     }
+    final bankHint = _extractInstallmentBank(t.subtitle);
     return ListTile(
       leading:EntityAvatar(imageUrl:t.avatarUrl,name:t.title,radius:20,tappableToView:false),
       title:Text(t.title,style:FinanceV2Theme.bodyMd,maxLines:1,overflow:TextOverflow.ellipsis),
@@ -1075,6 +1238,19 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         crossAxisAlignment:CrossAxisAlignment.start,
         children:[
           Text(t.subtitle,style:FinanceV2Theme.micro,maxLines:1,overflow:TextOverflow.ellipsis),
+          if(methodRaw.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  _paymentBadge(methodRaw),
+                  if (bankHint != null && bankHint.isNotEmpty)
+                    _bankBadge(bankHint),
+                ],
+              ),
+            ),
           if(detailParts.isNotEmpty)
             Text(
               detailParts.join(' • '),
@@ -1087,6 +1263,69 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       trailing:Column(crossAxisAlignment:CrossAxisAlignment.end,mainAxisAlignment:MainAxisAlignment.center,children:[Text('${t.isIncome?"+":"-"}${_cmp(t.amount)}',style:FinanceV2Theme.bodyMd.copyWith(fontWeight:FontWeight.w600,color:c)),Text(dt,style:FinanceV2Theme.caption)]),
       onTap:()=>_openTL(_TLEntry(ts:t.createdAt,type:t.type,title:t.title,subtitle:t.subtitle,amount:t.amount,isIncome:t.isIncome,avatarUrl:t.avatarUrl,actorName:t.actorName,paymentMethod:t.paymentMethod,referenceId:t.referenceId)),
     );
+  }
+
+  Widget _paymentBadge(String methodRaw) {
+    final normalized = methodRaw.trim().toUpperCase();
+    String label = methodRaw;
+    Color color = FinanceV2Theme.subInk;
+
+    if (normalized.contains('TRẢ GÓP') || normalized.contains('INSTALLMENT')) {
+      label = 'Trả góp';
+      color = const Color(0xFF6A1B9A);
+    } else if (normalized == 'CÔNG NỢ' || normalized == 'DEBT') {
+      label = 'Công nợ';
+      color = FinanceV2Theme.warn;
+    } else if (normalized == 'TIỀN MẶT' || normalized == 'CASH') {
+      label = 'Tiền mặt';
+      color = FinanceV2Theme.positive;
+    } else if (normalized == 'CHUYỂN KHOẢN' || normalized == 'TRANSFER') {
+      label = 'Chuyển khoản';
+      color = const Color(0xFF1565C0);
+    } else if (normalized == 'KẾT HỢP' || normalized == 'MIXED') {
+      label = 'Kết hợp';
+      color = const Color(0xFF00695C);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: FinanceV2Theme.caption.copyWith(color: color, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  Widget _bankBadge(String bankName) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4E342E).withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF4E342E).withValues(alpha: 0.30)),
+      ),
+      child: Text(
+        'NH: $bankName',
+        style: FinanceV2Theme.caption.copyWith(
+          color: const Color(0xFF4E342E),
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  String? _extractInstallmentBank(String subtitle) {
+    const marker = 'NH:';
+    final idx = subtitle.indexOf(marker);
+    if (idx < 0) return null;
+    final bank = subtitle.substring(idx + marker.length).trim();
+    if (bank.isEmpty) return null;
+    return bank;
   }
 
   // TAB 2
@@ -1226,6 +1465,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     'quantity',
     'price',
     'cost',
+    'line_amount',
+    'line_cost_total',
     'cash_in',
     'cash_out',
     'transfer_in',
@@ -1278,6 +1519,55 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     return title.contains('MÁY XÁC') || category.contains('MÁY XÁC');
   }
 
+  bool _isSupplierDebtType(String debtType) {
+    final normalized = debtType.trim().toUpperCase();
+    return normalized == 'SHOP_OWES' ||
+        normalized == 'OTHER_SHOP_OWES' ||
+        normalized == 'OWED';
+  }
+
+  String _canonicalImportReference(String? rawReference) {
+    var value = (rawReference ?? '').trim();
+    if (value.isEmpty) return value;
+    value = value.replaceFirst(RegExp(r'^exp_stock_'), '');
+    value = value.replaceFirst(RegExp(r'^exp_quick_part_'), '');
+    value = value.replaceFirst(RegExp(r'^stock_'), '');
+    value = value.replaceFirst(RegExp(r'_\d{10,}$'), '');
+    return value;
+  }
+
+  int _parseImportExpenseQuantity(Map<String, dynamic> expense) {
+    final source = [
+      (expense['description'] ?? '').toString(),
+      (expense['note'] ?? '').toString(),
+      (expense['title'] ?? '').toString(),
+    ].join(' | ');
+    final slMatch = RegExp(r'SL\s*[:=]?\s*(\d+)', caseSensitive: false).firstMatch(source);
+    if (slMatch != null) {
+      return int.tryParse(slMatch.group(1)!) ?? 1;
+    }
+    final qtyMatch = RegExp(r'X\s*(\d+)', caseSensitive: false).firstMatch(source);
+    if (qtyMatch != null) {
+      return int.tryParse(qtyMatch.group(1)!) ?? 1;
+    }
+    return 1;
+  }
+
+  bool _shouldSkipDebtCreationLog(Map<String, dynamic> debt) {
+    final linkedType = (debt['linkedType'] ?? '').toString().trim().toLowerCase();
+    final linkedId = (debt['linkedId'] ?? '').toString().trim().toLowerCase();
+    final relatedPartId = (debt['relatedPartId'] ?? '').toString().trim();
+
+    if (linkedType == 'sale' || linkedId.startsWith('sale_')) {
+      return true;
+    }
+    if (relatedPartId.isNotEmpty) {
+      return true;
+    }
+
+    return false;
+  }
+
   String _cleanSaleName(String input) {
     var value = input.trim();
     final qtyMatch = RegExp(r'^(.+?)\s+[xX]\d+').firstMatch(value);
@@ -1292,8 +1582,9 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Future<List<Map<String, dynamic>>> _saleAuditLines(SaleOrder sale) async {
     final names = sale.productNames.split(RegExp(r',\s*'));
     final imeis = sale.productImeis.split(RegExp(r',\s*'));
-    final lines = <Map<String, dynamic>>[];
     int totalQty = 0;
+    final cleanNames = <String>[];
+    final cleanImeis = <String>[];
 
     for (int i = 0; i < names.length; i++) {
       final rawName = names[i].trim();
@@ -1308,64 +1599,23 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         qty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? qty;
       }
       final cleanName = _cleanSaleName(rawName);
-      lines.add({
-        'product_name': cleanName,
-        'imei': imei,
-        'quantity': qty,
-        'reference_price': 0,
-        'reference_cost': 0,
-      });
+      cleanNames.add(cleanName);
+      if (imei.isNotEmpty) cleanImeis.add(imei);
       totalQty += qty;
     }
 
-    for (final line in lines) {
-      Product? product;
-      final imei = (line['imei'] ?? '').toString();
-      if (imei.isNotEmpty && !imei.toUpperCase().startsWith('PKX') && imei != 'NO_IMEI') {
-        product = await _db.getProductByImei(imei);
+    // ACCRUAL BASIS: Count all sales (including CÔNG NỢ) at full finalPrice for revenue
+    // This ensures LOG revenue matches REPORT revenue (all transactions counted, not just cash realized)
+    // For cash flow, CÔNG NỢ sales will show as 0 cash/transfer and positive debt_customer_change
+    return <Map<String, dynamic>>[
+      {
+        'product_name': cleanNames.join(', '),
+        'imei': cleanImeis.join(', '),
+        'quantity': totalQty,
+        'price': sale.finalPrice,
+        'cost': sale.totalCost,
       }
-      product ??= await _db.getProductByName((line['product_name'] ?? '').toString());
-      product ??= await _db.getProductByNameFlexible((line['product_name'] ?? '').toString());
-      if (product != null) {
-        line['reference_price'] = product.price;
-        line['reference_cost'] = product.cost;
-      }
-    }
-
-    int totalWeightPrice = 0;
-    int totalWeightCost = 0;
-    for (final line in lines) {
-      final qty = (line['quantity'] as int?) ?? 1;
-      final refPrice = ((line['reference_price'] as int?) ?? 0) > 0 ? (line['reference_price'] as int) : 1;
-      final refCost = ((line['reference_cost'] as int?) ?? 0) > 0 ? (line['reference_cost'] as int) : 1;
-      totalWeightPrice += refPrice * qty;
-      totalWeightCost += refCost * qty;
-    }
-
-    int distributedPrice = 0;
-    int distributedCost = 0;
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-      final qty = (line['quantity'] as int?) ?? 1;
-      final refPrice = ((line['reference_price'] as int?) ?? 0) > 0 ? (line['reference_price'] as int) : 1;
-      final refCost = ((line['reference_cost'] as int?) ?? 0) > 0 ? (line['reference_cost'] as int) : 1;
-
-      int linePrice;
-      int lineCost;
-      if (i == lines.length - 1) {
-        linePrice = sale.finalPrice - distributedPrice;
-        lineCost = sale.totalCost - distributedCost;
-      } else {
-        linePrice = (sale.finalPrice * (refPrice * qty) / (totalWeightPrice == 0 ? totalQty : totalWeightPrice)).round();
-        lineCost = (sale.totalCost * (refCost * qty) / (totalWeightCost == 0 ? totalQty : totalWeightCost)).round();
-      }
-      distributedPrice += linePrice;
-      distributedCost += lineCost;
-      line['price'] = qty > 0 ? (linePrice / qty).round() : 0;
-      line['cost'] = qty > 0 ? (lineCost / qty).round() : 0;
-    }
-
-    return lines;
+    ];
   }
 
   List<dynamic> _auditRow({
@@ -1377,6 +1627,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     int quantity = 0,
     int price = 0,
     int cost = 0,
+    int? lineAmount,
+    int? lineCostTotal,
     int cashIn = 0,
     int cashOut = 0,
     int transferIn = 0,
@@ -1388,6 +1640,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     String actorName = '',
     String description = '',
   }) {
+    final resolvedLineAmount = lineAmount ?? (price * quantity);
+    final resolvedLineCostTotal = lineCostTotal ?? (cost * quantity);
     return <dynamic>[
       FinanceV2ExcelExport.fmtDateTime(timestamp),
       actionType,
@@ -1398,6 +1652,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       quantity,
       price,
       cost,
+      resolvedLineAmount,
+      resolvedLineCostTotal,
       cashIn,
       cashOut,
       transferIn,
@@ -1411,51 +1667,136 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     ];
   }
 
-  Future<List<List<dynamic>>> _buildDetailedAuditLogRows() async {
+  Future<List<Map<String, dynamic>>> _buildDetailedAuditLogEntries() async {
     final startMs = _start.millisecondsSinceEpoch;
     final endMs = DateTime(_end.year, _end.month, _end.day, 23, 59, 59).millisecondsSinceEpoch;
     final sales = await _db.getSalesByDateRange(startMs, endMs);
     final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
     final expenses = await _db.getExpensesByDateRange(startMs, endMs);
+    final debts = await _db.getDebtsByDateRange(startMs, endMs);
     final debtPayments = await _db.getDebtPaymentsForCashFlowByDateRange(startMs, endMs);
     final salesReturns = await _db.getSalesReturnsByDateRange(startMs, endMs);
     final importHistory = await _db.getAllImportHistoryByDateRange(startMs, endMs);
 
-    final rowsWithTs = <Map<String, dynamic>>[];
+    final entries = <Map<String, dynamic>>[];
 
     for (final sale in sales) {
       final lines = await _saleAuditLines(sale);
       final method = _auditPaymentMethod(sale.paymentMethod);
+      final saleRef = sale.firestoreId ?? (sale.id?.toString() ?? '');
+
+      // RECOGNIZED AMOUNT: Cash-basis (khớp với logic actualPaid của data service)
+      // CASH/TRANSFER: finalPrice; INSTALLMENT: downPayment + settlementAmount; DEBT: 0
+      int recognizedAmount;
+      int debtCustomerChangeForSale = 0;
+      int saleCashIn = 0;
+      int saleTransferIn = 0;
+      if (method == 'CASH') {
+        recognizedAmount = sale.finalPrice;
+        saleCashIn = recognizedAmount;
+      } else if (method == 'TRANSFER') {
+        recognizedAmount = sale.finalPrice;
+        saleTransferIn = recognizedAmount;
+      } else if (method == 'MIXED') {
+        recognizedAmount = sale.cashAmount + sale.transferAmount;
+        saleCashIn = sale.cashAmount;
+        saleTransferIn = sale.transferAmount;
+      } else if (method == 'INSTALLMENT') {
+        final downPaid = sale.downPayment > 0 ? sale.downPayment : 0;
+        final settlement = sale.settlementAmount > 0 ? sale.settlementAmount : 0;
+        recognizedAmount = (downPaid + settlement).clamp(0, sale.finalPrice);
+        final downMethod = _auditPaymentMethod(sale.downPaymentMethod ?? sale.paymentMethod);
+        if (downMethod == 'CASH') {
+          saleCashIn = downPaid;
+          saleTransferIn = settlement; // NH thanh toán qua chuyển khoản
+        } else {
+          saleTransferIn = downPaid + settlement;
+        }
+        final loan1 = sale.loanAmount;
+        final loan2 = sale.loanAmount2;
+        debtCustomerChangeForSale = (sale.finalPrice - downPaid - loan1 - loan2).clamp(0, sale.finalPrice);
+      } else {
+        // Bán công nợ: không vào quỹ ngay, ghi tăng phải thu khách
+        recognizedAmount = 0;
+        debtCustomerChangeForSale = sale.finalPrice;
+      }
+
+      // REVENUE COST: Tỉ lệ theo recognizedAmount/finalPrice (khớp với recognizedCost của data service)
+      int revenueCost = 0;
+      if (recognizedAmount > 0 && sale.totalCost > 0 && sale.finalPrice > 0) {
+        revenueCost = ((sale.totalCost * recognizedAmount) / sale.finalPrice).round();
+        revenueCost = revenueCost.clamp(0, sale.totalCost);
+        revenueCost = revenueCost.clamp(0, recognizedAmount);
+      }
+
+      int distributedAmount = 0;
+      int distributedCost = 0;
       for (final line in lines) {
         final qty = (line['quantity'] as int?) ?? 0;
-        final unitPrice = (line['price'] as int?) ?? 0;
-        final lineAmount = unitPrice * qty;
-        final lineCost = ((line['cost'] as int?) ?? 0);
-        int cashIn = 0;
-        int transferIn = 0;
-        int debtCustomerChange = 0;
-        if (method == 'CASH') {
-          cashIn = lineAmount;
-        } else if (method == 'TRANSFER') {
-          transferIn = lineAmount;
-        } else if (method == 'MIXED') {
-          final total = sale.finalPrice <= 0 ? 1 : sale.finalPrice;
-          cashIn = ((lineAmount * sale.cashAmount) / total).round();
-          transferIn = lineAmount - cashIn;
-        } else if (method == 'DEBT') {
-          debtCustomerChange = lineAmount;
+        final baseAmount = (line['price'] as int?) ?? 0;
+        // LINE AMOUNT: Cash-basis = recognizedAmount (khớp với incomeFromSales của data service)
+        int lineAmount = recognizedAmount;
+        int lineCostTotal = revenueCost;
+        if (lines.length > 1 && sale.finalPrice > 0) {
+          final ratio = baseAmount / sale.finalPrice;
+          lineAmount = (recognizedAmount * ratio).round();
+          lineCostTotal = (revenueCost * ratio).round();
+          distributedAmount += lineAmount;
+          distributedCost += lineCostTotal;
         }
-        rowsWithTs.add({
+        if (lines.length > 1 && line == lines.last) {
+          lineAmount += (recognizedAmount - distributedAmount);
+          lineCostTotal += (revenueCost - distributedCost);
+        }
+        final lineUnitPrice = qty > 0 ? (lineAmount / qty).round() : lineAmount;
+        final lineUnitCost = qty > 0 ? (lineCostTotal / qty).round() : lineCostTotal;
+        int cashIn = saleCashIn;
+        int transferIn = saleTransferIn;
+        int debtCustomerChange = debtCustomerChangeForSale;
+        if (lines.length > 1) {
+          final ratio = sale.finalPrice > 0 ? (baseAmount / sale.finalPrice) : 0;
+          cashIn = (saleCashIn * ratio).round();
+          transferIn = (saleTransferIn * ratio).round();
+          debtCustomerChange = (debtCustomerChangeForSale * ratio).round();
+          if (line == lines.last) {
+            final allocatedCash = entries
+                .where((e) => e['referenceId'] == saleRef && e['actionType'] == 'SALE')
+                .fold<int>(0, (sum, e) => sum + ((e['cashIn'] as int?) ?? 0));
+            final allocatedTransfer = entries
+                .where((e) => e['referenceId'] == saleRef && e['actionType'] == 'SALE')
+                .fold<int>(0, (sum, e) => sum + ((e['transferIn'] as int?) ?? 0));
+            final allocatedDebt = entries
+                .where((e) => e['referenceId'] == saleRef && e['actionType'] == 'SALE')
+                .fold<int>(0, (sum, e) => sum + ((e['debtCustomerChange'] as int?) ?? 0));
+            cashIn += saleCashIn - allocatedCash - cashIn;
+            transferIn += saleTransferIn - allocatedTransfer - transferIn;
+            debtCustomerChange += debtCustomerChangeForSale - allocatedDebt - debtCustomerChange;
+          }
+        }
+        entries.add({
           'ts': sale.soldAt,
+          'actionType': 'SALE',
+          'referenceId': saleRef,
+          'cashIn': cashIn,
+          'cashOut': 0,
+          'transferIn': transferIn,
+          'transferOut': 0,
+          'debtCustomerChange': debtCustomerChange,
+          'debtSupplierChange': 0,
+          'inventoryChange': -qty,
+          'lineAmount': lineAmount,
+          'lineCostTotal': lineCostTotal,
           'row': _auditRow(
             timestamp: sale.soldAt,
             actionType: 'SALE',
-            referenceId: sale.firestoreId ?? (sale.id?.toString() ?? ''),
+            referenceId: saleRef,
             productName: (line['product_name'] ?? '').toString(),
             imei: (line['imei'] ?? '').toString(),
             quantity: qty,
-            price: unitPrice,
-            cost: lineCost,
+            price: lineUnitPrice,
+            cost: lineUnitCost,
+            lineAmount: lineAmount,
+            lineCostTotal: lineCostTotal,
             cashIn: cashIn,
             transferIn: transferIn,
             paymentMethod: method,
@@ -1481,7 +1822,10 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         final qty = (item['quantity'] as num?)?.toInt() ?? 0;
         final unitPrice = (item['price'] as num?)?.toInt() ?? 0;
         final unitCost = (item['cost'] as num?)?.toInt() ?? 0;
+        final costTotal = unitCost * qty;
         final amount = (item['amount'] as num?)?.toInt() ?? unitPrice * qty;
+        final recognizedReturnAmount = method == 'DEBT' ? 0 : amount;
+        final recognizedReturnCost = method == 'DEBT' ? 0 : costTotal;
         int cashOut = 0;
         int transferOut = 0;
         int debtCustomerChange = 0;
@@ -1492,8 +1836,19 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         } else if (method == 'DEBT') {
           debtCustomerChange = -amount;
         }
-        rowsWithTs.add({
+        entries.add({
           'ts': ts,
+          'actionType': 'RETURN',
+          'referenceId': ref,
+          'cashIn': 0,
+          'cashOut': cashOut,
+          'transferIn': 0,
+          'transferOut': transferOut,
+          'debtCustomerChange': debtCustomerChange,
+          'debtSupplierChange': 0,
+          'inventoryChange': qty,
+          'lineAmount': recognizedReturnAmount,
+          'lineCostTotal': recognizedReturnCost,
           'row': _auditRow(
             timestamp: ts,
             actionType: 'RETURN',
@@ -1503,6 +1858,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
             quantity: qty,
             price: unitPrice,
             cost: unitCost,
+            lineAmount: recognizedReturnAmount,
+            lineCostTotal: recognizedReturnCost,
             cashOut: cashOut,
             transferOut: transferOut,
             paymentMethod: method,
@@ -1527,16 +1884,30 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       } else if (method == 'DEBT') {
         debtCustomerChange = repair.price;
       }
-      rowsWithTs.add({
+      final ref = repair.firestoreId ?? (repair.id?.toString() ?? '');
+      entries.add({
         'ts': repair.deliveredAt ?? repair.createdAt,
+        'actionType': 'REPAIR',
+        'referenceId': ref,
+        'cashIn': cashIn,
+        'cashOut': 0,
+        'transferIn': transferIn,
+        'transferOut': 0,
+        'debtCustomerChange': debtCustomerChange,
+        'debtSupplierChange': 0,
+        'inventoryChange': 0,
+        'lineAmount': repair.price,
+        'lineCostTotal': repair.totalCost,
         'row': _auditRow(
           timestamp: repair.deliveredAt ?? repair.createdAt,
           actionType: 'REPAIR',
-          referenceId: repair.firestoreId ?? (repair.id?.toString() ?? ''),
+          referenceId: ref,
           productName: repair.model,
           quantity: 1,
           price: repair.price,
           cost: repair.totalCost,
+          lineAmount: repair.price,
+          lineCostTotal: repair.totalCost,
           cashIn: cashIn,
           transferIn: transferIn,
           paymentMethod: method,
@@ -1547,11 +1918,49 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       });
     }
 
+    final importAggregates = <String, Map<String, dynamic>>{};
+
     for (final item in importHistory) {
+      final rawRef = (item['referenceId'] ?? item['firestoreId'] ?? item['id'] ?? '').toString();
+      final canonicalRef = _canonicalImportReference(rawRef.isNotEmpty ? rawRef : (item['firestoreId'] ?? '').toString());
+      final aggregateKey = canonicalRef.isNotEmpty
+          ? canonicalRef
+          : '${(item['supplierName'] ?? '').toString()}|${(item['importDate'] ?? item['createdAt'] ?? 0).toString()}';
       final qty = (item['quantity'] as num?)?.toInt() ?? 0;
       final costPrice = (item['costPrice'] as num?)?.toInt() ?? 0;
       final totalAmount = (item['totalAmount'] as num?)?.toInt() ?? costPrice * qty;
-      final method = _auditPaymentMethod((item['paymentMethod'] ?? '').toString());
+      final existing = importAggregates.putIfAbsent(
+        aggregateKey,
+        () => <String, dynamic>{
+          'referenceId': aggregateKey,
+          'productNames': <String>[],
+          'imeis': <String>[],
+          'quantity': 0,
+          'totalAmount': 0,
+          'paymentMethod': (item['paymentMethod'] ?? '').toString(),
+          'supplierName': (item['supplierName'] ?? 'NCC').toString(),
+          'importedBy': (item['importedBy'] ?? '').toString(),
+          'ts': (item['importDate'] as num?)?.toInt() ?? (item['createdAt'] as num?)?.toInt() ?? 0,
+        },
+      );
+      (existing['productNames'] as List<String>).add((item['productName'] ?? '').toString());
+      final imei = (item['imei'] ?? '').toString();
+      if (imei.isNotEmpty) {
+        (existing['imeis'] as List<String>).add(imei);
+      }
+      existing['quantity'] = (existing['quantity'] as int) + (qty > 0 ? qty : 1);
+      existing['totalAmount'] = (existing['totalAmount'] as int) + totalAmount;
+      if (((existing['paymentMethod'] ?? '').toString()).isEmpty) {
+        existing['paymentMethod'] = (item['paymentMethod'] ?? '').toString();
+      }
+    }
+
+    final representedImportKeys = <String>{};
+    for (final aggregate in importAggregates.values) {
+      final qty = (aggregate['quantity'] as int?) ?? 0;
+      final totalAmount = (aggregate['totalAmount'] as int?) ?? 0;
+      final unitCost = qty > 0 ? (totalAmount / qty).round() : totalAmount;
+      final method = _auditPaymentMethod((aggregate['paymentMethod'] ?? '').toString());
       int cashOut = 0;
       int transferOut = 0;
       int debtSupplierChange = 0;
@@ -1562,33 +1971,46 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       } else if (method == 'DEBT') {
         debtSupplierChange = totalAmount;
       }
-      rowsWithTs.add({
-        'ts': (item['importDate'] as num?)?.toInt() ?? (item['createdAt'] as num?)?.toInt() ?? 0,
+      final ref = (aggregate['referenceId'] ?? '').toString();
+      representedImportKeys.add(ref);
+      final ts = (aggregate['ts'] as int?) ?? 0;
+      entries.add({
+        'ts': ts,
+        'actionType': 'IMPORT',
+        'referenceId': ref,
+        'cashIn': 0,
+        'cashOut': cashOut,
+        'transferIn': 0,
+        'transferOut': transferOut,
+        'debtCustomerChange': 0,
+        'debtSupplierChange': debtSupplierChange,
+        'inventoryChange': qty,
+        'lineAmount': 0,
+        'lineCostTotal': totalAmount,
         'row': _auditRow(
-          timestamp: (item['importDate'] as num?)?.toInt() ?? (item['createdAt'] as num?)?.toInt() ?? 0,
+          timestamp: ts,
           actionType: 'IMPORT',
-          referenceId: (item['referenceId'] ?? item['firestoreId'] ?? item['id'] ?? '').toString(),
-          productName: (item['productName'] ?? '').toString(),
-          imei: (item['imei'] ?? '').toString(),
+          referenceId: ref,
+          productName: ((aggregate['productNames'] as List<String>)..removeWhere((e) => e.trim().isEmpty)).join(', '),
+          imei: (aggregate['imeis'] as List<String>).join(', '),
           quantity: qty,
           price: 0,
-          cost: costPrice,
+          cost: unitCost,
+          lineAmount: 0,
+          lineCostTotal: totalAmount,
           cashOut: cashOut,
           transferOut: transferOut,
           paymentMethod: method,
           debtSupplierChange: debtSupplierChange,
           inventoryChange: qty,
-          actorName: (item['importedBy'] ?? '').toString(),
-          description: 'Nhập kho từ ${item['supplierName'] ?? 'NCC'}',
+          actorName: (aggregate['importedBy'] ?? '').toString(),
+          description: 'Nhập kho từ ${(aggregate['supplierName'] ?? 'NCC').toString()}',
         ),
       });
     }
 
     for (final expense in expenses) {
       final type = (expense['type'] ?? 'CHI').toString().toUpperCase();
-      if (_isImportExpense(expense) && !_isSalvageExpense(expense)) {
-        continue;
-      }
       final method = _auditPaymentMethod((expense['paymentMethod'] ?? '').toString());
       final amount = (expense['amount'] as num?)?.toInt() ?? 0;
       int cashIn = 0;
@@ -1608,24 +2030,46 @@ class _FinanceV2ViewState extends State<FinanceV2View>
           transferOut = amount;
         }
       }
+      final isImport = _isImportExpense(expense);
       final actionType = type == 'THU'
-          ? 'PAYMENT'
-          : (_isSalvageExpense(expense) ? 'IMPORT' : 'EXPENSE');
-      rowsWithTs.add({
+          ? 'OTHER_INCOME'
+          : (isImport ? 'IMPORT' : 'OTHER_EXPENSE');
+      final ts = (expense['date'] as num?)?.toInt() ?? (expense['createdAt'] as num?)?.toInt() ?? 0;
+      final ref = (expense['firestoreId'] ?? expense['id'] ?? '').toString();
+      final canonicalImportRef = _canonicalImportReference(ref);
+      if (isImport && canonicalImportRef.isNotEmpty && representedImportKeys.contains(canonicalImportRef)) {
+        continue;
+      }
+      final importQty = isImport ? _parseImportExpenseQuantity(expense) : (_isSalvageExpense(expense) ? 1 : 0);
+      final importUnitCost = isImport && importQty > 0 ? (amount / importQty).round() : amount;
+      entries.add({
         'ts': (expense['date'] as num?)?.toInt() ?? (expense['createdAt'] as num?)?.toInt() ?? 0,
+        'actionType': actionType,
+        'referenceId': ref,
+        'cashIn': cashIn,
+        'cashOut': cashOut,
+        'transferIn': transferIn,
+        'transferOut': transferOut,
+        'debtCustomerChange': 0,
+        'debtSupplierChange': 0,
+        'inventoryChange': isImport ? importQty : (_isSalvageExpense(expense) ? 1 : 0),
+        'lineAmount': actionType == 'OTHER_INCOME' ? amount : 0,
+        'lineCostTotal': actionType == 'OTHER_EXPENSE' || actionType == 'IMPORT' ? amount : 0,
         'row': _auditRow(
-          timestamp: (expense['date'] as num?)?.toInt() ?? (expense['createdAt'] as num?)?.toInt() ?? 0,
+          timestamp: ts,
           actionType: actionType,
-          referenceId: (expense['firestoreId'] ?? expense['id'] ?? '').toString(),
-          productName: _isSalvageExpense(expense) ? (expense['title'] ?? '').toString() : '',
-          quantity: _isSalvageExpense(expense) ? 1 : 0,
-          cost: _isSalvageExpense(expense) ? amount : 0,
+          referenceId: ref,
+          productName: isImport ? (expense['title'] ?? expense['category'] ?? '').toString() : '',
+          quantity: isImport ? importQty : (_isSalvageExpense(expense) ? 1 : 0),
+          cost: isImport ? importUnitCost : 0,
+          lineAmount: actionType == 'OTHER_INCOME' ? amount : 0,
+          lineCostTotal: actionType == 'OTHER_EXPENSE' || actionType == 'IMPORT' ? amount : 0,
           cashIn: cashIn,
           cashOut: cashOut,
           transferIn: transferIn,
           transferOut: transferOut,
           paymentMethod: method,
-          inventoryChange: _isSalvageExpense(expense) ? 1 : 0,
+          inventoryChange: isImport ? importQty : (_isSalvageExpense(expense) ? 1 : 0),
           actorName: (expense['createdBy'] ?? '').toString(),
           description: ((expense['title'] ?? '').toString().isNotEmpty ? expense['title'] : expense['category']).toString(),
         ),
@@ -1654,12 +2098,26 @@ class _FinanceV2ViewState extends State<FinanceV2View>
           transferIn = amount;
         }
       }
-      rowsWithTs.add({
+      final actionType = isSupplier ? 'DEBT_PAY' : 'DEBT_COLLECT';
+      final ts = (payment['paidAt'] as num?)?.toInt() ?? 0;
+      final ref = (payment['firestoreId'] ?? payment['id'] ?? '').toString();
+      entries.add({
         'ts': (payment['paidAt'] as num?)?.toInt() ?? 0,
+        'actionType': actionType,
+        'referenceId': ref,
+        'cashIn': cashIn,
+        'cashOut': cashOut,
+        'transferIn': transferIn,
+        'transferOut': transferOut,
+        'debtCustomerChange': isSupplier ? 0 : -amount,
+        'debtSupplierChange': isSupplier ? -amount : 0,
+        'inventoryChange': 0,
+        'lineAmount': 0,
+        'lineCostTotal': 0,
         'row': _auditRow(
-          timestamp: (payment['paidAt'] as num?)?.toInt() ?? 0,
-          actionType: 'PAYMENT',
-          referenceId: (payment['firestoreId'] ?? payment['id'] ?? '').toString(),
+          timestamp: ts,
+          actionType: actionType,
+          referenceId: ref,
           cashIn: cashIn,
           cashOut: cashOut,
           transferIn: transferIn,
@@ -1674,8 +2132,152 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       });
     }
 
-    rowsWithTs.sort((a, b) => (b['ts'] as int).compareTo(a['ts'] as int));
-    return rowsWithTs.map((e) => e['row'] as List<dynamic>).toList();
+    for (final debt in debts) {
+      final debtType = (debt['type'] ?? debt['debtType'] ?? '').toString().toUpperCase();
+      final isSupplier = _isSupplierDebtType(debtType);
+
+      // Supplier debts must always be reflected in DEBT_CREATE to keep
+      // debt reconciliation consistent with payable closing balance.
+      if (!isSupplier && _shouldSkipDebtCreationLog(debt)) {
+        continue;
+      }
+
+      final amount = (debt['totalAmount'] as num?)?.toInt() ?? 0;
+      if (amount <= 0) continue;
+
+      final ts = (debt['createdAt'] as num?)?.toInt() ?? 0;
+      final ref = (debt['firestoreId'] ?? debt['id'] ?? '').toString();
+      final personName = (debt['personName'] ?? debt['partnerName'] ?? '').toString();
+      final note = (debt['note'] ?? '').toString();
+
+      entries.add({
+        'ts': ts,
+        'actionType': 'DEBT_CREATE',
+        'referenceId': ref,
+        'cashIn': 0,
+        'cashOut': 0,
+        'transferIn': 0,
+        'transferOut': 0,
+        'debtCustomerChange': isSupplier ? 0 : amount,
+        'debtSupplierChange': isSupplier ? amount : 0,
+        'inventoryChange': 0,
+        'lineAmount': 0,
+        'lineCostTotal': 0,
+        'row': _auditRow(
+          timestamp: ts,
+          actionType: 'DEBT_CREATE',
+          referenceId: ref,
+          paymentMethod: 'DEBT',
+          debtCustomerChange: isSupplier ? 0 : amount,
+          debtSupplierChange: isSupplier ? amount : 0,
+          description: isSupplier
+              ? 'Tạo phải trả ${personName.isNotEmpty ? personName : ''}${note.isNotEmpty ? ' - $note' : ''}'
+              : 'Tạo phải thu ${personName.isNotEmpty ? personName : ''}${note.isNotEmpty ? ' - $note' : ''}',
+        ),
+      });
+    }
+
+    entries.sort((a, b) => (b['ts'] as int).compareTo(a['ts'] as int));
+    return entries;
+  }
+
+  Future<(int customerOpening, int supplierOpening)> _loadOpeningDebtBalances() async {
+    final startMs = _start.millisecondsSinceEpoch;
+    final debts = await _db.getDebtsForFinanceSnapshot();
+    final periodPayments = await _db.getDebtPaymentsForCashFlowByDateRange(
+      startMs,
+      DateTime(_end.year, _end.month, _end.day, 23, 59, 59).millisecondsSinceEpoch,
+    );
+
+    final paymentByDebtKey = <String, int>{};
+    for (final payment in periodPayments) {
+      final keys = <String>{
+        (payment['debtFirestoreId'] ?? '').toString(),
+        (payment['debtId'] ?? '').toString(),
+      }..removeWhere((value) => value.trim().isEmpty);
+      final amount = (payment['amount'] as num?)?.toInt() ?? 0;
+      for (final key in keys) {
+        paymentByDebtKey[key] = (paymentByDebtKey[key] ?? 0) + amount;
+      }
+    }
+
+    int customerOpening = 0;
+    int supplierOpening = 0;
+    for (final debt in debts) {
+      final createdAt = (debt['createdAt'] as num?)?.toInt() ?? 0;
+      if (createdAt >= startMs) {
+        continue;
+      }
+      final totalAmount = (debt['totalAmount'] as num?)?.toInt() ?? 0;
+      final paidAmount = (debt['paidAmount'] as num?)?.toInt() ?? 0;
+      final debtKey = (debt['firestoreId'] ?? debt['id'] ?? '').toString();
+      final paidInPeriod = paymentByDebtKey[debtKey] ?? 0;
+      final paidBeforeStart = (paidAmount - paidInPeriod).clamp(0, totalAmount);
+      final openingRemaining = (totalAmount - paidBeforeStart).clamp(0, totalAmount);
+      final debtType = (debt['type'] ?? debt['debtType'] ?? '').toString().toUpperCase();
+      final isPayable = debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED';
+      if (isPayable) {
+        supplierOpening += openingRemaining;
+      } else {
+        customerOpening += openingRemaining;
+      }
+    }
+
+    return (customerOpening, supplierOpening);
+  }
+
+  Future<FinanceV2ReconciliationReportInput> _reportInputFromSnapshot(FinanceV2Snapshot snap) async {
+    final openingDebt = await _loadOpeningDebtBalances();
+    return FinanceV2ReconciliationReportInput(
+      totalIn: snap.totalIn,
+      totalOut: snap.totalOut,
+      net: snap.netCashflow,
+      totalRevenue: snap.incomeFromSales + snap.incomeFromRepairs,
+      totalCost: snap.cogsFromSales + snap.cogsFromRepairs + snap.operatingExpenseOut,
+      totalProfit: snap.grossProfitTotal - snap.operatingExpenseOut,
+      openingDebtCustomer: openingDebt.$1,
+      openingDebtSupplier: openingDebt.$2,
+      totalDebtCustomer: snap.receivableTotal,
+      totalDebtSupplier: snap.payableTotal,
+    );
+  }
+
+  Future<void> _showReconciliationFailDialog(FinanceV2ReconciliationResult result) async {
+    if (!mounted || result.passed) return;
+    final failures = result.failures;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          icon: const Icon(Icons.error_outline, color: Colors.red, size: 42),
+          title: const Text('RECONCILIATION FAIL'),
+          content: SizedBox(
+            width: 520,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Phát hiện lệch giữa activity_log và report:'),
+                  const SizedBox(height: 10),
+                  ...failures.map(
+                    (f) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text('- ${f.key}: lệch ${f.diff} (${f.detail})'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Đã hiểu'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // EXPORT
@@ -1723,7 +2325,15 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   }
   Future<void> _exTL(List<_TLEntry> ents) async {
     if(!mounted) return;
-    final rows = await _buildDetailedAuditLogRows();
+    final entries = await _buildDetailedAuditLogEntries();
+    final rows = entries.map((e) => e['row'] as List<dynamic>).toList();
+    // Luôn reload snapshot mới tại thời điểm export để đảm bảo khớp với LOG (tránh snapshot cũ)
+    final snap = await _service.loadSnapshot(start: _start, end: _end);
+    final reportInput = await _reportInputFromSnapshot(snap);
+    final reconciliation = FinanceV2ReconciliationEngine.compute(
+      entries: entries,
+      report: reportInput,
+    );
     await FinanceV2ExcelExport.exportWorkbook(
       context,
       filePrefix:'nhat_ky_chi_tiet',
@@ -1733,14 +2343,30 @@ class _FinanceV2ViewState extends State<FinanceV2View>
           headers:_auditLogHeaders,
           rows:rows,
         ),
+        FinanceV2ExcelSheet(
+          sheetName:'RECONCILIATION',
+          headers: const ['key', 'value_1', 'value_2', 'value_3', 'status', 'detail'],
+          rows: reconciliation.toSheetRows(),
+        ),
       ],
       start:_start,
       end:_end,
     );
+    await _showReconciliationFailDialog(reconciliation);
   }
 
   Future<void> _exDailyReportPhone(FinanceV2Snapshot s) async {
     if (!mounted) return;
+
+    final start = _start;
+    final end = _end;
+    final startMs = DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+    final endMs = DateTime(end.year, end.month, end.day, 23, 59, 59).millisecondsSinceEpoch;
+
+    // ── Sheet 1: Báo cáo tổng quan ───────────────────────────────────
+    final debtCollectedSnap = s.transactions
+        .where((t) => t.type.toUpperCase() == 'DEBT_COLLECT')
+        .fold<int>(0, (a, e) => a + e.amount);
 
     final rows = <List<dynamic>>[
       ['BÁO CÁO KỲ', _sub],
@@ -1753,7 +2379,8 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       ['CƠ CẤU DOANH THU', ''],
       ['Bán hàng', MoneyUtils.formatVND(s.incomeFromSales)],
       ['Sửa chữa', MoneyUtils.formatVND(s.incomeFromRepairs)],
-      ['Thu khác', MoneyUtils.formatVND(s.incomeOther)],
+      ['Thu nợ KH', MoneyUtils.formatVND(debtCollectedSnap)],
+      ['Thu khác', MoneyUtils.formatVND(s.incomeOther - debtCollectedSnap)],
       [''],
       ['CÔNG NỢ', ''],
       ['Phải thu', MoneyUtils.formatVND(s.receivableTotal)],
@@ -1761,23 +2388,261 @@ class _FinanceV2ViewState extends State<FinanceV2View>
     ];
 
     if (s.topExpenseCategories.isNotEmpty) {
-      rows.addAll([
-        [''],
-        ['TOP CHI PHÍ', ''],
-      ]);
+      rows.addAll([[''], ['TOP CHI PHÍ', '']]);
       for (final c in s.topExpenseCategories.take(10)) {
         rows.add([c.label, MoneyUtils.formatVND(c.amount)]);
       }
     }
 
-    await FinanceV2ExcelExport.exportTable(
+    // ── Load dữ liệu thực từ DB ──────────────────────────────────────
+    final sales = await _db.getSalesByDateRange(startMs, endMs);
+    final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
+    final imports = await _db.getAllImportHistoryByDateRange(startMs, endMs);
+    final expenses = await _db.getExpensesByDateRange(startMs, endMs);
+    final debtsInRange = await _db.getDebtsByDateRange(startMs, endMs);
+
+    String hm(int ms) => ms > 0
+        ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(ms))
+        : '';
+    String fmtN(num v) => NumberFormat('#,###', 'vi_VN').format(v);
+
+    // ── Section 1: Tổng quan dòng tiền ──────────────────────────────
+    final sec1 = FinanceV2DetailedDailySection(
+      title: '1. Tổng quan dòng tiền',
+      colHeaders: const ['Loại', 'Số tiền'],
+      rows: [
+        ['Thu vào', fmtN(s.totalIn)],
+        ['Chi ra', fmtN(s.totalOut)],
+        ['Ròng sổ quỹ', fmtN(s.netCashflow)],
+      ],
+    );
+
+    // ── Section 2: Cơ cấu thu chi ────────────────────────────────────
+    final totalIn = s.totalIn > 0 ? s.totalIn : 1;
+    final totalOut = s.totalOut > 0 ? s.totalOut : 1;
+    String pct(int v, int total) => '${((v / total) * 100).toStringAsFixed(1)}%';
+
+    final debtCollected = s.transactions
+        .where((t) => t.type.toUpperCase() == 'DEBT_COLLECT')
+        .fold<int>(0, (a, e) => a + e.amount);
+    final debtPaid = s.transactions
+        .where((t) => t.type.toUpperCase() == 'DEBT_PAY')
+        .fold<int>(0, (a, e) => a + e.amount);
+    final importOut = s.transactions
+        .where((t) => t.type.toUpperCase() == 'IMPORT' && !t.isIncome)
+        .fold<int>(0, (a, e) => a + e.amount);
+
+    final sec2 = FinanceV2DetailedDailySection(
+      title: '2. Cơ cấu thu chi',
+      colHeaders: const ['Loại', 'Số tiền', '% tổng'],
+      rows: [
+        ['THU — Bán hàng', fmtN(s.incomeFromSales), pct(s.incomeFromSales, totalIn)],
+        ['THU — Sửa chữa', fmtN(s.incomeFromRepairs), pct(s.incomeFromRepairs, totalIn)],
+        ['THU — Thu nợ KH', fmtN(debtCollected), pct(debtCollected, totalIn)],
+        ['THU — Thu khác', fmtN(s.incomeOther - debtCollected), pct(s.incomeOther - debtCollected, totalIn)],
+        ['CHI — Nhập hàng', fmtN(importOut), pct(importOut, totalOut)],
+        ['CHI — Trả nợ NCC', fmtN(debtPaid), pct(debtPaid, totalOut)],
+        ['CHI — Chi phí', fmtN(s.operatingExpenseOut), pct(s.operatingExpenseOut, totalOut)],
+      ],
+    );
+
+    // ── Section 3: Danh sách đơn bán hàng ────────────────────────────
+    final sec3Rows = <List<dynamic>>[];
+    for (int i = 0; i < sales.length; i++) {
+      final sale = sales[i];
+      final profit = sale.finalPrice - sale.totalCost;
+      sec3Rows.add([
+        i + 1,
+        hm(sale.soldAt),
+        sale.isWalkIn ? (sale.walkInName ?? 'Khách lẻ') : sale.customerName,
+        sale.productNamesDisplay,
+        fmtN(sale.finalPrice),
+        fmtN(sale.totalCost),
+        fmtN(profit),
+        sale.paymentMethod,
+      ]);
+    }
+    final sec3 = FinanceV2DetailedDailySection(
+      title: '3. Danh sách đơn bán hàng (${sales.length})',
+      colHeaders: const ['STT', 'Giờ', 'Khách hàng', 'Sản phẩm', 'Giá bán', 'Giá vốn', 'Lãi', 'Hình thức TT'],
+      rows: sec3Rows,
+    );
+
+    // ── Section 4: Danh sách đơn sửa chữa ────────────────────────────
+    final sec4Rows = <List<dynamic>>[];
+    for (int i = 0; i < repairs.length; i++) {
+      final r = repairs[i];
+      final partnerCost = r.services.fold<int>(0, (acc, sv) => acc + sv.cost);
+      final profit = r.price - r.cost - partnerCost;
+      sec4Rows.add([
+        i + 1,
+        hm(r.deliveredAt ?? r.createdAt),
+        r.isWalkIn ? (r.walkInName ?? 'Khách lẻ') : r.customerName,
+        r.model,
+        r.issue,
+        fmtN(r.price),
+        fmtN(r.cost),
+        fmtN(profit),
+        r.paymentMethod,
+        r.repairedBy ?? '',
+      ]);
+    }
+    final sec4 = FinanceV2DetailedDailySection(
+      title: '4. Danh sách đơn sửa chữa (${repairs.length})',
+      colHeaders: const ['STT', 'Giờ', 'Khách hàng', 'Model', 'Lỗi', 'Giá sửa', 'CP LK', 'Lãi', 'Hình thức TT', 'KTV'],
+      rows: sec4Rows,
+    );
+
+    // ── Section 5: Nhập kho ───────────────────────────────────────────
+    final sec5Rows = <List<dynamic>>[];
+    for (int i = 0; i < imports.length; i++) {
+      final imp = imports[i];
+      sec5Rows.add([
+        i + 1,
+        hm((imp['importDate'] as num?)?.toInt() ?? 0),
+        imp['productName'] ?? '',
+        imp['supplierName'] ?? '',
+        imp['quantity'] ?? 0,
+        fmtN((imp['costPrice'] as num?)?.toInt() ?? 0),
+        imp['paymentMethod'] ?? '',
+      ]);
+    }
+    final sec5 = FinanceV2DetailedDailySection(
+      title: '5. Danh sách nhập kho (${imports.length})',
+      colHeaders: const ['STT', 'Giờ', 'Sản phẩm', 'NCC', 'Số lượng', 'Giá nhập', 'Hình thức TT'],
+      rows: sec5Rows,
+    );
+
+    // ── Section 6: Thu chi khác ───────────────────────────────────────
+    final sec6Rows = <List<dynamic>>[];
+    int idx6 = 0;
+    for (final exp in expenses) {
+      final isIncome = (exp['type']?.toString().toUpperCase() ?? 'CHI') == 'THU';
+      final ts = (exp['date'] as num?)?.toInt() ?? (exp['createdAt'] as num?)?.toInt() ?? 0;
+      sec6Rows.add([
+        ++idx6,
+        hm(ts),
+        isIncome ? 'Thu' : 'Chi',
+        exp['title'] ?? '',
+        fmtN((exp['amount'] as num?)?.toInt() ?? 0),
+        exp['paymentMethod'] ?? '',
+      ]);
+    }
+    final sec6 = FinanceV2DetailedDailySection(
+      title: '6. Thu chi khác (${sec6Rows.length})',
+      colHeaders: const ['STT', 'Giờ', 'Loại', 'Diễn giải', 'Số tiền', 'Hình thức TT'],
+      rows: sec6Rows,
+    );
+
+    // ── Section 7: Công nợ khách hàng ────────────────────────────────
+    final customerDebts = debtsInRange
+        .where((d) {
+          final dt = (d['debtType']?.toString().toUpperCase() ?? '');
+          return dt != 'SHOP_OWES' && dt != 'OTHER_SHOP_OWES' && dt != 'OWED' && dt.isNotEmpty;
+        })
+        .toList();
+    final sec7Rows = <List<dynamic>>[];
+    int idx7 = 0;
+    for (final d in customerDebts) {
+      final total = (d['totalAmount'] as num?)?.toInt() ?? 0;
+      final paid = (d['paidAmount'] as num?)?.toInt() ?? 0;
+      final name = d['personName'] ?? d['customerName'] ?? d['name'] ?? '';
+      sec7Rows.add([++idx7, name, d['phone'] ?? '', fmtN(total), fmtN(paid), fmtN(total - paid)]);
+    }
+    for (final r in s.receivables) {
+      if (!customerDebts.any((d) => (d['firestoreId'] ?? d['referenceId'] ?? '') == r.id)) {
+        sec7Rows.add([++idx7, r.name, r.phone ?? '', fmtN(r.total), fmtN(r.paid), fmtN(r.remaining)]);
+      }
+    }
+    final sec7 = FinanceV2DetailedDailySection(
+      title: '7. Công nợ khách hàng',
+      colHeaders: const ['STT', 'Khách hàng', 'SĐT', 'Phát sinh', 'Đã thu', 'Còn lại'],
+      rows: sec7Rows,
+    );
+
+    // ── Section 8: Công nợ nhà cung cấp ──────────────────────────────
+    final supplierDebts = debtsInRange
+        .where((d) {
+          final dt = (d['debtType']?.toString().toUpperCase() ?? '');
+          return dt == 'SHOP_OWES' || dt == 'OTHER_SHOP_OWES' || dt == 'OWED';
+        })
+        .toList();
+    final sec8Rows = <List<dynamic>>[];
+    int idx8 = 0;
+    for (final d in supplierDebts) {
+      final total = (d['totalAmount'] as num?)?.toInt() ?? 0;
+      final paid = (d['paidAmount'] as num?)?.toInt() ?? 0;
+      final name = d['personName'] ?? d['supplierName'] ?? d['name'] ?? '';
+      sec8Rows.add([++idx8, name, fmtN(total), fmtN(paid), fmtN(total - paid)]);
+    }
+    for (final p in s.payables) {
+      if (!supplierDebts.any((d) => (d['firestoreId'] ?? d['referenceId'] ?? '') == p.id)) {
+        sec8Rows.add([++idx8, p.name, fmtN(p.total), fmtN(p.paid), fmtN(p.remaining)]);
+      }
+    }
+    final sec8 = FinanceV2DetailedDailySection(
+      title: '8. Công nợ nhà cung cấp',
+      colHeaders: const ['STT', 'NCC', 'Phát sinh', 'Đã trả', 'Còn lại'],
+      rows: sec8Rows,
+    );
+
+    // ── Section 9: Vốn & lãi từng đơn bán ────────────────────────────
+    final sec9Rows = <List<dynamic>>[];
+    for (int i = 0; i < sales.length; i++) {
+      final sale = sales[i];
+      final profit = sale.finalPrice - sale.totalCost;
+      final pctProfit = sale.finalPrice > 0
+          ? '${((profit / sale.finalPrice) * 100).toStringAsFixed(1)}%'
+          : '0.0%';
+      sec9Rows.add([
+        i + 1,
+        sale.productNamesDisplay,
+        fmtN(sale.totalCost),
+        fmtN(sale.finalPrice),
+        fmtN(profit),
+        pctProfit,
+        sale.paymentMethod,
+      ]);
+    }
+    final sec9 = FinanceV2DetailedDailySection(
+      title: '9. Vốn & lãi từng đơn bán (${sales.length})',
+      colHeaders: const ['STT', 'Sản phẩm', 'Giá vốn', 'Giá bán', 'Lãi', '% lãi', 'Hình thức TT'],
+      rows: sec9Rows,
+    );
+
+    // ── Section 10: Tổng kết cuối ngày ───────────────────────────────
+    final cogsRepairActual = repairs.fold<int>(0, (acc, r) => acc + r.cost);
+    final totalRevenue = s.incomeFromSales + s.incomeFromRepairs;
+    final sec10 = FinanceV2DetailedDailySection(
+      title: '10. Tổng kết cuối ngày',
+      colHeaders: const ['Chỉ tiêu', 'Giá trị'],
+      rows: [
+        ['Tổng doanh thu', fmtN(totalRevenue)],
+        ['Vốn bán hàng', fmtN(s.cogsFromSales)],
+        ['Vốn sửa chữa (thực tế)', fmtN(cogsRepairActual)],
+        ['Lãi gộp bán hàng', fmtN(s.grossProfitFromSales)],
+        ['Lãi gộp sửa chữa', fmtN(s.grossProfitFromRepairs)],
+        ['Lãi tổng', fmtN(s.grossProfitTotal)],
+        ['Lãi thực (sau chi phí)', fmtN(s.grossProfitTotal - s.operatingExpenseOut)],
+        ['Nợ phải thu cuối kỳ', fmtN(s.receivableTotal)],
+        ['Nợ phải trả cuối kỳ', fmtN(s.payableTotal)],
+      ],
+    );
+
+    if (!mounted) return;
+    await FinanceV2DetailedExporter.exportDetailedDailyReport(
       context,
-      sheetName: 'Báo cáo ngày',
+      sections: [sec1, sec2, sec3, sec4, sec5, sec6, sec7, sec8, sec9, sec10],
       filePrefix: 'BaoCaoNgay_DienThoai',
-      headers: const ['Mục', 'Giá trị'],
-      rows: rows,
-      start: _start,
-      end: _end,
+      start: start,
+      end: end,
+      extraSheets: [
+        FinanceV2ExcelSheet(
+          sheetName: 'Tổng quan',
+          headers: const ['Mục', 'Giá trị'],
+          rows: rows,
+        ),
+      ],
     );
   }
 

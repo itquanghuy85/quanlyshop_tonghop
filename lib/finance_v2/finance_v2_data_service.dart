@@ -207,6 +207,15 @@ class FinanceV2DataService {
 
   FinanceV2DataService({DBHelper? dbHelper}) : _db = dbHelper ?? DBHelper();
 
+  bool _isImportExpense(Map<String, dynamic> expense) {
+    final title = (expense['title'] ?? '').toString().toUpperCase();
+    final category = (expense['category'] ?? '').toString().toUpperCase();
+    return category.contains('NHẬP') ||
+        category.contains('LINH KIỆN') ||
+        title.contains('NHẬP') ||
+        category.contains('PURCHASE');
+  }
+
   Future<FinanceV2Snapshot> loadSnapshot({
     DateTime? start,
     DateTime? end,
@@ -310,16 +319,26 @@ class FinanceV2DataService {
     int saleIn = 0;
     int repairIn = 0;
     int expenseOut = 0;
+    int importExpenseOut = 0;
     int debtRepayOut = 0; // Trả nợ NCC/đối tác (SHOP_OWES) — tách riêng để hiển thị
     int extraIn = 0;
     int saleCogs = 0;
     int repairCogs = 0;
-    int recognizedRepairRevenue = 0;
 
     final transactions = <FinanceV2Txn>[];
 
     for (final SaleOrder sale in sales) {
       final bool isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
+      final installmentBanks = <String>[];
+      final bank1 = (sale.bankName ?? '').trim();
+      final bank2 = (sale.bankName2 ?? '').trim();
+      if (bank1.isNotEmpty) installmentBanks.add(bank1);
+      if (bank2.isNotEmpty && bank2.toUpperCase() != bank1.toUpperCase()) {
+        installmentBanks.add(bank2);
+      }
+      final paymentSummary = sale.isInstallment
+          ? 'TRẢ GÓP${installmentBanks.isNotEmpty ? ' · NH: ${installmentBanks.join(', ')}' : ''}'
+          : sale.paymentMethod;
       final int actualPaid;
       if (sale.isInstallment) {
         actualPaid = sale.downPayment + sale.settlementAmount;
@@ -354,7 +373,7 @@ class FinanceV2DataService {
                 : 'Sản phẩm bán lẻ',
             subtitle:
                 'Khách: ${sale.customerName.isNotEmpty ? sale.customerName : 'Khách lẻ'}'
-                '${sale.paymentMethod.isNotEmpty ? ' · ${sale.paymentMethod}' : ''}',
+              '${paymentSummary.isNotEmpty ? ' · $paymentSummary' : ''}',
             amount: actualPaid,
             isIncome: true,
             avatarUrl: customerAvatarByName[_normalizeName(sale.customerName)],
@@ -374,8 +393,6 @@ class FinanceV2DataService {
       final amount = repair.price;
       if (amount > 0) {
         final repairCost = repair.totalCost > 0 ? repair.totalCost : 0;
-        recognizedRepairRevenue += amount;
-
         final bool isCongNo = repair.paymentMethod.toUpperCase() == 'CÔNG NỢ';
         if (!isCongNo) {
           repairIn += amount;
@@ -448,6 +465,9 @@ class FinanceV2DataService {
         extraIn += amount;
       } else {
         expenseOut += amount;
+        if (_isImportExpense(e)) {
+          importExpenseOut += amount;
+        }
       }
       transactions.add(
         FinanceV2Txn(
@@ -552,7 +572,6 @@ class FinanceV2DataService {
     int previousExpenseOut = 0;
     int previousSaleCogs = 0;
     int previousRepairCogs = 0;
-    int previousRecognizedRepairRevenue = 0;
 
     for (final SaleOrder sale in previousSales) {
       final bool isCongNo = sale.paymentMethod.toUpperCase() == 'CÔNG NỢ';
@@ -584,7 +603,6 @@ class FinanceV2DataService {
 
     for (final Repair repair in previousRepairs) {
       if (repair.price > 0) {
-        previousRecognizedRepairRevenue += repair.price;
         if (repair.paymentMethod.toUpperCase() != 'CÔNG NỢ') {
           previousRepairIn += repair.price;
           // Vốn sửa chữa kỳ trước theo cash basis
@@ -720,7 +738,7 @@ class FinanceV2DataService {
 
     final totalIn = saleIn + repairIn + extraIn;
     final totalOut = expenseOut;
-    final operatingExpenseOut = expenseOut - debtRepayOut; // chi vận hành thuần (không tính trả nợ NCC)
+    final operatingExpenseOut = expenseOut - debtRepayOut - importExpenseOut; // chi vận hành thuần, loại trả nợ NCC và nhập hàng
     final netCashflow = totalIn - totalOut;
     // Lãi gộp bán hàng theo cash basis — nhất quán với incomeFromSales (saleIn)
     final grossProfitFromSales = saleIn - saleCogs;
@@ -740,6 +758,7 @@ class FinanceV2DataService {
     for (final e in expenses) {
       final type = (e['type'] ?? 'CHI').toString().toUpperCase();
       if (type == 'THU') continue;
+      if (_isImportExpense(e)) continue;
       final category = (e['category'] ?? 'Khác').toString().trim();
       final amount = _toInt(e['amount']);
       final key = category.isEmpty ? 'Khác' : category;
