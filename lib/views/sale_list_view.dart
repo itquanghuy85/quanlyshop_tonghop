@@ -694,86 +694,118 @@ class _SaleListViewState extends State<SaleListView> {
           : ResponsiveCenter(
               child: Column(
                 children: [
-                  // Summary stats bar
+                  // Summary stats bar – compact 1 row
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                      horizontal: 12,
+                      vertical: 6,
                     ),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.surface,
                       boxShadow: [
-                        BoxShadow(color: AppColors.shadow, blurRadius: 4),
+                        BoxShadow(
+                          color: AppColors.shadow,
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
                       ],
                     ),
-                    child: Column(
+                    child: Row(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _summaryItem(
-                              'Đơn hàng',
-                              '$totalSales',
-                              AppColors.primary,
-                            ),
-                            _summaryItem(
-                              'Doanh thu',
-                              MoneyUtils.formatCompactCurrency(totalRevenue),
-                              AppColors.success,
-                            ),
-                            _summaryItem(
-                              'Còn nợ',
-                              MoneyUtils.formatCompactCurrency(totalDebt),
-                              totalDebt > 0
-                                  ? AppColors.error
-                                  : AppColors.success,
-                            ),
-                          ],
+                        Text(
+                          '$totalSales đơn',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            _needsFullData
-                                ? 'Đang lọc: tải toàn bộ dữ liệu • hiển thị ${list.length} đơn'
-                                : 'Tải cuộn $_pageSize đơn/lần • hiển thị ${list.length} đơn',
-                            style: AppTextStyles.caption.copyWith(
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600,
+                        Text(
+                          ' • ',
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 11,
+                          ),
+                        ),
+                        Text(
+                          'DT: ${MoneyUtils.formatCompactCurrency(totalRevenue)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.success,
+                          ),
+                        ),
+                        if (totalDebt > 0) ...[
+                          Text(
+                            ' • ',
+                            style: TextStyle(
+                              color: Colors.grey.shade400,
+                              fontSize: 11,
                             ),
+                          ),
+                          Text(
+                            'Nợ: ${MoneyUtils.formatCompactCurrency(totalDebt)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        if (_activeFilterCount > 0)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _timeFilter =
+                                    widget.todayOnly ? 'today' : 'all';
+                                _paymentStatusFilter = 'all';
+                              });
+                              _refresh();
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Lọc ($_activeFilterCount)',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Icon(
+                                    Icons.close,
+                                    size: 10,
+                                    color: AppColors.primary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        Text(
+                          _needsFullData
+                              ? '${list.length} kết quả'
+                              : '${list.length} đơn',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade500,
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  // Active filters chips
-                  if (_activeFilterCount > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            if (_timeFilter != 'all' && !widget.todayOnly)
-                              _activeFilterChip(_getTimeFilterLabel(), () {
-                                _timeFilter = 'all';
-                                _refresh();
-                              }),
-                            if (_paymentStatusFilter != 'all')
-                              _activeFilterChip(
-                                _getPaymentStatusLabel(),
-                                () => setState(
-                                  () => _paymentStatusFilter = 'all',
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
 
                   _buildSalesLoadInsight(list.length),
 
@@ -890,75 +922,21 @@ class _SaleListViewState extends State<SaleListView> {
                                 final borderColor = accentColor.withValues(
                                 alpha: 0.22,
                                 );
-                                final cardBgColor = Colors.white;
-                                final customerBgColor = accentColor.withValues(
-                                alpha: 0.08,
-                                );
-                                final secondaryBgColor = accentColor.withValues(
-                                alpha: 0.12,
-                                );
-                                final customerTextColor = accentColor;
-                                final secondaryTextColor = accentColor;
 
-                              // Chi tiết tài chính + khách hàng
-                              final metaParts = <String>[];
-                              final customerLine = s.customerName.isNotEmpty
-                                  ? '👤 ${s.customerName}'
-                                  : '';
-                              if (_canViewCostPrice && s.totalCost > 0)
-                                metaParts.add(
-                                  'Vốn ${MoneyUtils.formatCompactCurrency(s.totalCost)}',
-                                );
-                              if (s.finalPrice > 0)
-                                metaParts.add(
-                                  'Bán ${MoneyUtils.formatCompactCurrency(s.finalPrice)}',
-                                );
-                              if (_canViewCostPrice &&
-                                  s.totalCost > 0 &&
-                                  s.finalPrice > 0) {
-                                final profit = s.finalPrice - s.totalCost;
-                                metaParts.add(
-                                  profit >= 0
-                                      ? 'Lãi ${MoneyUtils.formatCompactCurrency(profit)}'
-                                      : 'Lỗ ${MoneyUtils.formatCompactCurrency(profit.abs())}',
-                                );
-                              }
-                              if (remain > 0)
-                                metaParts.add(
-                                  'Nợ ${MoneyUtils.formatCompactCurrency(remain)}',
-                                );
-                              if (isInstallment) {
-                                if (hasBankSettlement) {
-                                  metaParts.add(
-                                    'Trả góp: Đã nhận NH ${MoneyUtils.formatCompactCurrency(s.settlementAmount)}',
-                                  );
-                                } else {
-                                  metaParts.add('Trả góp: Chưa nhận tiền NH');
-                                }
-                              }
-                              if (s.sellerName.isNotEmpty)
-                                metaParts.add(s.sellerName);
-                              if (returnInfo != null) {
-                                metaParts.add(
-                                  isFullyReturned
-                                    ? 'Trả hết ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)}'
-                                    : 'Trả ${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)} (${returnInfo.returnCount} lần)',
-                                );
-                              }
-                              final secondaryLine = metaParts.join(' • ');
+                              final paidAmount = (s.finalPrice - remain).clamp(0, s.finalPrice);
 
                               return Card(
-                                margin: const EdgeInsets.only(bottom: 8),
+                                margin: const EdgeInsets.only(bottom: 6),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(10),
                                   side: BorderSide(
                                     color: borderColor,
                                     width: 1,
                                   ),
                                 ),
-                                elevation: 1,
-                                shadowColor: accentColor.withValues(alpha: 0.18),
-                                color: cardBgColor,
+                                elevation: 0.5,
+                                shadowColor: accentColor.withValues(alpha: 0.15),
+                                color: Colors.white,
                                 child: InkWell(
                                   onTap: () {
                                     HapticFeedback.lightImpact();
@@ -973,199 +951,206 @@ class _SaleListViewState extends State<SaleListView> {
                                     HapticFeedback.mediumImpact();
                                     _openReturn(s);
                                   },
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 6,
-                                    ),
-                                    child: IntrinsicHeight(
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                        Container(
-                                          width: 4,
-                                          margin: const EdgeInsets.only(
-                                            right: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: accentColor,
-                                            borderRadius: const BorderRadius.only(
-                                              topLeft: Radius.circular(8),
-                                              bottomLeft: Radius.circular(8),
-                                            ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      // Left accent bar
+                                      Container(
+                                        width: 4,
+                                        decoration: BoxDecoration(
+                                          color: accentColor,
+                                          borderRadius: const BorderRadius.only(
+                                            topLeft: Radius.circular(10),
+                                            bottomLeft: Radius.circular(10),
                                           ),
                                         ),
-                                        // STT badge
-                                        Container(
-                                          width: 16,
-                                          height: 16,
-                                          margin: const EdgeInsets.only(
-                                            right: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary
-                                                .withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              '$index',
-                                              style: AppTextStyles.caption
-                                                  .copyWith(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: AppColors.primary,
-                                                  ),
-                                            ),
-                                          ),
-                                        ),
-                                        const Text(
-                                          '🛒',
-                                          style: TextStyle(fontSize: 13),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        // Thông tin chính
-                                        Expanded(
+                                      ),
+                                      // Content
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
                                           child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text(
-                                                s.productNamesDisplay,
-                                                style: AppTextStyles.body2
-                                                    .copyWith(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      color: const Color(
-                                                        0xFF0F172A,
+                                              // ROW 1: Index + Product name + Status badge
+                                              Row(
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  Container(
+                                                    width: 18,
+                                                    height: 16,
+                                                    margin: const EdgeInsets.only(right: 5),
+                                                    decoration: BoxDecoration(
+                                                      color: AppColors.primary.withOpacity(0.1),
+                                                      borderRadius: BorderRadius.circular(3),
+                                                    ),
+                                                    child: Center(
+                                                      child: Text(
+                                                        '$index',
+                                                        style: const TextStyle(
+                                                          fontSize: 9,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: AppColors.primary,
+                                                        ),
                                                       ),
                                                     ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (customerLine.isNotEmpty)
-                                                Container(
-                                                  margin: const EdgeInsets.only(
-                                                    top: 2,
                                                   ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 1,
+                                                  Expanded(
+                                                    child: Text(
+                                                      s.productNamesDisplay,
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(0xFF0F172A),
                                                       ),
-                                                  decoration: BoxDecoration(
-                                                    color: customerBgColor,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          6,
-                                                        ),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
                                                   ),
-                                                  child: Text(
-                                                    customerLine,
-                                                    style: AppTextStyles
-                                                        .overline
-                                                        .copyWith(
-                                                          fontSize: 10,
-                                                          color:
-                                                              customerTextColor,
-                                                          fontWeight:
-                                                              FontWeight.w700,
+                                                  const SizedBox(width: 6),
+                                                  // Status badge
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: accentColor,
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: Text(
+                                                      isFullyReturned
+                                                          ? 'TRẢ'
+                                                          : (isInstallment && !hasBankSettlement)
+                                                          ? 'CHỜ NH'
+                                                          : (isPaid ? 'ĐÃ THU' : 'CÒN NỢ'),
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              // ROW 2: Customer + Date
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 2),
+                                                child: Row(
+                                                  children: [
+                                                    if (s.customerName.isNotEmpty) ...[
+                                                      const Icon(Icons.person_outline, size: 10, color: Color(0xFF64748B)),
+                                                      const SizedBox(width: 2),
+                                                      Expanded(
+                                                        child: Text(
+                                                          s.customerName,
+                                                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
                                                         ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                                      ),
+                                                    ] else
+                                                      const Spacer(),
+                                                    Text(
+                                                      date,
+                                                      style: TextStyle(fontSize: 9, color: Colors.grey.shade500),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 5),
+                                              // ROW 3: Cash – Đã thu / Còn nợ
+                                              if (s.finalPrice > 0)
+                                                _saleInfoRow(
+                                                  left: _saleChip(
+                                                    '💰 Đã thu',
+                                                    MoneyUtils.formatCompactCurrency(paidAmount),
+                                                    const Color(0xFF0369A1),
+                                                    const Color(0xFFE0F2FE),
+                                                  ),
+                                                  right: remain > 0
+                                                      ? _saleChip(
+                                                          '⚠️ Còn nợ',
+                                                          MoneyUtils.formatCompactCurrency(remain),
+                                                          const Color(0xFFB45309),
+                                                          const Color(0xFFFEF3C7),
+                                                        )
+                                                      : null,
+                                                ),
+                                              const SizedBox(height: 3),
+                                              // ROW 4: Value – Bán / Vốn
+                                              _saleInfoRow(
+                                                left: s.finalPrice > 0
+                                                    ? _saleChip(
+                                                        '🏷 Bán',
+                                                        MoneyUtils.formatCompactCurrency(s.finalPrice),
+                                                        const Color(0xFF374151),
+                                                        const Color(0xFFF3F4F6),
+                                                      )
+                                                    : null,
+                                                right: (_canViewCostPrice && s.totalCost > 0)
+                                                    ? _saleChip(
+                                                        '📦 Vốn',
+                                                        MoneyUtils.formatCompactCurrency(s.totalCost),
+                                                        const Color(0xFF6B7280),
+                                                        const Color(0xFFF9FAFB),
+                                                      )
+                                                    : null,
+                                              ),
+                                              // ROW 5: Lãi / Lỗ
+                                              if (_canViewCostPrice && s.totalCost > 0 && s.finalPrice > 0)
+                                                Builder(builder: (ctx) {
+                                                  final profit = s.finalPrice - s.totalCost;
+                                                  final isGain = profit >= 0;
+                                                  return Padding(
+                                                    padding: const EdgeInsets.only(top: 3),
+                                                    child: _saleChip(
+                                                      isGain ? '📈 Lãi' : '📉 Lỗ',
+                                                      (isGain ? '+' : '-') + MoneyUtils.formatCompactCurrency(profit.abs()),
+                                                      isGain ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                                                      isGain ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                                                    ),
+                                                  );
+                                                }),
+                                              // ROW 6: Return info
+                                              if (returnInfo != null)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 3),
+                                                  child: _saleChip(
+                                                    isFullyReturned ? '↩ Trả hết' : '↩ Trả 1 phần',
+                                                    isFullyReturned
+                                                        ? MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)
+                                                        : '${MoneyUtils.formatCompactCurrency(returnInfo.totalReturnedAmount)} (${returnInfo.returnCount} lần)',
+                                                    Colors.grey.shade700,
+                                                    Colors.grey.shade100,
                                                   ),
                                                 ),
-                                              if (secondaryLine.isNotEmpty)
-                                                Container(
-                                                  margin: const EdgeInsets.only(
-                                                    top: 2,
+                                              // ROW 7: Installment note
+                                              if (isInstallment)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 3),
+                                                  child: _saleChip(
+                                                    '🏦 Trả góp',
+                                                    hasBankSettlement
+                                                        ? 'Đã nhận NH ${MoneyUtils.formatCompactCurrency(s.settlementAmount)}'
+                                                        : 'Chưa nhận tiền NH',
+                                                    hasBankSettlement ? const Color(0xFF0369A1) : const Color(0xFF92400E),
+                                                    hasBankSettlement ? const Color(0xFFE0F2FE) : const Color(0xFFFEF3C7),
                                                   ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 1,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: secondaryBgColor,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          6,
-                                                        ),
-                                                  ),
+                                                ),
+                                              // Seller name (small)
+                                              if (s.sellerName.isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 2),
                                                   child: Text(
-                                                    secondaryLine,
-                                                    style: AppTextStyles
-                                                        .overline
-                                                        .copyWith(
-                                                          fontSize: 10,
-                                                          color:
-                                                              secondaryTextColor,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                                    s.sellerName,
+                                                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                                                   ),
                                                 ),
                                             ],
                                           ),
                                         ),
-                                        // Trạng thái + ngày
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 4,
-                                                    vertical: 0,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: accentColor,
-                                                borderRadius:
-                                                    BorderRadius.circular(3),
-                                              ),
-                                              child: Text(
-                                                isFullyReturned
-                                                    ? 'TRẢ'
-                                                    : (isInstallment &&
-                                                      !hasBankSettlement)
-                                                    ? 'CHỜ NH'
-                                                    : (isPaid
-                                                          ? 'ĐÃ THU'
-                                                          : 'CÒN NỢ'),
-                                                style: AppTextStyles.overline
-                                                    .copyWith(
-                                                      color: Colors.white,
-                                                      fontSize: 8,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                              ),
-                                            ),
-                                            Text(
-                                              date,
-                                              style: AppTextStyles.overline
-                                                  .copyWith(
-                                                    fontSize: 9,
-                                                    color: Colors.grey.shade500,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               );
@@ -1195,6 +1180,52 @@ class _SaleListViewState extends State<SaleListView> {
             color: color,
           ),
         ),
+      ],
+    );
+  }
+
+  /// Chip màu thể hiện 1 chỉ số tài chính trong card đơn bán
+  Widget _saleChip(String label, String value, Color textColor, Color bgColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label: ',
+              style: TextStyle(
+                fontSize: 10,
+                color: textColor.withOpacity(0.75),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: TextStyle(
+                fontSize: 10,
+                color: textColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Hàng 2 chip cạnh nhau với Spacer cuối
+  Widget _saleInfoRow({Widget? left, Widget? right}) {
+    if (left == null && right == null) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (left != null) left,
+        if (left != null && right != null) const SizedBox(width: 6),
+        if (right != null) right,
       ],
     );
   }
