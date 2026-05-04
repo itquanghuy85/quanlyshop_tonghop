@@ -12,6 +12,7 @@ class SaleOrder {
   String address;
   String productNames;
   String productImeis;
+  String? itemSnapshotsJson;
   int totalPrice;
   int totalCost;
   int discount; // Số tiền giảm trừ trực tiếp
@@ -55,6 +56,7 @@ class SaleOrder {
     this.address = "",
     required this.productNames,
     required this.productImeis,
+    this.itemSnapshotsJson,
     this.totalPrice = 0,
     this.totalCost = 0,
     this.discount = 0,
@@ -113,6 +115,7 @@ class SaleOrder {
       'address': address.toUpperCase(),
       'productNames': productNames.toUpperCase(),
       'productImeis': productImeis.toUpperCase(),
+      'itemSnapshotsJson': itemSnapshotsJson,
       'totalPrice': totalPrice,
       'totalCost': totalCost,
       'discount': discount,
@@ -196,6 +199,7 @@ class SaleOrder {
       address: m['address'] ?? "",
       productNames: m['productNames'] ?? "",
       productImeis: m['productImeis'] ?? "",
+      itemSnapshotsJson: m['itemSnapshotsJson']?.toString(),
       totalPrice: totalPrice,
       totalCost: totalCost,
       discount: discount,

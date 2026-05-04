@@ -1,0 +1,107 @@
+# HULUCA Shop Manager — Context for Claude
+
+## Thông tin cơ bản
+- App: HULUCA Shop Manager (`com.huluca.shopmanager`) v10.1.0
+- Stack: Flutter + Firebase (Firestore + Auth + FCM + Storage)
+- DB: SQLite (`repair_shop_v22.db`, v80, 30+ bảng, `db_helper.dart` 7024 dòng)
+- Sync: Hybrid offline-first — SQLite local + Firestore cloud
+- Quy mô: ~215 files, ~95,000 dòng, 43 services, 80+ views
+- Ngôn ngữ: Tiếng Việt / English (i18n ~2400 keys)
+- Chủ app: không biết lập trình, xây dựng hoàn toàn bằng AI (GitHub Copilot trong VS Code)
+
+## Kiến trúc
+```
+UI (Flutter) → Service Layer → SQLite ↔ Firestore
+```
+- **Service-first**: Widget không bao giờ gọi Firebase trực tiếp
+- **EventBus**: broadcast stream cho cross-widget communication (repairs_changed, sales_changed, debts_changed, expenses_changed, products_changed, shopChanged)
+- **SyncOrchestrator**: offline queue 19 entity types, max 3 retry, auto-sync khi có mạng
+- **Conflict resolution**: local `isSynced=false` → REJECT cloud, giữ local changes
+
+## 6 Module chính
+| Module | Chi tiết |
+|--------|----------|
+| Sửa chữa | 4 bước: tiếp nhận→sửa→xong→giao. Có đối tác sửa ngoài |
+| Bán hàng | POS, tiền mặt/CK/nợ/trả góp/kết hợp. INSTALLMENT có downPayment + settlementAmount |
+| Kho | IMEI tracking, nhập từ NCC/kho tổng, xuất bán/sửa, tồn kho |
+| Tài chính | 17 loại PaymentIntent, sổ quỹ, công nợ KH/NCC, báo cáo ngày |
+| Nhân sự | Chấm công, lương (monthly/daily/hourly), hoa hồng tiered, BHXH/PIT |
+| Chat | FCM + local, reaction, reply, mention, read receipts |
+
+## Payment System (quan trọng)
+- Mọi thanh toán BẮT BUỘC qua `PaymentIntentService` — có `PaymentBlocker.block()` để chặn bypass
+- Flow: Business module → PaymentIntent → MoneyValidationService → MoneyTransactionService → FinancialActivityService
+- 2 Firestore transaction atomic: `executeDebtPaymentTransaction()` và `executeSaleTransaction()` (chống race condition)
+
+## Tài chính — Cash-basis logic (đã fix bug)
+- TIỀN MẶT/CK: `lineAmount = finalPrice` ✅
+- TRẢ GÓP (INSTALLMENT): `lineAmount = downPayment + settlementAmount` (KHÔNG tính toàn bộ finalPrice)
+- CÔNG NỢ (DEBT): `lineAmount = 0` (chưa thu tiền thật)
+- Export Excel dùng `await _service.loadSnapshot(...)` — KHÔNG dùng `_snap ??` (stale snapshot)
+- `TOTAL_DEBT_SUPPLIER` = openingBalance + SUM(debt_supplier_change trong ngày)
+- IMPORT công nợ phải ghi `debt_supplier_change` dương tương ứng
+
+## Bugs tài chính — ĐÃ FIX HOÀN TOÀN (finance_v2_view.dart + finance_v2_data_service.dart)
+1. ✅ FIXED: Stale snapshot khi export Excel
+2. ✅ FIXED: lineAmount dùng accrual thay vì cash-basis
+3. ✅ FIXED: Settlement INSTALLMENT không ghi vào cash_in
+4. ✅ FIXED: TOTAL_DEBT_SUPPLIER thiếu opening balance
+5. ✅ FIXED: TOTAL_COST lệch 280k (chi phí đối tác sửa chữa)
+6. ✅ FIXED: Chart cơ cấu thu double-count Thu nợ KH + Thu khác
+> Luồng tài chính RECONCILIATION hiện tại: PASS toàn bộ metrics
+
+## Security
+- AES-256-CBC mã hóa 23 trường nhạy cảm trước khi lên cloud (key = SHA256(shopId + masterSecret))
+- Custom Claims JWT: role + shopId + isSuperAdmin
+- Firestore rules 1081 dòng, audit log IMMUTABLE
+- Super admin: admin@huluca.com
+
+## Phân quyền
+- superAdmin > owner > manager > employee/technician > user
+- Owner: xem giá vốn, lợi nhuận, tài chính
+- Manager: không xem revenue/expense/debt
+- Employee/Technician: chỉ thao tác cơ bản
+
+## Multi-tenant / Multi-shop
+- Mọi document có `shopId`, enforce qua Firestore rules + Custom Claims
+- Owner có thể quản lý nhiều shop, switch shop xóa SQLite local và reinit sync
+
+## Multi-industry
+- electronics (mặc định): repair + IMEI + warranty
+- food: expiry + batch
+- fashion: variants (size/color)
+- general: basic
+
+## File quan trọng cần biết
+| File | Dòng | Vai trò |
+|------|------|---------|
+| db_helper.dart | 7024 | Toàn bộ SQLite, 30+ bảng |
+| home_view.dart | 6470 | Dashboard chính, bottom nav |
+| finance_v2_view.dart | ~2000 | Export Excel, báo cáo tài chính |
+| finance_v2_data_service.dart | ~900 | Data service tài chính |
+| firestore_service.dart | 1941 | Mọi CRUD Firestore |
+| sync_service.dart | 3007 | Real-time sync 12+ collections |
+| sync_orchestrator.dart | 916 | Offline queue |
+| payment_intent_service.dart | 852 | Gateway thanh toán |
+| user_service.dart | 1223 | Auth + roles + permissions |
+
+## Models chính
+- `Repair`: 4-step status (1=nhận, 2=đang sửa, 3=xong, 4=giao)
+- `SaleOrder`: finalPrice=totalPrice-discount, có installment fields (downPayment, settlementAmount, loanAmount, bankName)
+- `Product`: type = DIEN_THOAI / LINH_KIEN / PHU_KIEN
+- `Debt`: type = CUSTOMER_OWES / SHOP_OWES / OTHER_CUSTOMER_OWES / OTHER_SHOP_OWES
+- `PaymentIntent`: 17 types, status = pending→completed/cancelled/failed
+
+## Cloud Functions (17 functions, asia-southeast1)
+- syncUserClaims: auto khi user doc thay đổi
+- notifyNewRepair/Chat/StatusChange: FCM push
+- createStaffAccount: tạo tài khoản nhân viên
+- cleanupDeletedRepairs: mỗi 24h
+- cleanupFCMTokens: hàng tuần
+
+## Cách làm việc với chủ app
+- Chủ app KHÔNG biết lập trình, ra lệnh bằng ngôn ngữ tự nhiên
+- Dùng GitHub Copilot trong VS Code để viết code
+- Claude đóng vai: kiểm tra logic nghiệp vụ, soạn prompt cho Copilot, phân tích file Excel tài chính
+- Khi có lỗi: chủ app paste output từ AI VS Code vào đây để Claude phân tích và soạn prompt fix
+- Test tài chính: nhập tay trên app → xuất 2 file Excel (nhật ký + báo cáo ngày) → đưa AI đối chiếu RECONCILIATION sheet

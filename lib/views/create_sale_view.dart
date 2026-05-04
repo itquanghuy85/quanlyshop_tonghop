@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -982,6 +984,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
           ? nameCtrl.text.trim().toUpperCase()
           : 'KHÁCH VÃNG LAI';
       final normalizedPhone = phoneCtrl.text.trim();
+      final itemSnapshotsJson = _buildSaleItemSnapshotsJson(discount: discount);
       final sale = SaleOrder(
         firestoreId: uniqueId,
         customerName: fallbackName,
@@ -1028,6 +1031,7 @@ class _CreateSaleViewState extends State<CreateSaleView> {
               }
             })
             .join(', '),
+        itemSnapshotsJson: itemSnapshotsJson,
         totalPrice: totalPrice,
         totalCost: _selectedItems.fold(
           0,
@@ -1622,6 +1626,50 @@ class _CreateSaleViewState extends State<CreateSaleView> {
       );
       debugPrint("Sale save error: $e");
     }
+  }
+
+  String? _buildSaleItemSnapshotsJson({required int discount}) {
+    if (_selectedItems.isEmpty) return null;
+
+    final snapshots = _selectedItems.map((item) {
+      final product = item['product'] as Product;
+      final quantity = item['quantity'] as int? ?? 0;
+      final customImei = (item['imei'] as String?)?.trim() ?? '';
+      final storedImei = customImei.isNotEmpty
+          ? customImei
+          : (product.type == 'DIEN_THOAI'
+              ? (product.imei ?? 'NO_IMEI')
+              : 'PKx$quantity');
+      final unitPrice = (item['sellPrice'] as int?) ?? product.price;
+      final unitCost = product.cost;
+
+      return <String, dynamic>{
+        'productId': product.id,
+        'productFirestoreId': product.firestoreId,
+        'productName': ProductConstants.cleanProductName(product.name),
+        'productImei': storedImei,
+        'quantity': quantity,
+        'unitPrice': unitPrice,
+        'unitCost': unitCost,
+        'lineAmount': unitPrice * quantity,
+        'lineCostTotal': unitCost * quantity,
+        'exactPricing': discount <= 0,
+      };
+    }).toList(growable: false);
+
+    if (discount > 0 && snapshots.length == 1) {
+      final snapshot = snapshots.first;
+      final quantity = snapshot['quantity'] as int? ?? 0;
+      final lineAmount = snapshot['lineAmount'] as int? ?? 0;
+      final adjustedLineAmount = (lineAmount - discount).clamp(0, lineAmount);
+      snapshot['lineAmount'] = adjustedLineAmount;
+      if (quantity > 0 && adjustedLineAmount % quantity == 0) {
+        snapshot['unitPrice'] = adjustedLineAmount ~/ quantity;
+        snapshot['exactPricing'] = true;
+      }
+    }
+
+    return jsonEncode(snapshots);
   }
 
   @override

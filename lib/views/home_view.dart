@@ -2688,7 +2688,8 @@ class _HomeViewState extends State<HomeView>
           _todaySaleIncome = financeSnapshot.incomeFromSales;
           _todayRepairIncome = financeSnapshot.incomeFromRepairs;
           _todayDebtCollected = debtCollectedConsistent;
-          _todayMiscIncome = financeSnapshot.incomeOther;
+            _todayMiscIncome = (financeSnapshot.incomeOther - debtCollectedConsistent)
+              .clamp(0, financeSnapshot.incomeOther);
           _todayImportOut = importOutConsistent;
           _todayPartnerPaid = partnerPaidExtraConsistent;
           _todayRepairPartsCostFund = analysis.repairPartsCostFund;

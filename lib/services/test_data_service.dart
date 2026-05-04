@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -10,6 +12,8 @@ import '../models/sales_return_model.dart';
 import 'firestore_service.dart';
 import 'firestore_write_helper.dart';
 import 'sales_return_service.dart';
+import 'sync_service.dart';
+import 'encryption_service.dart';
 import 'user_service.dart';
 
 /// Service tạo dữ liệu mẫu toàn diện cho mục đích demo/kiểm thử.
@@ -18,6 +22,8 @@ import 'user_service.dart';
 class TestDataService {
   static final _db = DBHelper();
   static final _fs = FirebaseFirestore.instance;
+
+  static const String _scenarioTagPrefix = 'AUTO_FLOW_V1';
 
   // ─────────────────────────────────────────────
   // ENTRY POINT: seed toàn bộ dữ liệu
@@ -1204,5 +1210,1032 @@ class TestDataService {
       }
     }
     log.writeln('✅ $count phiếu nhập hàng (Apple, Samsung, phụ kiện)');
+  }
+
+  // ─────────────────────────────────────────────
+  // BUSINESS FLOW SCENARIO (1-click cho người không biết code)
+  // ─────────────────────────────────────────────
+  static Future<String> seedBusinessFlowData() async {
+    final log = StringBuffer();
+    final now = DateTime.now();
+    final nowMs = now.millisecondsSinceEpoch;
+    final runTag = '${_scenarioTagPrefix}_$nowMs';
+    final shopId = UserService.getShopIdSync() ?? '';
+    final userName = await UserService.getCurrentUserName();
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+
+    if (shopId.isEmpty) {
+      return '❌ Không tìm thấy shopId. Vui lòng đăng nhập lại.';
+    }
+
+    log.writeln('🚀 BẮT ĐẦU TẠO DỮ LIỆU NGHIỆP VỤ TỰ ĐỘNG');
+    log.writeln('🏷️ Mã phiên: $runTag');
+    log.writeln('🏪 Shop: $shopId');
+    log.writeln('');
+
+    final supplierIds = await _seedSuppliers(shopId, log);
+    final products = await _seedProducts(shopId, nowMs, log);
+
+    await _seedBusinessFlowImports(
+      runTag: runTag,
+      shopId: shopId,
+      uid: uid,
+      userName: userName,
+      nowMs: nowMs,
+      supplierIds: supplierIds,
+      products: products,
+      log: log,
+    );
+
+    final sales = await _seedBusinessFlowSales(
+      runTag: runTag,
+      nowMs: nowMs,
+      userName: userName,
+      products: products,
+      log: log,
+    );
+
+    await _seedBusinessFlowReturns(
+      runTag: runTag,
+      sales: sales,
+      products: products,
+      log: log,
+    );
+
+    await _seedBusinessFlowRepairs(
+      runTag: runTag,
+      shopId: shopId,
+      uid: uid,
+      userName: userName,
+      nowMs: nowMs,
+      log: log,
+    );
+
+    await _seedBusinessFlowDebtsAndPayments(
+      runTag: runTag,
+      shopId: shopId,
+      nowMs: nowMs,
+      log: log,
+    );
+
+    await _seedBusinessFlowIncomeExpense(
+      runTag: runTag,
+      shopId: shopId,
+      nowMs: nowMs,
+      log: log,
+    );
+
+    log.writeln('');
+    log.writeln('✅ HOÀN TẤT: Đã tạo full luồng nghiệp vụ test.');
+    log.writeln('ℹ️ Nếu chưa thấy ngay, vào Đồng bộ và bấm tải dữ liệu.');
+    return log.toString();
+  }
+
+  static Future<String> resetBusinessFlowData() async {
+    try {
+      final shopId = UserService.getShopIdSync() ?? '';
+      if (shopId.isEmpty) {
+        return '❌ Không tìm thấy shopId để xóa dữ liệu.';
+      }
+
+      final deleteError = await FirestoreService.resetEntireShopData(
+        shopIdOverride: shopId,
+      );
+      if (deleteError != null) {
+        return '❌ Xóa cloud thất bại: $deleteError';
+      }
+
+      // Các collection chưa có trong resetEntireShopData
+      final extraCollections = <String>[
+        'import_orders',
+        'supplier_import_history',
+        'repair_partners',
+        'repair_partner_payments',
+        'partner_repair_history',
+        'sales_returns',
+        'sales_return_items',
+      ];
+
+      for (final col in extraCollections) {
+        final snap = await _fs
+            .collection(col)
+            .where('shopId', isEqualTo: shopId)
+            .get();
+        if (snap.docs.isEmpty) continue;
+        const batchSize = 400;
+        for (int i = 0; i < snap.docs.length; i += batchSize) {
+          final batch = _fs.batch();
+          final end = (i + batchSize < snap.docs.length)
+              ? i + batchSize
+              : snap.docs.length;
+          for (int j = i; j < end; j++) {
+            batch.delete(snap.docs[j].reference);
+          }
+          await batch.commit();
+        }
+      }
+
+      await _db.clearAllData();
+      await SyncService.cancelAllSubscriptions();
+      await SyncService.resetSyncTimestamps();
+
+      return '✅ Đã xóa sạch dữ liệu test (cloud + local).';
+    } catch (e) {
+      return '❌ Lỗi khi xóa dữ liệu test: $e';
+    }
+  }
+
+  static Future<void> _seedBusinessFlowImports({
+    required String runTag,
+    required String shopId,
+    required String uid,
+    required String userName,
+    required int nowMs,
+    required Map<String, String> supplierIds,
+    required List<Product> products,
+    required StringBuffer log,
+  }) async {
+    final productByName = <String, Product>{
+      for (final p in products) p.name.toUpperCase(): p,
+    };
+
+    final importRows = <Map<String, dynamic>>[
+      {
+        'supplierName': 'CÔNG TY TNHH APPLE VIỆT NAM',
+        'productName': 'IPHONE 15 PRO MAX 256GB',
+        'paymentMethod': 'TIỀN MẶT',
+        'quantity': 2,
+        'costPrice': 28000000,
+        'hoursAgo': 20,
+      },
+      {
+        'supplierName': 'KHO SÌ SAMSUNG MIỀN NAM',
+        'productName': 'SAMSUNG GALAXY S24 ULTRA 256GB',
+        'paymentMethod': 'CHUYỂN KHOẢN',
+        'quantity': 1,
+        'costPrice': 25000000,
+        'hoursAgo': 18,
+      },
+      {
+        'supplierName': 'PHỤ KIỆN ĐIỆN THOẠI HOÀNG GIA',
+        'productName': 'CÁP SẠC TYPE-C 1M',
+        'paymentMethod': 'CÔNG NỢ',
+        'quantity': 50,
+        'costPrice': 30000,
+        'hoursAgo': 16,
+      },
+      {
+        'supplierName': 'KHO TỔNG LINH KIỆN NỘI BỘ',
+        'productName': 'PIN IPHONE 14 CHÍNH HÃNG',
+        'paymentMethod': 'CÔNG NỢ ĐỐI TÁC',
+        'quantity': 10,
+        'costPrice': 250000,
+        'hoursAgo': 14,
+      },
+      {
+        'supplierName': 'KHO TỔNG LINH KIỆN NỘI BỘ',
+        'productName': 'MÀN HÌNH SAMSUNG S23 AMOLED',
+        'paymentMethod': 'TIỀN MẶT',
+        'quantity': 4,
+        'costPrice': 1200000,
+        'hoursAgo': 12,
+      },
+    ];
+
+    int count = 0;
+    for (final row in importRows) {
+      final productName = (row['productName'] as String).toUpperCase();
+      final p = productByName[productName];
+      final quantity = row['quantity'] as int;
+      final costPrice = row['costPrice'] as int;
+      final totalAmount = quantity * costPrice;
+      final ts = nowMs - ((row['hoursAgo'] as int) * 3600000);
+      final firestoreId = 'imp_${runTag}_$count';
+      final supplierName = row['supplierName'] as String;
+      final paymentMethod = row['paymentMethod'] as String;
+      final supplierId = supplierIds[supplierName] ?? '';
+
+      final importData = <String, dynamic>{
+        'firestoreId': firestoreId,
+        'shopId': shopId,
+        'supplierId': supplierId,
+        'supplierName': supplierName,
+        'productName': p?.name ?? productName,
+        'productBrand': p?.brand ?? '',
+        'productModel': p?.capacity ?? '',
+        'imei': p?.imei ?? '',
+        'quantity': quantity,
+        'costPrice': costPrice,
+        'totalAmount': totalAmount,
+        'paymentMethod': paymentMethod,
+        'importDate': ts,
+        'importedBy': userName,
+        'importedByUid': uid,
+        'referenceId': runTag,
+        'createdAt': ts,
+        'notes': 'Seed flow: $runTag',
+        'isSynced': 1,
+      };
+
+      try {
+        await _fs
+            .collection('supplier_import_history')
+            .doc(firestoreId)
+            .set(EncryptionService.encryptMap(importData), SetOptions(merge: true));
+        await _db.insertSupplierImportHistory(importData);
+
+        // Ghi nhận dòng tiền nhập hàng vào expenses (để khớp tài chính)
+        if (paymentMethod == 'TIỀN MẶT' || paymentMethod == 'CHUYỂN KHOẢN') {
+          final expId = 'exp_import_${runTag}_$count';
+          final expData = <String, dynamic>{
+            'firestoreId': expId,
+            'title': 'Nhập hàng: ${p?.name ?? productName}',
+            'amount': totalAmount,
+            'category': 'Nhập hàng',
+            'date': ts,
+            'paymentMethod': paymentMethod,
+            'type': 'CHI',
+            'note': 'Tự động seed nghiệp vụ $runTag',
+            'referenceId': firestoreId,
+            'shopId': shopId,
+            'createdAt': ts,
+            'isSynced': 1,
+          };
+          await FirestoreService.addExpenseCloud(expData);
+          await _db.insertExpense(expData);
+        } else {
+          // Nhập hàng công nợ NCC/đối tác
+          final debtId = 'debt_import_${runTag}_$count';
+          final isPartnerDebt = paymentMethod == 'CÔNG NỢ ĐỐI TÁC';
+          final debtData = <String, dynamic>{
+            'firestoreId': debtId,
+            'shopId': shopId,
+            'personName': supplierName,
+            'customerName': supplierName,
+            'phone': '',
+            'totalAmount': totalAmount,
+            'paidAmount': 0,
+            'remainAmount': totalAmount,
+            'type': isPartnerDebt ? 'OTHER_SHOP_OWES' : 'SHOP_OWES',
+            'debtType': isPartnerDebt ? 'OTHER_SHOP_OWES' : 'SHOP_OWES',
+            'note': 'Công nợ nhập hàng $runTag',
+            'status': 'ACTIVE',
+            'linkedId': firestoreId,
+            'createdAt': ts,
+            'isSynced': 1,
+            'deleted': false,
+          };
+          await FirestoreService.addDebtCloud(debtData);
+          await _db.insertDebt(debtData);
+        }
+        count++;
+      } catch (e) {
+        debugPrint('⚠️ seedBusinessFlowImports error: $e');
+      }
+    }
+
+    log.writeln('✅ Nhập kho: $count dòng (điện thoại, phụ kiện, linh kiện; TM/CK/công nợ NCC/đối tác)');
+  }
+
+  static Future<List<Map<String, dynamic>>> _seedBusinessFlowSales({
+    required String runTag,
+    required int nowMs,
+    required String userName,
+    required List<Product> products,
+    required StringBuffer log,
+  }) async {
+    Product? findProduct(String contains) {
+      final key = contains.toUpperCase();
+      for (final p in products) {
+        if (p.name.toUpperCase().contains(key)) return p;
+      }
+      return null;
+    }
+
+    final iphone15 = findProduct('IPHONE 15 PRO MAX');
+    final iphone14 = findProduct('IPHONE 14');
+    final samsung = findProduct('SAMSUNG GALAXY S24 ULTRA');
+    final oppo = findProduct('OPPO RENO 11');
+    final cap = findProduct('CÁP SẠC TYPE-C');
+    final opLung = findProduct('ỐP LƯNG IPHONE 15');
+    final taiNghe = findProduct('TAI NGHE BLUETOOTH');
+    final pin = findProduct('PIN IPHONE 14');
+
+    final createdSales = <Map<String, dynamic>>[];
+
+    Future<void> createSale({
+      required String customer,
+      required String phone,
+      required String method,
+      required int totalPrice,
+      required int totalCost,
+      required int hoursAgo,
+      int discount = 0,
+      bool isInstallment = false,
+      int downPayment = 0,
+      String? downPaymentMethod,
+      int loanAmount = 0,
+      String? bankName,
+      String? bankName2,
+      int loanAmount2 = 0,
+      int settlementAmount = 0,
+      int cashAmount = 0,
+      int transferAmount = 0,
+      required List<Map<String, dynamic>> items,
+      String? marker,
+    }) async {
+      final soldAt = nowMs - (hoursAgo * 3600000);
+      final fid = 'sale_${runTag}_${createdSales.length + 1}';
+      final snapshots = items
+          .map((item) => {
+                'productId': item['productId'],
+                'productFirestoreId': item['productFirestoreId'],
+                'productName': item['productName'],
+                'productImei': item['productImei'],
+                'quantity': item['quantity'],
+                'unitPrice': item['unitPrice'],
+                'unitCost': item['unitCost'],
+                'exactPricing': true,
+              })
+          .toList(growable: false);
+
+      final sale = SaleOrder(
+        firestoreId: fid,
+        customerName: customer,
+        phone: phone,
+        address: 'TP.HCM',
+        productNames: items
+            .map((e) => '${e['productName']} x${e['quantity']}')
+            .join(', '),
+        productImeis: items.map((e) => '${e['productImei'] ?? ''}').join(', '),
+        itemSnapshotsJson: jsonEncode(snapshots),
+        totalPrice: totalPrice,
+        totalCost: totalCost,
+        discount: discount,
+        paymentMethod: method,
+        sellerName: userName,
+        soldAt: soldAt,
+        warranty: '12 tháng',
+        notes: 'Seed flow $runTag ${marker ?? ''}',
+        isInstallment: isInstallment,
+        downPayment: downPayment,
+        downPaymentMethod: downPaymentMethod,
+        loanAmount: loanAmount,
+        bankName: bankName,
+        bankName2: bankName2,
+        loanAmount2: loanAmount2,
+        settlementAmount: settlementAmount,
+        settlementReceivedAt: settlementAmount > 0 ? soldAt + 7200000 : null,
+        cashAmount: cashAmount,
+        transferAmount: transferAmount,
+      );
+
+      final saleId = await FirestoreService.addSale(sale);
+      if (saleId != null) {
+        sale.firestoreId = saleId;
+      }
+      await _db.insertSale(sale);
+      final dbSale = await _db.getSaleByFirestoreId(sale.firestoreId ?? fid);
+      createdSales.add({
+        'sale': sale,
+        'dbId': dbSale?.id,
+        'marker': marker ?? '',
+      });
+    }
+
+    await createSale(
+      customer: 'KH TEST TM',
+      phone: '0901000001',
+      method: 'TIỀN MẶT',
+      totalPrice: 32000000,
+      totalCost: 28000000,
+      hoursAgo: 11,
+      items: [
+        {
+          'productId': iphone15?.id,
+          'productFirestoreId': iphone15?.firestoreId,
+          'productName': iphone15?.name ?? 'IPHONE 15 PRO MAX 256GB',
+          'productImei': iphone15?.imei ?? 'SEED-IMEI-15PM',
+          'quantity': 1,
+          'unitPrice': 32000000,
+          'unitCost': 28000000,
+        }
+      ],
+    );
+
+    await createSale(
+      customer: 'KH TEST CK',
+      phone: '0901000002',
+      method: 'CHUYỂN KHOẢN',
+      totalPrice: 29900000,
+      totalCost: 25000000,
+      hoursAgo: 10,
+      items: [
+        {
+          'productId': samsung?.id,
+          'productFirestoreId': samsung?.firestoreId,
+          'productName': samsung?.name ?? 'SAMSUNG GALAXY S24 ULTRA 256GB',
+          'productImei': samsung?.imei ?? 'SEED-IMEI-S24U',
+          'quantity': 1,
+          'unitPrice': 29900000,
+          'unitCost': 25000000,
+        }
+      ],
+    );
+
+    await createSale(
+      customer: 'KH TEST KẾT HỢP',
+      phone: '0901000003',
+      method: 'KẾT HỢP',
+      totalPrice: 10550000,
+      totalCost: 7750000,
+      hoursAgo: 9,
+      cashAmount: 5000000,
+      transferAmount: 5550000,
+      items: [
+        {
+          'productId': oppo?.id,
+          'productFirestoreId': oppo?.firestoreId,
+          'productName': oppo?.name ?? 'OPPO RENO 11 5G 256GB',
+          'productImei': oppo?.imei ?? 'SEED-IMEI-OPPO',
+          'quantity': 1,
+          'unitPrice': 9990000,
+          'unitCost': 7500000,
+        },
+        {
+          'productId': cap?.id,
+          'productFirestoreId': cap?.firestoreId,
+          'productName': cap?.name ?? 'CÁP SẠC TYPE-C 1M',
+          'productImei': cap?.imei ?? 'SEED-CAP',
+          'quantity': 7,
+          'unitPrice': 80000,
+          'unitCost': 30000,
+        },
+      ],
+    );
+
+    await createSale(
+      customer: 'KH TEST CÔNG NỢ',
+      phone: '0901000004',
+      method: 'CÔNG NỢ',
+      totalPrice: 19500000,
+      totalCost: 16000000,
+      hoursAgo: 8,
+      items: [
+        {
+          'productId': iphone14?.id,
+          'productFirestoreId': iphone14?.firestoreId,
+          'productName': iphone14?.name ?? 'IPHONE 14 128GB',
+          'productImei': iphone14?.imei ?? 'SEED-IMEI-14',
+          'quantity': 1,
+          'unitPrice': 19500000,
+          'unitCost': 16000000,
+        }
+      ],
+    );
+
+    await createSale(
+      customer: 'KH TEST TRẢ GÓP 1 NH',
+      phone: '0901000005',
+      method: 'TRẢ GÓP',
+      totalPrice: 29900000,
+      totalCost: 25000000,
+      hoursAgo: 7,
+      isInstallment: true,
+      downPayment: 9000000,
+      downPaymentMethod: 'TIỀN MẶT',
+      loanAmount: 20900000,
+      bankName: 'HD SAISON',
+      settlementAmount: 20900000,
+      items: [
+        {
+          'productId': samsung?.id,
+          'productFirestoreId': samsung?.firestoreId,
+          'productName': samsung?.name ?? 'SAMSUNG GALAXY S24 ULTRA 256GB',
+          'productImei': '${samsung?.imei ?? 'SEED-IMEI-S24U'}-TG1',
+          'quantity': 1,
+          'unitPrice': 29900000,
+          'unitCost': 25000000,
+        }
+      ],
+    );
+
+    await createSale(
+      customer: 'KH TEST TRẢ GÓP 2 NH',
+      phone: '0901000006',
+      method: 'TRẢ GÓP',
+      totalPrice: 33000000,
+      totalCost: 28000000,
+      hoursAgo: 6,
+      isInstallment: true,
+      downPayment: 7000000,
+      downPaymentMethod: 'CHUYỂN KHOẢN',
+      loanAmount: 13000000,
+      bankName: 'FE CREDIT',
+      loanAmount2: 13000000,
+      bankName2: 'MIRAE ASSET',
+      settlementAmount: 26000000,
+      items: [
+        {
+          'productId': iphone15?.id,
+          'productFirestoreId': iphone15?.firestoreId,
+          'productName': iphone15?.name ?? 'IPHONE 15 PRO MAX 256GB',
+          'productImei': '${iphone15?.imei ?? 'SEED-IMEI-15PM'}-TG2',
+          'quantity': 1,
+          'unitPrice': 33000000,
+          'unitCost': 28000000,
+        }
+      ],
+    );
+
+    await createSale(
+      customer: 'KH TEST TRẢ HÀNG MỘT PHẦN',
+      phone: '0901000007',
+      method: 'TIỀN MẶT',
+      totalPrice: 6400000,
+      totalCost: 4900000,
+      hoursAgo: 5,
+      marker: 'PARTIAL_RETURN_TARGET',
+      items: [
+        {
+          'productId': taiNghe?.id,
+          'productFirestoreId': taiNghe?.firestoreId,
+          'productName': taiNghe?.name ?? 'TAI NGHE BLUETOOTH JBL TUNE 510BT',
+          'productImei': taiNghe?.imei ?? 'SEED-TN',
+          'quantity': 1,
+          'unitPrice': 450000,
+          'unitCost': 200000,
+        },
+        {
+          'productId': opLung?.id,
+          'productFirestoreId': opLung?.firestoreId,
+          'productName': opLung?.name ?? 'ỐP LƯNG IPHONE 15 PRO',
+          'productImei': opLung?.imei ?? 'SEED-OPL',
+          'quantity': 10,
+          'unitPrice': 150000,
+          'unitCost': 50000,
+        },
+        {
+          'productId': pin?.id,
+          'productFirestoreId': pin?.firestoreId,
+          'productName': pin?.name ?? 'PIN IPHONE 14 CHÍNH HÃNG',
+          'productImei': pin?.imei ?? 'SEED-PIN',
+          'quantity': 5,
+          'unitPrice': 890000,
+          'unitCost': 840000,
+        },
+      ],
+    );
+
+    await createSale(
+      customer: 'KH TEST TRẢ HÀNG TOÀN BỘ',
+      phone: '0901000008',
+      method: 'CHUYỂN KHOẢN',
+      totalPrice: 10500000,
+      totalCost: 8000000,
+      hoursAgo: 4,
+      marker: 'FULL_RETURN_TARGET',
+      items: [
+        {
+          'productId': oppo?.id,
+          'productFirestoreId': oppo?.firestoreId,
+          'productName': oppo?.name ?? 'OPPO RENO 11 5G 256GB',
+          'productImei': '${oppo?.imei ?? 'SEED-OPPO'}-FULL',
+          'quantity': 1,
+          'unitPrice': 10500000,
+          'unitCost': 8000000,
+        },
+      ],
+    );
+
+    log.writeln('✅ Bán hàng: ${createdSales.length} đơn (TM, CK, KẾT HỢP, CÔNG NỢ, trả góp 1 NH, trả góp 2 NH)');
+    return createdSales;
+  }
+
+  static Future<void> _seedBusinessFlowReturns({
+    required String runTag,
+    required List<Map<String, dynamic>> sales,
+    required List<Product> products,
+    required StringBuffer log,
+  }) async {
+    try {
+      final partial = sales.firstWhere(
+        (e) => e['marker'] == 'PARTIAL_RETURN_TARGET',
+        orElse: () => {},
+      );
+      final full = sales.firstWhere(
+        (e) => e['marker'] == 'FULL_RETURN_TARGET',
+        orElse: () => {},
+      );
+
+      int created = 0;
+      if (partial.isNotEmpty) {
+        final sale = partial['sale'] as SaleOrder;
+        final saleId = partial['dbId'] as int?;
+        if (saleId != null && sale.firestoreId != null) {
+          final opLung = products.firstWhere(
+            (p) => p.name.toUpperCase().contains('ỐP LƯNG IPHONE 15'),
+          );
+          final pin = products.firstWhere(
+            (p) => p.name.toUpperCase().contains('PIN IPHONE 14'),
+          );
+          final res = await SalesReturnService.processReturn(
+            salesOrderId: saleId,
+            salesOrderFirestoreId: sale.firestoreId,
+            customerName: sale.customerName,
+            customerPhone: sale.phone,
+            refundMethod: 'TIỀN MẶT',
+            items: [
+              SalesReturnItem(
+                productId: opLung.id,
+                productFirestoreId: opLung.firestoreId,
+                productName: opLung.name,
+                productImei: opLung.imei ?? '',
+                quantity: 3,
+                price: 150000,
+                cost: 50000,
+                amount: 450000,
+              ),
+              SalesReturnItem(
+                productId: pin.id,
+                productFirestoreId: pin.firestoreId,
+                productName: pin.name,
+                productImei: pin.imei ?? '',
+                quantity: 1,
+                price: 890000,
+                cost: 840000,
+                amount: 890000,
+              ),
+            ],
+            note: 'Trả hàng một phần đơn 3 mặt hàng - $runTag',
+          );
+          if (res['success'] == true) created++;
+        }
+      }
+
+      if (full.isNotEmpty) {
+        final sale = full['sale'] as SaleOrder;
+        final saleId = full['dbId'] as int?;
+        if (saleId != null && sale.firestoreId != null) {
+          final oppo = products.firstWhere(
+            (p) => p.name.toUpperCase().contains('OPPO RENO 11'),
+          );
+          final res = await SalesReturnService.processReturn(
+            salesOrderId: saleId,
+            salesOrderFirestoreId: sale.firestoreId,
+            customerName: sale.customerName,
+            customerPhone: sale.phone,
+            refundMethod: 'CHUYỂN KHOẢN',
+            items: [
+              SalesReturnItem(
+                productId: oppo.id,
+                productFirestoreId: oppo.firestoreId,
+                productName: oppo.name,
+                productImei: '${oppo.imei ?? 'SEED-OPPO'}-FULL',
+                quantity: 1,
+                price: 10500000,
+                cost: 8000000,
+                amount: 10500000,
+              ),
+            ],
+            note: 'Trả hàng toàn bộ - $runTag',
+          );
+          if (res['success'] == true) created++;
+        }
+      }
+
+      log.writeln('✅ Trả hàng: $created phiếu (1 phần đơn 3 mặt hàng + 1 toàn bộ)');
+    } catch (e) {
+      debugPrint('⚠️ seedBusinessFlowReturns error: $e');
+      log.writeln('⚠️ Trả hàng: lỗi $e');
+    }
+  }
+
+  static Future<void> _seedBusinessFlowRepairs({
+    required String runTag,
+    required String shopId,
+    required String uid,
+    required String userName,
+    required int nowMs,
+    required StringBuffer log,
+  }) async {
+    final repairs = <Map<String, dynamic>>[
+      {
+        'customerName': 'KH SC TM 1',
+        'phone': '0919000001',
+        'model': 'IPHONE 13',
+        'issue': 'Thay màn hình',
+        'partsUsed': 'Màn hình OLED',
+        'price': 1800000,
+        'cost': 1100000,
+        'paymentMethod': 'TIỀN MẶT',
+        'hoursAgo': 13,
+      },
+      {
+        'customerName': 'KH SC CK 2',
+        'phone': '0919000002',
+        'model': 'SAMSUNG S22',
+        'issue': 'Thay pin',
+        'partsUsed': 'Pin chính hãng',
+        'price': 650000,
+        'cost': 280000,
+        'paymentMethod': 'CHUYỂN KHOẢN',
+        'hoursAgo': 12,
+      },
+      {
+        'customerName': 'KH SC CN 3',
+        'phone': '0919000003',
+        'model': 'XIAOMI 13T',
+        'issue': 'Sửa main mất nguồn',
+        'partsUsed': 'IC nguồn',
+        'price': 2200000,
+        'cost': 1200000,
+        'paymentMethod': 'CÔNG NỢ',
+        'hoursAgo': 10,
+      },
+      {
+        'customerName': 'KH SC TM 4',
+        'phone': '0919000004',
+        'model': 'OPPO FIND X5',
+        'issue': 'Thay loa ngoài',
+        'partsUsed': 'Loa ngoài',
+        'price': 500000,
+        'cost': 180000,
+        'paymentMethod': 'TIỀN MẶT',
+        'hoursAgo': 8,
+      },
+      {
+        'customerName': 'KH SC CK 5',
+        'phone': '0919000005',
+        'model': 'IPHONE 12 MINI',
+        'issue': 'Sửa Face ID',
+        'partsUsed': 'Cụm Face ID',
+        'price': 2500000,
+        'cost': 1500000,
+        'paymentMethod': 'CHUYỂN KHOẢN',
+        'hoursAgo': 6,
+      },
+    ];
+
+    int count = 0;
+    for (int i = 0; i < repairs.length; i++) {
+      final row = repairs[i];
+      final createdAt = nowMs - ((row['hoursAgo'] as int) * 3600000);
+      try {
+        final repair = Repair(
+          firestoreId: 'rep_${runTag}_${i + 1}',
+          customerName: row['customerName'] as String,
+          phone: row['phone'] as String,
+          model: row['model'] as String,
+          issue: row['issue'] as String,
+          accessories: 'Không có',
+          address: 'TP.HCM',
+          warranty: '3 tháng',
+          partsUsed: row['partsUsed'] as String,
+          status: 1,
+          price: row['price'] as int,
+          cost: row['cost'] as int,
+          paymentMethod: row['paymentMethod'] as String,
+          createdAt: createdAt,
+          createdBy: userName,
+          createdByUid: uid,
+          repairedBy: userName,
+          repairedByUid: uid,
+          deliveredBy: userName,
+          deliveredByUid: uid,
+          services: [],
+          isSynced: true,
+          deleted: false,
+          notes: 'Seed repair flow $runTag',
+        );
+
+        final fsId = await FirestoreService.addRepair(repair);
+        if (fsId == null) continue;
+        repair.firestoreId = fsId;
+        await _db.upsertRepair(repair);
+
+        // Flow nghiệp vụ: tiếp nhận -> sửa -> xong -> giao máy
+        final started = repair.copyWith(
+          status: 2,
+          startedAt: createdAt + 1800000,
+          lastCaredAt: createdAt + 1800000,
+        );
+        await FirestoreService.upsertRepair(started);
+        await _db.upsertRepair(started);
+
+        final finished = started.copyWith(
+          status: 3,
+          finishedAt: createdAt + 3600000,
+          lastCaredAt: createdAt + 3600000,
+        );
+        await FirestoreService.upsertRepair(finished);
+        await _db.upsertRepair(finished);
+
+        final delivered = finished.copyWith(
+          status: 4,
+          deliveredAt: createdAt + 5400000,
+          lastCaredAt: createdAt + 5400000,
+          pendingDeliveryApproval: false,
+        );
+        await FirestoreService.upsertRepair(delivered);
+        await _db.upsertRepair(delivered);
+
+        // Với đơn sửa công nợ, tạo phải thu khách
+        if ((row['paymentMethod'] as String).toUpperCase() == 'CÔNG NỢ') {
+          final debtData = <String, dynamic>{
+            'firestoreId': 'debt_repair_${runTag}_${i + 1}',
+            'shopId': shopId,
+            'personName': row['customerName'],
+            'customerName': row['customerName'],
+            'phone': row['phone'],
+            'totalAmount': row['price'],
+            'paidAmount': 0,
+            'remainAmount': row['price'],
+            'type': 'CUSTOMER_OWES',
+            'debtType': 'CUSTOMER_OWES',
+            'status': 'ACTIVE',
+            'note': 'Công nợ từ sửa chữa $runTag',
+            'linkedId': fsId,
+            'createdAt': createdAt + 5400000,
+            'isSynced': 1,
+            'deleted': false,
+          };
+          await FirestoreService.addDebtCloud(debtData);
+          await _db.insertDebt(debtData);
+        }
+
+        count++;
+      } catch (e) {
+        debugPrint('⚠️ seedBusinessFlowRepairs error: $e');
+      }
+    }
+
+    log.writeln('✅ Sửa chữa: $count đơn (đủ flow tiếp nhận → sửa → xong → giao; TM/CK/CN)');
+  }
+
+  static Future<void> _seedBusinessFlowDebtsAndPayments({
+    required String runTag,
+    required String shopId,
+    required int nowMs,
+    required StringBuffer log,
+  }) async {
+    final debtRows = <Map<String, dynamic>>[
+      {
+        'id': 'debt_customer_${runTag}_1',
+        'personName': 'KH CÔNG NỢ ĐẶC BIỆT',
+        'phone': '0903333000',
+        'type': 'CUSTOMER_OWES',
+        'total': 12000000,
+        'paid': 2000000,
+        'hoursAgo': 15,
+      },
+      {
+        'id': 'debt_supplier_${runTag}_1',
+        'personName': 'NCC LINH KIỆN VIP',
+        'phone': '',
+        'type': 'SHOP_OWES',
+        'total': 18000000,
+        'paid': 4000000,
+        'hoursAgo': 15,
+      },
+      {
+        'id': 'debt_partner_${runTag}_1',
+        'personName': 'ĐỐI TÁC ÉP KÍNH A',
+        'phone': '',
+        'type': 'OTHER_SHOP_OWES',
+        'total': 9000000,
+        'paid': 1000000,
+        'hoursAgo': 15,
+      },
+    ];
+
+    int debtCount = 0;
+    for (final row in debtRows) {
+      try {
+        final createdAt = nowMs - ((row['hoursAgo'] as int) * 3600000);
+        final total = row['total'] as int;
+        final paid = row['paid'] as int;
+        final debtData = <String, dynamic>{
+          'firestoreId': row['id'],
+          'shopId': shopId,
+          'personName': row['personName'],
+          'customerName': row['personName'],
+          'phone': row['phone'],
+          'totalAmount': total,
+          'paidAmount': paid,
+          'remainAmount': (total - paid).clamp(0, total),
+          'type': row['type'],
+          'debtType': row['type'],
+          'status': paid >= total ? 'PAID' : 'ACTIVE',
+          'note': 'Seed debt $runTag',
+          'createdAt': createdAt,
+          'isSynced': 1,
+          'deleted': false,
+        };
+        await FirestoreService.addDebtCloud(debtData);
+        await _db.insertDebt(debtData);
+        debtCount++;
+
+        // Tạo 1 giao dịch thanh toán/thu nợ để test pipeline công nợ
+        final payAmount = (total ~/ 4).clamp(500000, total - paid);
+        if (payAmount > 0) {
+          final paymentData = <String, dynamic>{
+            'firestoreId': 'pay_${row['id']}_$runTag',
+            'shopId': shopId,
+            'debtFirestoreId': row['id'],
+            'debtType': row['type'],
+            'personName': row['personName'],
+            'customerName': row['personName'],
+            'amount': payAmount,
+            'paymentMethod': (row['type'] == 'CUSTOMER_OWES')
+                ? 'TIỀN MẶT'
+                : 'CHUYỂN KHOẢN',
+            'paidAt': createdAt + 7200000,
+            'totalDebt': total,
+            'alreadyPaid': paid,
+            'receivedBy': 'SEED BOT',
+            'createdAt': createdAt + 7200000,
+            'isSynced': 1,
+            'deleted': 0,
+          };
+          await FirestoreService.addDebtPaymentCloud(paymentData);
+          await _db.insertDebtPayment(paymentData);
+        }
+      } catch (e) {
+        debugPrint('⚠️ seedBusinessFlowDebtsAndPayments error: $e');
+      }
+    }
+
+    log.writeln('✅ Công nợ: $debtCount hồ sơ (KH/NCC/Đối tác) + giao dịch thu/trả nợ');
+  }
+
+  static Future<void> _seedBusinessFlowIncomeExpense({
+    required String runTag,
+    required String shopId,
+    required int nowMs,
+    required StringBuffer log,
+  }) async {
+    final flows = <Map<String, dynamic>>[
+      {
+        'title': 'Chi lương nhân viên tháng này',
+        'amount': 22000000,
+        'category': 'Lương',
+        'paymentMethod': 'CHUYỂN KHOẢN',
+        'type': 'CHI',
+        'hoursAgo': 22,
+      },
+      {
+        'title': 'Chi phí vận hành shop',
+        'amount': 3500000,
+        'category': 'Chi phí shop',
+        'paymentMethod': 'TIỀN MẶT',
+        'type': 'CHI',
+        'hoursAgo': 19,
+      },
+      {
+        'title': 'Chi cá nhân chủ shop',
+        'amount': 1200000,
+        'category': 'Chi cá nhân',
+        'paymentMethod': 'TIỀN MẶT',
+        'type': 'CHI',
+        'hoursAgo': 17,
+      },
+      {
+        'title': 'Thu thêm từ dịch vụ ngoài',
+        'amount': 1800000,
+        'category': 'Thu thêm',
+        'paymentMethod': 'CHUYỂN KHOẢN',
+        'type': 'THU',
+        'hoursAgo': 15,
+      },
+    ];
+
+    int count = 0;
+    for (int i = 0; i < flows.length; i++) {
+      final row = flows[i];
+      try {
+        final ts = nowMs - ((row['hoursAgo'] as int) * 3600000);
+        final exp = <String, dynamic>{
+          'firestoreId': 'exp_${runTag}_$i',
+          'shopId': shopId,
+          'title': row['title'],
+          'amount': row['amount'],
+          'category': row['category'],
+          'date': ts,
+          'paymentMethod': row['paymentMethod'],
+          'type': row['type'],
+          'note': 'Seed flow $runTag',
+          'createdAt': ts,
+          'isSynced': 1,
+        };
+        await FirestoreService.addExpenseCloud(exp);
+        await _db.insertExpense(exp);
+        count++;
+      } catch (e) {
+        debugPrint('⚠️ seedBusinessFlowIncomeExpense error: $e');
+      }
+    }
+
+    log.writeln('✅ Thu/chi: $count dòng (lương, chi phí shop, chi cá nhân, thu thêm)');
   }
 }

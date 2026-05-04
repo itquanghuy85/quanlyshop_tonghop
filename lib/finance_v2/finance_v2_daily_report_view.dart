@@ -933,6 +933,484 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     );
   }
 
+  // ──────────────────────────────────────────────────────────────────────────
+  //  Excel chi tiết — "Chi Tiết Ngày" sheet với 10 section
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Future<void> _exportDetailedReport() async {
+    if (_snapshot == null) return;
+    final range = _resolveRange();
+    final start = range.$1;
+    final end = range.$2;
+    final startMs = DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+    final endMs = DateTime(end.year, end.month, end.day, 23, 59, 59).millisecondsSinceEpoch;
+
+    final s = _snapshot!;
+    final analysis = await _buildAuditAnalysis(start, end);
+
+    // Load raw data
+    final sales = await _db.getSalesByDateRange(startMs, endMs);
+    final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
+    final imports = await _db.getAllImportHistoryByDateRange(startMs, endMs);
+    final expenses = await _db.getExpensesByDateRange(startMs, endMs);
+    final debtsInRange = await _db.getDebtsByDateRange(startMs, endMs);
+
+    // Helper: format ms to HH:mm
+    String hm(int ms) => ms > 0
+        ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(ms))
+        : '';
+
+    // Format number with commas
+    String fmtN(num v) => NumberFormat('#,###', 'vi_VN').format(v);
+
+    // ── Section 1: Tổng quan dòng tiền ──────────────────────────────
+    final sec1 = FinanceV2DetailedDailySection(
+      title: '1. Tổng quan dòng tiền',
+      colHeaders: const ['Loại', 'Tiền mặt', 'Chuyển khoản', 'Tổng'],
+      rows: [
+        ['Thu vào', fmtN(analysis.cashIn), fmtN(analysis.bankIn), fmtN(s.totalIn)],
+        ['Chi ra', fmtN(analysis.cashOut), fmtN(analysis.bankOut), fmtN(s.totalOut)],
+        ['Ròng sổ quỹ', '', '', fmtN(s.netCashflow)],
+      ],
+    );
+
+    // ── Section 2: Cơ cấu thu chi ─────────────────────────────────
+    final totalIn = s.totalIn > 0 ? s.totalIn : 1;
+    final totalOut = s.totalOut > 0 ? s.totalOut : 1;
+
+    // Tính debt collect từ transactions
+    final debtCollected = s.transactions
+        .where((t) => t.type.toUpperCase() == 'DEBT_COLLECT')
+        .fold<int>(0, (acc, t) => acc + t.amount);
+    final settlement = analysis.settlementIncome;
+    final miscIncome = s.incomeOther;
+
+    final sec2 = FinanceV2DetailedDailySection(
+      title: '2. Cơ cấu thu chi',
+      colHeaders: const ['Loại', 'Số tiền', '% tổng'],
+      rows: [
+        ['THU — Bán hàng', fmtN(s.incomeFromSales), '${((s.incomeFromSales / totalIn) * 100).toStringAsFixed(1)}%'],
+        ['THU — Sửa chữa', fmtN(s.incomeFromRepairs), '${((s.incomeFromRepairs / totalIn) * 100).toStringAsFixed(1)}%'],
+        ['THU — Tất toán NH', fmtN(settlement), '${((settlement / totalIn) * 100).toStringAsFixed(1)}%'],
+        ['THU — Thu nợ KH', fmtN(debtCollected), '${((debtCollected / totalIn) * 100).toStringAsFixed(1)}%'],
+        ['THU — Thu khác', fmtN(miscIncome), '${((miscIncome / totalIn) * 100).toStringAsFixed(1)}%'],
+        ['CHI — Nhập hàng', fmtN(analysis.importOut), '${((analysis.importOut / totalOut) * 100).toStringAsFixed(1)}%'],
+        ['CHI — Trả nợ NCC', fmtN(analysis.supplierPaid), '${((analysis.supplierPaid / totalOut) * 100).toStringAsFixed(1)}%'],
+        ['CHI — Chi phí', fmtN(analysis.expenseOut), '${((analysis.expenseOut / totalOut) * 100).toStringAsFixed(1)}%'],
+        ['CHI — TT đối tác', fmtN(analysis.partnerPaid), '${((analysis.partnerPaid / totalOut) * 100).toStringAsFixed(1)}%'],
+
+      ],
+    );
+
+    // ── Section 3: Danh sách đơn bán hàng ────────────────────────
+    final sec3Rows = <List<dynamic>>[];
+    for (int i = 0; i < sales.length; i++) {
+      final sale = sales[i];
+      final profit = sale.finalPrice - sale.totalCost;
+      sec3Rows.add([
+        i + 1,
+        hm(sale.soldAt),
+        sale.isWalkIn ? (sale.walkInName ?? 'Khách lẻ') : sale.customerName,
+        sale.productNamesDisplay,
+        sale.productImeis,
+        '', // SL — không có field riêng, có thể để trống
+        fmtN(sale.finalPrice),
+        fmtN(sale.totalCost),
+        fmtN(profit),
+        sale.paymentMethod,
+        'Hoàn thành',
+      ]);
+    }
+    final sec3 = FinanceV2DetailedDailySection(
+      title: '3. Danh sách đơn bán hàng (${sales.length})',
+      colHeaders: const ['STT', 'Giờ', 'Khách hàng', 'Sản phẩm', 'IMEI', 'SL', 'Giá bán', 'Giá vốn', 'Lãi', 'Hình thức TT', 'Trạng thái'],
+      rows: sec3Rows,
+    );
+
+    // ── Section 4: Danh sách đơn sửa chữa ───────────────────────
+    final sec4Rows = <List<dynamic>>[];
+    for (int i = 0; i < repairs.length; i++) {
+      final r = repairs[i];
+      final partnerCost = r.services.fold<int>(0, (acc, sv) => acc + sv.cost);
+      final profit = r.price - r.cost - partnerCost;
+      sec4Rows.add([
+        i + 1,
+        hm(r.deliveredAt ?? r.createdAt),
+        r.isWalkIn ? (r.walkInName ?? 'Khách lẻ') : r.customerName,
+        r.model,
+        r.issue,
+        r.services.map((sv) => sv.serviceName).join(', '),
+        fmtN(r.price),
+        fmtN(r.cost),
+        fmtN(partnerCost),
+        fmtN(profit),
+        r.paymentMethod,
+        r.repairedBy ?? '',
+      ]);
+    }
+    final sec4 = FinanceV2DetailedDailySection(
+      title: '4. Danh sách đơn sửa chữa (${repairs.length})',
+      colHeaders: const ['STT', 'Giờ', 'Khách hàng', 'Model', 'Lỗi', 'Dịch vụ', 'Giá sửa', 'CP LK', 'Chi đối tác', 'Lãi', 'Hình thức TT', 'KTV'],
+      rows: sec4Rows,
+    );
+
+    // ── Section 5: Danh sách nhập kho ────────────────────────────
+    final sec5Rows = <List<dynamic>>[];
+    for (int i = 0; i < imports.length; i++) {
+      final imp = imports[i];
+      sec5Rows.add([
+        i + 1,
+        hm((imp['importDate'] as num?)?.toInt() ?? 0),
+        imp['productName'] ?? '',
+        imp['supplierName'] ?? '',
+        imp['quantity'] ?? 0,
+        fmtN((imp['costPrice'] as num?)?.toInt() ?? 0),
+        imp['paymentMethod'] ?? '',
+      ]);
+    }
+    final sec5 = FinanceV2DetailedDailySection(
+      title: '5. Danh sách nhập kho (${imports.length})',
+      colHeaders: const ['STT', 'Giờ', 'Sản phẩm', 'NCC', 'Số lượng', 'Giá nhập', 'Hình thức TT'],
+      rows: sec5Rows,
+    );
+
+    // ── Section 6: Thu chi khác ───────────────────────────────────
+    final sec6Rows = <List<dynamic>>[];
+    int idx6 = 0;
+    // Expense transactions
+    for (final exp in expenses) {
+      final isIncome = (exp['type']?.toString().toUpperCase() ?? 'CHI') == 'THU';
+      final ts = (exp['date'] as num?)?.toInt() ?? (exp['createdAt'] as num?)?.toInt() ?? 0;
+      sec6Rows.add([
+        ++idx6,
+        hm(ts),
+        isIncome ? 'Thu' : 'Chi',
+        exp['title'] ?? '',
+        fmtN((exp['amount'] as num?)?.toInt() ?? 0),
+        exp['paymentMethod'] ?? '',
+      ]);
+    }
+    final sec6 = FinanceV2DetailedDailySection(
+      title: '6. Thu chi khác (${sec6Rows.length})',
+      colHeaders: const ['STT', 'Giờ', 'Loại', 'Diễn giải', 'Số tiền', 'Hình thức TT'],
+      rows: sec6Rows,
+    );
+
+    // ── Section 7: Công nợ khách hàng ────────────────────────────
+    // Phát sinh trong ngày từ debtsInRange (type customer/sale debt)
+    final customerDebtsToday = debtsInRange
+        .where((d) => (d['debtType']?.toString().toUpperCase() ?? '') != 'SUPPLIER' &&
+            (d['type']?.toString().toUpperCase() ?? '') != 'SUPPLIER')
+        .toList();
+    final sec7Rows = <List<dynamic>>[];
+    int idx7 = 0;
+    for (final d in customerDebtsToday) {
+      final total = (d['totalAmount'] as num?)?.toInt() ?? 0;
+      final paid = (d['paidAmount'] as num?)?.toInt() ?? 0;
+      sec7Rows.add([
+        ++idx7,
+        d['customerName'] ?? d['name'] ?? '',
+        d['phone'] ?? '',
+        fmtN(total),
+        fmtN(paid),
+        fmtN(total - paid),
+      ]);
+    }
+    // Also append snapshot receivables (cuối kỳ)
+    for (final r in s.receivables) {
+      if (!customerDebtsToday.any((d) =>
+          (d['firestoreId'] ?? d['referenceId'] ?? '') == (r.id))) {
+        sec7Rows.add([
+          ++idx7,
+          r.name,
+          r.phone ?? '',
+          fmtN(r.total),
+          fmtN(r.paid),
+          fmtN(r.remaining),
+        ]);
+      }
+    }
+    final sec7 = FinanceV2DetailedDailySection(
+      title: '7. Công nợ khách hàng',
+      colHeaders: const ['STT', 'Khách hàng', 'SĐT', 'Phát sinh trong ngày', 'Đã thu', 'Còn lại'],
+      rows: sec7Rows,
+    );
+
+    // ── Section 8: Công nợ nhà cung cấp ─────────────────────────
+    final supplierDebtsToday = debtsInRange
+        .where((d) =>
+            (d['debtType']?.toString().toUpperCase() ?? '') == 'SUPPLIER' ||
+            (d['type']?.toString().toUpperCase() ?? '') == 'SUPPLIER')
+        .toList();
+    final sec8Rows = <List<dynamic>>[];
+    int idx8 = 0;
+    for (final d in supplierDebtsToday) {
+      final total = (d['totalAmount'] as num?)?.toInt() ?? 0;
+      final paid = (d['paidAmount'] as num?)?.toInt() ?? 0;
+      sec8Rows.add([
+        ++idx8,
+        d['supplierName'] ?? d['name'] ?? '',
+        fmtN(total),
+        fmtN(paid),
+        fmtN(total - paid),
+      ]);
+    }
+    for (final p in s.payables) {
+      if (!supplierDebtsToday.any((d) =>
+          (d['firestoreId'] ?? d['referenceId'] ?? '') == (p.id))) {
+        sec8Rows.add([
+          ++idx8,
+          p.name,
+          fmtN(p.total),
+          fmtN(p.paid),
+          fmtN(p.remaining),
+        ]);
+      }
+    }
+    final sec8 = FinanceV2DetailedDailySection(
+      title: '8. Công nợ nhà cung cấp',
+      colHeaders: const ['STT', 'NCC', 'Phát sinh trong ngày', 'Đã trả', 'Còn lại'],
+      rows: sec8Rows,
+    );
+
+    // ── Section 9: Vốn & lãi từng đơn bán ────────────────────────
+    final sec9Rows = <List<dynamic>>[];
+    for (int i = 0; i < sales.length; i++) {
+      final sale = sales[i];
+      final profit = sale.finalPrice - sale.totalCost;
+      final pct = sale.finalPrice > 0
+          ? '${((profit / sale.finalPrice) * 100).toStringAsFixed(1)}%'
+          : '0.0%';
+      sec9Rows.add([
+        i + 1,
+        sale.productNamesDisplay,
+        fmtN(sale.totalCost),
+        fmtN(sale.finalPrice),
+        fmtN(profit),
+        pct,
+        sale.paymentMethod,
+      ]);
+    }
+    final sec9 = FinanceV2DetailedDailySection(
+      title: '9. Vốn & lãi từng đơn bán (${sales.length})',
+      colHeaders: const ['STT', 'Sản phẩm', 'Giá vốn', 'Giá bán', 'Lãi', '% lãi', 'Hình thức TT'],
+      rows: sec9Rows,
+    );
+
+    // ── Section 10: Tổng kết cuối ngày ───────────────────────────
+    final totalRevenue = s.incomeFromSales + s.incomeFromRepairs + s.incomeOther;
+    final sec10 = FinanceV2DetailedDailySection(
+      title: '10. Tổng kết cuối ngày',
+      colHeaders: const ['Chỉ tiêu', 'Giá trị'],
+      rows: [
+        ['Tổng doanh thu', fmtN(totalRevenue)],
+        ['Tổng vốn hàng bán', fmtN(s.cogsFromSales)],
+        ['Lãi gộp bán hàng', fmtN(s.grossProfitFromSales)],
+        ['Lãi gộp sửa chữa', fmtN(s.grossProfitFromRepairs)],
+        ['Lãi tổng', fmtN(s.grossProfitTotal)],
+        ['Lãi thực (sau chi phí)', fmtN(s.grossProfitTotal - s.operatingExpenseOut)],
+        ['Nợ phải thu cuối kỳ', fmtN(s.receivableTotal)],
+        ['Nợ phải trả cuối kỳ', fmtN(s.payableTotal)],
+      ],
+    );
+
+    if (!mounted) return;
+    await FinanceV2DetailedExporter.exportDetailedDailyReport(
+      context,
+      sections: [sec1, sec2, sec3, sec4, sec5, sec6, sec7, sec8, sec9, sec10],
+      filePrefix: 'ChiTietNgay',
+      start: start,
+      end: end,
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  //  POS in chi tiết — bản in cuộn dài
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Future<void> _printDetailedReport() async {
+    if (_snapshot == null) return;
+
+    final printerConfig = await showPrinterSelectionDialog(context);
+    if (printerConfig == null) return;
+    final printerType = printerConfig['type'] as PrinterType?;
+    final bluetoothPrinter = printerConfig['bluetoothPrinter'];
+    final wifiIp = printerConfig['wifiIp'] as String?;
+
+    final s = _snapshot!;
+    final range = _resolveRange();
+    final start = range.$1;
+    final end = range.$2;
+    final startMs = DateTime(start.year, start.month, start.day).millisecondsSinceEpoch;
+    final endMs = DateTime(end.year, end.month, end.day, 23, 59, 59).millisecondsSinceEpoch;
+
+    final analysis = await _buildAuditAnalysis(start, end);
+    final sales = await _db.getSalesByDateRange(startMs, endMs);
+    final repairs = await _db.getDeliveredRepairsByDateRange(startMs, endMs);
+    final imports = await _db.getAllImportHistoryByDateRange(startMs, endMs);
+
+    final shopInfo = await LabelSettingsService().getShopLabelSettings();
+
+    // Helpers
+    String fmtM(int v) => NumberFormat('#,###', 'vi_VN').format(v);
+    String hm(int ms) => ms > 0
+        ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(ms))
+        : '';
+    String sign(int v) => v >= 0 ? '+${fmtM(v)}' : '-${fmtM(v.abs())}';
+
+    final buf = StringBuffer();
+    const sep = '================================';
+    const dash = '--------------------------------';
+
+    // Header
+    buf.writeln('[C]$sep');
+    buf.writeln('[C][B]BAO CAO NGAY ${DateFormat('dd/MM/yyyy').format(start)}');
+    if (shopInfo.shopName.isNotEmpty) {
+      buf.writeln('[C]${shopInfo.shopName}');
+    }
+    buf.writeln('[C]In luc ${DateFormat('HH:mm').format(DateTime.now())}');
+    buf.writeln('[C]$sep');
+
+    // Cash flow
+    buf.writeln('THU VAO:     ${fmtM(s.totalIn)}');
+    buf.writeln('  Tien mat:  ${fmtM(analysis.cashIn)}');
+    buf.writeln('  CK:        ${fmtM(analysis.bankIn)}');
+    buf.writeln('CHI RA:      ${fmtM(s.totalOut)}');
+    buf.writeln('  Tien mat:  ${fmtM(analysis.cashOut)}');
+    buf.writeln('  CK:        ${fmtM(analysis.bankOut)}');
+    buf.writeln('RONG:        ${sign(s.netCashflow)}');
+    buf.writeln('[C]$sep');
+
+    // Cơ cấu thu
+    final totalIn = s.totalIn > 0 ? s.totalIn : 1;
+    final debtCollected = s.transactions
+        .where((t) => t.type.toUpperCase() == 'DEBT_COLLECT')
+        .fold<int>(0, (acc, t) => acc + t.amount);
+    final settlement = analysis.settlementIncome;
+
+    buf.writeln('[C][B]CO CAU THU');
+    if (s.incomeFromSales > 0) {
+      buf.writeln('Ban hang:    ${fmtM(s.incomeFromSales)}  (${((s.incomeFromSales / totalIn) * 100).round()}%)');
+    }
+    if (s.incomeFromRepairs > 0) {
+      buf.writeln('Sua chua:    ${fmtM(s.incomeFromRepairs)}  (${((s.incomeFromRepairs / totalIn) * 100).round()}%)');
+    }
+    if (settlement > 0) {
+      buf.writeln('Tat toan NH: ${fmtM(settlement)}  (${((settlement / totalIn) * 100).round()}%)');
+    }
+    if (debtCollected > 0) {
+      buf.writeln('Thu no KH:   ${fmtM(debtCollected)}  (${((debtCollected / totalIn) * 100).round()}%)');
+    }
+    if (s.incomeOther > 0) {
+      buf.writeln('Thu khac:    ${fmtM(s.incomeOther)}  (${((s.incomeOther / totalIn) * 100).round()}%)');
+    }
+    buf.writeln('[C]$dash');
+
+    // Cơ cấu chi
+    final totalOut = s.totalOut > 0 ? s.totalOut : 1;
+    buf.writeln('[C][B]CO CAU CHI');
+    if (analysis.importOut > 0) {
+      buf.writeln('Nhap hang:   ${fmtM(analysis.importOut)}  (${((analysis.importOut / totalOut) * 100).round()}%)');
+    }
+    if (analysis.supplierPaid > 0) {
+      buf.writeln('Tra no NCC:  ${fmtM(analysis.supplierPaid)}  (${((analysis.supplierPaid / totalOut) * 100).round()}%)');
+    }
+    if (analysis.expenseOut > 0) {
+      buf.writeln('Chi phi:     ${fmtM(analysis.expenseOut)}  (${((analysis.expenseOut / totalOut) * 100).round()}%)');
+    }
+    if (analysis.partnerPaid > 0) {
+      buf.writeln('TT doi tac:  ${fmtM(analysis.partnerPaid)}  (${((analysis.partnerPaid / totalOut) * 100).round()}%)');
+    }
+
+    buf.writeln('[C]$sep');
+
+    // Đơn bán hàng
+    buf.writeln('[C][B]DON BAN HANG (${sales.length} don)');
+    buf.writeln('[C]$dash');
+    for (final sale in sales) {
+      final profit = sale.finalPrice - sale.totalCost;
+      final name = sale.isWalkIn
+          ? (sale.walkInName?.isNotEmpty == true ? sale.walkInName! : 'Khach le')
+          : sale.customerName;
+      buf.writeln('${hm(sale.soldAt)} $name');
+      buf.writeln('  ${sale.productNamesDisplay}');
+      buf.writeln('  Ban: ${fmtM(sale.finalPrice)} | Von: ${fmtM(sale.totalCost)}');
+      buf.writeln('  Lai: ${fmtM(profit)} | ${sale.paymentMethod}');
+      buf.writeln('[C]$dash');
+    }
+    buf.writeln('[C]$sep');
+
+    // Đơn sửa chữa
+    buf.writeln('[C][B]DON SUA CHUA (${repairs.length} don)');
+    buf.writeln('[C]$dash');
+    for (final r in repairs) {
+      final partnerCost = r.services.fold<int>(0, (acc, sv) => acc + sv.cost);
+      final name = r.isWalkIn
+          ? (r.walkInName?.isNotEmpty == true ? r.walkInName! : 'Khach le')
+          : r.customerName;
+      buf.writeln('${hm(r.deliveredAt ?? r.createdAt)} $name - ${r.model}');
+      buf.writeln('  Loi: ${r.issue}');
+      buf.writeln('  Gia: ${fmtM(r.price)} | CP: ${fmtM(r.cost + partnerCost)}');
+      if (r.repairedBy?.isNotEmpty == true) {
+        buf.writeln('  KTV: ${r.repairedBy} | ${r.paymentMethod}');
+      } else {
+        buf.writeln('  ${r.paymentMethod}');
+      }
+      buf.writeln('[C]$dash');
+    }
+    buf.writeln('[C]$sep');
+
+    // Nhập kho
+    if (imports.isNotEmpty) {
+      buf.writeln('[C][B]NHAP KHO (${imports.length})');
+      buf.writeln('[C]$dash');
+      for (final imp in imports) {
+        final ts = (imp['importDate'] as num?)?.toInt() ?? 0;
+        final pName = imp['productName'] ?? '';
+        final sName = imp['supplierName'] ?? '';
+        final qty = imp['quantity'] ?? 0;
+        final price = (imp['costPrice'] as num?)?.toInt() ?? 0;
+        final pm = imp['paymentMethod'] ?? '';
+        buf.writeln('${hm(ts)} $pName');
+        buf.writeln('  NCC: $sName | SL: $qty | ${fmtM(price)}');
+        buf.writeln('  $pm');
+      }
+      buf.writeln('[C]$sep');
+    }
+
+    // Công nợ cuối ngày
+    buf.writeln('[C][B]CONG NO CUOI NGAY');
+    buf.writeln('Phai thu KH:  ${fmtM(s.receivableTotal)}');
+    buf.writeln('Phai tra NCC: ${fmtM(s.payableTotal)}');
+    buf.writeln('[C]$sep');
+
+    // Vốn & lãi
+    buf.writeln('[C][B]VON & LAI');
+    buf.writeln('Von BH:   ${fmtM(s.cogsFromSales)}');
+    buf.writeln('Lai BH:   ${fmtM(s.grossProfitFromSales)}');
+    buf.writeln('Von SC:   ${fmtM(s.cogsFromRepairs)}');
+    buf.writeln('Lai SC:   ${fmtM(s.grossProfitFromRepairs)}');
+    buf.writeln('Lai tong: ${fmtM(s.grossProfitTotal)}');
+    buf.writeln('[C]$sep');
+    buf.writeln('[C]KY XAC NHAN: ____________');
+    buf.writeln('[C]$sep');
+
+    final ok = await UnifiedPrinterService.printTextReceipt(
+      buf.toString(),
+      paper: PaperSize.mm58,
+      printerType: printerType,
+      bluetoothPrinter: bluetoothPrinter,
+      wifiIp: wifiIp,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Đã gửi lệnh in chi tiết' : 'Không thể in, vui lòng kiểm tra máy in'),
+        backgroundColor: ok ? Colors.green : Colors.red,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final netCashflow = _snapshot?.netCashflow ?? 0;
@@ -997,9 +1475,21 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
             ),
           if (_snapshot != null)
             IconButton(
+              onPressed: _printDetailedReport,
+              icon: const Icon(Icons.receipt_long_rounded),
+              tooltip: 'In chi tiết',
+            ),
+          if (_snapshot != null)
+            IconButton(
               onPressed: _exportReport,
               icon: const Icon(Icons.download_rounded),
               tooltip: 'Xuất Excel',
+            ),
+          if (_snapshot != null)
+            IconButton(
+              onPressed: _exportDetailedReport,
+              icon: const Icon(Icons.table_chart_rounded),
+              tooltip: 'Excel chi tiết',
             ),
           IconButton(
             onPressed: _loadReport,

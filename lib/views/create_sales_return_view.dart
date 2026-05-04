@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/sale_order_model.dart';
@@ -8,7 +10,6 @@ import '../services/sales_return_service.dart';
 import '../services/notification_service.dart';
 import '../utils/money_utils.dart';
 import '../widgets/responsive_wrapper.dart';
-import '../theme/app_colors.dart';
 import '../constants/product_constants.dart';
 
 /// View to create a sales return from a specific sale order
@@ -28,6 +29,7 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
 
   // Parsed items from sale
   List<_ReturnableItem> _items = [];
+  String? _loadError;
 
   bool _loadingItems = true;
 
@@ -45,71 +47,34 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
     super.dispose();
   }
 
-  /// Parse productNames + productImeis into returnable items.
-  /// QUAN TRỌNG: phân bổ giá trên TOÀN BỘ sản phẩm gốc TRƯỚC, sau đó mới
-  /// trừ số lượng đã trả. Điều này đảm bảo giá đơn vị đúng khi trả 1 phần.
   Future<void> _parseItems() async {
-    final names = widget.sale.productNames.split(RegExp(r',\s*'));
-    final imeis = widget.sale.productImeis.split(RegExp(r',\s*'));
-    final totalPrice = widget.sale.finalPrice;
-    final totalCost = widget.sale.totalCost;
-
-    int totalQty = 0;
-    final allItems = <_ReturnableItem>[];
-
-    for (int i = 0; i < names.length; i++) {
-      final nameEntry = names[i].trim();
-      if (nameEntry.isEmpty) continue;
-
-      final imei = i < imeis.length ? imeis[i].trim() : '';
-      int qty = 1;
-      String cleanName = nameEntry;
-
-      final qtyMatch = RegExp(r'^(.+?)\s+[xX](\d+)').firstMatch(nameEntry);
-      if (qtyMatch != null) {
-        cleanName = qtyMatch.group(1)!.trim();
-        qty = int.tryParse(qtyMatch.group(2)!) ?? 1;
+    final snapshotItems = _decodeSnapshotItems(widget.sale.itemSnapshotsJson);
+    if (snapshotItems.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _items = <_ReturnableItem>[];
+          _loadError = 'Đơn bán này không có snapshot giá gốc từng sản phẩm. Không thể trả hàng an toàn.';
+          _loadingItems = false;
+        });
       }
-
-      if (imei.toUpperCase().startsWith('PKX')) {
-        qty = int.tryParse(imei.toUpperCase().replaceAll('PKX', '')) ?? 1;
-      }
-
-      cleanName = cleanName.replaceAll(RegExp(r'\s*\(TẶNG\)\s*$', caseSensitive: false), '');
-      cleanName = cleanName.replaceAll(RegExp(r'\s*\(GIẢM\s+[\d,.]+\)\s*$', caseSensitive: false), '');
-      cleanName = cleanName.trim();
-
-      allItems.add(_ReturnableItem(
-        name: cleanName,
-        imei: imei,
-        maxQuantity: qty,
-        returnQuantity: 0,
-        isSelected: false,
-      ));
-      totalQty += qty;
+      return;
     }
 
-    // BƯỚC 1: Phân bổ giá đều theo số lượng trên TOÀN BỘ sản phẩm
-    if (allItems.isNotEmpty && totalQty > 0) {
-      int distributed = 0;
-      int distributedCost = 0;
-      for (int i = 0; i < allItems.length; i++) {
-        final item = allItems[i];
-        if (i == allItems.length - 1) {
-          item.pricePerUnit = totalPrice > 0 ? ((totalPrice - distributed) / item.maxQuantity).round() : 0;
-          item.costPerUnit = totalCost > 0 ? ((totalCost - distributedCost) / item.maxQuantity).round() : 0;
-        } else {
-          final linePrice = (totalPrice * item.maxQuantity / totalQty).round();
-          final lineCost = (totalCost * item.maxQuantity / totalQty).round();
-          item.pricePerUnit = (linePrice / item.maxQuantity).round();
-          item.costPerUnit = (lineCost / item.maxQuantity).round();
-          distributed += item.pricePerUnit * item.maxQuantity;
-          distributedCost += item.costPerUnit * item.maxQuantity;
-        }
+    if (snapshotItems.any((item) => !item.hasExactPricing)) {
+      if (mounted) {
+        setState(() {
+          _items = <_ReturnableItem>[];
+          _loadError = 'Đơn bán này không có giá item-level chính xác sau giảm giá. Không thể trả hàng an toàn.';
+          _loadingItems = false;
+        });
       }
+      return;
     }
 
-    // BƯỚC 2: Nạp thông tin sản phẩm (productId, referencePrice) cho TOÀN BỘ
+    final allItems = snapshotItems
+        .map((item) => item.toReturnable())
+        .toList(growable: true);
+
     for (final item in allItems) {
       Product? product;
       if (item.imei.isNotEmpty &&
@@ -122,16 +87,9 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
       if (product != null) {
         item.productId = product.id;
         item.productFirestoreId = product.firestoreId;
-        if (product.price > 0) item.referencePrice = product.price;
-        if (product.cost > 0) item.referenceCost = product.cost;
       }
     }
 
-    // BƯỚC 3: Cân bằng lại giá theo referencePrice trên TOÀN BỘ sản phẩm gốc
-    _rebalancePrices(allItems, totalPrice, totalCost);
-
-    // BƯỚC 4: Trừ số lượng đã trả và xóa các sản phẩm đã trả hết
-    // (giá đã được tính đúng ở bước 3, không bị ảnh hưởng khi xóa item)
     if (widget.sale.id != null && widget.sale.id! > 0) {
       final returnedMap = await _db.getReturnedQuantitiesForSale(widget.sale.id!);
       for (final item in allItems) {
@@ -148,50 +106,27 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
     if (mounted) {
       setState(() {
         _items = allItems;
+        _loadError = null;
         _loadingItems = false;
       });
     }
   }
 
-  /// Cân bằng giá trên danh sách items dựa theo referencePrice (tỉ lệ theo giá vốn thực tế).
-  /// Gọi trên TOÀN BỘ items TRƯỚC khi trừ số lượng đã trả.
-  void _rebalancePrices(List<_ReturnableItem> items, int targetTotalPrice, int targetTotalCost) {
-    if (items.isEmpty) return;
-
-    int totalWeightPrice = 0;
-    int totalWeightCost = 0;
-    for (final item in items) {
-      final qty = item.maxQuantity <= 0 ? 1 : item.maxQuantity;
-      final refPrice = item.referencePrice > 0 ? item.referencePrice : 1;
-      final refCost = item.referenceCost > 0 ? item.referenceCost : 1;
-      totalWeightPrice += refPrice * qty;
-      totalWeightCost += refCost * qty;
+  List<_SaleItemSnapshot> _decodeSnapshotItems(String? rawJson) {
+    if (rawJson == null || rawJson.trim().isEmpty) {
+      return const <_SaleItemSnapshot>[];
     }
 
-    int distributedPrice = 0;
-    int distributedCost = 0;
-    for (int i = 0; i < items.length; i++) {
-      final item = items[i];
-      final qty = item.maxQuantity <= 0 ? 1 : item.maxQuantity;
-      final refPrice = item.referencePrice > 0 ? item.referencePrice : 1;
-      final refCost = item.referenceCost > 0 ? item.referenceCost : 1;
-
-      int linePrice;
-      int lineCost;
-      if (i == items.length - 1) {
-        linePrice = (targetTotalPrice - distributedPrice).clamp(0, targetTotalPrice);
-        lineCost = (targetTotalCost - distributedCost).clamp(0, targetTotalCost);
-      } else {
-        linePrice = (targetTotalPrice * (refPrice * qty) / (totalWeightPrice == 0 ? 1 : totalWeightPrice)).round();
-        lineCost = (targetTotalCost * (refCost * qty) / (totalWeightCost == 0 ? 1 : totalWeightCost)).round();
-      }
-      distributedPrice += linePrice;
-      distributedCost += lineCost;
-
-      item.pricePerUnit = (linePrice / qty).round();
-      item.costPerUnit = (lineCost / qty).round();
-      if (item.pricePerUnit < 0) item.pricePerUnit = 0;
-      if (item.costPerUnit < 0) item.costPerUnit = 0;
+    try {
+      final decoded = jsonDecode(rawJson);
+      if (decoded is! List) return const <_SaleItemSnapshot>[];
+      return decoded
+          .whereType<Map>()
+          .map((item) => _SaleItemSnapshot.fromMap(Map<String, dynamic>.from(item)))
+          .where((item) => item.quantity > 0)
+          .toList(growable: false);
+    } catch (_) {
+      return const <_SaleItemSnapshot>[];
     }
   }
 
@@ -200,16 +135,6 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
     for (final item in _items) {
       if (item.isSelected) {
         total += item.pricePerUnit * item.returnQuantity;
-      }
-    }
-    return total;
-  }
-
-  int get _totalCost {
-    int total = 0;
-    for (final item in _items) {
-      if (item.isSelected) {
-        total += item.costPerUnit * item.returnQuantity;
       }
     }
     return total;
@@ -328,13 +253,23 @@ class _CreateSalesReturnViewState extends State<CreateSalesReturnView> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle, size: 64, color: Colors.green.shade400),
+                          Icon(
+                            _loadError == null ? Icons.check_circle : Icons.error_outline,
+                            size: 64,
+                            color: _loadError == null ? Colors.green.shade400 : Colors.red.shade400,
+                          ),
                           const SizedBox(height: 16),
-                          const Text('Tất cả sản phẩm đã được trả hàng',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                          Text(
+                            _loadError ?? 'Tất cả sản phẩm đã được trả hàng',
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 8),
-                          Text('Đơn hàng này không còn mặt hàng nào để trả.',
-                            style: TextStyle(color: Colors.grey.shade600)),
+                          Text(
+                            _loadError ?? 'Đơn hàng này không còn mặt hàng nào để trả.',
+                            style: TextStyle(color: Colors.grey.shade600),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 24),
                           FilledButton(
                             onPressed: () => Navigator.pop(context),
@@ -689,8 +624,6 @@ class _ReturnableItem {
   bool isSelected;
   int pricePerUnit;
   int costPerUnit;
-  int referencePrice;
-  int referenceCost;
   int? productId;
   String? productFirestoreId;
 
@@ -702,9 +635,62 @@ class _ReturnableItem {
     required this.isSelected,
     this.pricePerUnit = 0,
     this.costPerUnit = 0,
-    this.referencePrice = 0,
-    this.referenceCost = 0,
     this.productId,
     this.productFirestoreId,
   });
+}
+
+class _SaleItemSnapshot {
+  final int? productId;
+  final String? productFirestoreId;
+  final String productName;
+  final String productImei;
+  final int quantity;
+  final int unitPrice;
+  final int unitCost;
+  final bool hasExactPricing;
+
+  const _SaleItemSnapshot({
+    this.productId,
+    this.productFirestoreId,
+    required this.productName,
+    required this.productImei,
+    required this.quantity,
+    required this.unitPrice,
+    required this.unitCost,
+    required this.hasExactPricing,
+  });
+
+  factory _SaleItemSnapshot.fromMap(Map<String, dynamic> map) {
+    int asInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse('$value') ?? 0;
+    }
+
+    return _SaleItemSnapshot(
+      productId: map['productId'] is int ? map['productId'] as int : int.tryParse('${map['productId'] ?? ''}'),
+      productFirestoreId: map['productFirestoreId']?.toString(),
+      productName: (map['productName'] ?? '').toString().trim(),
+      productImei: (map['productImei'] ?? '').toString().trim(),
+      quantity: asInt(map['quantity']),
+      unitPrice: asInt(map['unitPrice']),
+      unitCost: asInt(map['unitCost']),
+      hasExactPricing: map['exactPricing'] == true || map['exactPricing'] == 1,
+    );
+  }
+
+  _ReturnableItem toReturnable() {
+    return _ReturnableItem(
+      name: productName,
+      imei: productImei,
+      maxQuantity: quantity,
+      returnQuantity: 0,
+      isSelected: false,
+      pricePerUnit: unitPrice,
+      costPerUnit: unitCost,
+      productId: productId,
+      productFirestoreId: productFirestoreId,
+    );
+  }
 }
