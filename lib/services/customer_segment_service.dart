@@ -1,5 +1,5 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
 import '../data/db_helper.dart';
 import 'user_service.dart';
 
@@ -7,7 +7,6 @@ import 'user_service.dart';
 /// - Tự động phân loại dựa trên tần suất mua + giá trị đơn
 /// - Hỗ trợ manual tagging
 class CustomerSegmentService {
-  static final _db = FirebaseFirestore.instance;
   static final DBHelper _localDb = DBHelper();
 
   // Định nghĩa phân khúc
@@ -30,24 +29,33 @@ class CustomerSegmentService {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return {};
 
+      final db = await _localDb.database;
+
       // Lấy tất cả khách hàng có giao dịch
-      final customers = await _localDb.rawQuery(
-        'SELECT DISTINCT customerName, phone FROM repairs WHERE shopId = ? AND deletedAt IS NULL',
-        [shopId],
+      final customers = await db.query(
+        'repairs',
+        columns: ['customerName', 'phone'],
+        distinct: true,
+        where: 'shopId = ? AND (deleted = 0 OR deleted IS NULL)',
+        whereArgs: [shopId],
       );
 
       final segments = <String, int>{};
 
       for (final customer in customers) {
-        final name = customer['customerName'] as String;
-        final phone = customer['phone'] as String;
+        final name = customer['customerName'] as String?;
+        final phone = customer['phone'] as String?;
+
+        if (name == null || phone == null) continue;
 
         final segment = await _calculateSegment(shopId, name, phone);
         segments[segment] = (segments[segment] ?? 0) + 1;
 
         // Cập nhật segment trong customers table
-        await _localDb.rawUpdate(
-          'UPDATE customers SET segment = ? WHERE shopId = ? AND (name = ? OR phone = ?)',
+        await db.update(
+          'customers',
+          {'segment': segment},
+          where: 'shopId = ? AND (name = ? OR phone = ?)',
           [segment, shopId, name, phone],
         );
       }
@@ -71,38 +79,34 @@ class CustomerSegmentService {
       final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).millisecondsSinceEpoch;
       final churnDate = DateTime.now().subtract(Duration(days: _churnDays)).millisecondsSinceEpoch;
 
+      final db = await _localDb.database;
       // Tổng doanh thu từ khách này
-      final totalSpentResult = await _localDb.rawQuery(
-        '''SELECT COALESCE(SUM(price), 0) as total FROM repairs 
-           WHERE shopId = ? AND (customerName = ? OR phone = ?) AND deletedAt IS NULL''',
+      final totalSpentResult = await db.rawQuery(
+        'SELECT COALESCE(SUM(price), 0) as total FROM repairs WHERE shopId = ? AND (customerName = ? OR phone = ?)',
         [shopId, customerName, phone],
       );
-      final totalSpent = (totalSpentResult.first['total'] as int?) ?? 0;
+      final totalSpent = Sqflite.firstIntValue(totalSpentResult) ?? 0;
 
       // Số lần mua
-      final purchaseCountResult = await _localDb.rawQuery(
-        '''SELECT COUNT(*) as count FROM repairs 
-           WHERE shopId = ? AND (customerName = ? OR phone = ?) AND deletedAt IS NULL''',
+      final purchaseCountResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM repairs WHERE shopId = ? AND (customerName = ? OR phone = ?)',
         [shopId, customerName, phone],
       );
-      final purchaseCount = (purchaseCountResult.first['count'] as int?) ?? 0;
-
-      // Số lần mua trong 30 ngày
-      final recentCountResult = await _localDb.rawQuery(
-        '''SELECT COUNT(*) as count FROM repairs 
-           WHERE shopId = ? AND (customerName = ? OR phone = ?) 
-           AND deliveredAt >= ? AND deletedAt IS NULL''',
-        [shopId, customerName, phone, thirtyDaysAgo],
-      );
-      final recentCount = (recentCountResult.first['count'] as int?) ?? 0;
+      final purchaseCount = Sqflite.firstIntValue(purchaseCountResult) ?? 0;
 
       // Lần mua cuối cùng
-      final lastPurchaseResult = await _localDb.rawQuery(
-        '''SELECT MAX(deliveredAt) as lastDate FROM repairs 
-           WHERE shopId = ? AND (customerName = ? OR phone = ?) AND deletedAt IS NULL''',
+      final lastResults = await db.rawQuery(
+        'SELECT MAX(COALESCE(deliveredAt, createdAt)) as lastDate FROM repairs WHERE shopId = ? AND (customerName = ? OR phone = ?)',
         [shopId, customerName, phone],
       );
-      final lastPurchaseDate = (lastPurchaseResult.first['lastDate'] as int?) ?? 0;
+      final lastPurchaseDate = Sqflite.firstIntValue(lastResults) ?? 0;
+
+      // Calculate recent purchases count
+      final recentCountResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM repairs WHERE shopId = ? AND (customerName = ? OR phone = ?) AND createdAt >= ?',
+        [shopId, customerName, phone, DateTime.now().subtract(const Duration(days: 30)).millisecondsSinceEpoch],
+      );
+      final recentCount = Sqflite.firstIntValue(recentCountResult) ?? 0;
 
       // Quyết định segment
       if (totalSpent >= _vipMinSpend && purchaseCount >= _vipMinCount) {
@@ -134,17 +138,15 @@ class CustomerSegmentService {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return [];
 
-      final results = await _localDb.rawQuery(
-        '''SELECT id, name, phone, email, totalSpent, totalRepairs, lastVisitAt, segment 
-           FROM customers 
-           WHERE shopId = ? AND segment = ? AND deletedAt IS NULL
-           ORDER BY totalSpent DESC''',
-        [shopId, segment],
+      final db = await _localDb.database;
+      return await db.query(
+        'customers',
+        where: 'shopId = ? AND segment = ?',
+        whereArgs: [shopId, segment],
+        orderBy: 'totalSpent DESC',
       );
-
-      return results;
     } catch (e) {
-      debugPrint('❌ Error fetching customers by segment: $e');
+      debugPrint('❌ Error fetching customers: $e');
       return [];
     }
   }
@@ -155,83 +157,57 @@ class CustomerSegmentService {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return {};
 
-      final results = await _localDb.rawQuery(
-        '''SELECT segment, COUNT(*) as count FROM customers 
-           WHERE shopId = ? AND deletedAt IS NULL GROUP BY segment''',
+      final db = await _localDb.database;
+      final results = await db.rawQuery(
+        'SELECT segment, COUNT(*) as count FROM customers WHERE shopId = ? GROUP BY segment',
         [shopId],
       );
 
       final summary = <String, int>{};
       for (final row in results) {
-        summary[row['segment'] as String] = row['count'] as int;
+        final segment = row['segment'] as String?;
+        final count = Sqflite.firstIntValue([row['count']]) ?? 0;
+        if (segment != null) summary[segment] = count;
       }
-
       return summary;
     } catch (e) {
-      debugPrint('❌ Error fetching segment summary: $e');
+      debugPrint('❌ Error: $e');
       return {};
     }
   }
 
-  /// Đánh dấu khách hàng là VIP (manual override)
-  static Future<bool> markCustomerAsVip(String phone) async {
+  /// Đánh dấu khách hàng là VIP
+  static Future<void> markCustomerAsVip(String phone) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return false;
-
-      await _localDb.rawUpdate(
-        'UPDATE customers SET segment = ? WHERE shopId = ? AND phone = ?',
-        [segmentVip, shopId, phone],
+      final db = await _localDb.database;
+      await db.update(
+        'customers',
+        {'segment': segmentVip},
+        where: 'phone = ?',
+        whereArgs: [phone],
       );
-
-      debugPrint('✅ Marked $phone as VIP');
-      return true;
     } catch (e) {
       debugPrint('❌ Error marking VIP: $e');
-      return false;
     }
   }
 
-  /// Ghi chú riêng cho khách hàng VIP
-  static Future<bool> addVipNote(String phone, String note) async {
+  /// Thêm ghi chú VIP
+  static Future<void> addVipNote(String phone, String note) async {
     try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return false;
-
-      await _localDb.rawUpdate(
-        'UPDATE customers SET vipNotes = ? WHERE shopId = ? AND phone = ?',
-        [note, shopId, phone],
+      final db = await _localDb.database;
+      await db.update(
+        'customers',
+        {'vip_notes': note},
+        where: 'phone = ?',
+        whereArgs: [phone],
       );
-
-      debugPrint('✅ Added VIP note for $phone');
-      return true;
     } catch (e) {
-      debugPrint('❌ Error adding VIP note: $e');
-      return false;
+      debugPrint('❌ Error adding note: $e');
     }
   }
 
   /// Khách hàng churn cần chăm sóc lại
-  static Future<List<Map<String, dynamic>>> getChurnCustomersForCampaign({
-    int limit = 20,
-  }) async {
-    try {
-      final shopId = await UserService.getCurrentShopId();
-      if (shopId == null) return [];
-
-      final results = await _localDb.rawQuery(
-        '''SELECT id, name, phone, email, lastVisitAt, totalSpent 
-           FROM customers 
-           WHERE shopId = ? AND segment = ? AND deletedAt IS NULL
-           ORDER BY lastVisitAt ASC
-           LIMIT ?''',
-        [shopId, segmentChurn, limit],
-      );
-
-      return results;
-    } catch (e) {
-      debugPrint('❌ Error fetching churn customers: $e');
-      return [];
-    }
+  static Future<List<Map<String, dynamic>>> getChurnCustomersForCampaign() async {
+    return getCustomersBySegment(segmentChurn);
   }
 }
