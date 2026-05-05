@@ -25,6 +25,7 @@ import 'services/connectivity_service.dart';
 import 'services/sync_service.dart';
 import 'services/sync_health_check.dart'; // Kiểm tra sync health
 import 'services/sync_orchestrator.dart'; // Quản lý đồng bộ local -> cloud
+import 'services/warranty_reminder_service.dart';
 import 'services/cash_closing_notifier.dart'; // Realtime notify chốt quỹ
 import 'services/claims_service.dart'; // Custom claims management
 import 'services/payment_intent_service.dart'; // Payment intents management
@@ -354,6 +355,20 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   // Track if sync orchestrator is initialized
   bool _syncOrchestratorInitialized = false;
+  bool _warrantyReminderInitialized = false;
+
+  Future<void> _initWarrantyReminderOnce() async {
+    if (_warrantyReminderInitialized) return;
+    _warrantyReminderInitialized = true;
+    try {
+      final warrantyService = WarrantyReminderService();
+      // ignore: instance_access_to_static_member
+      await warrantyService.startWarrantyReminders();
+    } catch (e) {
+      debugPrint('WarrantyReminder init error: $e');
+      _warrantyReminderInitialized = false;
+    }
+  }
 
   @override
   void initState() {
@@ -623,6 +638,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         debugPrint(
           '⚡ _getRoleAfterSync: Using cached mobile session role=$cachedRole, shopId=$cachedShopId',
         );
+        await _initWarrantyReminderOnce();
         _startBackgroundUserWarmup(uid, email);
         PerfMonitor.stop('_getRoleAfterSync');
         return {'role': cachedRole, 'isSuperAdmin': false};
@@ -654,6 +670,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     final fastMobileBootstrap = await _tryFastMobileBootstrap(uid, email);
     if (fastMobileBootstrap != null) {
+      await _initWarrantyReminderOnce();
       PerfMonitor.stop('_getRoleAfterSync');
       return fastMobileBootstrap;
     }
@@ -819,6 +836,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     // Lưu role vào prefs cho lần sau
     UserService.saveAuthCache(role: role, forUid: uid);
+
+    await _initWarrantyReminderOnce();
 
     PerfMonitor.stop('_getRoleAfterSync');
     return {'role': role, 'isSuperAdmin': false};
