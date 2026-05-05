@@ -69,6 +69,9 @@ import '../widgets/notification_badge.dart';
 import '../widgets/simple_sync_indicator.dart';
 import '../widgets/shop_switcher_widget.dart';
 import '../widgets/custom_app_bar.dart';
+import '../widgets/warranty_reminder_widget.dart';
+import '../widgets/top_services_widget.dart';
+import '../widgets/customer_segments_widget.dart';
 import '../services/sync_service.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_health_check.dart';
@@ -3451,6 +3454,9 @@ class _HomeViewState extends State<HomeView>
     }
 
     widgets.add(_buildHomeCommunityQuickCard());
+    widgets.add(const WarrantyReminderWidget());
+    widgets.add(const TopServicesWidget());
+    widgets.add(const CustomerSegmentsWidget());
 
     return widgets;
   }
