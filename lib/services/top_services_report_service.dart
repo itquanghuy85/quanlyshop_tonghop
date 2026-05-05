@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import '../data/db_helper.dart';
 import 'user_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Báo cáo dịch vụ sửa chữa: Top 10 dịch vụ lãi nhất
 /// - Tính toán lợi nhuận gộp từng dịch vụ
@@ -21,38 +21,40 @@ class TopServicesReportService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return [];
+      await _db.ensureRepairsShopIdBackfilled(preferredShopId: shopId);
       final db = await _db.database;
 
-      final startMs = (startDate ?? DateTime(DateTime.now().year, DateTime.now().month, 1))
+      final startMs = (startDate ?? DateTime(2000, 1, 1))
           .millisecondsSinceEpoch;
       final endMs = (endDate ?? DateTime.now()).millisecondsSinceEpoch;
 
-      // Query: group by issue, tính sum(price), sum(totalCost), count(*)
       const query = '''
         SELECT 
-          issue as serviceName,
+          COALESCE(NULLIF(TRIM(issue), ''), NULLIF(TRIM(services), ''), NULLIF(TRIM(model), ''), 'Khác') as serviceName,
           COUNT(*) as count,
           SUM(price) as totalRevenue,
-          SUM(totalCost) as totalCost,
-          SUM(price) - SUM(totalCost) as grossProfit,
-          ROUND(AVG(price - totalCost), 0) as avgProfitPerJob,
-          ROUND(100.0 * (SUM(price) - SUM(totalCost)) / SUM(price), 1) as profitMarginPct
+          SUM(cost) as totalCost,
+          SUM(price) - SUM(cost) as grossProfit,
+          ROUND(AVG(price - cost), 0) as avgProfitPerJob,
+          ROUND(100.0 * (SUM(price) - SUM(cost)) / NULLIF(SUM(price), 0), 1) as profitMarginPct
         FROM repairs
         WHERE shopId = ? 
-          AND deliveredAt BETWEEN ? AND ?
-          AND deletedAt IS NULL
-          AND status = 4
-        GROUP BY issue
+          AND COALESCE(deliveredAt, finishedAt, createdAt) BETWEEN ? AND ?
+          AND deleted = 0
+          AND status IN (3, 4)
+        GROUP BY COALESCE(NULLIF(TRIM(issue), ''), NULLIF(TRIM(services), ''), NULLIF(TRIM(model), ''), 'Khác')
         ORDER BY totalRevenue DESC
         LIMIT ?
       ''';
 
+      debugPrint('[TopServices][revenue][SQL_RAW]\n$query');
+      debugPrint('[TopServices][revenue][ARGS] shopId=$shopId startMs=$startMs endMs=$endMs limit=$limit');
       final results = await db.rawQuery(query, [shopId, startMs, endMs, limit]);
-      
-      debugPrint('📊 Top services by revenue: ${results.length} services found');
+      debugPrint('[TopServices][revenue][RESULT_COUNT] ${results.length}');
+      debugPrint('[TopServices][revenue][RESULT_RAW] $results');
       return results;
     } catch (e) {
-      debugPrint('❌ Error fetching top services by revenue: $e');
+      debugPrint('[TopServices][revenue][ERROR] $e');
       return [];
     }
   }
@@ -66,36 +68,40 @@ class TopServicesReportService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return [];
+      await _db.ensureRepairsShopIdBackfilled(preferredShopId: shopId);
       final db = await _db.database;
 
-      final startMs = (startDate ?? DateTime(DateTime.now().year, DateTime.now().month, 1))
+      final startMs = (startDate ?? DateTime(2000, 1, 1))
           .millisecondsSinceEpoch;
       final endMs = (endDate ?? DateTime.now()).millisecondsSinceEpoch;
 
       const query = '''
         SELECT 
-          issue as serviceName,
+          COALESCE(NULLIF(TRIM(issue), ''), NULLIF(TRIM(services), ''), NULLIF(TRIM(model), ''), 'Khác') as serviceName,
           COUNT(*) as count,
           SUM(price) as totalRevenue,
-          SUM(totalCost) as totalCost,
-          SUM(price) - SUM(totalCost) as grossProfit,
-          ROUND(AVG(price - totalCost), 0) as avgProfitPerJob,
-          ROUND(100.0 * (SUM(price) - SUM(totalCost)) / SUM(price), 1) as profitMarginPct
+          SUM(cost) as totalCost,
+          SUM(price) - SUM(cost) as grossProfit,
+          ROUND(AVG(price - cost), 0) as avgProfitPerJob,
+          ROUND(100.0 * (SUM(price) - SUM(cost)) / NULLIF(SUM(price), 0), 1) as profitMarginPct
         FROM repairs
         WHERE shopId = ? 
-          AND deliveredAt BETWEEN ? AND ?
-          AND deletedAt IS NULL
-          AND status = 4
-        GROUP BY issue
+          AND COALESCE(deliveredAt, finishedAt, createdAt) BETWEEN ? AND ?
+          AND deleted = 0
+          AND status IN (3, 4)
+        GROUP BY COALESCE(NULLIF(TRIM(issue), ''), NULLIF(TRIM(services), ''), NULLIF(TRIM(model), ''), 'Khác')
         ORDER BY grossProfit DESC
         LIMIT ?
       ''';
 
+      debugPrint('[TopServices][profit][SQL_RAW]\n$query');
+      debugPrint('[TopServices][profit][ARGS] shopId=$shopId startMs=$startMs endMs=$endMs limit=$limit');
       final results = await db.rawQuery(query, [shopId, startMs, endMs, limit]);
-      debugPrint('💰 Top services by profit: ${results.length} services found');
+      debugPrint('[TopServices][profit][RESULT_COUNT] ${results.length}');
+      debugPrint('[TopServices][profit][RESULT_RAW] $results');
       return results;
     } catch (e) {
-      debugPrint('❌ Error fetching top services by profit: $e');
+      debugPrint('[TopServices][profit][ERROR] $e');
       return [];
     }
   }
@@ -109,36 +115,40 @@ class TopServicesReportService {
     try {
       final shopId = await UserService.getCurrentShopId();
       if (shopId == null) return [];
+      await _db.ensureRepairsShopIdBackfilled(preferredShopId: shopId);
       final db = await _db.database;
 
-      final startMs = (startDate ?? DateTime(DateTime.now().year, DateTime.now().month, 1))
+      final startMs = (startDate ?? DateTime(2000, 1, 1))
           .millisecondsSinceEpoch;
       final endMs = (endDate ?? DateTime.now()).millisecondsSinceEpoch;
 
       const query = '''
         SELECT 
-          issue as serviceName,
+          COALESCE(NULLIF(TRIM(issue), ''), NULLIF(TRIM(services), ''), NULLIF(TRIM(model), ''), 'Khác') as serviceName,
           COUNT(*) as count,
           SUM(price) as totalRevenue,
-          SUM(totalCost) as totalCost,
-          SUM(price) - SUM(totalCost) as grossProfit,
-          ROUND(AVG(price - totalCost), 0) as avgProfitPerJob,
-          ROUND(100.0 * (SUM(price) - SUM(totalCost)) / SUM(price), 1) as profitMarginPct
+          SUM(cost) as totalCost,
+          SUM(price) - SUM(cost) as grossProfit,
+          ROUND(AVG(price - cost), 0) as avgProfitPerJob,
+          ROUND(100.0 * (SUM(price) - SUM(cost)) / NULLIF(SUM(price), 0), 1) as profitMarginPct
         FROM repairs
         WHERE shopId = ? 
-          AND deliveredAt BETWEEN ? AND ?
-          AND deletedAt IS NULL
-          AND status = 4
-        GROUP BY issue
+          AND COALESCE(deliveredAt, finishedAt, createdAt) BETWEEN ? AND ?
+          AND deleted = 0
+          AND status IN (3, 4)
+        GROUP BY COALESCE(NULLIF(TRIM(issue), ''), NULLIF(TRIM(services), ''), NULLIF(TRIM(model), ''), 'Khác')
         ORDER BY count DESC
         LIMIT ?
       ''';
 
+      debugPrint('[TopServices][frequency][SQL_RAW]\n$query');
+      debugPrint('[TopServices][frequency][ARGS] shopId=$shopId startMs=$startMs endMs=$endMs limit=$limit');
       final results = await db.rawQuery(query, [shopId, startMs, endMs, limit]);
-      debugPrint('🔄 Top services by frequency: ${results.length} services found');
+      debugPrint('[TopServices][frequency][RESULT_COUNT] ${results.length}');
+      debugPrint('[TopServices][frequency][RESULT_RAW] $results');
       return results;
     } catch (e) {
-      debugPrint('❌ Error fetching top services by frequency: $e');
+      debugPrint('[TopServices][frequency][ERROR] $e');
       return [];
     }
   }
@@ -180,10 +190,8 @@ class TopServicesReportService {
       ''';
 
       final results = await db.rawQuery(query, [shopId, startMs, endMs, limit]);
-      debugPrint('⚠️ Low profit services: ${results.length} services found');
       return results;
     } catch (e) {
-      debugPrint('❌ Error fetching low profit services: $e');
       return [];
     }
   }
@@ -222,7 +230,6 @@ class TopServicesReportService {
       final results = await db.rawQuery(query, [shopId, serviceName, startMs, endMs]);
       return results;
     } catch (e) {
-      debugPrint('❌ Error fetching service details: $e');
       return [];
     }
   }

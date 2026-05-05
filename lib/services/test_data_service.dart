@@ -574,6 +574,7 @@ class TestDataService {
           isSynced: true,
           deleted: false,
           services: [],
+          shopId: shopId,
         );
         final fsId = await FirestoreService.addRepair(repair);
         if (fsId != null) {
@@ -920,7 +921,9 @@ class TestDataService {
     for (int daysBack = 0; daysBack < 7; daysBack++) {
       final day = today.subtract(Duration(days: daysBack));
       if (day.weekday == DateTime.saturday ||
-          day.weekday == DateTime.sunday) continue;
+          day.weekday == DateTime.sunday) {
+        continue;
+      }
       final dateKey =
           '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
 

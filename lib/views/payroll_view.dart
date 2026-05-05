@@ -16,6 +16,7 @@ import '../widgets/custom_app_bar.dart';
 import 'hr/add_custom_adjustment_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
 import '../services/event_bus.dart';
+import '../finance_v2/finance_v2_theme.dart';
 
 class PayrollView extends StatefulWidget {
   const PayrollView({super.key});
@@ -371,6 +372,7 @@ class _PayrollViewState extends State<PayrollView> {
   Widget build(BuildContext context) {
     if (!_hasPermission) {
       return Scaffold(
+        backgroundColor: FinanceV2Theme.pageBg,
         appBar: AppBar(
           flexibleSpace: Container(
             decoration: const BoxDecoration(
@@ -389,7 +391,7 @@ class _PayrollViewState extends State<PayrollView> {
         body: Center(
           child: Text(
             "Bạn không có quyền truy cập tính năng này",
-            style: AppTextStyles.body1.copyWith(color: AppColors.onSurface.withValues(alpha: 0.6)),
+            style: FinanceV2Theme.bodyMd.copyWith(color: FinanceV2Theme.subInk),
           ),
         ),
       );
@@ -397,6 +399,7 @@ class _PayrollViewState extends State<PayrollView> {
 
     final summary = _calc();
     return Scaffold(
+      backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.build(
         title: 'BẢNG LƯƠNG',
         accentColor: AppBarAccents.staff,
@@ -525,13 +528,13 @@ class _PayrollViewState extends State<PayrollView> {
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 10),
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(AppButtonStyles.borderRadius), boxShadow: const [BoxShadow(color: AppColors.shadow, blurRadius: 4)]),
+                  decoration: FinanceV2Theme.elevatedPanel(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text('TỔNG HỢP', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.onSurface)),
+                          Text('TỒNG HỢP', style: FinanceV2Theme.titleMd),
                           const Spacer(),
                           Chip(
                             label: Text(_monthLocked ? 'ĐÃ KHÓA' : 'CHƯA KHÓA', style: const TextStyle(fontSize: 12)),
@@ -554,9 +557,9 @@ class _PayrollViewState extends State<PayrollView> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text('Ngày công: ${summary['days']}   •   Chuẩn: ${summary['regularHours'].toStringAsFixed(1)}h   •   OT: ${summary['otHours'].toStringAsFixed(1)}h (x${summary['otRate']})', style: const TextStyle(fontSize: 14)),
+                      Text('Ngày công: ${summary['days']}   •   Chuẩn: ${summary['regularHours'].toStringAsFixed(1)}h   •   OT: ${summary['otHours'].toStringAsFixed(1)}h (x${summary['otRate']})', style: FinanceV2Theme.bodyMd),
                       const Divider(height: 12),
-                      Text('Lương tạm tính: ${NumberFormat('#,###').format(summary['salary'].round())} đ', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.success)),
+                      Text('Lương tạm tính: ${NumberFormat('#,###').format(summary['salary'].round())} đ', style: FinanceV2Theme.amountMd.copyWith(color: FinanceV2Theme.positive)),
                     ],
                   ),
                 ),
@@ -574,9 +577,9 @@ class _PayrollViewState extends State<PayrollView> {
                         visualDensity: VisualDensity.compact,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                         leading: const Icon(Icons.calendar_today, size: 15),
-                        title: Text(a.dateKey ?? '', style: const TextStyle(fontSize: 14)),
-                        subtitle: Text('${inMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(inMs))} → ${outMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(outMs))} • ${hrs.toStringAsFixed(1)}h', style: const TextStyle(fontSize: 13)),
-                        trailing: (a.overtimeOn ?? 0) == 1 ? const Text('OT', style: TextStyle(fontSize: 13, color: Colors.orange, fontWeight: FontWeight.bold)) : null,
+                        title: Text(a.dateKey ?? '', style: FinanceV2Theme.bodyMd),
+                        subtitle: Text('${inMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(inMs))} → ${outMs == null ? '--' : DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(outMs))} • ${hrs.toStringAsFixed(1)}h', style: FinanceV2Theme.micro.copyWith(color: FinanceV2Theme.subInk)),
+                        trailing: (a.overtimeOn ?? 0) == 1 ? Text('OT', style: FinanceV2Theme.bodySm.copyWith(color: FinanceV2Theme.warn, fontWeight: FontWeight.w700)) : null,
                       );
                     }).toList(),
                   ),

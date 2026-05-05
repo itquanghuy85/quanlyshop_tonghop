@@ -337,7 +337,24 @@ class RepairPartnerService {
       'SELECT COALESCE(SUM(amount), 0) as totalPaid FROM repair_partner_payments WHERE $paymentWhere',
       paymentArgs,
     );
-    final totalPaid = payments.isNotEmpty ? (payments.first['totalPaid'] as int? ?? 0) : 0;
+    final directPaid =
+        payments.isNotEmpty ? (payments.first['totalPaid'] as int? ?? 0) : 0;
+
+    // Keep partner list consistent with detail view: debt repayments are tracked
+    // in debts.paidAmount, not in repair_partner_payments.
+    String debtWhere =
+        'shopId = ? AND deleted = 0 AND type = ? AND UPPER(personName) = ?';
+    final debtArgs = <dynamic>[shopId, 'SHOP_OWES', partnerName?.toUpperCase() ?? ''];
+    if (partnerName == null || partnerName.isEmpty) {
+      debtWhere = 'shopId = ? AND deleted = 0 AND 1 = 0';
+    }
+    final debtPaidRows = await dbInstance.rawQuery(
+      'SELECT COALESCE(SUM(paidAmount), 0) as debtPaid FROM debts WHERE $debtWhere',
+      debtArgs,
+    );
+    final debtPaid =
+        debtPaidRows.isNotEmpty ? (debtPaidRows.first['debtPaid'] as int? ?? 0) : 0;
+    final totalPaid = directPaid + debtPaid;
 
     // Also count repairs directly from repairs table where services reference this partner
     // This catches cases where partner_repair_history was not created

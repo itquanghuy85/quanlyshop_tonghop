@@ -20,10 +20,12 @@ import '../services/daily_financial_analysis_service.dart';
 
 class FinanceV2DailyReportView extends StatefulWidget {
   final bool embeddedInTab;
+  final List<Widget> prependedChildren;
 
   const FinanceV2DailyReportView({
     super.key,
     this.embeddedInTab = false,
+    this.prependedChildren = const [],
   });
 
   @override
@@ -1432,6 +1434,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                 child: ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
+                    ...widget.prependedChildren,
                     _buildDateSelector(context),
                     const SizedBox(height: 16),
                     _buildSummaryCards(context, netCashflow, realProfit),

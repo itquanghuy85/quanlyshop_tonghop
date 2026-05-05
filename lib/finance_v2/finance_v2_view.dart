@@ -15,9 +15,11 @@ import '../views/debt_view.dart';
 import '../views/expense_view.dart';
 import '../views/repair_detail_view.dart';
 import '../views/sale_detail_view.dart';
+import '../widgets/customer_segments_widget.dart';
 import '../widgets/entity_avatar.dart';
 import '../widgets/printer_selection_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/top_services_widget.dart';
 import '../services/event_bus.dart';
 import '../services/label_settings_service.dart';
 import '../services/unified_printer_service.dart';
@@ -405,6 +407,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   String _full(int v) => MoneyUtils.formatCurrency(v.abs());
   int _ti(dynamic v){ if(v is int) return v; if(v is num) return v.toInt(); if(v is String) return int.tryParse(v)??0; return 0; }
   String _ft(String t) => const<String,String>{'SALE':'Bán hàng','REPAIR':'Sửa chữa','EXPENSE':'Chi phí','INCOME':'Thu phát sinh','DEBT_COLLECT':'Thu nợ','DEBT_PAY':'Trả nợ','CUSTOMER_OWES':'Phải thu','SHOP_OWES':'Phải trả','AUDIT':'Nhật ký','REFUND':'Trả hàng'}[t]??t;
+  // ignore: unused_element
   String _fa(String a) => const<String,String>{'create_repair':'Tạo đơn sửa chữa','update_repair':'Cập nhật đơn sửa','delete_repair':'Xóa đơn sửa chữa','create_sale':'Tạo đơn bán hàng','update_sale':'Cập nhật đơn bán hàng','delete_sale':'Xóa đơn bán hàng','add_expense':'Thêm chi phí','update_expense':'Cập nhật chi phí','delete_expense':'Xóa chi phí','add_debt':'Thêm công nợ','update_debt':'Cập nhật công nợ','delete_debt':'Xóa công nợ','add_debt_payment':'Thanh toán nợ','cash_closing':'Chốt ca'}[a]??a;
 
   int _maxPage(int total, int pageSize) {
@@ -1425,10 +1428,11 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       ents.add(_TLEntry(ts:t.createdAt,type:t.type,title:t.title,subtitle:t.subtitle,amount:t.amount,isIncome:t.isIncome,avatarUrl:t.avatarUrl,actorName:t.actorName,paymentMethod:t.paymentMethod,referenceId:t.referenceId));
     }
     for(final log in s.auditLogs){
-      final ts=_ti(log['createdAt']);final ac=(log['action']??'').toString();final actor=(log['createdBy']??log['actorName']??'').toString();final ref=(log['referenceId']??log['firestoreId']??'').toString();
-      final title = _fa(ac).trim();
+      final ts=_ti(log['createdAt']);final actor=(log['createdBy']??log['actorName']??'').toString();final ref=(log['referenceId']??log['firestoreId']??'').toString();
+      // Dùng 'title' (text có sẵn) hoặc fallback về 'activityType' — field 'action' không tồn tại trong financial_activity_log
+      final title=((log['title']??log['activityType']??'').toString()).trim();
       if (title.isEmpty) continue;
-      ents.add(_TLEntry(ts:ts,type:'AUDIT',title:title,subtitle:'',amount:_ti(log['amount']),isIncome:false,actorName:actor.isNotEmpty?actor:null,referenceId:ref.isNotEmpty?ref:null));
+      ents.add(_TLEntry(ts:ts,type:'AUDIT',title:title,subtitle:(log['description']??'').toString(),amount:_ti(log['amount']),isIncome:(log['direction']??'').toString()=='IN',actorName:actor.isNotEmpty?actor:null,referenceId:ref.isNotEmpty?ref:null));
     }
     ents.sort((a,b)=>b.ts.compareTo(a.ts)); return ents;
   }
@@ -2184,20 +2188,24 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Future<(int customerOpening, int supplierOpening)> _loadOpeningDebtBalances() async {
     final startMs = _start.millisecondsSinceEpoch;
     final debts = await _db.getDebtsForFinanceSnapshot();
-    final periodPayments = await _db.getDebtPaymentsForCashFlowByDateRange(
-      startMs,
-      DateTime(_end.year, _end.month, _end.day, 23, 59, 59).millisecondsSinceEpoch,
-    );
 
-    final paymentByDebtKey = <String, int>{};
-    for (final payment in periodPayments) {
+    // Lấy tất cả thanh toán TRƯỚC kỳ để tính số dư đầu kỳ chính xác.
+    // Dùng pre-period payments thay vì paidAmount - paidInPeriod để tránh lỗi
+    // khi payment key không khớp với debt key (làm underestimate opening balance).
+    final prePeriodPayments = await _db.getDebtPaymentsForCashFlowByDateRange(
+      1, // paidAt > 0 để bỏ qua record rác
+      startMs, // exclusive upper bound (paidAt < startMs)
+    );
+    final prePeriodByKey = <String, int>{};
+    for (final payment in prePeriodPayments) {
+      final debtIdStr = (payment['debtId'] ?? '').toString().trim();
       final keys = <String>{
-        (payment['debtFirestoreId'] ?? '').toString(),
-        (payment['debtId'] ?? '').toString(),
-      }..removeWhere((value) => value.trim().isEmpty);
+        (payment['debtFirestoreId'] ?? '').toString().trim(),
+        if (debtIdStr != '0') debtIdStr,
+      }..removeWhere((value) => value.isEmpty);
       final amount = (payment['amount'] as num?)?.toInt() ?? 0;
       for (final key in keys) {
-        paymentByDebtKey[key] = (paymentByDebtKey[key] ?? 0) + amount;
+        prePeriodByKey[key] = (prePeriodByKey[key] ?? 0) + amount;
       }
     }
 
@@ -2209,10 +2217,10 @@ class _FinanceV2ViewState extends State<FinanceV2View>
         continue;
       }
       final totalAmount = (debt['totalAmount'] as num?)?.toInt() ?? 0;
-      final paidAmount = (debt['paidAmount'] as num?)?.toInt() ?? 0;
       final debtKey = (debt['firestoreId'] ?? debt['id'] ?? '').toString();
-      final paidInPeriod = paymentByDebtKey[debtKey] ?? 0;
-      final paidBeforeStart = (paidAmount - paidInPeriod).clamp(0, totalAmount);
+      // Tính paidBeforeStart trực tiếp từ lịch sử thanh toán trước kỳ,
+      // tránh sai số khi dùng paidAmount - paidInPeriod (key mismatch).
+      final paidBeforeStart = (prePeriodByKey[debtKey] ?? 0).clamp(0, totalAmount);
       final openingRemaining = (totalAmount - paidBeforeStart).clamp(0, totalAmount);
       final debtType = (debt['type'] ?? debt['debtType'] ?? '').toString().toUpperCase();
       final isPayable = debtType == 'SHOP_OWES' || debtType == 'OTHER_SHOP_OWES' || debtType == 'OWED';
@@ -2648,6 +2656,18 @@ class _FinanceV2ViewState extends State<FinanceV2View>
 
   // TAB 5 - Báo cáo ngày (embedded in Finance tabs)
   Widget _t5() {
-    return const FinanceV2DailyReportView(embeddedInTab: true);
+    return FinanceV2DailyReportView(
+      embeddedInTab: true,
+      prependedChildren: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+          child: TopServicesWidget(startDate: _start, endDate: _end),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: const CustomerSegmentsWidget(),
+        ),
+      ],
+    );
   }
 }

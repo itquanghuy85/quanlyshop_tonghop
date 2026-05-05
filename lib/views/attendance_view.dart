@@ -28,6 +28,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../finance_v2/finance_v2_theme.dart';
 
 class AttendanceView extends StatefulWidget {
   const AttendanceView({super.key});
@@ -520,7 +521,7 @@ class _AttendanceViewState extends State<AttendanceView>
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.build(
         title: AppLocalizations.of(context)?.attendance ?? "CHẤM CÔNG",
         subtitle:
@@ -627,13 +628,11 @@ class _AttendanceViewState extends State<AttendanceView>
               ),
               title: Text(
                 "Cấu hình lịch làm việc",
-                style: AppTextStyles.body2.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: FinanceV2Theme.bodyMd.copyWith(fontWeight: FontWeight.w700),
               ),
               subtitle: Text(
                 "Thiết lập giờ vào/ra cho thợ",
-                style: AppTextStyles.caption,
+                style: FinanceV2Theme.caption,
               ),
               trailing: const Icon(Icons.chevron_right, size: 18),
               onTap: () => Navigator.push(
@@ -731,18 +730,15 @@ class _AttendanceViewState extends State<AttendanceView>
   Widget _buildTodaySummary() {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: FinanceV2Theme.elevatedPanel(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             "TRẠNG THÁI HÔM NAY",
-            style: AppTextStyles.caption.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.onSurface.withOpacity(0.7),
+            style: FinanceV2Theme.micro.copyWith(
+              fontWeight: FontWeight.w700,
+              color: FinanceV2Theme.subInk,
             ),
           ),
           const Divider(height: 16),
@@ -782,16 +778,14 @@ class _AttendanceViewState extends State<AttendanceView>
       children: [
         Text(
           l,
-          style: AppTextStyles.body2.copyWith(
-            color: AppColors.onSurface.withOpacity(0.6),
-          ),
+          style: FinanceV2Theme.bodySm.copyWith(color: FinanceV2Theme.subInk),
         ),
         const SizedBox(width: 8),
         Flexible(
           child: Text(
             v,
-            style: AppTextStyles.body2.copyWith(
-              fontWeight: FontWeight.bold,
+            style: FinanceV2Theme.bodyMd.copyWith(
+              fontWeight: FontWeight.w700,
               color: c,
             ),
             textAlign: TextAlign.end,
@@ -860,13 +854,10 @@ class _AttendanceViewState extends State<AttendanceView>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.dateKey, style: AppTextStyles.headline6),
+                        Text(item.dateKey, style: FinanceV2Theme.titleMd),
                         Text(
                           "Vào: ${item.checkInAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkInAt!)) : '--'} | Ra: ${item.checkOutAt != null ? DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(item.checkOutAt!)) : '--'}",
-                          style: TextStyle(
-                            fontSize: AppTextStyles.subtitle1.fontSize,
-                            color: Colors.grey,
-                          ),
+                          style: FinanceV2Theme.micro.copyWith(color: FinanceV2Theme.subInk),
                         ),
                       ],
                     ),
@@ -901,26 +892,21 @@ class _AttendanceViewState extends State<AttendanceView>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: FinanceV2Theme.elevatedPanel(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'YÊU CẦU CÁ NHÂN',
-            style: AppTextStyles.caption.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.onSurface.withOpacity(0.7),
+            style: FinanceV2Theme.micro.copyWith(
+              fontWeight: FontWeight.w700,
+              color: FinanceV2Theme.subInk,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Gửi yêu cầu quên chấm công hoặc xin nghỉ mà không cần vào màn quản lý.',
-            style: AppTextStyles.body2.copyWith(
-              color: AppColors.onSurface.withOpacity(0.7),
-            ),
+            style: FinanceV2Theme.bodySm.copyWith(color: FinanceV2Theme.subInk),
           ),
           const SizedBox(height: 12),
           Row(
@@ -958,10 +944,7 @@ class _AttendanceViewState extends State<AttendanceView>
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: FinanceV2Theme.elevatedPanel(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -969,16 +952,16 @@ class _AttendanceViewState extends State<AttendanceView>
             children: [
               Text(
                 'ĐƠN CỦA TÔI',
-                style: AppTextStyles.caption.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onSurface.withOpacity(0.7),
+                style: FinanceV2Theme.micro.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: FinanceV2Theme.subInk,
                 ),
               ),
               const Spacer(),
               Text(
                 '${_leaveRequests.length} đơn',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.inactive,
+                style: FinanceV2Theme.caption.copyWith(
+                  color: FinanceV2Theme.subInk,
                 ),
               ),
             ],
@@ -987,7 +970,7 @@ class _AttendanceViewState extends State<AttendanceView>
           if (items.isEmpty)
             Text(
               loc.noLeaveRequests,
-              style: AppTextStyles.body2.copyWith(color: AppColors.inactive),
+              style: FinanceV2Theme.bodySm.copyWith(color: FinanceV2Theme.subInk),
             )
           else
             ...items.map(_buildLeaveRequestItem),
@@ -1023,16 +1006,16 @@ class _AttendanceViewState extends State<AttendanceView>
               Expanded(
                 child: Text(
                   LeaveRequest.leaveTypeDisplayVi(request.leaveType),
-                  style: AppTextStyles.body2.copyWith(
-                    fontWeight: FontWeight.bold,
+                  style: FinanceV2Theme.bodyMd.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
               Text(
                 statusLabel,
-                style: AppTextStyles.caption.copyWith(
+                style: FinanceV2Theme.micro.copyWith(
                   color: statusColor,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -1040,14 +1023,14 @@ class _AttendanceViewState extends State<AttendanceView>
           const SizedBox(height: 4),
           Text(
             '${request.startDate} -> ${request.endDate}',
-            style: AppTextStyles.body2.copyWith(color: AppColors.inactive),
+            style: FinanceV2Theme.bodySm.copyWith(color: FinanceV2Theme.subInk),
           ),
           if ((request.reason ?? '').isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 'Lý do: ${request.reason}',
-                style: AppTextStyles.caption,
+                style: FinanceV2Theme.caption,
               ),
             ),
           if ((request.rejectReason ?? '').isNotEmpty)
@@ -1055,7 +1038,7 @@ class _AttendanceViewState extends State<AttendanceView>
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 'Từ chối: ${request.rejectReason}',
-                style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                style: FinanceV2Theme.caption.copyWith(color: FinanceV2Theme.negative),
               ),
             ),
         ],

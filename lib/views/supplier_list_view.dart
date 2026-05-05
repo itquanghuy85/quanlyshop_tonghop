@@ -1032,21 +1032,29 @@ class _SupplierListViewState extends State<SupplierListView>
     String note,
   ) async {
     try {
-      // Find the first active supplier debt
+      // Tìm khoản nợ NCC còn dư — bao gồm mọi loại nợ nhà cung cấp
       final debts = await _db.getAllDebts();
+      final supplierDebtTypes = {'SHOP_OWES', 'OTHER_SHOP_OWES', 'OWED'};
       final target = debts.firstWhere(
-        (e) =>
-            e['type'] == 'SHOP_OWES' &&
-            (e['personName'] ?? '').toString().toUpperCase() ==
-                d.supplier.name.toUpperCase() &&
-            (e['totalAmount'] as int? ?? 0) > (e['paidAmount'] as int? ?? 0),
+        (e) {
+          final type = (e['type'] ?? e['debtType'] ?? '').toString().toUpperCase();
+          return supplierDebtTypes.contains(type) &&
+              (e['personName'] ?? '').toString().toUpperCase() ==
+                  d.supplier.name.toUpperCase() &&
+              (e['totalAmount'] as int? ?? 0) > (e['paidAmount'] as int? ?? 0);
+        },
         orElse: () => {},
       );
 
-      final debtFId = target.isNotEmpty
-          ? (target['firestoreId'] as String? ??
-                'debt_supplier_${d.supplier.id}')
-          : 'debt_supplier_${d.supplier.id}';
+      if (target.isEmpty) {
+        NotificationService.showSnackBar(
+          'Không tìm thấy khoản nợ phù hợp cho ${d.supplier.name}',
+          color: Colors.orange,
+        );
+        return;
+      }
+
+      final debtFId = target['firestoreId'] as String? ?? 'debt_supplier_${d.supplier.id}';
 
       // Convert payment method string to enum
       final method = methodStr == 'CHUYỂN KHOẢN'
@@ -1066,13 +1074,13 @@ class _SupplierListViewState extends State<SupplierListView>
         personName: d.supplier.name,
         personPhone: d.supplier.phone,
         notes: note.isNotEmpty ? note : null,
-        idempotencyKey: debtFId,
+        idempotencyKey: '${debtFId}_${DateTime.now().millisecondsSinceEpoch}',
         metadata: {
           'supplierId': d.supplier.id,
           'supplierName': d.supplier.name,
-          'debtId': target.isNotEmpty ? target['id'] : null,
+          'debtId': target['id'],
           'debtFirestoreId': debtFId,
-          'debtType': 'SHOP_OWES',
+          'debtType': (target['type'] ?? target['debtType'] ?? 'SHOP_OWES').toString(),
           'suggestedMethod': methodStr,
         },
       );

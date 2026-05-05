@@ -28,6 +28,7 @@ import 'repair_partner_detail_view.dart';
 import '../utils/excel_export_helper.dart';
 import '../utils/vietnamese_utils.dart';
 import '../widgets/export_date_filter_dialog.dart';
+import '../finance_v2/finance_v2_theme.dart';
 
 class DebtView extends StatefulWidget {
   const DebtView({super.key});
@@ -572,7 +573,7 @@ class _DebtViewState extends State<DebtView>
 
     if (!_hasPermission) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF0F4F8),
+        backgroundColor: FinanceV2Theme.pageBg,
         appBar: CustomAppBar.build(
           title: 'QUẢN LÝ CÔNG NỢ',
           accentColor: AppBarAccents.customer,
@@ -597,7 +598,7 @@ class _DebtViewState extends State<DebtView>
         (_enableRepair ? _partnerDebts.length : 0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F8),
+      backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.buildWithTabs(
         title: 'QUẢN LÝ CÔNG NỢ',
         subtitle: '$activeDebtsCount khoản nợ còn',
@@ -784,14 +785,14 @@ class _DebtViewState extends State<DebtView>
               Expanded(
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(fontSize: 14),
+                  style: FinanceV2Theme.bodyMd,
                   decoration: InputDecoration(
                     hintText: 'Tìm kiếm tên, SĐT...',
-                    hintStyle: const TextStyle(fontSize: 14),
-                    prefixIcon: const Icon(Icons.search, size: 20),
+                    hintStyle: FinanceV2Theme.bodyMd.copyWith(color: FinanceV2Theme.subInk),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 18, color: FinanceV2Theme.subInk),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
+                            icon: const Icon(Icons.clear_rounded, size: 18),
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
@@ -801,7 +802,16 @@ class _DebtViewState extends State<DebtView>
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFDDE3EF)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFFDDE3EF)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: FinanceV2Theme.accent),
                     ),
                   ),
                   onChanged: (v) => setState(() => _searchQuery = v.trim()),
@@ -1349,20 +1359,20 @@ class _DebtViewState extends State<DebtView>
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withAlpha(25),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withAlpha(77)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(FinanceV2Theme.radiusControl),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               label,
-              style: AppTextStyles.caption.copyWith(
+              style: FinanceV2Theme.micro.copyWith(
                 color: color,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1370,10 +1380,7 @@ class _DebtViewState extends State<DebtView>
           ),
           Text(
             MoneyUtils.formatCompactCurrency(amount),
-            style: AppTextStyles.headline4.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: FinanceV2Theme.amountLg.copyWith(color: color),
           ),
         ],
       ),
@@ -1430,7 +1437,7 @@ class _DebtViewState extends State<DebtView>
       margin: const EdgeInsets.only(bottom: 3),
       color: zebraBg,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(FinanceV2Theme.radiusControl),
         side: BorderSide(
           color: isVeryUrgent
               ? Colors.red.shade400
@@ -1440,7 +1447,7 @@ class _DebtViewState extends State<DebtView>
       ),
       child: InkWell(
         onTap: () => _showDebtHistory(d),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(FinanceV2Theme.radiusControl),
         child: Padding(
           padding: const EdgeInsets.all(6),
           child: Column(
@@ -1462,10 +1469,9 @@ class _DebtViewState extends State<DebtView>
                       child: Center(
                         child: Text(
                           '$index',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
+                          style: FinanceV2Theme.bodySm.copyWith(
+                            fontWeight: FontWeight.w700,
                             color: mainColor,
-                            fontSize: AppTextStyles.subtitle1.fontSize,
                           ),
                         ),
                       ),
@@ -1493,20 +1499,14 @@ class _DebtViewState extends State<DebtView>
                       children: [
                         Text(
                           personName.toUpperCase(),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: AppTextStyles.headline5.fontSize,
-                          ),
+                          style: FinanceV2Theme.bodyMd.copyWith(fontWeight: FontWeight.w700),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         if (phone.isNotEmpty)
                           Text(
                             '📞 $phone',
-                            style: TextStyle(
-                              fontSize: AppTextStyles.caption.fontSize,
-                              color: Colors.grey.shade700,
-                            ),
+                            style: FinanceV2Theme.micro.copyWith(color: FinanceV2Theme.subInk),
                           ),
                       ],
                     ),
@@ -1517,18 +1517,14 @@ class _DebtViewState extends State<DebtView>
                     children: [
                       Text(
                         date,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.body2.fontSize,
+                        style: FinanceV2Theme.micro.copyWith(
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey.shade700,
+                          color: FinanceV2Theme.subInk,
                         ),
                       ),
                       Text(
                         time,
-                        style: TextStyle(
-                          fontSize: AppTextStyles.caption.fontSize,
-                          color: Colors.grey.shade500,
-                        ),
+                        style: FinanceV2Theme.caption.copyWith(color: FinanceV2Theme.subInk),
                       ),
                     ],
                   ),
@@ -1638,7 +1634,7 @@ class _DebtViewState extends State<DebtView>
                     ),
                     label: Text(
                       isCustomerDebt ? 'Thu nợ' : 'Thanh toán nợ',
-                      style: TextStyle(fontSize: AppTextStyles.body1.fontSize),
+                      style: FinanceV2Theme.bodySm,
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mainColor,
@@ -1669,10 +1665,9 @@ class _DebtViewState extends State<DebtView>
       ),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: AppTextStyles.overlineSize,
+        style: FinanceV2Theme.caption.copyWith(
           color: textColor,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -1703,9 +1698,8 @@ class _DebtViewState extends State<DebtView>
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: AppTextStyles.overlineSize,
-              fontWeight: FontWeight.bold,
+            style: FinanceV2Theme.caption.copyWith(
+              fontWeight: FontWeight.w600,
               color: chipLabelColor,
             ),
             maxLines: 1,
@@ -1714,11 +1708,7 @@ class _DebtViewState extends State<DebtView>
           const SizedBox(height: 2),
           Text(
             MoneyUtils.formatCompactCurrency(amount),
-            style: TextStyle(
-              fontSize: AppTextStyles.body1.fontSize,
-              fontWeight: FontWeight.w700,
-              color: valueColor,
-            ),
+            style: FinanceV2Theme.amountMd.copyWith(color: valueColor),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

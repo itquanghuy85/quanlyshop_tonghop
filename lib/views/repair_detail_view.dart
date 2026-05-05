@@ -2908,6 +2908,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       final parsedCost = canEditCost
           ? MoneyUtils.parseCurrency(costC.text)
           : r.cost;
+      final oldPrice = r.price;
       final oldCost = r.cost;
       final wasFundRecorded = r.costRecordedInFund;
 
@@ -2933,6 +2934,49 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       await _saveData();
+
+      // Tạo bút toán điều chỉnh nếu giá thu hoặc giá vốn thay đổi
+      final priceChanged = parsedPrice != oldPrice;
+      final costChanged = canEditCost && parsedCost != oldCost;
+      if (priceChanged || costChanged) {
+        final repairRef = r.firestoreId ?? r.id?.toString() ?? 'unknown';
+        if (priceChanged) {
+          final delta = parsedPrice - oldPrice;
+          await FinancialActivityService.logCustomActivity(
+            activityType: 'REPAIR_PRICE_ADJUST',
+            amount: delta.abs(),
+            direction: delta >= 0 ? 'IN' : 'OUT',
+            paymentMethod: r.paymentMethod ?? 'TIỀN MẶT',
+            title:
+                'Điều chỉnh giá sửa: ${r.customerName} (${MoneyUtils.formatVND(oldPrice)} → ${MoneyUtils.formatVND(parsedPrice)})',
+            description:
+                'Đơn #$repairRef — Máy: ${r.model} — Chênh lệch: ${MoneyUtils.formatVND(delta.abs())}',
+            customerName: r.customerName,
+            phone: r.phone,
+            productInfo: r.model,
+            referenceType: 'REPAIR',
+            referenceId: repairRef,
+          );
+        }
+        if (costChanged) {
+          final costDelta = parsedCost - oldCost;
+          await FinancialActivityService.logCustomActivity(
+            activityType: 'REPAIR_COST_ADJUST',
+            amount: costDelta.abs(),
+            direction: costDelta >= 0 ? 'OUT' : 'IN',
+            paymentMethod: r.paymentMethod ?? 'TIỀN MẶT',
+            title:
+                'Điều chỉnh giá vốn sửa: ${r.customerName} (${MoneyUtils.formatVND(oldCost)} → ${MoneyUtils.formatVND(parsedCost)})',
+            description:
+                'Đơn #$repairRef — Máy: ${r.model} — Lãi gộp mới: ${MoneyUtils.formatVND(parsedPrice - parsedCost)}',
+            customerName: r.customerName,
+            phone: r.phone,
+            productInfo: r.model,
+            referenceType: 'REPAIR',
+            referenceId: repairRef,
+          );
+        }
+      }
     }
   }
 

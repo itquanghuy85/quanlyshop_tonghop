@@ -405,7 +405,8 @@ class StockEntryService {
               final docId = existingPartDocIds[key]!;
               final data = existingPartData[key]!;
               final existingQty = (data['quantity'] ?? 0) as num;
-              final existingCost = (data['costPrice'] ?? 0) as num;
+              final existingCost =
+                  ((data['cost'] ?? data['costPrice']) ?? 0) as num;
               final newQty = item.quantity;
               final newCost = (item.cost ?? 0);
               final totalQty = existingQty + newQty;
@@ -417,6 +418,7 @@ class StockEntryService {
               final partRef = _firestore.collection('repair_parts').doc(docId);
               transaction.update(partRef, {
                 'quantity': totalQty,
+                'cost': weightedCost,
                 'costPrice': weightedCost,
                 'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
@@ -432,6 +434,7 @@ class StockEntryService {
                 'compatibleModels': item.model ?? '',
                 'brand': item.brand ?? '',
                 'quantity': item.quantity,
+                'cost': (item.cost ?? 0).toInt(),
                 'costPrice': (item.cost ?? 0).toInt(),
                 'salePrice': (item.price ?? 0).toInt(),
                 'supplier': entry.supplierName ?? '',
@@ -843,13 +846,35 @@ class StockEntryService {
                 debugPrint('⚠️ Missing firestoreId for part: ${item.name}');
                 continue;
               }
+
+              final localDb = await db.database;
+              final existingPartRows = await localDb.query(
+                'repair_parts',
+                where: 'firestoreId = ?',
+                whereArgs: [firestoreId],
+                limit: 1,
+              );
+              final existingQty = existingPartRows.isNotEmpty
+                  ? (existingPartRows.first['quantity'] as int? ?? 0)
+                  : 0;
+              final existingCost = existingPartRows.isNotEmpty
+                  ? (existingPartRows.first['cost'] as int? ?? 0)
+                  : 0;
+              final importQty = item.quantity;
+              final importCost = (item.cost ?? 0).toInt();
+              final totalQty = existingQty + importQty;
+              final weightedCost = totalQty > 0
+                  ? ((existingQty * existingCost) + (importQty * importCost)) ~/
+                        totalQty
+                  : importCost;
+
               await db.upsertRepairPart({
                 'firestoreId': firestoreId,
                 'partName': item.name,
                 'compatibleModels': item.model ?? '',
-                'cost': (item.cost ?? 0).toInt(),
+                'cost': weightedCost,
                 'price': (item.price ?? 0).toInt(),
-                'quantity': item.quantity,
+                'quantity': totalQty,
                 'paymentMethod': entry.paymentMethod,
                 'createdBy': userName,
                 'createdAt': now,

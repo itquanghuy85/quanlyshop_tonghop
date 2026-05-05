@@ -177,6 +177,94 @@ class DBHelper {
     }
   }
 
+  Future<String?> _resolveShopIdForRepairsBackfill(
+    DatabaseExecutor executor,
+  ) async {
+    final cachedShopId = UserService.getShopIdSync();
+    if (cachedShopId != null && cachedShopId.trim().isNotEmpty) {
+      return cachedShopId.trim();
+    }
+
+    try {
+      final currentShopId = await UserService.getCurrentShopId();
+      if (currentShopId != null && currentShopId.trim().isNotEmpty) {
+        return currentShopId.trim();
+      }
+    } catch (_) {
+      // Ignore auth/session errors and fallback to local shop_settings.
+    }
+
+    try {
+      final rows = await executor.rawQuery('''
+        SELECT shopId
+        FROM shop_settings
+        WHERE shopId IS NOT NULL
+          AND TRIM(shopId) != ''
+        ORDER BY COALESCE(updatedAt, createdAt, 0) DESC, id DESC
+        LIMIT 1
+      ''');
+      if (rows.isNotEmpty) {
+        final resolved = (rows.first['shopId'] ?? '').toString().trim();
+        if (resolved.isNotEmpty) {
+          return resolved;
+        }
+      }
+    } catch (_) {
+      // shop_settings may not exist yet on very old DBs.
+    }
+
+    return null;
+  }
+
+  Future<int> _backfillRepairsShopIdIfMissing({
+    required DatabaseExecutor executor,
+    String? preferredShopId,
+    required String logScope,
+  }) async {
+    if (!await _tableHasColumn(executor, 'repairs', 'shopId')) {
+      debugPrint('$logScope: repairs.shopId chưa tồn tại, bỏ qua backfill');
+      return 0;
+    }
+
+    final sourceShopId =
+        (preferredShopId != null && preferredShopId.trim().isNotEmpty)
+        ? preferredShopId.trim()
+        : await _resolveShopIdForRepairsBackfill(executor);
+    if (sourceShopId == null || sourceShopId.isEmpty) {
+      debugPrint('$logScope: không tìm được shopId để backfill repairs');
+      return 0;
+    }
+
+    try {
+      final updated = await executor.rawUpdate(
+        '''
+          UPDATE repairs
+          SET shopId = ?
+          WHERE shopId IS NULL OR TRIM(shopId) = ''
+        ''',
+        [sourceShopId],
+      );
+      if (updated > 0) {
+        debugPrint(
+          '$logScope: backfill repairs.shopId = $sourceShopId cho $updated bản ghi',
+        );
+      }
+      return updated;
+    } catch (e) {
+      debugPrint('$logScope error (backfill repairs.shopId): $e');
+      return 0;
+    }
+  }
+
+  Future<void> ensureRepairsShopIdBackfilled({String? preferredShopId}) async {
+    final dbExecutor = await database;
+    await _backfillRepairsShopIdIfMissing(
+      executor: dbExecutor,
+      preferredShopId: preferredShopId,
+      logScope: 'DBHelper.ensureRepairsShopIdBackfilled',
+    );
+  }
+
   // 🔥 FIX: tách riêng function này
 Future<void> _forceFixMissingColumns(Database db) async {
   await _ensureColumnExists(
@@ -393,7 +481,7 @@ Future<void> _ensureUniqueIndexExists({
 
   final db = await openDatabase(
     path,
-    version: 96,
+    version: 97,
     onConfigure: (db) async {
       try {
         await db.rawQuery('PRAGMA foreign_keys = ON');
@@ -423,7 +511,7 @@ Future<void> _ensureUniqueIndexExists({
 
       onCreate: (db, version) async {
         await db.execute(
-          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, requestedDeliveryPrice INTEGER, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0)',
+          'CREATE TABLE IF NOT EXISTS repairs(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, customerName TEXT, phone TEXT, isWalkIn INTEGER DEFAULT 0, walkInName TEXT, walkInPhone TEXT, model TEXT, issue TEXT, accessories TEXT, address TEXT, imagePath TEXT, deliveredImage TEXT, warranty TEXT, partsUsed TEXT, status INTEGER, price INTEGER, cost INTEGER, paymentMethod TEXT, createdAt INTEGER, startedAt INTEGER, finishedAt INTEGER, deliveredAt INTEGER, createdBy TEXT, createdByUid TEXT, repairedBy TEXT, repairedByUid TEXT, deliveredBy TEXT, deliveredByUid TEXT, lastCaredAt INTEGER, isSynced INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, color TEXT, imei TEXT, condition TEXT, services TEXT, notes TEXT, pendingDeliveryApproval INTEGER DEFAULT 0, requestedDeliveryPrice INTEGER, costRecordedInFund INTEGER DEFAULT 0, costPaymentMethod TEXT, costRecordedAt INTEGER, costRecordedAmount INTEGER DEFAULT 0, shopId TEXT)',
         );
         await db.execute(
           'CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, firestoreId TEXT UNIQUE, shopId TEXT, name TEXT, brand TEXT, model TEXT, imei TEXT, cost INTEGER, price INTEGER, condition TEXT, status INTEGER DEFAULT 1, description TEXT, images TEXT, warranty TEXT, createdAt INTEGER, updatedAt INTEGER, supplier TEXT, type TEXT DEFAULT "DIEN_THOAI", quantity INTEGER DEFAULT 1, color TEXT, isSynced INTEGER DEFAULT 0, capacity TEXT, size TEXT, paymentMethod TEXT, labelInfo TEXT, isPending INTEGER DEFAULT 0, pendingSupplier TEXT, deleted INTEGER DEFAULT 0, labelNote TEXT, categoryId TEXT, unit TEXT, expiryDate INTEGER, batchNumber TEXT, variantParentId TEXT, customData TEXT, sku TEXT)',
@@ -1750,6 +1838,20 @@ Future<void> _ensureUniqueIndexExists({
             column: 'requestedDeliveryPrice',
             definition: 'INTEGER',
             logScope: 'DB upgrade v96',
+          );
+        }
+        if (oldV < 97) {
+          // v97: Thêm shopId column vào repairs table để phân tách dữ liệu đa cửa hàng
+          await _ensureColumnExists(
+            executor: db,
+            table: 'repairs',
+            column: 'shopId',
+            definition: 'TEXT',
+            logScope: 'DB upgrade v97',
+          );
+          await _backfillRepairsShopIdIfMissing(
+            executor: db,
+            logScope: 'DB upgrade v97',
           );
         }
         if (oldV < 26) {
@@ -3310,6 +3412,10 @@ Future<void> _ensureUniqueIndexExists({
         } catch (e) {
           debugPrint('DB onOpen check error (repairs columns): $e');
         }
+        await _backfillRepairsShopIdIfMissing(
+          executor: db,
+          logScope: 'DB onOpen repairs shopId backfill',
+        );
 
         // Ensure shopId, deleted columns exist in sales table
         try {

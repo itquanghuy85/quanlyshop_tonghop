@@ -64,61 +64,66 @@ class _CustomerSegmentsWidgetState extends State<CustomerSegmentsWidget> {
                   (CustomerSegmentService.segmentChurn, segments[CustomerSegmentService.segmentChurn] ?? 0),
                 ];
 
-                return GridView.count(
-                  crossAxisCount: 3,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                  childAspectRatio: 1.1,
-                  children: segmentsOrdered.map((item) {
-                    final label = item.$1;
-                    final count = item.$2;
-                    final (color, icon, displayLabel) = _getSegmentStyle(label);
-
-                    return GestureDetector(
-                      onTap: () {
-                        // Navigate to segment list
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Xem $displayLabel ($count KH)')),
-                        );
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.1),
-                          border: Border.all(color: color),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(icon, color: color, size: 32),
-                            const SizedBox(height: 8),
-                            Text(
-                              count.toString(),
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: color,
-                              ),
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: segmentsOrdered.map((item) {
+                      final label = item.$1;
+                      final count = item.$2;
+                      final (color, icon, displayLabel) = _getSegmentStyle(label);
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Xem $displayLabel ($count KH)')),
+                            );
+                          },
+                          child: Container(
+                            width: 65,
+                            height: 75,
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.1),
+                              border: Border.all(color: color),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              displayLabel,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: color,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(icon, color: color, size: 20),
+                                const SizedBox(height: 4),
+                                Text(
+                                  count.toString(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Text(
+                                    displayLabel,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      color: color,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                  ),
                 );
               },
             ),

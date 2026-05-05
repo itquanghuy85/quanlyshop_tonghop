@@ -39,27 +39,31 @@ class WarrantyReminderService {
       if (shopId == null) return;
       final db = await _localDb.database;
 
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final sevenDaysLater =
-          DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch;
-
-      // Lấy repairs từ local DB có warranty sắp hết
+      // Lấy repairs đã giao có ghi warranty
       final repairs = await db.rawQuery(
-        'SELECT * FROM repairs WHERE shopId = ? AND warranty_expiry > ? AND warranty_expiry < ? AND status = 4 AND deleted = 0',
-        [shopId, now, sevenDaysLater],
+        '''SELECT * FROM repairs WHERE shopId = ? AND status = 4 AND deleted = 0
+           AND warranty IS NOT NULL AND warranty != '' AND deliveredAt IS NOT NULL''',
+        [shopId],
       );
 
+      int notified = 0;
       for (final repairData in repairs) {
-        final warrantyExpiry = (repairData['warranty_expiry'] as num?)?.toInt() ?? 0;
-        final daysLeft = _daysUntilExpiry(warrantyExpiry);
+        final deliveredAt = (repairData['deliveredAt'] as num?)?.toInt() ?? 0;
+        final warranty = (repairData['warranty'] as String?) ?? '';
+        final warrantyDays = _parseWarrantyDays(warranty);
+        if (deliveredAt == 0 || warrantyDays <= 0) continue;
+        final expiryMs = deliveredAt + (warrantyDays * 86400000);
+        final daysLeft = _daysUntilExpiry(expiryMs);
 
         // Gửi notification nếu còn 7, 3, 1 ngày
         if (daysLeft == 7 || daysLeft == 3 || daysLeft == 1 || daysLeft == 0) {
-          await _notifyWarrantyExpiring(repairData, daysLeft);
+          final enriched = {...repairData, 'warranty_expiry': expiryMs};
+          await _notifyWarrantyExpiring(enriched, daysLeft);
+          notified++;
         }
       }
 
-      debugPrint('✅ Checked ${repairs.length} repairs for warranty expiry');
+      debugPrint('✅ Checked ${repairs.length} repairs for warranty expiry, notified $notified');
     } catch (e) {
       debugPrint('❌ Error checking warranties: $e');
     }
@@ -119,6 +123,18 @@ class WarrantyReminderService {
     }
   }
 
+  /// Parse chuỗi bảo hành sang số ngày ("3 tháng" → 90, "1 năm" → 365, ...)
+  static int _parseWarrantyDays(String warranty) {
+    final lower = warranty.toLowerCase().trim();
+    final monthMatch = RegExp(r'(\d+)\s*(th|tháng)', caseSensitive: false).firstMatch(lower);
+    if (monthMatch != null) return int.parse(monthMatch.group(1)!) * 30;
+    final yearMatch = RegExp(r'(\d+)\s*(n|năm)', caseSensitive: false).firstMatch(lower);
+    if (yearMatch != null) return int.parse(yearMatch.group(1)!) * 365;
+    final dayMatch = RegExp(r'(\d+)\s*(ng|ngày)', caseSensitive: false).firstMatch(lower);
+    if (dayMatch != null) return int.parse(dayMatch.group(1)!);
+    return 0;
+  }
+
   /// Lấy danh sách bảo hành sắp hết trong N ngày
   /// Dùng để hiển thị dashboard widget
   static Future<List<Map<String, dynamic>>> getUpcomingExpiringWarranties({
@@ -129,29 +145,37 @@ class WarrantyReminderService {
       if (shopId == null) return [];
       final db = await _localDb.database;
 
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final futureDate = DateTime.now()
-          .add(Duration(days: daysAhead))
-          .millisecondsSinceEpoch;
-
-      final results = await db.rawQuery(
-        '''SELECT id, customerName, model, warranty_expiry, phone 
-           FROM repairs 
-           WHERE shopId = ? AND warranty_expiry > ? AND warranty_expiry < ? 
-           AND status = 4 AND deleted = 0
-           ORDER BY warranty_expiry ASC
-           LIMIT 10''',
-        [shopId, now, futureDate],
+      // Lấy tất cả đơn đã giao có ghi bảo hành
+      final repairs = await db.rawQuery(
+        '''SELECT id, customerName, model, warranty, phone, deliveredAt
+           FROM repairs
+           WHERE shopId = ? AND status = 4 AND deleted = 0
+             AND warranty IS NOT NULL AND warranty != '' AND deliveredAt IS NOT NULL''',
+        [shopId],
       );
 
-      return results.map((r) {
-        final daysLeft = _daysUntilExpiry((r['warranty_expiry'] as num?)?.toInt() ?? 0);
-        return {
-          ...r,
-          'daysLeft': daysLeft,
-          'status': daysLeft <= 1 ? 'expired' : daysLeft <= 7 ? 'urgent' : 'soon',
-        };
-      }).toList();
+      final now = DateTime.now();
+      final results = <Map<String, dynamic>>[];
+
+      for (final r in repairs) {
+        final deliveredAt = (r['deliveredAt'] as num?)?.toInt() ?? 0;
+        if (deliveredAt == 0) continue;
+        final warranty = (r['warranty'] as String?) ?? '';
+        final warrantyDays = _parseWarrantyDays(warranty);
+        if (warrantyDays <= 0) continue;
+        final expiryMs = deliveredAt + (warrantyDays * 86400000);
+        final daysLeft = DateTime.fromMillisecondsSinceEpoch(expiryMs).difference(now).inDays;
+        if (daysLeft >= 0 && daysLeft <= daysAhead) {
+          results.add({
+            ...r,
+            'warranty_expiry': expiryMs,
+            'daysLeft': daysLeft,
+            'status': daysLeft <= 1 ? 'expired' : daysLeft <= 7 ? 'urgent' : 'soon',
+          });
+        }
+      }
+      results.sort((a, b) => (a['daysLeft'] as int).compareTo(b['daysLeft'] as int));
+      return results.take(10).toList();
     } catch (e) {
       debugPrint('❌ Error fetching expiring warranties: $e');
       return [];

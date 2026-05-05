@@ -165,6 +165,17 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
     return int.tryParse(value.toString().trim());
   }
 
+  int _calculateWeightedCost({
+    required int currentQty,
+    required int currentCost,
+    required int importQty,
+    required int importCost,
+  }) {
+    final totalQty = currentQty + importQty;
+    if (totalQty <= 0) return importCost;
+    return ((currentQty * currentCost) + (importQty * importCost)) ~/ totalQty;
+  }
+
   Map<String, dynamic> _normalizePartMap(Map<String, dynamic> row) {
     final mapped = Map<String, dynamic>.from(row);
     mapped['id'] = _toNullableInt(mapped['id']);
@@ -1186,6 +1197,14 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                                   fontSize: 12,
                                 ),
                               ),
+                              Text(
+                                'Giá vốn hiện tại: ${MoneyUtils.formatVND(currentCost)}',
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -1197,6 +1216,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                   TextField(
                     controller: qtyCtrl,
                     keyboardType: TextInputType.number,
+                    onChanged: (_) => setDialogState(() {}),
                     decoration: InputDecoration(
                       labelText: 'Số lượng nhập thêm',
                       prefixIcon: const Icon(Icons.add_circle_outline),
@@ -1211,6 +1231,35 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
                     controller: costCtrl,
                     label: 'Giá nhập (VNĐ)',
                     icon: Icons.attach_money,
+                    onValueChanged: (_) => setDialogState(() {}),
+                  ),
+                  Builder(
+                    builder: (_) {
+                      final addQty = int.tryParse(qtyCtrl.text.trim()) ?? 0;
+                      final importCost = CurrencyTextField.parseValueWithMultiply(
+                        costCtrl.text,
+                      );
+                      if (addQty <= 0 || importCost <= 0) {
+                        return const SizedBox.shrink();
+                      }
+                      final weightedCost = _calculateWeightedCost(
+                        currentQty: currentQty,
+                        currentCost: currentCost,
+                        importQty: addQty,
+                        importCost: importCost,
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Giá vốn sau nhập: ${MoneyUtils.formatVND(weightedCost)}',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   // Payment method
@@ -1310,9 +1359,16 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       final partId = p['id'] as int;
       final partName = p['partName'] as String? ?? '';
       final currentQty = p['quantity'] as int? ?? 0;
+      final currentCost = p['cost'] as int? ?? 0;
       final newQty = currentQty + addQty;
-      final effectiveCost = cost > 0 ? cost : (p['cost'] as int? ?? 0);
-      final totalCost = effectiveCost * addQty;
+      final importCost = cost > 0 ? cost : currentCost;
+      final weightedCost = _calculateWeightedCost(
+        currentQty: currentQty,
+        currentCost: currentCost,
+        importQty: addQty,
+        importCost: importCost,
+      );
+      final totalCost = importCost * addQty;
       final firestoreId = p['firestoreId'] as String?;
       final supplierId = p['supplierId'] as int?;
       final supplierName = _getSupplierName(supplierId);
@@ -1345,7 +1401,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       // Update local DB quantity
       await db.updatePart(partId, {
         'quantity': newQty,
-        'cost': effectiveCost,
+        'cost': weightedCost,
         'updatedAt': now,
       });
 
@@ -1357,7 +1413,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
               .doc(firestoreId)
               .update({
                 'quantity': newQty,
-                'cost': effectiveCost,
+                'cost': weightedCost,
                 'updatedAt': FirestoreWriteHelper.serverUpdatedAt(),
               });
         } catch (e) {
@@ -1376,7 +1432,8 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
           'partName': partName,
           'addQuantity': addQty,
           'newQuantity': newQty,
-          'cost': effectiveCost,
+          'cost': importCost,
+          'weightedCost': weightedCost,
           'totalCost': totalCost,
           'paymentMethod': paymentMethod,
           'supplierName': supplierName,
@@ -1458,7 +1515,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
       }
 
       // Record supplier import history if applicable
-      if (supplierId != null && effectiveCost > 0) {
+      if (supplierId != null && importCost > 0) {
         try {
           final importHistory = {
             'supplierId': supplierId,
@@ -1467,7 +1524,7 @@ class _PartsInventoryViewContentState extends State<PartsInventoryViewContent> {
             'productBrand': _terms.category3.toUpperCase(),
             'productModel': p['compatibleModels'] ?? '',
             'quantity': addQty,
-            'costPrice': effectiveCost,
+            'costPrice': importCost,
             'totalAmount': totalCost,
             'paymentMethod': paymentMethod,
             'importDate': now,
@@ -2614,6 +2671,17 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
     });
   }
 
+  int _calculateWeightedCost({
+    required int currentQty,
+    required int currentCost,
+    required int importQty,
+    required int importCost,
+  }) {
+    final totalQty = currentQty + importQty;
+    if (totalQty <= 0) return importCost;
+    return ((currentQty * currentCost) + (importQty * importCost)) ~/ totalQty;
+  }
+
   Future<void> _refreshParts() async {
     if (!mounted) return;
     debugPrint('🔧 [PartsInventoryView] Bắt đầu tải linh kiện từ local DB...');
@@ -3367,11 +3435,26 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                             color: Colors.teal,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Tồn kho hiện tại: $currentQty',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.teal,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Tồn kho hiện tại: $currentQty',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.teal,
+                                  ),
+                                ),
+                                Text(
+                                  'Giá vốn hiện tại: ${MoneyUtils.formatVND(currentCost)}',
+                                  style: TextStyle(
+                                    color: Colors.teal.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -3386,6 +3469,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       ),
                       keyboardType: TextInputType.number,
                       autofocus: true,
+                      onChanged: (_) => setS(() {}),
                       validator: (v) {
                         final parsed = int.tryParse((v ?? '').trim()) ?? 0;
                         if (parsed <= 0) return 'Nhập số lượng hợp lệ (> 0)';
@@ -3398,7 +3482,36 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         controller: costC,
                         label: 'Giá vốn / đơn vị',
                         icon: Icons.attach_money,
+                        onValueChanged: (_) => setS(() {}),
                       ),
+                    Builder(
+                      builder: (_) {
+                        final addQty = int.tryParse(addQtyC.text.trim()) ?? 0;
+                        final importCost = CurrencyTextField.parseValueWithMultiply(
+                          costC.text,
+                        );
+                        if (addQty <= 0 || importCost <= 0) {
+                          return const SizedBox.shrink();
+                        }
+                        final weightedCost = _calculateWeightedCost(
+                          currentQty: currentQty,
+                          currentCost: currentCost,
+                          importQty: addQty,
+                          importCost: importCost,
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 2, bottom: 8),
+                          child: Text(
+                            'Giá vốn sau nhập: ${MoneyUtils.formatVND(weightedCost)}',
+                            style: TextStyle(
+                              color: Colors.blue.shade700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 12),
                     // Supplier
                     if (_suppliers.isNotEmpty) ...[
@@ -3551,6 +3664,12 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                     }
                     final totalCost = cost * addQty;
                     final newQty = currentQty + addQty;
+                    final weightedCost = _calculateWeightedCost(
+                      currentQty: currentQty,
+                      currentCost: currentCost,
+                      importQty: addQty,
+                      importCost: cost,
+                    );
                     final supplierName = _getSupplierName(effectiveSupplierId);
                     final shopId = await UserService.getCurrentShopId();
 
@@ -3559,7 +3678,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                       'repair_parts',
                       {
                         'quantity': newQty,
-                        'cost': cost, // cập nhật giá vốn mới nhất
+                        'cost': weightedCost,
                         'updatedAt': now,
                         'isSynced': 0,
                       },
@@ -3579,7 +3698,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                           'id': partId,
                           'firestoreId': partFirestoreId,
                           'quantity': newQty,
-                          'cost': cost,
+                          'cost': weightedCost,
                           'updatedAt': now,
                         },
                       );
@@ -3597,6 +3716,7 @@ class _PartsInventoryViewState extends State<PartsInventoryView> {
                         'addedQuantity': addQty,
                         'newQuantity': newQty,
                         'cost': cost,
+                        'weightedCost': weightedCost,
                         'totalCost': totalCost,
                         'paymentMethod': paymentMethod,
                         'supplierName': supplierName,

@@ -31,6 +31,7 @@ import '../l10n/app_localizations.dart';
 import '../utils/excel_export_helper.dart';
 import '../widgets/export_date_filter_dialog.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../finance_v2/finance_v2_theme.dart';
 
 ImageProvider? _safeImageProvider(String? path) {
   if (path == null || path.isEmpty) return null;
@@ -960,7 +961,7 @@ class _StaffListViewState extends State<StaffListView> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.build(
         title: 'QUẢN LÝ NHÂN VIÊN',
         subtitle: _currentRole != null
@@ -992,8 +993,8 @@ class _StaffListViewState extends State<StaffListView> {
                     Text(
                       "Chưa có thông tin shop\nVui lòng đăng xuất và đăng nhập lại",
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.body1.copyWith(
-                        color: AppColors.warning,
+                      style: FinanceV2Theme.bodyMd.copyWith(
+                        color: FinanceV2Theme.warn,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1026,8 +1027,8 @@ class _StaffListViewState extends State<StaffListView> {
                       child: Text(
                         "Lỗi tải dữ liệu: ${snapshot.error}\nShopId: $_currentShopId",
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.body1.copyWith(
-                          color: AppColors.error,
+                        style: FinanceV2Theme.bodyMd.copyWith(
+                          color: FinanceV2Theme.negative,
                         ),
                       ),
                     );
@@ -1053,8 +1054,8 @@ class _StaffListViewState extends State<StaffListView> {
                       child: Text(
                         "Chưa có dữ liệu nhân viên\nMỗi tài khoản sẽ tự xuất hiện sau khi đăng nhập",
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.body1.copyWith(
-                          color: AppColors.inactive,
+                        style: FinanceV2Theme.bodyMd.copyWith(
+                          color: FinanceV2Theme.subInk,
                         ),
                       ),
                     );
@@ -1130,22 +1131,18 @@ class _StaffListViewState extends State<StaffListView> {
                           ),
                           title: Text(
                             displayName,
-                            style: AppTextStyles.headline6,
+                            style: FinanceV2Theme.titleMd,
                           ),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 email,
-                                style: AppTextStyles.caption.copyWith(
-                                  fontSize: AppTextStyles.body1.fontSize,
-                                ),
+                                style: FinanceV2Theme.bodyMd,
                               ),
                               Text(
                                 "SĐT: $phone",
-                                style: AppTextStyles.caption.copyWith(
-                                  fontSize: AppTextStyles.body1.fontSize,
-                                ),
+                                style: FinanceV2Theme.bodyMd,
                               ),
                               role == 'admin'
                                   ? Container(
@@ -1159,11 +1156,9 @@ class _StaffListViewState extends State<StaffListView> {
                                       ),
                                       child: Text(
                                         "Vai trò: Admin",
-                                        style: AppTextStyles.caption.copyWith(
-                                          fontSize:
-                                              AppTextStyles.body1.fontSize,
+                                        style: FinanceV2Theme.bodySm.copyWith(
                                           color: AppColors.warning,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                       ),
                                     )
@@ -1181,9 +1176,7 @@ class _StaffListViewState extends State<StaffListView> {
                                           : role == 'user'
                                           ? 'Người dùng'
                                           : role}",
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: AppTextStyles.body1.fontSize,
-                                      ),
+                                      style: FinanceV2Theme.bodyMd,
                                     ),
                               if (shopId != null)
                                 FutureBuilder<DocumentSnapshot>(
@@ -1196,10 +1189,8 @@ class _StaffListViewState extends State<StaffListView> {
                                         ConnectionState.waiting) {
                                       return Text(
                                         "Shop: Đang tải...",
-                                        style: AppTextStyles.caption.copyWith(
-                                          fontSize:
-                                              AppTextStyles.body1.fontSize,
-                                          color: AppColors.secondary,
+                                        style: FinanceV2Theme.bodyMd.copyWith(
+                                          color: FinanceV2Theme.accent,
                                         ),
                                       );
                                     }
@@ -1212,11 +1203,9 @@ class _StaffListViewState extends State<StaffListView> {
                                           shopData['name'] ?? 'Shop không tên';
                                       return Text(
                                         "Shop: $shopName",
-                                        style: AppTextStyles.caption.copyWith(
-                                          fontSize:
-                                              AppTextStyles.body1.fontSize,
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.w500,
+                                        style: FinanceV2Theme.bodyMd.copyWith(
+                                          color: FinanceV2Theme.accent,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       );
                                     } else if (snapshot.hasError) {
@@ -1226,10 +1215,8 @@ class _StaffListViewState extends State<StaffListView> {
                                           : shopId;
                                       return Text(
                                         "Shop: $shortId",
-                                        style: AppTextStyles.caption.copyWith(
-                                          fontSize:
-                                              AppTextStyles.body1.fontSize,
-                                          color: AppColors.secondary,
+                                        style: FinanceV2Theme.bodyMd.copyWith(
+                                          color: FinanceV2Theme.subInk,
                                         ),
                                       );
                                     } else {
@@ -1238,10 +1225,8 @@ class _StaffListViewState extends State<StaffListView> {
                                           : shopId;
                                       return Text(
                                         "Shop: $shortId",
-                                        style: AppTextStyles.caption.copyWith(
-                                          fontSize:
-                                              AppTextStyles.body1.fontSize,
-                                          color: AppColors.primary,
+                                        style: FinanceV2Theme.bodyMd.copyWith(
+                                          color: FinanceV2Theme.accent,
                                         ),
                                       );
                                     }
@@ -1250,9 +1235,8 @@ class _StaffListViewState extends State<StaffListView> {
                               else
                                 Text(
                                   "Shop: Chưa gán",
-                                  style: AppTextStyles.caption.copyWith(
-                                    fontSize: AppTextStyles.body1.fontSize,
-                                    color: AppColors.secondary,
+                                  style: FinanceV2Theme.bodyMd.copyWith(
+                                    color: FinanceV2Theme.subInk,
                                   ),
                                 ),
                             ],

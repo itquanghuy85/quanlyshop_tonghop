@@ -361,9 +361,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (_warrantyReminderInitialized) return;
     _warrantyReminderInitialized = true;
     try {
-      final warrantyService = WarrantyReminderService();
-      // ignore: instance_access_to_static_member
-      await warrantyService.startWarrantyReminders();
+      await WarrantyReminderService.startWarrantyReminders();
     } catch (e) {
       debugPrint('WarrantyReminder init error: $e');
       _warrantyReminderInitialized = false;

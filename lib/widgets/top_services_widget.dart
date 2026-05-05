@@ -31,7 +31,24 @@ class _TopServicesWidgetState extends State<TopServicesWidget> {
     _loadServices();
   }
 
+  @override
+  void didUpdateWidget(covariant TopServicesWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final rangeChanged = oldWidget.startDate != widget.startDate ||
+        oldWidget.endDate != widget.endDate;
+    final sortChanged = oldWidget.sortBy != widget.sortBy;
+    if (rangeChanged || sortChanged) {
+      _sortBy = widget.sortBy;
+      _loadServices();
+    }
+  }
+
   void _loadServices() {
+    debugPrint(
+      '[TopServicesWidget] _loadServices sortBy=$_sortBy, '
+      'startDate=${widget.startDate?.toIso8601String()}, '
+      'endDate=${widget.endDate?.toIso8601String()}',
+    );
     switch (_sortBy) {
       case 'profit':
         _futureServices = TopServicesReportService.getTopServicesByProfit(
@@ -100,10 +117,22 @@ class _TopServicesWidgetState extends State<TopServicesWidget> {
             FutureBuilder<List<Map<String, dynamic>>>(
               future: _futureServices,
               builder: (context, snapshot) {
+                debugPrint(
+                  '[TopServicesWidget] Future state=${snapshot.connectionState} '
+                  'hasData=${snapshot.hasData} hasError=${snapshot.hasError}',
+                );
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SizedBox(
                     height: 200,
                     child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  debugPrint('[TopServicesWidget] Future error=${snapshot.error}');
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(child: Text('Lỗi tải dữ liệu dịch vụ')),
                   );
                 }
 

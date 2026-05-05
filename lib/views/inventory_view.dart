@@ -784,6 +784,17 @@ class _InventoryViewState extends State<InventoryView>
 
   /// Quick stock-in dialog for PHU_KIEN / LINH_KIEN
   void _showQuickStockInDialog(Product p) {
+    int calcWeightedCost({
+      required int currentQty,
+      required int currentCost,
+      required int importQty,
+      required int importCost,
+    }) {
+      final totalQty = currentQty + importQty;
+      if (totalQty <= 0) return importCost;
+      return ((currentQty * currentCost) + (importQty * importCost)) ~/ totalQty;
+    }
+
     final qtyCtrl = TextEditingController(text: '1');
     final costCtrl = TextEditingController(
       text: p.cost > 0 ? p.cost.toString() : '',
@@ -845,6 +856,13 @@ class _InventoryViewState extends State<InventoryView>
                                   color: Colors.grey[600],
                                 ),
                               ),
+                              Text(
+                                'Giá vốn hiện tại: ${MoneyUtils.formatCurrency(p.cost)}đ',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -857,6 +875,7 @@ class _InventoryViewState extends State<InventoryView>
                     controller: qtyCtrl,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setDialogState(() {}),
                     decoration: InputDecoration(
                       labelText: 'Số lượng nhập thêm',
                       prefixIcon: const Icon(Icons.add_circle_outline),
@@ -871,6 +890,34 @@ class _InventoryViewState extends State<InventoryView>
                     controller: costCtrl,
                     label: 'Giá nhập (VNĐ)',
                     icon: Icons.attach_money,
+                    onValueChanged: (_) => setDialogState(() {}),
+                  ),
+                  Builder(
+                    builder: (_) {
+                      final importQty = int.tryParse(qtyCtrl.text.trim()) ?? 0;
+                      final importCost = CurrencyTextField.parseValue(
+                        costCtrl.text,
+                      );
+                      if (importQty <= 0 || importCost <= 0) {
+                        return const SizedBox.shrink();
+                      }
+                      final weightedCost = calcWeightedCost(
+                        currentQty: p.quantity,
+                        currentCost: p.cost,
+                        importQty: importQty,
+                        importCost: importCost,
+                      );
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          'Giá vốn sau nhập: ${MoneyUtils.formatCurrency(weightedCost)}đ',
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.blue[700],
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 12),
                   // Payment method
@@ -4682,6 +4729,42 @@ class _InventoryViewState extends State<InventoryView>
               final user = FirebaseAuth.instance.currentUser;
               final userName =
                   user?.email?.split('@').first.toUpperCase() ?? "NV";
+              // Cảnh báo nếu giá vốn thay đổi và sản phẩm đã ở kho chính
+              if (newCost != p.cost && !p.isPending) {
+                final confirmed = await showDialog<bool>(
+                  context: ctx,
+                  builder: (warnCtx) => AlertDialog(
+                    title: const Text(
+                      'CẢNH BÁO THAY ĐỔI GIÁ VỐN',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    content: const Text(
+                      'Sản phẩm này đã được lưu vào kho. Sửa giá vốn sẽ không ảnh hưởng các đơn cũ nhưng có thể làm sai báo cáo lãi gộp. Bạn có chắc muốn tiếp tục?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(warnCtx, false),
+                        child: const Text('Hủy'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(warnCtx, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Xác nhận'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) {
+                  setS(() => isSaving = false);
+                  return;
+                }
+              }
               await db.logAction(
                 userId: user?.uid ?? "0",
                 userName: userName,

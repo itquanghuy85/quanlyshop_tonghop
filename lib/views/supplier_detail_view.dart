@@ -399,13 +399,13 @@ class _SupplierDetailViewState extends State<SupplierDetailView> with TickerProv
       personName: widget.supplier.name,
       personPhone: widget.supplier.phone,
       notes: note.isNotEmpty ? note : null,
-      idempotencyKey: debtFId,
+      idempotencyKey: '${debtFId}_${DateTime.now().millisecondsSinceEpoch}',
       metadata: {
         'supplierId': widget.supplier.id,
         'supplierName': widget.supplier.name,
         'debtId': debt['id'],
         'debtFirestoreId': debtFId,
-        'debtType': 'SHOP_OWES',
+        'debtType': (debt['type'] ?? debt['debtType'] ?? 'SHOP_OWES').toString(),
         'suggestedMethod': methodStr,
       },
     );

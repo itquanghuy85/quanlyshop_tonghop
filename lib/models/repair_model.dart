@@ -173,6 +173,9 @@ class Repair {
   int? costRecordedAt; // timestamp when recorded
   int? costRecordedAmount; // fixed amount recorded into fund at record time
 
+  // ShopId để phân tách dữ liệu đa cửa hàng
+  String? shopId;
+
   // Getter for receive images
   List<String> get receiveImages {
     if (imagePath == null || imagePath!.trim().isEmpty) return [];
@@ -248,6 +251,7 @@ class Repair {
     this.price = 0,
     this.cost = 0,
     this.paymentMethod = "TIỀN MẶT",
+    this.shopId,
     required this.createdAt,
     this.startedAt,
     this.finishedAt,
@@ -343,6 +347,7 @@ class Repair {
       'costPaymentMethod': costPaymentMethod,
       'costRecordedAt': costRecordedAt,
       'costRecordedAmount': costRecordedAmount,
+      'shopId': shopId,
     };
   }
 
@@ -414,6 +419,7 @@ class Repair {
           ? _parseIntSafe(map['costRecordedAt'])
           : null,
       costRecordedAmount: _parseIntSafe(map['costRecordedAmount']),
+      shopId: map['shopId'],
     );
   }
 
@@ -461,6 +467,7 @@ class Repair {
     String? costPaymentMethod,
     int? costRecordedAt,
     int? costRecordedAmount,
+    String? shopId,
   }) {
     return Repair(
       id: id ?? this.id,

@@ -8,10 +8,10 @@ import '../models/employee_salary_model.dart';
 import '../services/firestore_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
 import '../widgets/custom_app_bar.dart';
 import '../l10n/app_localizations.dart';
 import '../services/event_bus.dart';
+import '../finance_v2/finance_v2_theme.dart';
 
 /// Trang quản lý cài đặt lương và hoa hồng nhân viên
 /// Tích hợp: lương cơ bản, hoa hồng bán hàng, hoa hồng sửa chữa, phụ cấp, thưởng doanh số
@@ -333,6 +333,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: FinanceV2Theme.pageBg,
       appBar: CustomAppBar.build(
         title: AppLocalizations.of(context)?.salarySettings ?? 'SALARY SETTINGS',
         accentColor: AppBarAccents.staff,
@@ -402,10 +403,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
               Expanded(
                 child: Text(
                   loc?.selectShopToViewData ?? 'Chọn shop để xem dữ liệu',
-                  style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
-                    fontSize: AppTextStyles.headline4.fontSize,
+                  style: FinanceV2Theme.titleMd.copyWith(
+                    color: FinanceV2Theme.accent,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -420,10 +420,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           Text(
             loc?.viewShopAsAdmin ??
                 'Super Admin có thể chọn shop để xem dữ liệu',
-            style: TextStyle(
-              fontSize: AppTextStyles.subtitle1.fontSize,
-              color: Colors.grey.shade700,
-            ),
+            style: FinanceV2Theme.bodySm.copyWith(color: FinanceV2Theme.subInk),
           ),
           const SizedBox(height: 10),
           if (_loadingShops)
@@ -461,10 +458,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                       if (ownerEmail.toString().isNotEmpty)
                         Text(
                           ownerEmail,
-                          style: TextStyle(
-                            fontSize: AppTextStyles.body1.fontSize,
-                            color: Colors.grey,
-                          ),
+                          style: FinanceV2Theme.micro.copyWith(color: FinanceV2Theme.subInk),
                         ),
                     ],
                   ),
@@ -678,7 +672,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 '⚠️ Chỉ chủ shop hoặc admin mới có thể thay đổi',
-                style: AppTextStyles.caption.copyWith(color: Colors.orange),
+                style: FinanceV2Theme.caption.copyWith(color: FinanceV2Theme.warn),
               ),
             ),
         ],
@@ -697,7 +691,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
             const SizedBox(height: 16),
             Text(
               'Chưa có nhân viên nào',
-              style: AppTextStyles.body1.copyWith(color: Colors.grey),
+              style: FinanceV2Theme.bodyMd.copyWith(color: FinanceV2Theme.subInk),
             ),
             const SizedBox(height: 8),
             TextButton.icon(
@@ -747,7 +741,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
             ),
             subtitle: Text(
               staff['email'] ?? staffId,
-              style: AppTextStyles.caption.copyWith(color: Colors.grey),
+              style: FinanceV2Theme.caption.copyWith(color: FinanceV2Theme.subInk),
               overflow: TextOverflow.ellipsis,
             ),
             trailing: Row(
@@ -850,11 +844,11 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(staffName, style: AppTextStyles.headline3),
+                            Text(staffName, style: FinanceV2Theme.titleLg),
                             Text(
                               staff['email'] ?? staffId,
-                              style: AppTextStyles.caption.copyWith(
-                                color: Colors.grey,
+                              style: FinanceV2Theme.caption.copyWith(
+                                color: FinanceV2Theme.subInk,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1265,7 +1259,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
             'Giả định: DS ${_currencyFormat.format(exampleSaleRevenue)}đ, '
             'LN sửa ${_currencyFormat.format(exampleRepairProfit)}đ, '
             '$exampleSaleOrders đơn bán, $exampleRepairOrders đơn sửa',
-            style: AppTextStyles.caption.copyWith(color: Colors.grey.shade700),
+            style: FinanceV2Theme.caption.copyWith(color: FinanceV2Theme.subInk),
             overflow: TextOverflow.ellipsis,
             maxLines: 2,
           ),
@@ -1292,9 +1286,9 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
                 child: Text(
                   '${_currencyFormat.format(total)}đ',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade700,
-                    fontSize: AppTextStyles.headline3.fontSize,
+                  fontSize: FinanceV2Theme.amountLg.fontSize,
+                    fontWeight: FontWeight.w700,
+                    color: FinanceV2Theme.positive,
                   ),
                   textAlign: TextAlign.right,
                   overflow: TextOverflow.ellipsis,
@@ -1316,7 +1310,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
             flex: 3,
             child: Text(
               label,
-              style: AppTextStyles.body2,
+              style: FinanceV2Theme.bodyMd,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1325,7 +1319,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
             flex: 2,
             child: Text(
               '${_currencyFormat.format(value)}đ',
-              style: AppTextStyles.body2,
+              style: FinanceV2Theme.bodyMd,
               textAlign: TextAlign.right,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1350,10 +1344,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                color: color.withOpacity(0.8),
-                fontSize: AppTextStyles.headline5.fontSize,
-              ),
+              style: FinanceV2Theme.bodyMd.copyWith(color: color.withValues(alpha: 0.85)),
             ),
           ),
         ],
@@ -1368,18 +1359,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: FinanceV2Theme.elevatedPanel(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1397,11 +1377,7 @@ class _HRSalarySettingsViewState extends State<HRSalarySettingsView>
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: AppTextStyles.headline4.fontSize,
-                    color: color,
-                  ),
+                  style: FinanceV2Theme.titleMd.copyWith(color: color),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),

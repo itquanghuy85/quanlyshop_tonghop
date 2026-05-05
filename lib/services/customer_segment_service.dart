@@ -158,18 +158,39 @@ class CustomerSegmentService {
       if (shopId == null) return {};
 
       final db = await _localDb.database;
-      final results = await db.rawQuery(
-        'SELECT segment, COUNT(*) as count FROM customers WHERE shopId = ? GROUP BY segment',
-        [shopId],
-      );
+        // Tính phân khúc động từ các field sẵn có: totalSpent, totalRepairs, lastVisitAt
+        final churnMs = DateTime.now()
+            .subtract(const Duration(days: _churnDays))
+            .millisecondsSinceEpoch;
 
-      final summary = <String, int>{};
-      for (final row in results) {
-        final segment = row['segment'] as String?;
-        final count = (row['count'] as num?)?.toInt() ?? 0;
-        if (segment != null) summary[segment] = count;
-      }
-      return summary;
+        final rows = await db.rawQuery(
+          '''SELECT totalSpent, totalRepairs, lastVisitAt
+             FROM customers
+             WHERE shopId = ? AND (deleted = 0 OR deleted IS NULL)''',
+          [shopId],
+        );
+
+        final summary = <String, int>{};
+        for (final row in rows) {
+          final totalSpent = (row['totalSpent'] as num?)?.toInt() ?? 0;
+          final totalRepairs = (row['totalRepairs'] as num?)?.toInt() ?? 0;
+          final lastVisitAt = (row['lastVisitAt'] as num?)?.toInt() ?? 0;
+
+          final String segment;
+          if (totalSpent >= _vipMinSpend && totalRepairs >= _vipMinCount) {
+            segment = segmentVip;
+          } else if (lastVisitAt == 0 || lastVisitAt < churnMs) {
+            segment = segmentChurn;
+          } else if (totalRepairs <= 1) {
+            segment = segmentNew;
+          } else if (totalRepairs >= _frequentMinCount) {
+            segment = segmentFrequent;
+          } else {
+            segment = segmentRegular;
+          }
+          summary[segment] = (summary[segment] ?? 0) + 1;
+        }
+        return summary;
     } catch (e) {
       debugPrint('❌ Error: $e');
       return {};
