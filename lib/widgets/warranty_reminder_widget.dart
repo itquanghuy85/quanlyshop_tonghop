@@ -3,7 +3,9 @@ import '../services/warranty_reminder_service.dart';
 
 /// Widget hiển thị bảo hành sắp hết hạn — dùng cho dashboard
 class WarrantyReminderWidget extends StatefulWidget {
-  const WarrantyReminderWidget({super.key});
+  final int maxItems;
+
+  const WarrantyReminderWidget({super.key, this.maxItems = 3});
 
   @override
   State<WarrantyReminderWidget> createState() => _WarrantyReminderWidgetState();
@@ -63,12 +65,15 @@ class _WarrantyReminderWidgetState extends State<WarrantyReminderWidget> {
                 }
 
                 final warranties = snapshot.data!;
+                final visibleItems = warranties.length > widget.maxItems
+                    ? warranties.sublist(0, widget.maxItems)
+                    : warranties;
                 return ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: warranties.length,
+                  itemCount: visibleItems.length,
                   itemBuilder: (context, index) {
-                    final w = warranties[index];
+                    final w = visibleItems[index];
                     final status = w['status'] as String;
                     final daysLeft = w['daysLeft'] as int;
                     final color = status == 'expired'
