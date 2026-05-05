@@ -56,7 +56,7 @@ class CustomerSegmentService {
           'customers',
           {'segment': segment},
           where: 'shopId = ? AND (name = ? OR phone = ?)',
-          [segment, shopId, name, phone],
+          whereArgs: [shopId, name, phone],
         );
       }
 
@@ -75,9 +75,9 @@ class CustomerSegmentService {
     String phone,
   ) async {
     try {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).millisecondsSinceEpoch;
-      final churnDate = DateTime.now().subtract(Duration(days: _churnDays)).millisecondsSinceEpoch;
+      final churnDate = DateTime.now()
+          .subtract(const Duration(days: _churnDays))
+          .millisecondsSinceEpoch;
 
       final db = await _localDb.database;
       // Tổng doanh thu từ khách này
@@ -166,7 +166,7 @@ class CustomerSegmentService {
       final summary = <String, int>{};
       for (final row in results) {
         final segment = row['segment'] as String?;
-        final count = Sqflite.firstIntValue([row['count']]) ?? 0;
+        final count = (row['count'] as num?)?.toInt() ?? 0;
         if (segment != null) summary[segment] = count;
       }
       return summary;
