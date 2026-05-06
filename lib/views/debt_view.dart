@@ -17,6 +17,7 @@ import '../services/repair_partner_service.dart';
 import '../services/payment_intent_service.dart';
 import '../models/payment_intent_model.dart';
 import '../services/audit_service.dart';
+import '../services/encryption_service.dart';
 import '../services/user_service.dart';
 import '../constants/financial_constants.dart';
 import '../theme/app_text_styles.dart';
@@ -49,6 +50,21 @@ class _DebtViewState extends State<DebtView>
   String _syncStatus = 'Đã đồng bộ';
   StreamSubscription<String>? _eventSub;
   Timer? _reloadDebounce;
+
+  String _plainText(dynamic value) {
+    final raw = (value ?? '').toString();
+    if (raw.isEmpty) return raw;
+    return EncryptionService.decrypt(raw).trim();
+  }
+
+  String _debtPersonName(Map<String, dynamic> debt) {
+    final plain = _plainText(debt['personName']);
+    return plain.isEmpty ? 'N/A' : plain;
+  }
+
+  String _debtPhone(Map<String, dynamic> debt) {
+    return _plainText(debt['phone']);
+  }
 
   // Shop settings for multi-industry
   ShopSettings? _shopSettings;
@@ -273,7 +289,7 @@ class _DebtViewState extends State<DebtView>
               ),
             ),
             Text(
-              debt['personName'].toString().toUpperCase(),
+              _debtPersonName(debt).toUpperCase(),
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.onSurface.withOpacity(0.7),
               ),
@@ -751,11 +767,11 @@ class _DebtViewState extends State<DebtView>
     if (_searchQuery.isNotEmpty) {
       list = list.where((d) {
         return VietnameseUtils.containsVietnamese(
-              d['personName']?.toString() ?? '',
+              _debtPersonName(d),
               _searchQuery,
             ) ||
             VietnameseUtils.containsVietnamese(
-              d['phone']?.toString() ?? '',
+              _debtPhone(d),
               _searchQuery,
             ) ||
             VietnameseUtils.containsVietnamese(
@@ -1403,8 +1419,8 @@ class _DebtViewState extends State<DebtView>
             'HH:mm',
           ).format(DateTime.fromMillisecondsSinceEpoch(createdAt))
         : '--:--';
-    final personName = (d['personName'] ?? 'N/A').toString();
-    final phone = d['phone']?.toString() ?? '';
+    final personName = _debtPersonName(d);
+    final phone = _debtPhone(d);
     final note = d['note']?.toString() ?? '';
     final debtType = d['type']?.toString() ?? 'CUSTOMER_OWES';
 

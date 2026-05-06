@@ -20,12 +20,12 @@ import '../services/daily_financial_analysis_service.dart';
 
 class FinanceV2DailyReportView extends StatefulWidget {
   final bool embeddedInTab;
-  final List<Widget> prependedChildren;
+  final List<Widget> Function(DateTime start, DateTime end)? appendedChildrenBuilder;
 
   const FinanceV2DailyReportView({
     super.key,
     this.embeddedInTab = false,
-    this.prependedChildren = const [],
+    this.appendedChildrenBuilder,
   });
 
   @override
@@ -1419,6 +1419,10 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
     final realProfit = _snapshot == null
         ? 0
         : (_snapshot!.grossProfitTotal - _snapshot!.operatingExpenseOut);
+    final range = _resolveRange();
+    final appendedChildren =
+      widget.appendedChildrenBuilder?.call(range.$1, range.$2) ??
+      const <Widget>[];
 
     final body = _loading
         ? const Center(child: CircularProgressIndicator())
@@ -1434,7 +1438,6 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                 child: ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
-                    ...widget.prependedChildren,
                     _buildDateSelector(context),
                     const SizedBox(height: 16),
                     _buildSummaryCards(context, netCashflow, realProfit),
@@ -1453,6 +1456,7 @@ class _FinanceV2DailyReportViewState extends State<FinanceV2DailyReportView> {
                       _buildDebtsList(context),
                     if (_snapshot!.auditLogs.isNotEmpty)
                       _buildAuditLogs(context),
+                    ...appendedChildren,
                     const SizedBox(height: 24),
                   ],
                 ),

@@ -891,7 +891,7 @@ class _FinanceV2ViewState extends State<FinanceV2View>
           _debtQuickSection(s),
         ])),
         const SizedBox(height:12),_compSection(s),const SizedBox(height:12),_profitSection(s),const SizedBox(height:12),_incomeSection(s),
-        const SizedBox(height:12),_cfSection(s),const SizedBox(height:12),_debtSection(s),
+        const SizedBox(height:12),_cfSection(s),
         const SizedBox(height:12),_expCatSection(s),const SizedBox(height:12),_snapCard(s),
         const SizedBox(height:24),
       ])));
@@ -1135,25 +1135,6 @@ class _FinanceV2ViewState extends State<FinanceV2View>
       Row(children:[_dot(FinanceV2Theme.positive),const SizedBox(width:4),Text('Tiền vào',style:FinanceV2Theme.caption),const SizedBox(width:12),_dot(FinanceV2Theme.negative),const SizedBox(width:4),Text('Tiền ra',style:FinanceV2Theme.caption)]),
     ]);
   }
-
-  Widget _debtSection(FinanceV2Snapshot s) {
-    if(s.receivableTotal==0&&s.payableTotal==0) return const SizedBox.shrink();
-    return Padding(padding:EdgeInsets.symmetric(horizontal:_hPad),child:Container(
-      decoration:FinanceV2Theme.elevatedPanel(),padding:const EdgeInsets.all(14),
-      child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        _sectionTitle('Công nợ chi tiết','Theo dõi các khoản chưa thu/chưa trả để tránh nhầm với tiền đang có.'),const SizedBox(height:10),
-        Row(children:[
-          if(s.receivableTotal>0) Expanded(child:_dTile('Phải thu',s.receivableTotal,FinanceV2Theme.warn,()=>_goDebt(true))),
-          if(s.receivableTotal>0&&s.payableTotal>0) const SizedBox(width:8),
-          if(s.payableTotal>0) Expanded(child:_dTile('Phải trả',s.payableTotal,FinanceV2Theme.negative,()=>_goDebt(false))),
-        ]),
-      ])));
-  }
-
-  Widget _dTile(String lbl,int amt,Color c,VoidCallback tap) => GestureDetector(onTap:tap,child:Container(
-    padding:const EdgeInsets.all(12),
-    decoration:BoxDecoration(color:c.withValues(alpha:0.08),borderRadius:BorderRadius.circular(12),border:Border.all(color:c.withValues(alpha:0.3))),
-    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(lbl,style:FinanceV2Theme.micro.copyWith(color:c)),const SizedBox(height:4),Text(_cmp(amt),style:FinanceV2Theme.amountLg.copyWith(color:c)),const Row(children:[Text('Xem chi tiết',style:FinanceV2Theme.caption),Icon(Icons.chevron_right_rounded,size:12,color:FinanceV2Theme.subInk)])])));
 
   Widget _expCatSection(FinanceV2Snapshot s) {
     if(s.topExpenseCategories.isEmpty) return const SizedBox.shrink();
@@ -2658,10 +2639,10 @@ class _FinanceV2ViewState extends State<FinanceV2View>
   Widget _t5() {
     return FinanceV2DailyReportView(
       embeddedInTab: true,
-      prependedChildren: [
+      appendedChildrenBuilder: (startDate, endDate) => [
         Padding(
-          padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
-          child: TopServicesWidget(startDate: _start, endDate: _end),
+          padding: const EdgeInsets.only(top: 8, bottom: 12),
+          child: TopServicesWidget(startDate: startDate, endDate: endDate),
         ),
         Padding(
           padding: const EdgeInsets.only(bottom: 16),
