@@ -38,7 +38,7 @@ import '../widgets/currency_text_field.dart';
 import '../widgets/variant_selector.dart';
 import '../widgets/entity_avatar.dart';
 import '../widgets/responsive_wrapper.dart';
-import '../widgets/upgrade_pro_dialog.dart';
+import '../widgets/upgrade_dialog.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -1779,8 +1779,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Banner nâng cấp Pro (chỉ hiện khi offline)
-                    UpgradeProBanner(
-                      message: 'Nâng cấp Pro để đồng bộ dữ liệu bán hàng an toàn lên cloud',
+                    UpgradePromptBanner(
+                      message:
+                          '💡 Nâng cấp Pro để đồng bộ dữ liệu, không lo mất khi đổi máy',
+                      actionLabel: 'Nâng cấp ngay',
                     ),
                     // === COMPACT: SẢN PHẨM + KHÁCH HÀNG gộp chung ===
                     Card(

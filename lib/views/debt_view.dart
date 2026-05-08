@@ -26,7 +26,7 @@ import '../theme/app_colors.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
 import '../widgets/responsive_wrapper.dart';
-import '../widgets/upgrade_pro_dialog.dart'; // Offline mode
+import '../widgets/upgrade_dialog.dart'; // Offline mode
 import 'repair_partner_detail_view.dart';
 import '../utils/excel_export_helper.dart';
 import '../utils/vietnamese_utils.dart';
@@ -685,8 +685,10 @@ class _DebtViewState extends State<DebtView>
             : Column(
                 children: [
                   // Offline mode: banner gợi ý nâng cấp
-                  UpgradeProBanner(
-                    message: 'Nâng cấp Pro để sao lưu danh sách công nợ lên cloud, tránh mất dữ liệu',
+                  UpgradePromptBanner(
+                    message:
+                        '🛡️ Nâng cấp Pro để sao lưu danh sách công nợ lên cloud',
+                    actionLabel: 'Nâng cấp',
                   ),
                   Expanded(
                     child: TabBarView(

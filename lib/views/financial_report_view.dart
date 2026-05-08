@@ -10,6 +10,7 @@ import '../services/event_bus.dart';
 import '../services/user_service.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/upgrade_dialog.dart';
 import 'daily_activity_report_view.dart';
 
 /// Trang báo cáo tài chính tổng hợp
@@ -695,6 +696,10 @@ class _FinancialReportViewState extends State<FinancialReportView>
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
+                  UpgradePromptBanner(
+                    message: '📈 Bản Pro có báo cáo chi tiết theo tháng, năm',
+                    actionLabel: 'Xem tính năng',
+                  ),
                   _buildSummaryCard(),
                   _buildDateRangeBar(),
                   _buildQuickFilters(),
