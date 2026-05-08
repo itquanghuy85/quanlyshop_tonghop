@@ -1823,7 +1823,7 @@ class _SettingsViewState extends State<SettingsView> {
           child: const Icon(Icons.delete_forever_rounded, color: Colors.red),
         ),
         title: const Text(
-          '⚠️ Xóa dữ liệu và chọn lại chế độ',
+          '⚠️ Xóa toàn bộ dữ liệu và chọn lại chế độ',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
         ),
         subtitle: const Text(
@@ -1863,7 +1863,7 @@ class _SettingsViewState extends State<SettingsView> {
     // Offline mode: xóa SQLite + SharedPreferences + AppMode
     try {
       final db = DBHelper();
-      await db.deleteAllData();
+      await db.deleteDatabaseFile();
     } catch (e) {
       debugPrint('Reset offline DB error: $e');
     }

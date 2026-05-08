@@ -63,6 +63,27 @@ class DBHelper {
     debugPrint('✅ DBHelper.deleteAllData: đã xóa toàn bộ dữ liệu offline');
   }
 
+  /// Offline mode: Xóa hẳn file DB để người dùng bắt đầu lại từ đầu.
+  Future<void> deleteDatabaseFile() async {
+    if (kIsWeb) {
+      // sqflite web không hỗ trợ xóa file theo đường dẫn vật lý
+      await deleteAllData();
+      return;
+    }
+    final dbPath = join(await getDatabasesPath(), 'repair_shop_v22.db');
+    try {
+      if (_database != null) {
+        await _database!.close();
+      }
+    } catch (e) {
+      debugPrint('deleteDatabaseFile close error: $e');
+    } finally {
+      _database = null;
+    }
+    await deleteDatabase(dbPath);
+    debugPrint('✅ DBHelper.deleteDatabaseFile: đã xóa file DB $dbPath');
+  }
+
   /// Helper: build SQL WHERE clause that matches both old (Vietnamese) and new (ASCII) type values
   /// e.g. 'LINH_KIEN' → "(type = 'LINH_KIEN' OR type = 'LINH KIỆN')"
   static String _typeWhereClause(String type, List<dynamic> args) {
