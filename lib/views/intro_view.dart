@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
+import '../core/app_mode.dart';
 import '../l10n/app_localizations.dart';
+import 'choose_mode_screen.dart';
 
 class IntroView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -148,12 +150,22 @@ class _IntroViewState extends State<IntroView> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_first_time', false);
     if (!mounted) return;
+
+    // Kiểm tra người dùng đã chọn chế độ chưa
+    final modeChosen = await AppMode.hasChosen();
+    if (!mounted) return;
+
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => AuthGate(setLocale: widget.setLocale),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
+        pageBuilder:
+            (_, __, ___) =>
+                modeChosen
+                    ? AuthGate(setLocale: widget.setLocale)
+                    : ChooseModeScreen(setLocale: widget.setLocale),
+        transitionsBuilder:
+            (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );

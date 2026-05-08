@@ -16,6 +16,7 @@ import '../models/attendance_model.dart';
 import '../models/leave_request_model.dart';
 import '../models/quick_input_code_model.dart';
 import '../services/user_service.dart';
+import '../core/app_mode.dart';
 
 /// Kết quả của [DBHelper.deductPartsAndUpdateRepairAtomic].
 class AtomicPartsResult {
@@ -63,6 +64,8 @@ class DBHelper {
   /// Helper để lấy shopId hiện tại (dùng cho query, không throw exception)
   /// Trả về shopId hoặc null nếu không có
   Future<String?> _getCurrentShopId() async {
+    // Chế độ offline: trả về shopId ảo
+    if (AppMode.isOfflineMode) return AppMode.offlineShopId;
     // Thử lấy từ cache trước (nhanh)
     final cachedShopId = UserService.getShopIdSync();
     if (cachedShopId != null && cachedShopId.isNotEmpty) {
@@ -78,6 +81,9 @@ class DBHelper {
     if (existingShopId != null && existingShopId.isNotEmpty) {
       return existingShopId;
     }
+
+    // Chế độ offline: trả về shopId ảo
+    if (AppMode.isOfflineMode) return AppMode.offlineShopId;
 
     // Thử lấy từ cache trước (nhanh)
     final cachedShopId = UserService.getShopIdSync();
@@ -4119,6 +4125,17 @@ return db;
       (await database).delete('repairs', where: 'id = ?', whereArgs: [id]);
   Future<int> deleteRepairByFirestoreId(String fId) async => (await database)
       .delete('repairs', where: 'firestoreId = ?', whereArgs: [fId]);
+
+  /// Xóa mềm một đơn sửa trong SQLite (dùng cho chế độ offline).
+  Future<void> softDeleteRepair(String firestoreId) async {
+    final db = await database;
+    await db.update(
+      'repairs',
+      {'deleted': 1, 'isSynced': 0},
+      where: 'firestoreId = ?',
+      whereArgs: [firestoreId],
+    );
+  }
 
   /// Search repairs by query string using SQL LIKE on key columns.
   /// Searches both original query and Vietnamese-normalized query for accent-insensitive matching.

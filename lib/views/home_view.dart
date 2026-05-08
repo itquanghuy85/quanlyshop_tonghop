@@ -117,6 +117,7 @@ import 'expansion/branch/branch_selector_view.dart';
 import 'expansion/branch/branch_list_view.dart';
 import '../finance_v2/finance_v2_view.dart' as finance_v2;
 import '../finance_v2/finance_v2_data_service.dart';
+import '../core/app_mode.dart';
 
 class HomeView extends StatefulWidget {
   final String role;
@@ -651,6 +652,8 @@ class _HomeViewState extends State<HomeView>
           ),
           'widget': const VariantManagementView(),
         },
+      // Tab nhân sự chỉ hiển thị khi online (cần đồng bộ Firebase)
+      if (!AppMode.isOfflineMode)
       {
         'id': 'staff',
         'permission': null, // Staff tab is always visible; gate actions inside
@@ -660,7 +663,7 @@ class _HomeViewState extends State<HomeView>
           label: loc.staffTab,
         ),
         'widget': _buildStaffTab(),
-      },
+      }, // end staff tab (only shown when online)
       {
         'id': 'finance',
         'permission':

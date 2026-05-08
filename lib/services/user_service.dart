@@ -62,6 +62,21 @@ class UserService {
   static String? _adminSelectedShopId; // Shop được super admin chọn để xem
   static bool _cachedIsSuperAdmin = false;
 
+  /// Cờ chế độ offline — được bật khi AppMode.isOfflineMode == true.
+  static bool _offlineModeActive = false;
+
+  /// Khởi tạo phiên làm việc offline (set shopId/userId ảo, không dùng Firebase).
+  static void initOfflineSession() {
+    _offlineModeActive = true;
+    _cachedShopId = 'offline_local';
+    _cachedUid = 'offline_user';
+  }
+
+  /// Xóa phiên offline (gọi khi nâng cấp sang online).
+  static void clearOfflineSession() {
+    _offlineModeActive = false;
+  }
+
   /// Flag để AuthGate biết đang tạo shop mới lần đầu → hiển thị thông báo khác
   static bool _isCreatingNewShopData = false;
   static bool get isCreatingNewShopData => _isCreatingNewShopData;
@@ -132,6 +147,7 @@ class UserService {
 
   /// Check if shopId is currently valid and ready for data operations
   static bool isShopIdReady() {
+    if (_offlineModeActive) return true;
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return false;
     if (_isSuperAdmin(currentUser)) {
@@ -145,6 +161,7 @@ class UserService {
   /// Get shopId synchronously (returns cached value or null)
   /// Use this for quick checks, use getCurrentShopId() for guaranteed fetch
   static String? getShopIdSync() {
+    if (_offlineModeActive) return 'offline_local';
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return null;
     if (_isSuperAdmin(currentUser)) return _adminSelectedShopId;
@@ -319,11 +336,13 @@ class UserService {
   }
 
   static bool isCurrentUserSuperAdmin() {
+    if (_offlineModeActive) return false;
     return _isSuperAdmin(FirebaseAuth.instance.currentUser);
   }
 
   /// Kiểm tra user hiện tại có phải admin (owner/manager/super admin)
   static Future<bool> isCurrentUserAdmin() async {
+    if (_offlineModeActive) return true; // Offline = chủ shop, quyền admin
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
     if (_isSuperAdmin(user)) return true;
@@ -334,6 +353,7 @@ class UserService {
 
   /// Lấy tên hiển thị của user hiện tại
   static Future<String> getCurrentUserName() async {
+    if (_offlineModeActive) return 'Người dùng offline';
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return '';
 
@@ -527,6 +547,9 @@ class UserService {
   }
 
   static Future<String?> getCurrentShopId() async {
+    // Chế độ offline: trả về shopId ảo ngay lập tức, không truy vấn Firebase.
+    if (_offlineModeActive) return 'offline_local';
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       debugPrint("getCurrentShopId: không có currentUser");

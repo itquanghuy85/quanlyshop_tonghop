@@ -7,6 +7,8 @@ import '../models/sale_order_model.dart';
 import '../models/purchase_order_model.dart';
 import '../models/attendance_model.dart';
 import '../models/quick_input_code_model.dart';
+import '../core/app_mode.dart';
+import '../data/db_helper.dart';
 import 'user_service.dart';
 import 'notification_service.dart';
 import 'encryption_service.dart';
@@ -228,6 +230,17 @@ class FirestoreService {
   // --- CÁC HÀM CỐ LÕI KHÁC (KHÔNG THAY ĐỔI LOGIC) ---
   static Future<String?> addRepair(Repair r) async {
     try {
+      // --- OFFLINE MODE ---
+      if (AppMode.isOfflineMode) {
+        final localId = r.firestoreId ?? 'local_${DateTime.now().millisecondsSinceEpoch}';
+        final data = r.toMap();
+        data['firestoreId'] = localId;
+        data['shopId'] = AppMode.offlineShopId;
+        data['isSynced'] = 0;
+        await DBHelper().upsertRepair(Repair.fromMap(data));
+        return localId;
+      }
+
       // --- MONEY VALIDATION ---
       try {
         MoneyValidationService.validateAmount(r.price);
@@ -267,6 +280,11 @@ class FirestoreService {
 
   static Future<void> upsertRepair(Repair r) async {
     if (r.firestoreId == null) return;
+    // --- OFFLINE MODE ---
+    if (AppMode.isOfflineMode) {
+      await DBHelper().upsertRepair(r);
+      return;
+    }
     try {
       // --- MONEY VALIDATION ---
       try {
@@ -289,6 +307,11 @@ class FirestoreService {
   }
 
   static Future<void> deleteRepair(String firestoreId) async {
+    // --- OFFLINE MODE: xóa mềm trong SQLite ---
+    if (AppMode.isOfflineMode) {
+      await DBHelper().softDeleteRepair(firestoreId);
+      return;
+    }
     try {
       await _db.collection('repairs').doc(firestoreId).update({
         'deleted': true,
@@ -300,6 +323,23 @@ class FirestoreService {
   }
 
   static Future<String?> addSale(SaleOrder s) async {
+    // --- OFFLINE MODE ---
+    if (AppMode.isOfflineMode) {
+      try {
+        final localId = s.firestoreId ?? 'local_${DateTime.now().millisecondsSinceEpoch}';
+        final data = s.toMap();
+        data['firestoreId'] = localId;
+        data['shopId'] = AppMode.offlineShopId;
+        data['isSynced'] = 0;
+        await DBHelper().insertSale(SaleOrder.fromMap(data));
+        EventBus().emit('sales_changed');
+        return localId;
+      } catch (e) {
+        debugPrint('Offline addSale error: $e');
+        return null;
+      }
+    }
+
     try {
       var shopId = await UserService.getCurrentShopId();
       debugPrint('📤 addSale: shopId=$shopId');
@@ -424,6 +464,21 @@ class FirestoreService {
   }
 
   static Future<String?> addProduct(Product p) async {
+    // --- OFFLINE MODE ---
+    if (AppMode.isOfflineMode) {
+      try {
+        final localId = p.firestoreId ?? 'local_${DateTime.now().millisecondsSinceEpoch}';
+        final data = p.toMap();
+        data['firestoreId'] = localId;
+        data['shopId'] = AppMode.offlineShopId;
+        data['isSynced'] = 0;
+        await DBHelper().upsertProduct(Product.fromMap(data));
+        return localId;
+      } catch (e) {
+        debugPrint('Offline addProduct error: $e');
+        return null;
+      }
+    }
     try {
       // --- MONEY VALIDATION ---
       try {

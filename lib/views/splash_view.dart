@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
+import '../core/app_mode.dart';
 import 'intro_view.dart';
+import 'choose_mode_screen.dart';
 
 class SplashView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -205,9 +207,12 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
     final prefs = await SharedPreferences.getInstance();
     final isFirstTime = prefs.getBool('is_first_time') ?? true;
 
-    _runStatusSequence(waitForCloud: !isFirstTime);
+    // Tải chế độ hoạt động đã lưu
+    await AppMode.load();
 
-    if (!isFirstTime) {
+    _runStatusSequence(waitForCloud: !isFirstTime && !AppMode.isOfflineMode);
+
+    if (!isFirstTime && !AppMode.isOfflineMode) {
       try {
         await firebaseBootstrapReady.timeout(
           const Duration(seconds: 3),
@@ -241,11 +246,17 @@ class _SplashViewState extends State<SplashView> with TickerProviderStateMixin {
         ),
       );
     } else {
+      // Người dùng đã dùng app trước nhưng chưa chọn chế độ (upgrade từ app cũ)
+      final modeChosen = await AppMode.hasChosen();
       _isNavigating = true;
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => AuthGate(setLocale: widget.setLocale),
+          pageBuilder:
+              (_, __, ___) =>
+                  modeChosen
+                      ? AuthGate(setLocale: widget.setLocale)
+                      : ChooseModeScreen(setLocale: widget.setLocale),
           transitionsBuilder: (_, anim, __, child) =>
               FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 500),

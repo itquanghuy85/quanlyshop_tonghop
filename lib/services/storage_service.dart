@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/app_mode.dart';
 
 class StorageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -386,6 +387,12 @@ class StorageService {
 
   /// Tự động upload và trả về URL để đồng bộ giữa các máy
   static Future<String?> uploadAndGetUrl(String localPath, String folder) async {
+    // Chế độ offline: trả về đường dẫn local, không upload lên cloud
+    if (AppMode.isOfflineMode) {
+      debugPrint('⏸️ uploadAndGetUrl: chế độ offline, giữ đường dẫn local');
+      return localPath;
+    }
+
     _clearLastUploadError();
     if (!_retryingPendingUploads) {
       unawaited(retryPendingUploads());

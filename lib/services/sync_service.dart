@@ -23,6 +23,7 @@ import 'claims_service.dart';
 import 'shop_deletion_service.dart';
 import 'firebase_usage_stats_service.dart';
 import '../utils/perf_monitor.dart';
+import '../core/app_mode.dart';
 
 class SyncService {
   static final _db = FirebaseFirestore.instance;
@@ -812,6 +813,13 @@ class SyncService {
 
   /// Khởi tạo đồng bộ thời gian thực
   static Future<void> initRealTimeSync(VoidCallback onDataChanged) async {
+    // Chế độ offline: không đồng bộ với Firebase
+    if (AppMode.isOfflineMode) {
+      debugPrint('⏸️ initRealTimeSync: chế độ offline, bỏ qua');
+      _onDataChangedCallback = onDataChanged;
+      return;
+    }
+
     if (_isInitializingRealtime) {
       debugPrint('⏸️ initRealTimeSync: đang khởi tạo, bỏ qua lần gọi trùng');
       return;
@@ -3992,6 +4000,12 @@ class SyncService {
   /// Tải toàn bộ dữ liệu từ Cloud về (Dùng khi cài lại app hoặc đổi máy)
   /// [force] = true bỏ qua cooldown (dùng khi user chủ động bấm sync)
   static Future<void> downloadAllFromCloud({bool force = false}) async {
+    // Chế độ offline: không download từ cloud
+    if (AppMode.isOfflineMode) {
+      debugPrint('⏸️ downloadAllFromCloud: chế độ offline, bỏ qua');
+      return;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // THROTTLE: Chặn gọi liên tục (tối thiểu 60s giữa các lần)
     // ═══════════════════════════════════════════════════════════════════════

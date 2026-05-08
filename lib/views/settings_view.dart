@@ -23,11 +23,13 @@ import '../services/first_time_guide_service.dart';
 import '../widgets/unified_sync_button.dart';
 import '../widgets/shop_switcher_widget.dart';
 import '../widgets/custom_app_bar.dart';
+import '../core/app_mode.dart';
 import 'help_center_view.dart';
 import 'user_guide_view.dart';
 import 'shop_selector_view.dart';
 import 'staff_permissions_view.dart';
 import 'category_management_view.dart';
+import 'choose_mode_screen.dart';
 import '../widgets/responsive_wrapper.dart';
 
 class SettingsView extends StatefulWidget {
@@ -68,6 +70,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _loadCurrentUserProfile() async {
+    if (AppMode.isOfflineMode) return; // Không có Firestore trong chế độ offline
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
@@ -266,6 +269,11 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Future<void> _loadRole() async {
+    // Chế độ offline: không cần query Firebase
+    if (AppMode.isOfflineMode) {
+      if (mounted) setState(() { _role = 'owner'; _loading = false; });
+      return;
+    }
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final role = await UserService.getUserRole(user.uid);
@@ -401,11 +409,20 @@ class _SettingsViewState extends State<SettingsView> {
           : ListView(
               padding: const EdgeInsets.all(10),
               children: [
+                // ====== NÂNG CẤP LÊN BẢN ONLINE (chỉ hiện khi đang offline) ======
+                if (AppMode.isOfflineMode) ...[
+                  _buildSection('Chế độ sử dụng'),
+                  _buildUpgradeToOnlineCard(),
+                  const SizedBox(height: 8),
+                ],
+
                 // ====== TÀI KHOẢN & BẢO MẬT - ĐẶT LÊN ĐẦU ĐỂ DỄ TÌM ======
-                _buildSection(localizations.accountAndSecurity),
-                // Card tài khoản gọn: avatar + tên + email + role + liên kết + đăng xuất
-                _buildAccountCard(localizations),
-                const SizedBox(height: 8),
+                if (!AppMode.isOfflineMode) ...[
+                  _buildSection(localizations.accountAndSecurity),
+                  // Card tài khoản gọn: avatar + tên + email + role + liên kết + đăng xuất
+                  _buildAccountCard(localizations),
+                  const SizedBox(height: 8),
+                ],
 
                 // NÚT CHỌN SHOP KHÁC - Chỉ hiện cho Super Admin
                 if (UserService.isCurrentUserSuperAdmin()) ...[
@@ -545,7 +562,8 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                 ),
 
-                // ĐỒNG BỘ DỮ LIỆU - Chỉ còn 1 entry point duy nhất
+                // ĐỒNG BỘ DỮ LIỆU - Chỉ hiển thị khi online
+                if (!AppMode.isOfflineMode) ...[
                 const SizedBox(height: 10),
                 _buildSection(localizations.syncManagement),
                 // Card đơn giản mở Trung tâm đồng bộ
@@ -594,6 +612,7 @@ class _SettingsViewState extends State<SettingsView> {
                     },
                   ),
                 ),
+                ], // end !isOfflineMode sync section
 
                 // ====== QUẢN LÝ CỬA HÀNG ======
                 const SizedBox(height: 10),
@@ -1749,6 +1768,77 @@ class _SettingsViewState extends State<SettingsView> {
         );
       }
     }
+  }
+
+  /// Card nâng cấp lên bản Online (chỉ hiển thị khi đang ở chế độ offline)
+  Widget _buildUpgradeToOnlineCard() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: const Color(0xFFFFF3E0),
+      child: ListTile(
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.orange.shade100,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.cloud_upload_rounded, color: Colors.orange),
+        ),
+        title: const Text(
+          'Nâng cấp lên bản Online',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+        ),
+        subtitle: const Text(
+          'Đồng bộ cloud, nhiều thiết bị, nhiều nhân viên',
+          style: TextStyle(fontSize: 12),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        onTap: _showUpgradeDialog,
+      ),
+    );
+  }
+
+  void _showUpgradeDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nâng cấp lên bản Online'),
+        content: const Text(
+          'Bạn muốn chuyển sang chế độ Online?\n\n'
+          '• Dữ liệu offline hiện tại sẽ được giữ nguyên trên thiết bị.\n'
+          '• Bạn cần đăng nhập tài khoản Firebase sau khi nâng cấp.\n'
+          '• Liên hệ admin để được cấp tài khoản và hướng dẫn thanh toán.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _upgradeToOnlineMode();
+            },
+            child: const Text('Xác nhận nâng cấp'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _upgradeToOnlineMode() async {
+    await AppMode.upgradeToOnline();
+    UserService.clearOfflineSession();
+    if (!mounted) return;
+    NotificationService.showSnackBar(
+      'Đã chuyển sang chế độ Online. Vui lòng đăng nhập.',
+    );
+    // Chuyển về màn hình đăng nhập
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const ChooseModeScreen()),
+      (route) => false,
+    );
   }
 
   Widget _buildSection(String title) => Padding(

@@ -19,6 +19,7 @@ import 'views/sale_detail_view.dart';
 import 'views/splash_view.dart'; // Import màn hình Splash mới
 import 'views/shop_selector_view.dart'; // Màn hình chọn shop cho super admin
 import 'theme/app_theme.dart'; // Import theme thống nhất
+import 'core/app_mode.dart'; // Chế độ offline/online
 import 'services/user_service.dart';
 import 'services/notification_service.dart';
 import 'services/connectivity_service.dart';
@@ -891,6 +892,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // ── CHẾ ĐỘ OFFLINE: bỏ qua Firebase Auth hoàn toàn ──
+    if (AppMode.isOfflineMode) {
+      UserService.initOfflineSession();
+      return HomeView(role: 'owner', setLocale: widget.setLocale);
+    }
+
     return StreamBuilder<User?>(
       initialData: FirebaseAuth.instance.currentUser,
       stream: FirebaseAuth.instance.authStateChanges(),
