@@ -343,6 +343,20 @@ class _HomeViewState extends State<HomeView>
   }
 
   void _primePermissionsFromCache() {
+    // Offline mode: toàn quyền ngay từ đầu, không cần cache Firebase
+    if (AppMode.isOfflineMode) {
+      _permissions = {
+        'allowViewSales': true,
+        'allowViewInventory': true,
+        'allowViewRepairs': true,
+        'allowViewRevenue': true,
+        'allowViewDebts': true,
+        'allowViewSettings': true,
+        'allowViewReports': true,
+        'allowManageStaff': true,
+      };
+      return;
+    }
     final cached = UserService.getCurrentUserPermissionsSync();
     if (cached == null) return;
 
@@ -2010,6 +2024,29 @@ class _HomeViewState extends State<HomeView>
 
   Future<void> _updatePermissions({bool forceRefresh = false}) async {
     debugPrint('HomeView: _updatePermissions called');
+
+    // Chế độ offline: chủ shop có toàn quyền
+    if (AppMode.isOfflineMode) {
+      if (!mounted) return;
+      setState(() {
+        _shopLocked = false;
+        _lockedByAdmin = [];
+        _lockedByOwner = [];
+        _permissions = {
+          'allowViewSales': true,
+          'allowViewInventory': true,
+          'allowViewRepairs': true,
+          'allowViewRevenue': true,
+          'allowViewDebts': true,
+          'allowViewSettings': true,
+          'allowViewReports': true,
+          'allowManageStaff': true,
+        };
+        _updateAvailableTabs();
+      });
+      return;
+    }
+
     try {
       final perms = await UserService.getCurrentUserPermissions(
         forceRefresh: forceRefresh,
@@ -2921,11 +2958,12 @@ class _HomeViewState extends State<HomeView>
             tooltip: loc.searchWholeApp,
           ),
           // Simple sync indicator - tự động sync, tap để force sync
-          const SimpleSyncIndicator(),
-          IconButton(
-            onPressed: () => _handleLogout(context),
-            icon: const Icon(Icons.logout_rounded, color: AppColors.error),
-          ),
+          if (!AppMode.isOfflineMode) const SimpleSyncIndicator(),
+          if (!AppMode.isOfflineMode)
+            IconButton(
+              onPressed: () => _handleLogout(context),
+              icon: const Icon(Icons.logout_rounded, color: AppColors.error),
+            ),
         ],
       ),
       body: _buildResponsiveBody(),
@@ -8599,7 +8637,8 @@ class _HomeViewState extends State<HomeView>
               ),
 
             const Divider(height: 20),
-            // Logout
+            // Logout (chỉ hiện khi online)
+            if (!AppMode.isOfflineMode)
             InkWell(
               onTap: () => _confirmAndLogout(),
               borderRadius: BorderRadius.circular(8),

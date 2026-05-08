@@ -31,6 +31,7 @@ import 'staff_permissions_view.dart';
 import 'category_management_view.dart';
 import 'choose_mode_screen.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/upgrade_pro_dialog.dart';
 
 class SettingsView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -1800,31 +1801,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _showUpgradeDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Nâng cấp lên bản Online'),
-        content: const Text(
-          'Bạn muốn chuyển sang chế độ Online?\n\n'
-          '• Dữ liệu offline hiện tại sẽ được giữ nguyên trên thiết bị.\n'
-          '• Bạn cần đăng nhập tài khoản Firebase sau khi nâng cấp.\n'
-          '• Liên hệ admin để được cấp tài khoản và hướng dẫn thanh toán.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _upgradeToOnlineMode();
-            },
-            child: const Text('Xác nhận nâng cấp'),
-          ),
-        ],
-      ),
-    );
+    UpgradeProDialog.show(context);
   }
 
   Future<void> _upgradeToOnlineMode() async {

@@ -725,6 +725,7 @@ class UserService {
 
   /// Fast role check using Custom Claims (no Firestore read)
   static Future<String> getRoleFast() async {
+    if (_offlineModeActive) return 'owner'; // Offline = chủ shop
     final claims = await ClaimsService().getClaimsFromToken();
     final isSuperAdminClaim = claims?['isSuperAdmin'] == true ||
         claims?['role'] == 'super_admin';
@@ -1360,6 +1361,10 @@ class UserService {
   static Future<Map<String, dynamic>> getCurrentUserPermissions({
     bool forceRefresh = false,
   }) async {
+    // Offline mode: chủ shop có toàn quyền, không cần Firebase
+    if (_offlineModeActive) {
+      return _defaultPermissionsForRole('owner');
+    }
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       return _defaultPermissionsForRole('user');

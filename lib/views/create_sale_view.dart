@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../core/app_mode.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_write_helper.dart';
@@ -37,6 +38,7 @@ import '../widgets/currency_text_field.dart';
 import '../widgets/variant_selector.dart';
 import '../widgets/entity_avatar.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/upgrade_pro_dialog.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../theme/app_button_styles.dart';
@@ -205,6 +207,11 @@ class _CreateSaleViewState extends State<CreateSaleView> {
   }
 
   Future<void> _checkPermission() async {
+    if (AppMode.isOfflineMode) {
+      if (!mounted) return;
+      setState(() => _hasPermission = true);
+      return;
+    }
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
     setState(() => _hasPermission = perms['allowViewSales'] ?? false);
@@ -1771,6 +1778,10 @@ class _CreateSaleViewState extends State<CreateSaleView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Banner nâng cấp Pro (chỉ hiện khi offline)
+                    UpgradeProBanner(
+                      message: 'Nâng cấp Pro để đồng bộ dữ liệu bán hàng an toàn lên cloud',
+                    ),
                     // === COMPACT: SẢN PHẨM + KHÁCH HÀNG gộp chung ===
                     Card(
                       margin: const EdgeInsets.only(bottom: 8),

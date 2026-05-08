@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../core/app_mode.dart';
 import '../utils/money_utils.dart';
 import '../widgets/currency_text_field.dart';
 import '../data/db_helper.dart';
@@ -180,6 +181,11 @@ class _DebtViewState extends State<DebtView>
   }
 
   Future<void> _checkPermission() async {
+    if (AppMode.isOfflineMode) {
+      if (!mounted) return;
+      setState(() => _hasPermission = true);
+      return;
+    }
     final perms = await UserService.getCurrentUserPermissions();
     if (!mounted) return;
     setState(() => _hasPermission = perms['allowViewDebts'] ?? false);

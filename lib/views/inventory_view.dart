@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/app_mode.dart';
 import '../services/firestore_write_helper.dart';
 import '../utils/money_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -1771,6 +1772,21 @@ class _InventoryViewState extends State<InventoryView>
   }
 
   Future<void> _init() async {
+    // Offline mode: toàn quyền kho
+    if (AppMode.isOfflineMode) {
+      final settings = await CategoryService().getShopSettings();
+      if (!mounted) return;
+      setState(() {
+        _isAdmin = true;
+        _hasInventoryAccess = true;
+        _canViewCostPrice = true;
+        _shopSettings = settings;
+        _selectedType = _getDefaultInventoryType();
+      });
+      _initCheckData();
+      _refresh();
+      return;
+    }
     final perms = await UserService.getCurrentUserPermissions();
     // Load shop settings for multi-industry features
     final settings = await CategoryService().getShopSettings();

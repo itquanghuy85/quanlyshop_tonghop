@@ -589,6 +589,19 @@ class FirestoreService {
   }
 
   static Future<void> addDebtCloud(Map<String, dynamic> debtData) async {
+    // Offline mode: chỉ lưu local SQLite
+    if (AppMode.isOfflineMode) {
+      final db = DBHelper();
+      final String docId =
+          debtData['firestoreId'] ??
+          "debt_local_${DateTime.now().millisecondsSinceEpoch}";
+      debtData['firestoreId'] = docId;
+      debtData['shopId'] = AppMode.offlineShopId;
+      debtData['isSynced'] = 0;
+      await db.insertDebt(debtData);
+      EventBus().emit('debts_changed');
+      return;
+    }
     try {
       // --- MONEY VALIDATION ---
       try {
