@@ -7,6 +7,8 @@ import '../services/category_service.dart';
 import '../core/utils/money_utils.dart';
 import '../theme/app_colors.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../core/app_mode.dart'; // Offline mode
+import '../widgets/upgrade_pro_dialog.dart'; // Offline mode
 
 /// Monthly profit report — shows revenue, cost, expenses, profit per month
 class MonthlyProfitReportView extends StatefulWidget {
@@ -284,6 +286,10 @@ class _MonthlyProfitReportViewState extends State<MonthlyProfitReportView> {
                     vertical: 16,
                   ),
                   children: [
+                    // Offline mode: banner gợi ý nâng cấp
+                    UpgradeProBanner(
+                      message: 'Bản Pro có báo cáo chi tiết theo tháng, năm, so sánh lợi nhuận',
+                    ),
                     _buildYearSummary(),
                     const SizedBox(height: 16),
                     _buildBarChart(),

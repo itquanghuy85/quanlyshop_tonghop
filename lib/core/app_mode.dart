@@ -42,4 +42,12 @@ class AppMode {
     await prefs.setBool(_offlineKey, false);
     await prefs.setBool(_chosenKey, true);
   }
+
+  /// Reset hoàn toàn: xóa lựa chọn chế độ → app sẽ hỏi lại khi khởi động.
+  static Future<void> reset() async {
+    isOfflineMode = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_offlineKey);
+    await prefs.remove(_chosenKey);
+  }
 }

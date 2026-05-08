@@ -45,6 +45,24 @@ class DBHelper {
     _factoryInitialized = true;
   }
 
+  /// Offline mode: Xóa toàn bộ dữ liệu trong DB (dùng khi người dùng muốn bắt đầu lại).
+  Future<void> deleteAllData() async {
+    final db = await database;
+    const tables = [
+      'repairs', 'sales', 'sale_items', 'products', 'debts', 'debt_payments',
+      'expenses', 'customers', 'suppliers', 'adjustments', 'cash_closings',
+      'sync_queue', 'notifications',
+    ];
+    for (final table in tables) {
+      try {
+        await db.delete(table);
+      } catch (e) {
+        debugPrint('deleteAllData[$table] error: $e');
+      }
+    }
+    debugPrint('✅ DBHelper.deleteAllData: đã xóa toàn bộ dữ liệu offline');
+  }
+
   /// Helper: build SQL WHERE clause that matches both old (Vietnamese) and new (ASCII) type values
   /// e.g. 'LINH_KIEN' → "(type = 'LINH_KIEN' OR type = 'LINH KIỆN')"
   static String _typeWhereClause(String type, List<dynamic> args) {

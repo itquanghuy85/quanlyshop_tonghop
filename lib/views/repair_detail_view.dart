@@ -43,6 +43,7 @@ import '../services/encryption_service.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data/db_helper.dart';
 import '../services/event_bus.dart';
+import '../core/app_mode.dart'; // Offline mode
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 import '../widgets/app_cached_image.dart';
@@ -584,6 +585,9 @@ class _RepairDetailViewState extends State<RepairDetailView> {
     int? requestedDeliveryPrice,
     bool includeRequestedDeliveryPrice = false,
   }) async {
+    // Offline mode: bỏ qua Firestore, dữ liệu đã lưu SQLite
+    if (AppMode.isOfflineMode) return;
+
     final targetId = (r.firestoreId ?? '').trim();
     if (targetId.isEmpty) return;
 
@@ -1113,7 +1117,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       }
 
       // Queue sync repair to cloud via SyncOrchestrator
-      if (r.id != null) {
+      if (r.id != null && !AppMode.isOfflineMode) {
         await SyncOrchestrator().enqueue(
           entityType: SyncEntityType.repair,
           entityId: r.id!,
@@ -1138,7 +1142,7 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       _emitRepairChanged();
 
       // GỬI PUSH NOTIFICATION khi thay đổi trạng thái (trừ status 4 đã xử lý riêng)
-      if (newStatus != 4) {
+      if (newStatus != 4 && !AppMode.isOfflineMode) {
         try {
           final user = FirebaseAuth.instance.currentUser;
           final userName = currentStaffName;
@@ -1195,6 +1199,10 @@ class _RepairDetailViewState extends State<RepairDetailView> {
       debugPrint('Error updating repair status: $e');
     }
     if (mounted) setState(() => _isUpdating = false);
+    // Offline mode: pop về danh sách sau khi lưu thành công
+    if (AppMode.isOfflineMode && mounted) {
+      Navigator.of(context).pop(true);
+    }
   }
 
   String _getStatusText(int s, {bool pendingApproval = false}) {

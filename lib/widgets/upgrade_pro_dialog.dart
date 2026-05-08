@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/app_mode.dart';
 import '../services/user_service.dart';
 import '../views/choose_mode_screen.dart';
@@ -83,16 +84,34 @@ class UpgradeProDialog extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
           child: const Text('Để sau'),
         ),
-        FilledButton.icon(
-          icon: const Icon(Icons.upgrade, size: 18),
-          label: const Text('Kích hoạt ngay'),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.amber.shade700,
+        // Upgrade feature: Liên hệ admin qua điện thoại
+        OutlinedButton.icon(
+          icon: const Icon(Icons.phone, size: 16),
+          label: const Text('Liên hệ'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.blue,
+            side: const BorderSide(color: Colors.blue),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () async {
             Navigator.pop(context);
-            await _activateOnline(context);
+            final uri = Uri(scheme: 'tel', path: '0987654321');
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+            }
+          },
+        ),
+        // Upgrade feature: Nhập mã kích hoạt
+        FilledButton.icon(
+          icon: const Icon(Icons.vpn_key, size: 18),
+          label: const Text('Nhập mã'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.amber.shade700,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () {
+            Navigator.pop(context);
+            _showActivationCodeDialog(context);
           },
         ),
       ],
@@ -125,6 +144,73 @@ class UpgradeProDialog extends StatelessWidget {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const ChooseModeScreen()),
       (route) => false,
+    );
+  }
+
+  // Upgrade feature: Dialog nhập mã kích hoạt
+  static void _showActivationCodeDialog(BuildContext context) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Nhập mã kích hoạt'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Nhập mã được cung cấp bởi Huluca để kích hoạt bản Pro:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                hintText: 'Ví dụ: HULUCA2025',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.vpn_key),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final code = controller.text.trim().toUpperCase();
+              Navigator.pop(ctx);
+              if (code == 'HULUCA2025') {
+                // Upgrade feature: mã đúng → chuyển sang online
+                await AppMode.upgradeToOnline();
+                UserService.clearOfflineSession();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nâng cấp thành công! Vui lòng đăng nhập.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const ChooseModeScreen()),
+                  (route) => false,
+                );
+              } else {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Mã không hợp lệ. Vui lòng kiểm tra lại.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Kích hoạt'),
+          ),
+        ],
+      ),
     );
   }
 }

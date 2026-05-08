@@ -26,6 +26,7 @@ import '../theme/app_colors.dart';
 import '../models/shop_settings_model.dart';
 import '../services/category_service.dart';
 import '../widgets/responsive_wrapper.dart';
+import '../widgets/upgrade_pro_dialog.dart'; // Offline mode
 import 'repair_partner_detail_view.dart';
 import '../utils/excel_export_helper.dart';
 import '../utils/vietnamese_utils.dart';
@@ -681,14 +682,24 @@ class _DebtViewState extends State<DebtView>
       body: ResponsiveCenter(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                controller: _tabController,
+            : Column(
                 children: [
-                  _buildDebtList('CUSTOMER_OWES'),
-                  _buildDebtList('SHOP_OWES'),
-                  if (_enableRepair)
-                    _buildPartnerDebtList(), // Tab cho công nợ đối tác sửa chữa - chỉ cho electronics
-                  _buildDebtList('OTHER'),
+                  // Offline mode: banner gợi ý nâng cấp
+                  UpgradeProBanner(
+                    message: 'Nâng cấp Pro để sao lưu danh sách công nợ lên cloud, tránh mất dữ liệu',
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildDebtList('CUSTOMER_OWES'),
+                        _buildDebtList('SHOP_OWES'),
+                        if (_enableRepair)
+                          _buildPartnerDebtList(), // Tab cho công nợ đối tác sửa chữa - chỉ cho electronics
+                        _buildDebtList('OTHER'),
+                      ],
+                    ),
+                  ),
                 ],
               ),
       ),

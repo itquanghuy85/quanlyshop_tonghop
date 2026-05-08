@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show SystemNavigator;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
@@ -414,6 +415,8 @@ class _SettingsViewState extends State<SettingsView> {
                 if (AppMode.isOfflineMode) ...[
                   _buildSection('Chế độ sử dụng'),
                   _buildUpgradeToOnlineCard(),
+                  const SizedBox(height: 8),
+                  _buildResetOfflineDataCard(), // Offline mode: xóa dữ liệu và chọn lại
                   const SizedBox(height: 8),
                 ],
 
@@ -1802,6 +1805,79 @@ class _SettingsViewState extends State<SettingsView> {
 
   void _showUpgradeDialog() {
     UpgradeProDialog.show(context);
+  }
+
+  // Offline mode: Card xóa toàn bộ dữ liệu và chọn lại chế độ
+  Widget _buildResetOfflineDataCard() {
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      color: Colors.red.shade50,
+      child: ListTile(
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: Colors.red.shade100,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+        ),
+        title: const Text(
+          '⚠️ Xóa dữ liệu và chọn lại chế độ',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+        ),
+        subtitle: const Text(
+          'Xóa toàn bộ dữ liệu offline và quay về màn hình chọn chế độ',
+          style: TextStyle(fontSize: 12),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red),
+        onTap: _confirmResetOfflineData,
+      ),
+    );
+  }
+
+  Future<void> _confirmResetOfflineData() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('⚠️ Xác nhận xóa dữ liệu'),
+        content: const Text(
+          'Hành động này sẽ xóa TOÀN BỘ dữ liệu offline trong máy '
+          '(đơn sửa chữa, bán hàng, kho hàng, công nợ...) và không thể khôi phục.\n\n'
+          'Bạn có chắc chắn muốn tiếp tục không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xóa tất cả'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    // Offline mode: xóa SQLite + SharedPreferences + AppMode
+    try {
+      final db = DBHelper();
+      await db.deleteAllData();
+    } catch (e) {
+      debugPrint('Reset offline DB error: $e');
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    } catch (e) {
+      debugPrint('Reset prefs error: $e');
+    }
+    await AppMode.reset();
+    UserService.clearOfflineSession();
+    if (!mounted) return;
+    // Đóng app để người dùng mở lại → sẽ thấy màn hình chọn chế độ
+    SystemNavigator.pop();
   }
 
   Future<void> _upgradeToOnlineMode() async {
