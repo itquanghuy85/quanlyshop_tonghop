@@ -32,7 +32,7 @@ import 'staff_permissions_view.dart';
 import 'category_management_view.dart';
 import 'choose_mode_screen.dart';
 import '../widgets/responsive_wrapper.dart';
-import '../widgets/upgrade_pro_dialog.dart';
+import '../widgets/upgrade_dialog.dart';
 
 class SettingsView extends StatefulWidget {
   final void Function(Locale)? setLocale;
@@ -1778,23 +1778,23 @@ class _SettingsViewState extends State<SettingsView> {
   Widget _buildUpgradeToOnlineCard() {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      color: const Color(0xFFFFF3E0),
+      color: const Color(0xFFFFF7D6),
       child: ListTile(
         leading: Container(
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.orange.shade100,
+            color: const Color(0xFFFFF0B3),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.cloud_upload_rounded, color: Colors.orange),
+          child: const Icon(Icons.star, color: Color(0xFFE6A700)),
         ),
         title: const Text(
-          'Nâng cấp lên bản Online',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+          '✨ Nâng cấp lên Pro (Online) ✨',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8A6200)),
         ),
         subtitle: const Text(
-          'Đồng bộ cloud, nhiều thiết bị, nhiều nhân viên',
+          'Đồng bộ dữ liệu, quản lý nhân viên, báo cáo nâng cao',
           style: TextStyle(fontSize: 12),
         ),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -1804,7 +1804,7 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _showUpgradeDialog() {
-    UpgradeProDialog.show(context);
+    UpgradeDialog.show(context);
   }
 
   // Offline mode: Card xóa toàn bộ dữ liệu và chọn lại chế độ
